@@ -356,6 +356,7 @@ using namespace snex;
 class JavascriptProcessor :	public FileChangeListener,
 							public HiseJavascriptEngine::Breakpoint::Listener,
 							public Dispatchable,
+							public DiagnosticBase::ShadowParseData::DependencyResolver,
 							public ProcessorWithDynamicExternalData,
 							public ApiProviderBase::Holder,
 							public WeakCallbackHolder::CallableObjectManager,
@@ -566,8 +567,10 @@ public:
 	    callback receives diagnostics on the message thread. Used by IDE (F7).
 	    sendNotificationSync: executes directly on the calling thread with a read lock
 	    on lookAndFeelRenderLock, callback invoked inline. Used by REST API. */
-	void shadowParseFile(const String& code, const String& fileName, const DiagnosticCallback& callback,
+	void shadowParse(const DiagnosticBase::ShadowParseData& sd, const DiagnosticCallback& callback,
 						 NotificationType notificationType = sendNotificationAsync);
+
+	virtual DiagnosticBase::ShadowParseData::Item::List resolveDependencies(DiagnosticBase::ShadowParseData::Item::Ptr item) override;
 #endif
 
 	void setupApi();

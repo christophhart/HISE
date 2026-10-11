@@ -92,6 +92,7 @@
 #include "scripting/engine/JavascriptEngineCyclicReferenceChecks.cpp"
 
 #include "scripting/engine/LightweightParserHelpers.cpp"
+#include "scripting/engine/ValidatorEvaluator.cpp"
 
 #if HISE_INCLUDE_BX_LICENSER
 #include "scripting/api/bx/bx_wrapper.cpp"
@@ -125,6 +126,7 @@
 
 
 #include "scripting/api/XmlApi.cpp"
+#include "scripting/api/LafObjects.cpp"
 #include "scripting/engine/DebugHelpers.cpp"
 
 #include "scripting/api/ScriptComponentWrappers.cpp"

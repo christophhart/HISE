@@ -1498,6 +1498,8 @@ private:
 
 		ScopedPointer<BlockStatement> block = parseBlock();
 		
+		block->namespaceId = namespaceId;
+
 		currentNamespace = hiseSpecialData;
 
 		return block.release();
@@ -2354,7 +2356,7 @@ private:
 
 		ns = (ns != nullptr) ? ns : hiseSpecialData;
 
-		return new ConstReference(location, ns, index);
+		return new ConstReference(location, ns, index, constId);
 	}
 
 	Expression* parseConstObjectApiCall(const Identifier& objectName, const Identifier& functionName, JavascriptNamespace* ns=nullptr)
@@ -2458,7 +2460,7 @@ private:
 		if (registerIndex != -1)
 		{
 			auto type = vr.getRegisterVarType(registerIndex);
-			return parseSuffixes(new RegisterName(location, parseIdentifier(), &vr, registerIndex, getRegisterData(registerIndex, ns), type));
+			return parseSuffixes(new RegisterName(location, parseIdentifier(), &vr, registerIndex, getRegisterData(registerIndex, ns), type, ns->id));
 		}
 
 #if 0
@@ -2604,7 +2606,9 @@ private:
                     
                     auto type = rootRegister->getRegisterVarType(registerIndex);
 
-					return parseSuffixes(new RegisterName(location, parseIdentifier(), rootRegister, registerIndex, getRegisterData(registerIndex, regNamespace), type));
+					auto nsId = regNamespace == hiseSpecialData ? Identifier() : regNamespace->id;
+
+					return parseSuffixes(new RegisterName(location, parseIdentifier(), rootRegister, registerIndex, getRegisterData(registerIndex, regNamespace), type, nsId));
 				}
 
 				const int apiClassIndex = hiseSpecialData->apiIds.indexOf(id);
@@ -2999,8 +3003,6 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(con
 			it.match(TokenTypes::openParen);
 			String fileName = it.currentValue.toString();
 			String externalCode = getFileContent(it.currentValue.toString(), fileName);
-			
-            
             
 			preprocessCode(externalCode, fileName);
 
@@ -3033,7 +3035,7 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(con
 		if (it.matchIf(TokenTypes::register_var))
 		{
 #if USE_BACKEND
-			if (hiseSpecialData->diagnosticMode)
+			if (isDiagnosticMode())
 			{
 				try { parseRegisterVar(cns, &it); }
 				catch (Error& e)

@@ -7354,6 +7354,16 @@ juce::ValueTree ApiHelpers::getApiTree()
 	return v;
 }
 
+juce::ValueTree ApiHelpers::getLafObjectTree()
+{
+	static ValueTree v;
+
+	if (!v.isValid())
+		v = ValueTree::readFromData( LafObjects::apivaluetree_dat, LafObjects::apivaluetree_datSize);
+
+	return v;
+}
+
 static ApiHelpers::CallScope parseCallScopeString(const String& s)
 {
 	using CS = ApiHelpers::CallScope;

@@ -408,4 +408,13 @@ String ApiClass::DiagnosticResult::Item::toEditorString() const
 
 #endif
 
+void hise::DiagnosticBase::ShadowParseData::Item::resolveDependencies(DependencyResolver* r)
+{
+	for (auto d : r->resolveDependencies(this))
+	{
+		if (d != this)
+			dependencies.addIfNotAlreadyThere(d);
+	}
+}
+
 } // namespace hise

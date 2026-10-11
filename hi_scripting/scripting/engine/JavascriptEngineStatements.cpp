@@ -896,6 +896,49 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 
 	ResultCode perform(const Scope& s, var* returnedValue) const override
 	{
+#if HISE_SHADOW_PARSER_ENABLED
+
+		if (s.isShadowParsing())
+		{
+			//auto n = new DynamicObject();
+
+			//s.scope->setProperty(namespaceId, n);
+
+			if (namespaceId.isValid())
+			{
+				if (auto sp = s.getShadowParser())
+				{
+					auto strictness = WeakCallbackHolder::CallableObject::StrictnessLevel::AllowInit;
+					auto scopeType = WeakCallbackHolder::CallableObject::CallScope::Init;
+
+					ObjectTypeMap::TypeScope ns(*sp, getBlockCharIndexRange(), strictness, scopeType);
+					s.scope->setProperty(namespaceId, ns.getCurrentScopeObject());
+
+					s.currentShadowParser->currentNamespace = namespaceId;
+
+					for (auto st : statements)
+					{
+						if (ResultCode r = st->perform(s, returnedValue))
+							return r;
+					}
+
+					s.currentShadowParser->currentNamespace = {};
+				}
+			}
+			else
+			{
+				for (auto st : statements)
+				{
+					if (ResultCode r = st->perform(s, returnedValue))
+						return r;
+				}
+			}
+
+			return ResultCode::ok;
+		}
+
+#endif
+
 		if(scopedBlockStatements.isEmpty())
 		{
 			return performWithinScope(s, returnedValue);
@@ -977,6 +1020,14 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 		return nullptr;
 	};
 
+	Range<int> getBlockCharIndexRange() const
+	{
+		auto start = location.getCharIndex();
+		auto end = start + (closeLocation - location.location);
+
+		return Range<int>(start, end);
+	}
+
 	OwnedArray<Statement> statements;
 
 	OwnedArray<ScopedBlockStatement> scopedBlockStatements;
@@ -987,6 +1038,9 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 	String::CharPointerType closeLocation;
 
 	mutable int scopedBlockCounter = 0;
+
+	// set by the shadow parser to avoid using the real namespace data structure
+	Identifier namespaceId;
 };
 
 struct HiseJavascriptEngine::RootObject::IfStatement : public Statement
@@ -1152,10 +1206,16 @@ struct HiseJavascriptEngine::RootObject::ConstVarStatement : public Statement
 
 	ResultCode perform(const Scope& s, var*) const override
 	{
-		ns->constObjects.set(name, initialiser->getResult(s));
+#if HISE_SHADOW_PARSER_ENABLED
+		if (s.isShadowParsing())
+		{
+			s.getShadowParserRootObject(ns->id)->setProperty(name, initialiser->getResult(s));
+			return ok;
+		}
+#endif
 
+		ns->constObjects.set(name, initialiser->getResult(s));
 		return ok;
-		
 	}
 
 	String getProfileName() const override
@@ -1192,6 +1252,16 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 			{
 				var *data = &loop->currentObject;
 				CHECK_CONDITION_WITH_LOCATION(data != nullptr, "data does not exist");
+
+#if HISE_SHADOW_PARSER_ENABLED
+
+				if (s.isShadowParsing())
+				{
+					if (auto lb = dynamic_cast<LightweightDiagnostics*>(data->getObject()))
+						return var();
+				}
+
+#endif
 
 				if (data->isArray())
 				{
@@ -1249,6 +1319,20 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 			CHECK_CONDITION_WITH_LOCATION((currentIterator != nullptr), "Iterator does not exist");
 			currentObject = currentIterator->getResult(s);
 
+#if HISE_SHADOW_PARSER_ENABLED
+
+			if (s.isShadowParsing())
+			{
+				ScopedValueSetter<void*> loopScoper(s.currentLoopStatement, (void*)this);
+
+				// just execute once...
+				auto r = body->perform(s, returnedValue);
+				currentObject = var();
+				return ok;
+			}
+
+#endif
+
 			ScopedValueSetter<void*> loopScoper(s.currentLoopStatement, (void*)this);
 			index = 0;
 
@@ -1268,6 +1352,8 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 			{
 				location.throwError("Cannot iterate over this type. for...in loops support Arrays, Buffers, and Objects.");
 			}
+
+
 				
 			while (index < size)
 			{
@@ -1290,6 +1376,19 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 		else
 		{
 			initialiser->perform(s, nullptr);
+
+#if HISE_SHADOW_PARSER_ENABLED
+
+			if (s.isShadowParsing())
+			{
+				// just execute once...
+				iterator->perform(s, nullptr);
+				auto r = body->perform(s, returnedValue);
+				currentObject = var();
+				return ok;
+			}
+
+#endif
 
 			while (isDoLoop || condition->getResult(s))
 			{

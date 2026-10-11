@@ -291,7 +291,7 @@ public:
 
 						var::NativeFunctionArgs args(thisObject, args_, 2);
 
-						Scope thisScope(&parent, parent.root.get(), scopeObject.get());
+						Scope thisScope(&parent, parent.root.get(), scopeObject.get(), parent.currentShadowParser);
 
 						if (fo)
 							return fo->invokeWithoutAllocation(thisScope, args, scopeObject.get()) < var(0);

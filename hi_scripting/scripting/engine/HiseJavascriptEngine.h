@@ -814,6 +814,8 @@ public:
 
 			Callback(const Identifier &id, int numArgs, double bufferTime_);
 
+			using Strictness = WeakCallbackHolder::CallableObject::StrictnessLevel;
+			
 			var perform(RootObject *root);
 
 			void setStatements(BlockStatement *s) noexcept;
@@ -845,6 +847,8 @@ public:
 			String getDebugValue() const override;
 
 			var createDynamicObjectForBreakpoint();
+
+			var invokeShadowParse(const Scope& s, const var::NativeFunctionArgs& args);
 
 			void doubleClickCallback(const MouseEvent &/*e*/, Component* /*componentToNotify*/) override;
 
@@ -972,6 +976,10 @@ public:
 
             void clear();
             
+			HiseSpecialData* createShadowParseData(DiagnosticBase::ShadowParserBase* shadowParser);
+
+			void shadowParseCallback(DiagnosticBase::ShadowParserBase* shadowParser, const Identifier& callbackId);
+
             Callback *getCallback(const Identifier &id);
             
 			JavascriptNamespace* getNamespace(const Identifier &id);
@@ -1076,264 +1084,12 @@ public:
 
 #if USE_BACKEND
 
-		struct ObjectTypeMap : public ReferenceCountedObject
-		{
-			using Ptr = ReferenceCountedObjectPtr<ObjectTypeMap>;
+		using ApiDiagnostic = DiagnosticBase::DiagnosticResult::Item;
 
-			struct ObjectTypeItem
-			{
-				// the parseable expression that yields the object
-				String expression; 
+		struct ObjectTypeMap;
 
-				// the object Id as defined by API_RETURN_OBJECT_TYPE()
-				Identifier typeInfo; 
+		
 
-				// an ID given as argument to the API call that created the object
-				// this will be passed on to the lightweight diagnostic object
-				// and can be used to resolve the target object in the HISE runtime
-				String argId;
-
-				// the diagnostics object
-				ReferenceCountedObjectPtr<DiagnosticBase> obj;
-
-				operator bool() const { return obj.get() != nullptr; }
-			};
-
-			struct TypeScope
-			{
-				TypeScope(ObjectTypeMap& parent_) : parent(parent_)
-				{
-
-				}
-
-				~TypeScope()
-				{
-					for (const auto& s : scopedExpressions)
-					{
-						parent.removeObjectTypeInTypeMap(s);
-					}
-
-					for (const auto& sc : scopedConstants)
-					{
-						if (sc.value.isUndefined())
-							parent.scopedConstantValues.remove(sc.name);
-						else
-							parent.scopedConstantValues.set(sc.name, sc.value);
-					}
-				}
-
-				void add(const String& expression, const Identifier& typeInfo, const String& argId = {})
-				{
-					scopedExpressions.push_back(expression);
-					parent.setObjectTypeInTypeMap(expression, typeInfo, argId);
-				}
-
-				void setConstantScopedValue(const Identifier& id, const var& newValue)
-				{
-					if (!newValue.isUndefined())
-					{
-						scopedConstants.set(id, parent.scopedConstantValues[id]);
-						parent.scopedConstantValues.set(id, newValue);
-					}
-				}
-
-				bool addReference(const String& originalExpression, const String& newExpression)
-				{
-					if (parent.addReference(originalExpression, newExpression))
-					{
-						scopedExpressions.push_back(newExpression);
-						return true;
-					}
-
-					return false;
-				}
-
-				ObjectTypeMap& parent;
-				std::vector<String> scopedExpressions;
-				
-				NamedValueSet scopedConstants;
-			};
-
-			ObjectTypeMap(ProcessorWithScriptingContent* p) :
-				pwsc(p)
-			{}
-
-			ObjectTypeItem getObjectTypeFromTypeMap(const String& e) const
-			{
-				ScopedLock sl(lock);
-
-				for (const auto& i : items)
-				{
-					if (i.expression == e)
-						return i;
-				}
-
-				return {};
-			}
-
-			bool addReference(const String& original, const String& newExpression)
-			{
-				ScopedLock sl(lock);
-
-				for (auto& i : items)
-				{
-					if (i.expression == original)
-					{
-						auto copy = i;
-						copy.expression = newExpression;
-						items.add(copy);
-						return true;
-					}
-				}
-
-				return false;
-			}
-
-			bool addReference(const String& referenceId, const ObjectTypeItem& type)
-			{
-				ScopedLock sl(lock);
-
-				auto copy = type;
-				copy.expression = referenceId;
-				items.add(copy);
-				return true;
-
-				return false;
-			}
-
-			void setObjectTypeInTypeMap(const String& expression, const Identifier& typeInfo, const String& argId = {})
-			{
-				ScopedLock sl(lock);
-
-				if (expression.isEmpty() || !typeInfo.isValid())
-					return;
-
-				jassert(pwsc != nullptr);
-				auto db = lightweightDiagnostics.createLightweightPrototype(pwsc, typeInfo, argId);
-
-				for (auto& item : items)
-				{
-					if (item.expression == expression)
-					{
-						// must be resolved...
-						jassert(item);
-						item.typeInfo = typeInfo;
-						item.obj = db;
-						item.argId = argId;
-						return;
-					}
-				}
-
-				items.add(ObjectTypeItem{ expression, typeInfo, argId, db });
-
-			}
-
-			bool removeObjectTypeInTypeMap(const String& expression)
-			{
-				ScopedLock sl(lock);
-				int idx = 0;
-
-				for (auto& i : items)
-				{
-					if (i.expression == expression)
-					{
-						items.remove(idx);
-						return true;
-					}
-
-					idx++;
-				}
-
-				return false;
-			}
-
-			void clear()
-			{
-				ScopedLock sl(lock);
-				items.clear();
-			}
-
-			Identifier getReturnTypeFromApiMap(const Identifier& className, const Identifier& methodName) const
-			{
-				return lightweightDiagnostics.getReturnTypeFromApiMap(className, methodName);
-			}
-
-			DiagnosticBase* getApiClassFromMap(const Identifier& apiClassName)
-			{
-				return lightweightDiagnostics.createLightweightPrototype(pwsc, apiClassName, {});
-			}
-
-			DiagnosticBase* createAnonoymousDiagnosticObject(const Identifier& className, const String& argId)
-			{
-				return lightweightDiagnostics.createLightweightPrototype(pwsc, className, argId);
-			}
-
-			var getScopedConstant(const Identifier& id) const 
-			{ 
-				if(id.isValid())
-					return scopedConstantValues[id]; 
-
-				return var();
-			}
-
-			void setScopedConstant(const Identifier& id, const var& newValue)
-			{
-				scopedConstantValues.set(id, newValue);
-			}
-
-		private:
-
-			CriticalSection lock;
-			ProcessorWithScriptingContent* pwsc;
-			LightweightDiagnostics::Factory lightweightDiagnostics;
-			Array<ObjectTypeItem> items;
-			NamedValueSet scopedConstantValues;
-
-			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ObjectTypeMap);
-		};
-
-		ObjectTypeMap::Ptr objectTypeMap;
-
-		using ApiDiagnostic = ApiClass::DiagnosticResult::Item;
-
-		/** RAII snapshot/restore for shadow-parsing a single external .js file
-		    against live HiseSpecialData without corrupting runtime state.
-		    
-		    The constructor snapshots all mutable fields that the parser writes during
-		    parseStatementList(). The destructor restores them. While active, the
-		    diagnosticMode flag is set on HiseSpecialData, which causes the parser to
-		    use soft-fail recovery at semantic error sites instead of throwError().
-		    
-		    Threading: must run inside killVoicesAndCall on the scripting thread. */
-		struct ScopedDiagnosticParse
-		{
-			ScopedDiagnosticParse(HiseSpecialData& data);
-			~ScopedDiagnosticParse();
-
-			bool isDiagnosticMode() const { return true; }
-
-			struct NamespaceSnapshot
-			{
-				JavascriptNamespace* ns;
-				NamedValueSet savedConstObjects;
-				
-				ReferenceCountedArray<DynamicObject> savedInlineFunctions;
-
-				Array<DebugableObject::Location> savedConstLocations;
-			};
-
-			Array<NamespaceSnapshot> nsSnapshots;
-			NamedValueSet savedGlobalProperties;
-			int savedIncludedFilesSize;
-
-		private:
-
-			HiseSpecialData& hsd;
-			void snapshotNamespace(JavascriptNamespace* ns);
-			void restoreNamespace(NamespaceSnapshot& snap);
-
-			JUCE_DECLARE_NON_COPYABLE(ScopedDiagnosticParse);
-		};
 #endif
 
 		void setUseCycleReferenceCheckForNextCompilation()
@@ -1398,7 +1154,7 @@ public:
 
 	/** Shadow-parse code in diagnostic mode without executing.
 	    Returns collected diagnostics (API errors, arg mismatches, etc.). */
-	Array<RootObject::ApiDiagnostic> shadowParse(const String& code, const String& fileName);
+	Array<RootObject::ApiDiagnostic> shadowParse(const DiagnosticBase::ShadowParseData& cd);
 #endif
 
 private:
@@ -1422,6 +1178,8 @@ private:
 };
 
 using ScriptGuard = HiseJavascriptEngine::RootObject::ScriptAudioThreadGuard;
+
+
 
 } // namespace hise
 #endif  // HISEJAVASCRIPTENGINE_H_INCLUDED

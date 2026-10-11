@@ -1625,9 +1625,12 @@ void JavascriptProcessor::compileScript(const ResultFunction& rf /*= ResultFunct
 }
 
 #if USE_BACKEND
-void JavascriptProcessor::shadowParseFile(const String& code, const String& fileName, const DiagnosticCallback& callback,
+void JavascriptProcessor::shadowParse(const DiagnosticBase::ShadowParseData& cd, const DiagnosticCallback& callback,
 										   NotificationType notificationType)
 {
+	for (auto item : cd.items)
+		item->resolveDependencies(this);
+
 	if (notificationType == sendNotificationSync)
 	{
 		// HTTP-direct path: run on the calling thread with a read lock to
@@ -1635,7 +1638,7 @@ void JavascriptProcessor::shadowParseFile(const String& code, const String& file
 		SimpleReadWriteLock::ScopedReadLock sl(
 			mainController->getJavascriptThreadPool().getLookAndFeelRenderLock());
 
-		auto diagnostics = scriptEngine->shadowParse(code, fileName);
+		auto diagnostics = scriptEngine->shadowParse(cd);
 		callback(diagnostics);
 		return;
 	}
@@ -1644,10 +1647,10 @@ void JavascriptProcessor::shadowParseFile(const String& code, const String& file
 	lastResult = Result::ok();
 
 	// Async path (IDE F7): defer to scripting thread, callback on message thread.
-	auto f = [code, fileName, callback](Processor* p)
+	auto f = [cd, callback](Processor* p)
 	{
 		auto jp = dynamic_cast<JavascriptProcessor*>(p);
-		auto diagnostics = jp->scriptEngine->shadowParse(code, fileName);
+		auto diagnostics = jp->scriptEngine->shadowParse(cd);
 
 		auto postParse = [diagnostics, callback](Dispatchable* obj)
 		{
@@ -1663,6 +1666,197 @@ void JavascriptProcessor::shadowParseFile(const String& code, const String& file
 	mainController->getKillStateHandler().killVoicesAndCall(
 		dynamic_cast<Processor*>(this), f,
 		MainController::KillStateHandler::TargetThread::ScriptingThread);
+}
+
+struct IncludeParser
+{
+	IncludeParser(const CodeDocument& onInit, const File& scriptDir_):
+		includeTree("onInit"),
+		scriptDir(scriptDir_)
+	{
+		String mos;
+		mos.preallocateBytes(onInit.getNumCharacters());
+
+		int lastStart = 0;
+
+		for (int i = 0; i < onInit.getNumLines(); i++)
+		{
+			auto l = onInit.getLine(i);
+
+			if (l.trim().startsWith("include("))
+			{
+				mos << "\n";
+				includeTree.addChild(createCodeTree(i, mos), -1, nullptr);
+				includeTree.addChild(createInclude(l, i), -1, nullptr);
+				lastStart = i + 1;
+				mos = {};
+			}
+			else
+				mos << l << "\n";
+		}
+
+		includeTree.addChild(createCodeTree(onInit.getNumLines(), mos), -1, nullptr);
+
+		for (auto c : includeTree)
+			parseExternalFile(c);
+	}
+
+	ValueTree createCodeTree(int i, const String& mos)
+	{
+		ValueTree c("Code");
+		c.setProperty("LineStart", lastStart, nullptr);
+		c.setProperty("LineEnd", i - 1, nullptr);
+		c.setProperty("Code", mos, nullptr);
+		c.setProperty("NumBytes", mos.end() - mos.begin(), nullptr);
+		lastStart = i + 1;
+		return c;
+	}
+
+	String getIncludeTree() const
+	{
+		return includeTree.createXml()->createDocument("");
+	}
+
+	ValueTree createInclude(const String& l, int i)
+	{
+		auto path = l.fromFirstOccurrenceOf("include(", false, false)
+			.upToFirstOccurrenceOf(";", false, false)
+			.trim()
+			.removeCharacters("()")
+			.trim()
+			.unquoted()
+			.replaceCharacter('\\', '/');
+
+		ValueTree includedFile("ExternalFile");
+		includedFile.setProperty("FilePath", path, nullptr);
+		includedFile.setProperty("LineNumber", i, nullptr);
+		return includedFile;
+	}
+
+	String createCodeUpToInclude(const File& includedFile)
+	{
+		String s; 
+		size_t numBytes = 0;
+
+		auto rp = includedFile.getRelativePathFrom(scriptDir).replaceCharacter('\\', '/');
+
+		valuetree::Helpers::forEach(includeTree, [&](const ValueTree& v)
+		{
+			if (v.getType() == Identifier("Code"))
+				numBytes += (int)v["NumBytes"];
+			
+			if (v.getType() == Identifier("ExternalFile"))
+			{
+				if (v["FilePath"].toString() == rp)
+					return true;
+			}
+
+			return false;
+		});
+		
+		s.preallocateBytes(numBytes);
+
+		valuetree::Helpers::forEach(includeTree, [&](const ValueTree& v)
+		{
+			if (v.getType() == Identifier("Code"))
+				s << v["Code"].toString();
+
+			if (v.getType() == Identifier("ExternalFile"))
+			{
+				if (v["FilePath"].toString() == rp)
+					return true;
+			}
+
+			return false;
+		});
+
+		return s;
+	}
+
+	void parseExternalFile(ValueTree& v)
+	{
+		if (v.getType() == Identifier("Code"))
+			return;
+
+		File tf(scriptDir.getChildFile(v["FilePath"].toString()));
+
+		if (tf.existsAsFile())
+		{
+			lastStart = 0;
+			
+			String mos;
+			mos.preallocateBytes(tf.getSize());
+
+			auto lines = StringArray::fromLines(tf.loadFileAsString());
+
+			for (int i = 0; i < lines.size(); i++)
+			{
+				auto l = lines[i];
+
+				if (l.trim().startsWith("include("))
+				{
+					v.addChild(createCodeTree(i, mos), -1, nullptr);
+					v.addChild(createInclude(l, i), -1, nullptr);
+					lastStart = i + 1;
+					mos = {};
+				}
+				else
+					mos << l << "\n";
+			}
+
+			v.addChild(createCodeTree(lines.size(), mos), -1, nullptr);
+
+			for (auto c : v)
+				parseExternalFile(c);
+		}
+		else
+			throw String(tf.getFullPathName() + " does not exist");
+
+	}
+
+private:
+
+	int lastStart = 0;
+
+	juce::ValueTree includeTree;
+	File scriptDir;
+};
+
+DiagnosticBase::ShadowParseData::Item::List JavascriptProcessor::resolveDependencies(DiagnosticBase::ShadowParseData::Item::Ptr item)
+{
+	using Item = DiagnosticBase::ShadowParseData::Item;
+
+	Item::List returnList;
+
+	if (item->t == Item::Type::ExternalFile)
+	{
+		auto scriptDir = dynamic_cast<Processor*>(this)->getMainController()->getSampleManager().getProjectHandler().getSubDirectory(ProjectHandler::SubDirectories::Scripts);
+
+		ValueTree onInit("onInit");
+
+		auto doc = getSnippet("onInit");
+
+		IncludeParser ip(*doc, scriptDir);
+		
+		DBG(ip.getIncludeTree());
+
+		auto code = ip.createCodeUpToInclude(File(item->getFileName()));
+
+		returnList.add(new Item(Item::Type::onInit, "", code));
+	}
+
+	if (item->t == Item::Type::onInit)
+		return returnList;
+
+	if (item->t == Item::Type::StandaloneCode)
+		return returnList;
+
+	if (item->t == Item::Type::Callback)
+	{
+		returnList.add(new Item(Item::Type::onInit, "", getSnippet("onInit")->getAllContent()));
+	}
+
+	return returnList;
 }
 #endif
 

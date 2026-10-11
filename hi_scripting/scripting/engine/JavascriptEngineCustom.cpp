@@ -1,11 +1,66 @@
 namespace hise { using namespace juce;
 
+
+
+std::pair<var, DiagnosticBase::DiagnosticResult> HiseJavascriptEngine::RootObject::FunctionObject::invokeShadowParse(const Scope& s, const var::NativeFunctionArgs& args, Strictness lv) const
+{
+	std::pair<var, DiagnosticBase::DiagnosticResult> rv;
+
+	if (auto sp = s.getShadowParser())
+	{
+		Range<int> r;
+
+		if (auto bl = dynamic_cast<BlockStatement*>(body.get()))
+			r = bl->getBlockCharIndexRange();
+
+		auto scopeType = WeakCallbackHolder::CallableObject::CallScope::Unsafe;
+
+		ObjectTypeMap::TypeScope ts(*sp, r, lv, scopeType);
+
+		rv.second = ts.getCallscopeReport();
+
+		if (ts.getCallscopeReport().shouldReport())
+		{
+			body->logDiagnostics(s, ts.getCallscopeReport());
+		}
+		
+		auto obj = ts.getCurrentScopeObject();
+
+		if (args.thisObject.isObject())
+			obj->setProperty("this", args.thisObject);
+
+		Array<var> thisArgs;
+
+		for (int i = 0; i < parameters.size(); i++)
+		{
+			auto id = parameters[i];
+
+			if (isPositiveAndBelow(i, args.numArguments))
+				obj->setProperty(id, args.arguments[i]);
+		}
+
+		body.get()->perform(*ts.getCurrentScope(), &rv.first);
+	}
+
+	return rv;
+}
+
 struct HiseJavascriptEngine::RootObject::RegisterVarStatement : public Statement
 {
 	RegisterVarStatement(const CodeLocation& l) noexcept : Statement(l) {}
 
 	ResultCode perform(const Scope& s, var*) const override
 	{
+#if HISE_SHADOW_PARSER_ENABLED
+
+		if (s.isShadowParsing())
+		{
+			s.getShadowParserRootObject()->setProperty(name, initialiser->getResult(s));
+			return ok;
+		}
+
+#endif
+
         try
         {
             varRegister->addRegister(name, initialiser->getResult(s));
@@ -29,7 +84,7 @@ struct HiseJavascriptEngine::RootObject::RegisterVarStatement : public Statement
 
 struct HiseJavascriptEngine::RootObject::RegisterName : public Expression
 {
-	RegisterName(const CodeLocation& l, const Identifier& n, VarRegister* rootRegister_, int indexInRegister_, var* data_, VarTypeChecker::VarTypes type_) noexcept :
+	RegisterName(const CodeLocation& l, const Identifier& n, VarRegister* rootRegister_, int indexInRegister_, var* data_, VarTypeChecker::VarTypes type_, const Identifier& nsId) noexcept :
 	  Expression(l), 
 	  rootRegister(rootRegister_),
 	  indexInRegister(indexInRegister_),
@@ -37,17 +92,32 @@ struct HiseJavascriptEngine::RootObject::RegisterName : public Expression
 #if ENABLE_SCRIPTING_SAFE_CHECKS
       type(type_),
 #endif
-	  data(data_)
-      
+	  data(data_),
+	  namespaceId(nsId)
     {}
 
-	var getResult(const Scope& /*s*/) const override
+	var getResult(const Scope& s) const override
 	{
+#if HISE_SHADOW_PARSER_ENABLED
+
+		if (s.isShadowParsing())
+			return s.getShadowParserRootObject(namespaceId)->getProperty(name);
+
+#endif
+
 		return *data;
 	}
 
-	void assign(const Scope& /*s*/, const var& newValue) const override
+	void assign(const Scope& s, const var& newValue) const override
 	{
+#if HISE_SHADOW_PARSER_ENABLED
+		if (s.isShadowParsing())
+		{
+			s.getShadowParserRootObject(namespaceId)->setProperty(name, newValue);
+			return;
+		}
+#endif
+
 #if ENABLE_SCRIPTING_SAFE_CHECKS
         if(type)
         {
@@ -76,6 +146,7 @@ struct HiseJavascriptEngine::RootObject::RegisterName : public Expression
 
 	var* data;
 
+	Identifier namespaceId;
 	Identifier name;
 };
 
@@ -189,6 +260,27 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 
 	var getResult(const Scope& s) const override
 	{
+#if HISE_SHADOW_PARSER_ENABLED
+		
+		if (auto sp = s.getShadowParser())
+		{
+			Array<var> thisArgs;
+
+			for (int i = 0; i < expectedNumArguments; i++)
+				thisArgs.add(argumentList[i]->getResult(s));
+
+			if (auto ptr = sp->getApiClassFromMap(apiClass->getObjectName()))
+			{
+				logDiagnostics(s, ptr->runTests(sp, functionName, thisArgs));
+				return ptr->getReturnType(functionName, thisArgs);
+			}
+
+			jassertfalse;
+			return var();
+		}
+
+#endif
+
 #if JUCE_ENABLE_AUDIO_GUARD
         const bool allowIllegalCalls = apiClass->allowIllegalCallsOnAudioThread(functionIndex);
 		AudioThreadGuard::Suspender suspender(allowIllegalCalls);
@@ -217,20 +309,12 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 				}
 			}
 #endif
-
 			return apiClass->callFunction(functionIndex, results, expectedNumArguments);
 		}
 		catch (String& error)
 		{
 			throw Error::fromLocation(location, error);
 		}
-	}
-
-	Identifier getObjectTypeInformation(RootObject* ro) const override
-	{
-		const auto c = apiClass->getObjectName();
-		auto m = Identifier(functionName);
-		return ro->objectTypeMap->getReturnTypeFromApiMap(c, m);
 	}
 
 	Statement* getChildStatement(int index) override 
@@ -679,6 +763,42 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			return var(object);
 		}
 
+		using Strictness = WeakCallbackHolder::CallableObject::StrictnessLevel;
+
+		std::pair<var, DiagnosticBase::DiagnosticResult> invokeShadowParse(const Scope& s, const var::NativeFunctionArgs& args, StrictnessLevel lv)
+		{
+			std::pair<var, DiagnosticBase::DiagnosticResult> rv;
+
+			if (auto st = s.getShadowParser())
+			{
+				auto scopeType = WeakCallbackHolder::CallableObject::CallScope::Safe;
+
+				ObjectTypeMap::TypeScope ts(*st, body->getBlockCharIndexRange(), lv, scopeType);
+
+				rv.second = ts.getCallscopeReport();
+
+				auto obj = ts.getCurrentScopeObject();
+
+				if (args.thisObject.isObject())
+					obj->setProperty("this", args.thisObject);
+
+				Array<var> thisArgs;
+
+				for (int i = 0; i < args.numArguments; i++)
+				{
+					auto id = parameterNames[i].id;
+
+					if (isPositiveAndBelow(i, args.numArguments))
+						obj->setProperty(id, args.arguments[i]);
+				}
+
+				body.get()->perform(*ts.getCurrentScope(), &rv.first);
+				
+			}
+
+			return rv;
+		}
+
 		var performDynamically(const Scope& s, const var* args, int numArgs)
 		{
             LocalScopeCreator::ScopedSetter sls(s.root, this);
@@ -832,8 +952,33 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			return referenceToObject->name.toString() + "()";
 		}
 
+		
+
 		var getResult(const Scope& s) const override
 		{
+#if HISE_SHADOW_PARSER_ENABLED
+			if (s.isShadowParsing())
+			{
+				Array<var> args;
+
+				for (int i = 0; i < numArgs; i++)
+				{
+					args.add(parameterExpressions[i]->getResult(s));
+				}
+
+				auto lv = WeakCallbackHolder::CallableObject::StrictnessLevel::Unset;
+				
+				ObjectTypeMap::ScopedCallStack sc(s.currentShadowParser, this);
+
+				auto rv = f->invokeShadowParse(s, var::NativeFunctionArgs(var(), args.getRawDataPointer(), args.size()), lv);
+
+				if (rv.second.shouldReport())
+					logDiagnostics(s, rv.second);
+
+				return rv.first;
+			}
+#endif
+
 			f->setFunctionCall(this);
 
             LocalScopeCreator::ScopedSetter svs(s.root, f);
@@ -948,8 +1093,16 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			return f->parameterNames[index];
 		}
 
-		var getResult(const Scope&) const override 
+		var getResult(const Scope& s) const override 
 		{
+#if HISE_SHADOW_PARSER_ENABLED
+			if (s.isShadowParsing())
+			{
+				auto id = f->parameterNames[index];
+				return s.scope->getProperty(id);
+			}
+#endif
+
 			if (f->e.get() != nullptr)
 			{
 				return  (f->e.get()->parameterResults[index]);
@@ -1016,6 +1169,14 @@ struct HiseJavascriptEngine::RootObject::LocalVarStatement : public Expression
 
 	ResultCode perform(const Scope& s, var*) const override
 	{
+#if HISE_SHADOW_PARSER_ENABLED
+		if (s.isShadowParsing())
+		{
+			s.scope->setProperty(name, initialiser->getResult(s));
+			return ok;
+		}
+#endif
+
 		parentFunction->localProperties->set(name, initialiser->getResult(s));
 		return ok;
 	}
@@ -1038,8 +1199,15 @@ struct HiseJavascriptEngine::RootObject::LocalReference : public Expression
 {
 	LocalReference(const CodeLocation& l, InlineFunction::Object *parentFunction_, const Identifier &id_) noexcept : Expression(l), parentFunction(parentFunction_), id(id_) {}
 
-	var getResult(const Scope& /*s*/) const override
+	var getResult(const Scope& s) const override
 	{
+#if HISE_SHADOW_PARSER_ENABLED
+		if (s.isShadowParsing())
+		{
+			return s.scope->getProperty(id);
+		}
+#endif
+
 		return (parentFunction->localProperties.get())[id];
 	}
 
@@ -1526,8 +1694,6 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::registerOptimisationPass
 	bool shouldOptimize = false;
 
 #if USE_BACKEND
-
-	this->root->objectTypeMap = new ObjectTypeMap(dynamic_cast<ProcessorWithScriptingContent*>(processor));
 
 	auto enable = GET_HISE_SETTING(processor->mainController->getMainSynthChain(), HiseSettings::Scripting::EnableOptimizations).toString();
 	

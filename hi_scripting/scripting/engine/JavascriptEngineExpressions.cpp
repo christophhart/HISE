@@ -9,21 +9,7 @@ struct HiseJavascriptEngine::RootObject::LiteralValue : public Expression
 
 	String getProfileName() const override { return value.toString(); }
 
-	bool hasSideEffects() const override { return false; }
-
 	Statement* getChildStatement(int) override { return nullptr; };
-
-	Identifier getObjectTypeInformation(RootObject*) const override
-	{
-		if (value.isString())
-			return "String";
-		if (value.isArray())
-			return "Array";
-		if (value.isBuffer())
-			return "Buffer";
-		
-		return {};
-	}
 
 	var value;
 };
@@ -61,19 +47,9 @@ struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 		return v;
 	}
 
-	bool hasSideEffects() const override { return false; }
-
 	String getProfileName() const override { return name.toString(); }
 
 	Identifier getVariableName() const override { return name; }
-
-	Identifier getObjectTypeInformation(RootObject* ro) const override
-	{
-		if (auto obj = ro->objectTypeMap->getObjectTypeFromTypeMap(name.toString()))
-			return obj.typeInfo;
-
-		return Expression::getObjectTypeInformation(ro);
-	}
 
 	Statement* getChildStatement(int) override { return nullptr; };
 
@@ -89,23 +65,25 @@ struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 		}
 
 		if (v == nullptr)
-			v = getPropertyPointer(currentScope->root.get(), name);
+		{
+			if (s.isShadowParsing())
+			{
+				s.getRootScope()->scope->setProperty(name, newValue);
+				return;
+			}
+		}
+		
+		v = getPropertyPointer(currentScope->root.get(), name);
 
 		if (v != nullptr)
 			*v = newValue;
 		else
 		{
 			if (allowUnqualifiedDefinition)
-			{
 				currentScope->root->setProperty(name, newValue);
-			}
 			else
-			{
 				location.throwError("Unqualified assignments are not supported anymore. Use `var` or `const var` or `reg` for definitions");
-			}
-
 		}
-			
 	}
 
 	bool allowUnqualifiedDefinition = false;
@@ -118,17 +96,28 @@ struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 
 struct HiseJavascriptEngine::RootObject::ConstReference : public Expression
 {
-	ConstReference(const CodeLocation& l, JavascriptNamespace* ns_, int index_ ) noexcept : Expression(l), ns(ns_), index(index_) {}
+	ConstReference(const CodeLocation& l, JavascriptNamespace* ns_, int index_, const Identifier& id) noexcept:
+		Expression(l), 
+		ns(ns_), 
+		index(index_),
+		variableId(id)
+	{}
 
-	var getResult(const Scope& /*s*/) const override
+	var getResult(const Scope& s) const override
 	{
+#if HISE_SHADOW_PARSER_ENABLED
+		if (s.isShadowParsing())
+		{
+			if (ns != nullptr)
+				return s.getShadowParserRootObject(ns->id)->getProperty(getVariableName());
+		}
+#endif
+
 		if(ns != nullptr)
 			return ns->constObjects.getValueAt(index);
 
 		return var();
 	}
-
-	bool hasSideEffects() const override { return false; }
 
 	bool isConstant() const override
 	{
@@ -144,12 +133,13 @@ struct HiseJavascriptEngine::RootObject::ConstReference : public Expression
 		location.throwError("Cannot assign to a const variable.");
 	}
 
-	Identifier getVariableName() const override { return ns->constObjects.getName(index); }
+	Identifier getVariableName() const override { return variableId; }
 
 	Statement* getChildStatement(int) override { return nullptr; };
 
 	WeakReference<JavascriptNamespace> ns;
 	int index;
+	Identifier variableId;
 };
 
 
@@ -158,8 +148,6 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 {
 	ArraySubscript(const CodeLocation& l) noexcept : Expression(l) {}
 
-	bool hasSideEffects() const override { return false; }
-    
 	var getResult(const Scope& s) const override
 	{
 		var result = object->getResult(s);
@@ -183,7 +171,7 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
             
             if(cachedId.isNull() || !hasConstIndex)
             {
-                WARN_IF_AUDIO_THREAD(true, ScriptAudioThreadGuard::DynamicObjectAccess);
+				WARN_IF_AUDIO_THREAD(true, AudioGuardHelpers::DynamicObjectAccess);
                 
                 const String name = index->getResult(s).toString();
                 auto idToUse = Identifier(name);
@@ -219,7 +207,7 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 		{
 			const int i = index->getResult(s);
 
-			WARN_IF_AUDIO_THREAD(i >= ar->getNumAllocated(), ScriptAudioThreadGuard::ArrayResizing);
+			EMIT_SHADOW_PARSER_WARNING(i >= ar->getNumAllocated(), AudioGuardHelpers::ArrayResizing);
 
 			while (ar->size() < i)
 				ar->add(var::undefined());
@@ -263,14 +251,6 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 		return Identifier(getProfileName());
 	}
 
-	Identifier getObjectTypeInformation(RootObject* ro) const override
-	{
-		if (auto t = ro->objectTypeMap->getObjectTypeFromTypeMap(getProfileName()))
-			return t.typeInfo;
-
-		return Expression::getObjectTypeInformation(ro);
-	}
-
 	String getProfileName() const override { return object->getProfileName() + "[" + index->getProfileName() + "]"; }
 
 	Statement* getChildStatement(int idx) override 
@@ -311,6 +291,21 @@ struct HiseJavascriptEngine::RootObject::DotOperator : public Expression
 	var getResult(const Scope& s) const override
 	{
 		var p(parent->getResult(s));
+
+#if HISE_SHADOW_PARSER_ENABLED
+		if (s.isShadowParsing())
+		{
+			if (auto ptr = dynamic_cast<LightweightDiagnostics*>(p.getObject()))
+			{
+				logDiagnostics(s, ptr->checkProperty(child));
+				return ptr->getConstantValue(child);
+			}
+			else if (auto obj = p.getDynamicObject())
+			{
+				return obj->getProperty(child);
+			}
+		}
+#endif
 
 		if (child == DotIds::length)
 		{
@@ -359,7 +354,7 @@ struct HiseJavascriptEngine::RootObject::DotOperator : public Expression
         
 		if (DynamicObject* o = v.getDynamicObject())
 		{
-			WARN_IF_AUDIO_THREAD(!o->hasProperty(child), ScriptAudioThreadGuard::ObjectResizing);
+			EMIT_SHADOW_PARSER_WARNING(!o->hasProperty(child), AudioGuardHelpers::ObjectResizing);
 
 			o->setProperty(child, newValue);
 		}
@@ -410,8 +405,6 @@ struct HiseJavascriptEngine::RootObject::DotOperator : public Expression
 
 		return false;
 	}
-
-	bool hasSideEffects() const override { return false; }
 
 	Statement* getChildStatement(int index) override { return index == 0 ? parent.get() : nullptr; };
 	
@@ -522,28 +515,6 @@ struct HiseJavascriptEngine::RootObject::FunctionCall : public Expression
 			   swapIfArrayElement(newChild, childToReplace, arguments);
 	}
 
-	Identifier getObjectTypeInformation(RootObject* ro) const override
-	{
-		// manually check Content method because it's not a ApiClass, argh!
-		if (auto dot = dynamic_cast<DotOperator*>(object.get()))
-		{
-			if (auto uc = dynamic_cast<UnqualifiedName*>(dot->parent.get()))
-			{
-				if (uc->name.toString() == "Content")
-				{
-					auto cApi = ro->objectTypeMap->getApiClassFromMap(uc->name);
-					return cApi->getReturnType(dot->child);
-				}
-				if (uc->name.toString() == "Buffer")
-				{
-					return "Buffer";
-				}
-			}
-		}
-
-		return Expression::getObjectTypeInformation(ro);
-	}
-
 	ExpPtr object;
 	OwnedArray<Expression> arguments;
 
@@ -590,7 +561,7 @@ struct HiseJavascriptEngine::RootObject::ObjectDeclaration : public Expression
 
 	var getResult(const Scope& s) const override
 	{
-		WARN_IF_AUDIO_THREAD(true, ScriptAudioThreadGuard::ObjectCreation);
+		EMIT_SHADOW_PARSER_WARNING(true, AudioGuardHelpers::ObjectCreation);
 
 		DynamicObject::Ptr newObject(new DynamicObject());
 
@@ -628,13 +599,15 @@ struct HiseJavascriptEngine::RootObject::ObjectDeclaration : public Expression
 	OwnedArray<Expression> initialisers;
 };
 
+
+
 struct HiseJavascriptEngine::RootObject::ArrayDeclaration : public Expression
 {
 	ArrayDeclaration(const CodeLocation& l) noexcept : Expression(l) {}
 
 	var getResult(const Scope& s) const override
 	{
-		WARN_IF_AUDIO_THREAD(!values.isEmpty(), ScriptAudioThreadGuard::ArrayCreation);
+		EMIT_SHADOW_PARSER_WARNING(!values.isEmpty(), AudioGuardHelpers::ArrayCreation);
 
 		Array<var> a;
 
@@ -652,7 +625,7 @@ struct HiseJavascriptEngine::RootObject::ArrayDeclaration : public Expression
 		return nullptr;
 	};
     
-    bool isConstant() const override
+	bool isConstant() const override
     {
         auto c = true;
         
@@ -661,8 +634,6 @@ struct HiseJavascriptEngine::RootObject::ArrayDeclaration : public Expression
         
         return c;
     }
-
-	Identifier getObjectTypeInformation(RootObject* ro) const override { return "Array"; }
 
 	bool replaceChildStatement(Ptr& s, Statement* newData) override
 	{
@@ -730,6 +701,10 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 				capturedLocalValues.set(nv.name, nv.value);
 		}
 	}
+
+	using Strictness = WeakCallbackHolder::CallableObject::StrictnessLevel;
+
+	std::pair<var, DiagnosticBase::DiagnosticResult> invokeShadowParse(const Scope& s, const var::NativeFunctionArgs& args, Strictness lv) const;
 
 	var invoke(const Scope& s, const var::NativeFunctionArgs& args) const
 	{

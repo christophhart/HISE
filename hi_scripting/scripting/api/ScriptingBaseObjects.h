@@ -265,7 +265,6 @@ struct WeakCallbackHolder : private ScriptingObject
 
         virtual bool isRealtimeSafe() const = 0;
 
-
 		enum class CallScope : uint8
 		{
 			Unknown = 0,   // no enrichment data
@@ -276,7 +275,14 @@ struct WeakCallbackHolder : private ScriptingObject
 		};
 
 
-		enum class StrictnessLevel { Unset, Unsafe, Warn, Strict };
+		enum class StrictnessLevel 
+		{ 
+			Unset,		// fail at init-only calls (all scopes with init are created with AllowInit)
+			AllowInit,  // allow unsafe calls and calls with CallScope==Init
+			Unsafe,		// fail at init-only calls, allow unsafe calls
+			Warn,		// fail at init-only calls, warn unsafe calls
+			Strict		// fail at init-only calls, fail at unsafe calls
+		};
 
 #if USE_BACKEND
 		/** Returned by getRealtimeSafetyReport(). The call site (which has access

@@ -1493,8 +1493,10 @@ private:
 		TransportHandler(ProcessorWithScriptingContent* sp);;
 		~TransportHandler();
 
-		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("TransportHandler"); }
 		static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("TransportHandler"); };
+		Identifier getObjectName() const override { return getClassName(); }
+		
+		struct Diagnostics;
 
 		struct Callback: public PooledUIUpdater::Broadcaster
 		{
@@ -1665,7 +1667,8 @@ private:
 			globalServer.removeListener(this);
 		}
 		
-		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Server"); }
+		static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("Server"); }
+		Identifier getObjectName() const override { return getClassName(); }
 
 		/** Sets the base URL for all server queries. */
 		void setBaseURL(String url);

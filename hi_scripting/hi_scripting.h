@@ -126,6 +126,22 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #define HISE_USE_SCRIPT_RECTANGLE_OBJECT 0
 #endif
 
+/** Config: HISE_SHADOW_PARSER_ENABLED
+
+If true, it enables a second script evaluation engine that just runs type checks & validations. 
+*/
+#ifndef HISE_SHADOW_PARSER_ENABLED
+#define HISE_SHADOW_PARSER_ENABLED USE_BACKEND
+#endif
+
+#if HISE_SHADOW_PARSER_ENABLED
+// use the better multi error diagnostic system
+#define EMIT_SHADOW_PARSER_WARNING(condition, op) if (s.isShadowParsing() && condition) logDiagnostics(s, createAudioGuardWarning(s, op));
+#else
+// fallback to the default audio thread guard
+#define EMIT_SHADOW_PARSER_WARNING(condition, op) WARN_IF_AUDIO_THREAD(condition, op)
+#endif
+
 #define MAX_SCRIPT_HEIGHT 700
 
 #include "AppConfig.h"
@@ -162,9 +178,11 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/scriptnode/ui/ScriptNodeFloatingTiles.h"
 
 #include "scripting/engine/HiseJavascriptEngine.h"
+#include "scripting/engine/ApiValidator.h"
 #include "scripting/api/ScriptExpansion.h"
 
 #include "scripting/api/XmlApi.h"
+#include "scripting/api/LafObjects.h"
 #include "scripting/api/ScriptingApiObjects.h"
 #include "scripting/api/ScriptTableListModel.h"
 #include "scripting/api/ScriptingGraphics.h"

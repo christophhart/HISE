@@ -304,8 +304,12 @@ private:
 
 class ApiClass;
 
+
+
 struct DiagnosticBase: public ReferenceCountedObject
 {
+    using Ptr = ReferenceCountedObjectPtr<DiagnosticBase>;
+
     typedef var(*call0)(ApiClass*);
     typedef var(*call1)(ApiClass*, var);
     typedef var(*call2)(ApiClass*, var, var);
@@ -313,6 +317,95 @@ struct DiagnosticBase: public ReferenceCountedObject
     typedef var(*call4)(ApiClass*, var, var, var, var);
     typedef var(*call5)(ApiClass*, var, var, var, var, var);
     
+    struct ShadowParseData
+    {
+        struct DependencyResolver;
+
+        struct Item: public ReferenceCountedObject
+        {
+            enum class Type
+            {
+                onInit,
+                StandaloneCode,
+                ExternalFile,
+                Callback
+            };
+
+            enum class CallbackFormat
+            {
+                PureId,
+                IncludeParenthesis,
+                ForceEmpty
+            };
+
+            using Ptr = ReferenceCountedObjectPtr<Item>;
+            using List = ReferenceCountedArray<Item>;
+
+
+
+            Item(Type t_, const String& fileName_, const String& code_) :
+                t(t_),
+                fileOrCallbackName(fileName_),
+                code(code_)
+            {}
+
+            void resolveDependencies(DependencyResolver* r);
+
+            String getFileName(CallbackFormat f=CallbackFormat::IncludeParenthesis) const 
+            { 
+                if (t == Type::ExternalFile)
+                    return fileOrCallbackName;
+
+                if (t == Type::Callback)
+                {
+                    switch (f)
+                    {
+                    case CallbackFormat::ForceEmpty: return "";
+                    case CallbackFormat::PureId: return fileOrCallbackName;
+                    case CallbackFormat::IncludeParenthesis: return fileOrCallbackName + "()";
+                    default: jassertfalse; return "";
+
+                    }
+                }
+
+                return "";
+            }
+
+            const Type t;
+            
+            const String code;
+
+            Item* const* begin() const { return dependencies.begin(); }
+            Item* const* end() const { return dependencies.end(); }
+
+            void setBreakPosition(int pos)
+            {
+                stopAtLineNumber = pos;
+            }
+
+            int getBreakPosition() const { return stopAtLineNumber; }
+
+        private:
+
+            const String fileOrCallbackName;
+            int stopAtLineNumber = -1;
+
+            List dependencies;
+        };
+
+        struct DependencyResolver
+        {
+            DependencyResolver() = default;
+
+            virtual ~DependencyResolver() {}
+            virtual Item::List resolveDependencies(Item::Ptr item) = 0;
+
+            JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DependencyResolver);
+        };
+
+        Item::List items;
+    };
+
 #if USE_BACKEND
     struct DiagnosticResult
     {
@@ -374,6 +467,15 @@ struct DiagnosticBase: public ReferenceCountedObject
             }
         }
 
+        struct CallStackItem
+        {
+            int line = 0;
+            int col = 0;
+            int charIndex = 0;
+            String fileName;
+            String methodName;
+        };
+
         /** A small helper POD that carries over the data from a diagnostic event. */
         struct Item
         {
@@ -384,6 +486,8 @@ struct DiagnosticBase: public ReferenceCountedObject
             String message;
             StringArray suggestions;
             Severity severity = Severity::Error;
+
+            std::vector<CallStackItem> callstack;
 
             DiagnosticResult::Classification classification;
 
@@ -415,20 +519,32 @@ struct DiagnosticBase: public ReferenceCountedObject
 
         bool shouldReport() const { return severity > Severity::Unknown; }
 
-        DiagnosticResult withSuggestion(const String& s) const { auto copy = *this; copy.suggestions.add(s); return copy; }
+        DiagnosticResult withMessage(const String& msg) { auto copy = *this; copy.message = msg; return copy; }
+
+        DiagnosticResult withSuggestion(const String& s, bool clearOthers=false) const { auto copy = *this; if (clearOthers) copy.suggestions.clear(); copy.suggestions.add(s); return copy; }
 
         DiagnosticResult withFuzzySuggestion(const StringArray& availableTokens) const
         {
             auto copy = *this;
             jassert(wrongToken.isNotEmpty());
-            copy.suggestions.add(FuzzySearcher::suggestCorrection(wrongToken, availableTokens, 0.6));
+
+            auto sug = FuzzySearcher::suggestCorrection(wrongToken, availableTokens, 0.6);
+
+            if (sug.isEmpty() && availableTokens.size() < 5)
+            {
+                copy.suggestions.addArray(availableTokens);
+            }
+
+            if(sug.isNotEmpty())
+                copy.suggestions.add(sug);
+
             return copy;
         }
 
         DiagnosticResult withWrongToken(const String& wrongToken) const
         {
             auto copy = *this;
-            copy.wrongToken = wrongToken;
+            copy.wrongToken = wrongToken.removeCharacters("`");
             return copy;
         }
 
@@ -448,16 +564,22 @@ struct DiagnosticBase: public ReferenceCountedObject
         }
 
         Severity getSeverity() const { return severity; }
+
         String getErrorMessage() const
         {
             String msg;
 
             msg << message;
 
+            auto surroundWithBackticks = [](const String& s)
+            {
+                return "`" + s.removeCharacters("`") + "`";
+            };
+
             if (wrongToken.isNotEmpty() && rightToken.isNotEmpty())
-                msg << ": expected: " << rightToken << ", actual: " << wrongToken;
+                msg << ": expected: " << surroundWithBackticks(rightToken) << ", actual: " << surroundWithBackticks(wrongToken);
             else if (wrongToken.isNotEmpty())
-                msg << ": " << wrongToken;
+                msg << ": " << surroundWithBackticks(wrongToken);
 
             return msg;
         }
@@ -500,8 +622,17 @@ struct DiagnosticBase: public ReferenceCountedObject
             };
         }
 
+        /** Appends a callstack item to the callstack. */
+        DiagnosticResult withCallStackItem(const CallStackItem& item) const
+        {
+            auto copy = *this;
+            copy.callstack.push_back(item);
+            return copy;
+        }
+
     private:
 
+        std::vector<CallStackItem> callstack;
         Severity severity;
         Classification source = Classification::ApiValidation;
         String message;
@@ -511,7 +642,16 @@ struct DiagnosticBase: public ReferenceCountedObject
 
     };
     
-    virtual Identifier getReturnType(const Identifier& fn) const
+    struct ShadowParserBase
+    {
+        virtual ~ShadowParserBase() {};
+
+        virtual void addDiagnostic(const DiagnosticResult::Item& r) = 0;
+
+        Identifier currentNamespace;
+    };
+
+    virtual var getReturnType(const Identifier& fn, const Array<var>& args) const
     {
         jassertfalse;
         return {};
@@ -559,6 +699,8 @@ struct DiagnosticBase: public ReferenceCountedObject
         return diagnostics.at(methodName)(this, methodName, args);
     }
 
+    virtual DiagnosticResult checkFunction(const Identifier& methodName, int expectedNumArgs) const { return DiagnosticResult::unknown(); }
+
     /** Used by the parser to check whether to evaluate the arguments for the check. */
     bool hasDiagnosticCheck(const Identifier& methodName) const
     {
@@ -602,6 +744,7 @@ struct DiagnosticBase: public ReferenceCountedObject
     virtual void addFunction4(const Identifier &id, call4 newFunction) = 0;
     virtual void addFunction5(const Identifier &id, call5 newFunction) = 0;
     
+    ShadowParserBase* currentShadowParser;
 };
 
 

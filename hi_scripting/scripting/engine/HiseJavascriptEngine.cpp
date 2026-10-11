@@ -140,16 +140,8 @@ void HiseJavascriptEngine::registerGlobalStorge(DynamicObject *globalObject)
 }
 
 
-
-
-
-
-
-#if JUCE_ENABLE_AUDIO_GUARD
-struct HiseJavascriptEngine::RootObject::ScriptAudioThreadGuard: public AudioThreadGuard::Handler
+struct AudioGuardHelpers
 {
-public:
-
 	enum IllegalScriptOps
 	{
 		ObjectCreation = IllegalAudioThreadOps::numIllegalOperationTypes,
@@ -161,13 +153,7 @@ public:
 		IllegalApiCall
 	};
 
-	ScriptAudioThreadGuard(const CodeLocation& location) :
-		loc(location),
-		setter(this)
-	{
-	};
-
-	String getOperationName(int operationType) override
+	static String getOperationName(IllegalScriptOps operationType)
 	{
 		switch (operationType)
 		{
@@ -181,6 +167,29 @@ public:
 		default:
 			break;
 		}
+	}
+};
+
+#if JUCE_ENABLE_AUDIO_GUARD
+
+struct HiseJavascriptEngine::RootObject::ScriptAudioThreadGuard: public AudioThreadGuard::Handler
+{
+public:
+
+	using IllegalScriptOps = AudioGuardHelpers::IllegalScriptOps;
+
+	ScriptAudioThreadGuard(const CodeLocation& location) :
+		loc(location),
+		setter(this)
+	{
+	};
+
+	static String getOperationName(int operationType) override
+	{
+		auto s = AudiGuardHelpers::getOperationName(operationType);
+
+		if (s.isNotEmpty())
+			return s;
 
 		return Handler::getOperationName(operationType);
 	}
@@ -479,11 +488,21 @@ bool DebugableObject::Helpers::gotoLocation(ModulatorSynthChain* mainSynthChain,
 
 struct HiseJavascriptEngine::RootObject::Scope
 {
-	Scope(const Scope* p, RootObject* r, DynamicObject* s) noexcept : parent(p), root(r), scope(s), currentLoopStatement(nullptr) {}
+	Scope(const Scope* p, RootObject* r, DynamicObject* s, DiagnosticBase::ShadowParserBase* sp=nullptr) noexcept:
+		parent(p), 
+		root(r), 
+		scope(s), 
+		currentLoopStatement(nullptr), 
+		currentShadowParser(sp)
+	{
+		if (p != nullptr && p->currentShadowParser != nullptr)
+			currentShadowParser = p->currentShadowParser;
+
+	}
 
 	mutable var currentIteratorObject;
 	mutable int currentIteratorIndex;
-
+	
 	void setCurrentIteratorObject(var &newObject) const
 	{
 		currentIteratorIndex = 0;
@@ -495,11 +514,24 @@ struct HiseJavascriptEngine::RootObject::Scope
 		currentIteratorIndex++;
 	}
 
+	ObjectTypeMap* getShadowParser() const { return dynamic_cast<ObjectTypeMap*>(currentShadowParser); }
+	
 	mutable void *currentLoopStatement;
 
 	const Scope* parent;
 	ReferenceCountedObjectPtr<RootObject> root;
 	DynamicObject::Ptr scope;
+
+	bool isShadowParsing() const 
+	{ 
+#if !HISE_SHADOW_PARSER_ENABLED
+		return false;
+#else
+		return currentShadowParser != nullptr; 
+#endif
+	}
+
+	DiagnosticBase::ShadowParserBase* currentShadowParser;
 
 	var findFunctionCall(const CodeLocation& location, const var& targetObject, const Identifier& functionName) const;
 
@@ -520,7 +552,38 @@ struct HiseJavascriptEngine::RootObject::Scope
 			: var::undefined();
 	}
 
+	
 
+	DynamicObject* getShadowParserRootObject(const Identifier& namespaceId = {}) const
+	{
+		jassert(isShadowParsing());
+
+		auto rs = getRootScope();
+
+		auto ns = namespaceId.isValid() ? namespaceId : rs->currentShadowParser->currentNamespace;
+
+		if (namespaceId == Identifier("root"))
+			ns = Identifier();
+
+		if (ns.isValid())
+		{
+			auto nobj = rs->scope->getProperty(ns).getDynamicObject();
+
+			jassert(nobj != nullptr);
+
+			return nobj;
+		}
+		else
+			return rs->scope.get();
+	}
+
+	Scope* getRootScope() const
+	{
+		if (parent != nullptr)
+			return parent->getRootScope();
+
+		return const_cast<Scope*>(this);
+	}
 
 	bool findAndInvokeMethod(const Identifier& function, const var::NativeFunctionArgs& args, var& result) const;
 
@@ -562,6 +625,41 @@ struct HiseJavascriptEngine::RootObject::Statement
 		while(auto s = const_cast<Statement*>(this)->getChildStatement(i++))
 		{
 			s->setCurrentProfileRoot(newRoot);
+		}
+	}
+#endif
+
+#if HISE_SHADOW_PARSER_ENABLED
+	static DiagnosticBase::DiagnosticResult createAudioGuardWarning(const Scope& s, AudioGuardHelpers::IllegalScriptOps op)
+	{
+		if (auto sp = s.getShadowParser())
+		{
+			if (sp->getMinimumRequiredScopeSafety() == ShadowParser::ScopeSafety::Safe)
+			{
+				return DiagnosticBase::DiagnosticResult(AudioGuardHelpers::getOperationName(op))
+					.withSeverity(DiagnosticBase::DiagnosticResult::Severity::Warning)
+					.withClassification(DiagnosticBase::DiagnosticResult::Classification::CallScope);
+			}
+		}
+
+		return DiagnosticBase::DiagnosticResult::ok();
+	}
+
+	void logDiagnostics(const Scope& s, const DiagnosticBase::DiagnosticResult& dr) const
+	{
+		jassert(s.isShadowParsing());
+
+		if (dr.shouldReport() && s.isShadowParsing())
+		{
+			ApiDiagnostic d;
+
+			location.fillColumnAndLines(d.col, d.line, d.charIndex);
+			d.fileName = location.externalFile;
+			d.message = dr.getErrorMessage();
+			d.suggestions = dr.getSuggestions();
+			d.severity = dr.getSeverity();
+			d.classification = dr.getClassification();
+			s.currentShadowParser->addDiagnostic(d);
 		}
 	}
 #endif
@@ -611,24 +709,6 @@ struct HiseJavascriptEngine::RootObject::Statement
 	virtual bool replaceChildStatement(Ptr& newChild, Statement* oldChild) { return false; };
 
 	Breakpoint::Reference breakpointReference;
-
-#if USE_BACKEND
-    void setObjectTypeInformation(const Identifier& objType)
-    {
-        objectTypeInformation = objType;
-    }
-    
-    virtual Identifier getObjectTypeInformation(RootObject* ro) const { return objectTypeInformation; }
-    
-    Identifier objectTypeInformation;
-#else
-    void setObjectTypeInformation(const Identifier&)
-    {
-
-    }
-    
-    virtual Identifier getObjectTypeInformation(RootObject* ro) const { return {}; }
-#endif
     
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Statement)
 };
@@ -643,18 +723,6 @@ struct HiseJavascriptEngine::RootObject::Expression : public Statement
 	String getProfileName() const override { return getVariableName().toString(); }
 
 	virtual Identifier getVariableName() const { return {}; }
-
-	virtual bool hasSideEffects() const { return true; }
-
-	Identifier getObjectTypeInformation(RootObject* ro) const override
-	{
-		auto id = getVariableName();
-
-		if (auto ti = ro->objectTypeMap->getObjectTypeFromTypeMap(id.toString()))
-			return ti.typeInfo;
-
-		return Statement::getObjectTypeInformation(ro);
-	}
 
 	ResultCode perform(const Scope& s, var*) const override  { getResult(s); return ok; }
 };
@@ -1297,6 +1365,23 @@ juce::String HiseJavascriptEngine::toConsoleString(const ApiClass::DiagnosticRes
 
 	// Append encoded location for double-click navigation
 	s << RootObject::Error::createEncodedLocation(p, i.fileName, i.charIndex, i.line, i.col);
+
+	for (const auto& cs : i.callstack)
+	{
+		String c;
+
+		if (cs.fileName.isEmpty() || cs.fileName.contains("()"))
+			c << "Line " << cs.line << ", column " << cs.col;
+		else
+			c << File(cs.fileName).getFileName() << " (" << cs.line << ")";
+
+		c << ": ";
+		c << cs.methodName;
+		c << " ";
+		c << RootObject::Error::createEncodedLocation(p, cs.fileName, cs.charIndex, cs.line, cs.col);
+
+		s << "\n:\t\t\t" << c;;
+	}
 
 	return s;
 }
@@ -2220,9 +2305,6 @@ bool HiseJavascriptEngine::RootObject::OptimizationPass::callForEach(Statement* 
 
 	return false;
 }
-
-
-
 
 
 

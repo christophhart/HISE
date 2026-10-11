@@ -2867,6 +2867,10 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 	String responsePath;
 	JavascriptProcessor* jp = nullptr;
 	
+	using ItemType = DiagnosticBase::ShadowParseData::Item::Type;
+
+	ItemType t = ItemType::onInit;
+
 	if (codeStr.isNotEmpty())
 	{
 		// Standalone code mode: the caller supplies the source directly.
@@ -2885,6 +2889,8 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 		code = codeStr;
 		fileName = "";
 		responsePath = "";
+
+		t = ItemType::StandaloneCode;
 	}
 	else
 	{
@@ -2899,6 +2905,8 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 				targetFile = mc->getSampleManager().getProjectHandler()
 					.getSubDirectory(FileHandlerBase::Scripts)
 					.getChildFile(filePathStr);
+
+			t = ItemType::ExternalFile;
 		}
 		
 		if (moduleIdStr.isNotEmpty())
@@ -2995,8 +3003,13 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 	
 	if (useAsync)
 	{
+		DiagnosticBase::ShadowParseData sd;
+
+		using Item = DiagnosticBase::ShadowParseData::Item;
+		sd.items.add(new Item(t, fileName, code));
+
 		// Async path: defer to scripting thread, callback completes the request on the message thread.
-		jp->shadowParseFile(code, fileName, 
+		jp->shadowParse(sd, 
 			[req, buildDiagArray, buildResponse](const JavascriptProcessor::DiagnosticList& diagnostics)
 		{
 			req->complete(buildResponse(buildDiagArray(diagnostics)));
@@ -3008,7 +3021,12 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 	// Sync path (default): run directly on the calling thread.
 	Array<var> diagArray;
 	
-	jp->shadowParseFile(code, fileName, 
+	DiagnosticBase::ShadowParseData sd;
+
+	using Item = DiagnosticBase::ShadowParseData::Item;
+	sd.items.add(new Item(t, fileName, code));
+
+	jp->shadowParse(sd, 
 		[&diagArray, &buildDiagArray](const JavascriptProcessor::DiagnosticList& diagnostics)
 	{
 		diagArray = buildDiagArray(diagnostics);

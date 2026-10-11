@@ -623,6 +623,129 @@ void MouseCallbackComponent::fillMouseCallbackObject(var& clickInformation, Comp
 	}
 }
 
+void MouseCallbackComponent::createAutocompleteCallbackObject(var& clickInformation, CallbackLevel callbackLevel)
+{
+	auto e = clickInformation.getDynamicObject();
+
+	if (e == nullptr)
+	{
+		auto e = new DynamicObject();
+		clickInformation = var(e);
+	}
+
+	static const Identifier x("x");
+	static const Identifier y("y");
+	static const Identifier clicked("clicked");
+	static const Identifier doubleClick("doubleClick");
+	static const Identifier rightClick("rightClick");
+	static const Identifier drag("drag");
+	static const Identifier isDragOnly("isDragOnly");
+	static const Identifier dragX("dragX");
+	static const Identifier dragY("dragY");
+	static const Identifier insideDrag("insideDrag");
+	static const Identifier hover("hover");
+	static const Identifier mouseDownX("mouseDownX");
+	static const Identifier mouseDownY("mouseDownY");
+	static const Identifier mouseUp("mouseUp");
+	static const Identifier shiftDown("shiftDown");
+	static const Identifier cmdDown("cmdDown");
+	static const Identifier altDown("altDown");
+	static const Identifier ctrlDown("ctrlDown");
+
+	if (callbackLevel >= CallbackLevel::ClicksOnly)
+	{
+		e->setProperty(clicked, false);
+		e->setProperty(doubleClick, false);
+		e->setProperty(rightClick, false);
+		e->setProperty(mouseUp, false);
+		e->setProperty(mouseDownX, false);
+		e->setProperty(mouseDownY, false);
+		e->setProperty(x, 0);
+		e->setProperty(y, 0);
+		e->setProperty(shiftDown, false);
+		e->setProperty(cmdDown, false);
+		e->setProperty(altDown, false);
+		e->setProperty(ctrlDown, false);
+	}
+
+	if (callbackLevel >= CallbackLevel::ClicksAndEnter)
+	{
+		e->setProperty(hover, false);
+	}
+
+	if (callbackLevel >= CallbackLevel::Drag)
+	{
+		e->setProperty(insideDrag, false);
+		e->setProperty(drag, false);
+		e->setProperty(isDragOnly, false);
+		e->setProperty(dragX, 0);
+		e->setProperty(dragY, 0);
+	}
+}
+
+MouseCallbackComponent::CallbackLevel MouseCallbackComponent::getMinimumCallbackLevel(const Identifier& callbackProperty)
+{
+	static const Identifier x("x");
+	static const Identifier y("y");
+	static const Identifier clicked("clicked");
+	static const Identifier doubleClick("doubleClick");
+	static const Identifier rightClick("rightClick");
+	static const Identifier drag("drag");
+	static const Identifier isDragOnly("isDragOnly");
+	static const Identifier dragX("dragX");
+	static const Identifier dragY("dragY");
+	static const Identifier insideDrag("insideDrag");
+	static const Identifier hover("hover");
+	static const Identifier mouseDownX("mouseDownX");
+	static const Identifier mouseDownY("mouseDownY");
+	static const Identifier mouseUp("mouseUp");
+	static const Identifier shiftDown("shiftDown");
+	static const Identifier cmdDown("cmdDown");
+	static const Identifier altDown("altDown");
+	static const Identifier ctrlDown("ctrlDown");
+
+	if (callbackProperty == clicked)
+		return CallbackLevel::ClicksOnly;
+	if (callbackProperty == doubleClick)
+		return CallbackLevel::ClicksOnly;
+	if (callbackProperty == rightClick)
+		return CallbackLevel::ClicksOnly;
+	if (callbackProperty == mouseUp)
+		return CallbackLevel::ClicksOnly;
+	if (callbackProperty == mouseDownX)
+		return CallbackLevel::ClicksOnly;
+	if (callbackProperty == mouseDownY)
+		return CallbackLevel::ClicksOnly;
+	if (callbackProperty == x)
+		return CallbackLevel::ClicksOnly;
+	if (callbackProperty == y)
+		return CallbackLevel::ClicksOnly;
+	if (callbackProperty == shiftDown)
+		return CallbackLevel::ClicksOnly;
+	if (callbackProperty == cmdDown)
+		return CallbackLevel::ClicksOnly;
+	if (callbackProperty == altDown)
+		return CallbackLevel::ClicksOnly;
+	if (callbackProperty == ctrlDown)
+		return CallbackLevel::ClicksOnly;
+
+	if (callbackProperty == hover)
+		return CallbackLevel::ClicksAndEnter;
+
+	if (callbackProperty == insideDrag)
+		return CallbackLevel::Drag;
+	if (callbackProperty == drag)
+		return CallbackLevel::Drag;
+	if (callbackProperty == isDragOnly)
+		return CallbackLevel::Drag;
+	if (callbackProperty == dragX)
+		return CallbackLevel::Drag;
+	if (callbackProperty == dragY)
+		return CallbackLevel::Drag;
+	
+	return CallbackLevel::Unknown;
+}
+
 void MouseCallbackComponent::sendMessage(const MouseEvent &e, Action action, EnterState state)
 {
 	if (callbackLevel == CallbackLevel::NoCallbacks) 

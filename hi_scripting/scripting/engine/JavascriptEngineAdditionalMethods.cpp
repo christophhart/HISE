@@ -1,3 +1,4 @@
+#include "HiseJavascriptEngine.h"
 /*  ===========================================================================
 *
 *   This file is part of HISE.
@@ -244,27 +245,27 @@ HiseJavascriptEngine::RootObject::OptimizationPass::OptimizationResult HiseJavas
 		r.numOptimizedStatements += tr.numOptimizedStatements;
 	}
 
-	for (auto c : callbackNEW)
+for (auto c : callbackNEW)
+{
+	if (c->statements != nullptr)
 	{
-		if (c->statements != nullptr)
-		{
 
 #if USE_BACKEND
-			CallScopeAnalyzer::ScopedHolderSetter svs(p, c);
+		CallScopeAnalyzer::ScopedHolderSetter svs(p, c);
 #endif
-			auto tr = p->executePass(c->statements);
+		auto tr = p->executePass(c->statements);
 
-			r.numOptimizedStatements += tr.numOptimizedStatements;
-		}
+		r.numOptimizedStatements += tr.numOptimizedStatements;
 	}
+}
 
-	return r;
+return r;
 }
 
 
 
 HiseJavascriptEngine::RootObject::RootObject() :
-hiseSpecialData(this)
+	hiseSpecialData(this)
 {
 #if ENABLE_SCRIPTING_BREAKPOINTS
 	callStack.ensureStorageAllocated(128);
@@ -281,10 +282,10 @@ hiseSpecialData(this)
 	setMethod("typeof", typeof_internal);
 	setMethod("Rectangle", ApiHelpers::createRectangle);
 
-    // These are not constants so if you're evil you can change them...
-    setProperty("AsyncNotification", ApiHelpers::AsyncMagicNumber);
+	// These are not constants so if you're evil you can change them...
+	setProperty("AsyncNotification", ApiHelpers::AsyncMagicNumber);
 	setProperty("AsyncHiPriorityNotification", ApiHelpers::AsyncHiPriorityMagicNumber);
-    setProperty("SyncNotification", ApiHelpers::SyncMagicNumber);
+	setProperty("SyncNotification", ApiHelpers::SyncMagicNumber);
 }
 
 
@@ -296,6 +297,71 @@ hiseSpecialData(this)
 
 var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) const
 {
+#if HISE_SHADOW_PARSER_ENABLED
+	if (s.isShadowParsing())
+	{
+		ObjectTypeMap::ScopedCallStack sc(s.currentShadowParser, this);
+
+		if (auto dot = dynamic_cast<DotOperator*> (object.get()))
+		{
+			auto parentValue = dot->parent->getResult(s);
+
+			if (auto lb = dynamic_cast<LightweightDiagnostics*>(parentValue.getObject()))
+			{
+				Array<var> thisArgs;
+
+				for (auto a : arguments)
+					thisArgs.add(a->getResult(s));
+
+				logDiagnostics(s, lb->runTests(s.currentShadowParser, dot->child, thisArgs));
+
+				return lb->getReturnType(dot->child, thisArgs);
+			}
+		}
+		else
+		{
+			auto f = object->getResult(s);
+
+			if (auto fo = dynamic_cast<FunctionObject*>(f.getObject()))
+			{
+				Array<var> args;
+
+				for (auto a : arguments)
+					args.add(a->getResult(s));
+
+				auto lv = WeakCallbackHolder::CallableObject::StrictnessLevel::Unset;
+
+				auto rv = fo->invokeShadowParse(s, var::NativeFunctionArgs(var(), args.getRawDataPointer(), args.size()), lv);
+
+				if (rv.second.shouldReport())
+					logDiagnostics(s, rv.second);
+
+				return rv.first;
+			}
+			if (auto ifo = dynamic_cast<InlineFunction::Object*>(f.getObject()))
+			{
+				Array<var> args;
+
+				for (auto a : arguments)
+					args.add(a->getResult(s));
+
+				auto lv = WeakCallbackHolder::CallableObject::StrictnessLevel::Unset;
+
+				auto rv = ifo->invokeShadowParse(s, var::NativeFunctionArgs(var(), args.getRawDataPointer(), args.size()), lv);
+
+				if (rv.second.shouldReport())
+					logDiagnostics(s, rv.second);
+
+				return rv.first;
+			}
+			else
+			{
+				logDiagnostics(s, DiagnosticBase::DiagnosticResult::fail("This expression is not a function: " + object->getProfileName()));
+			}
+		}
+	}
+#endif
+
 	try
 	{
 		if (!initialised)
@@ -617,6 +683,50 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::clear()
 	constObjects.clear();
 	callbackNEW.clear();
 	globals = nullptr;
+}
+
+HiseJavascriptEngine::RootObject::HiseSpecialData* HiseJavascriptEngine::RootObject::HiseSpecialData::createShadowParseData(DiagnosticBase::ShadowParserBase* shadowParser)
+{
+	auto hd = new HiseSpecialData(root);
+	hd->setProcessor(processor);
+
+	hd->globals = new DynamicObject();
+
+	for (auto d : globals->getProperties())
+		hd->globals->setProperty(d.name, d.value);
+
+	for (auto ac : apiClasses)
+		hd->apiClasses.add(ac);
+
+	for (auto ac : apiIds)
+		hd->apiIds.add(ac);
+
+	for (auto c : callbackNEW)
+	{
+		hd->callbackIds.add(c->getName());
+		hd->callbackNEW.add(new Callback(c->getName(), c->getNumArgs(), 0.0));
+	}
+	
+	hd->diagnosticMode = true;
+	return hd;
+}
+
+void HiseJavascriptEngine::RootObject::HiseSpecialData::shadowParseCallback(DiagnosticBase::ShadowParserBase* shadowParser, const Identifier& callbackId)
+{
+	for (auto cb : callbackNEW)
+	{
+		if (cb->getName() == callbackId)
+		{
+			Array<var> args;
+
+			for (int i = 0; i < cb->getNumArgs(); i++)
+				args.add(var(1));
+
+			cb->invokeShadowParse(dynamic_cast<ObjectTypeMap*>(shadowParser)->getCurrentScope(), var::NativeFunctionArgs(var(), args.getRawDataPointer(), args.size()));
+
+			break;
+		}
+	}
 }
 
 HiseJavascriptEngine::RootObject::Callback *HiseJavascriptEngine::RootObject::HiseSpecialData::getCallback(const Identifier &callbackId)
@@ -1367,6 +1477,43 @@ var HiseJavascriptEngine::RootObject::Callback::createDynamicObjectForBreakpoint
 	return var(object);
 }
 
+var HiseJavascriptEngine::RootObject::Callback::invokeShadowParse(const Scope& s, const var::NativeFunctionArgs& args)
+{
+	if (statements == nullptr)
+		return var();
+
+	var rv;
+
+	if (auto st = s.getShadowParser())
+	{
+		ObjectTypeMap::TypeScope ts(*st, statements->getBlockCharIndexRange(), st->getStrictnessForCallback(callbackName), WeakCallbackHolder::CallableObject::CallScope::Safe);
+
+
+		ObjectTypeMap::ScopedCallStack sc(st, statements, callbackName.toString());
+
+		auto obj = ts.getCurrentScopeObject();
+
+		if (args.thisObject.isObject())
+			obj->setProperty("this", args.thisObject);
+
+		Array<var> thisArgs;
+
+		for (int i = 0; i < getNumArgs(); i++)
+		{
+			auto id = parameters[i];
+
+			if (isPositiveAndBelow(i, args.numArguments))
+				obj->setProperty(id, args.arguments[i]);
+		}
+
+		statements.get()->perform(*ts.getCurrentScope(), &rv);
+	}
+
+	return rv;
+
+	return var();
+}
+
 void HiseJavascriptEngine::RootObject::Callback::doubleClickCallback(const MouseEvent& mouseEvent, Component* component)
 {
 	DBG("JUMP");
@@ -1795,6 +1942,7 @@ String JavascriptProcessor::Helpers::uglify(const String& prettyCode)
 // ==============================================================================
 // ScopedDiagnosticParse implementation
 
+#if 0
 using SDP = HiseJavascriptEngine::RootObject::ScopedDiagnosticParse;
 
 void SDP::snapshotNamespace(JavascriptNamespace* ns)
@@ -1868,176 +2016,203 @@ SDP::~ScopedDiagnosticParse()
 	// Clear diagnostic mode flag
 	hsd.diagnosticMode = false;
 }
+#endif
 
 // ==============================================================================
 // HiseJavascriptEngine::shadowParse implementation
 
-Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> HiseJavascriptEngine::shadowParse(const String& code, const String& fileName)
+Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> HiseJavascriptEngine::shadowParse(const DiagnosticBase::ShadowParseData& sd)
 {
-	RootObject::ScopedDiagnosticParse sdp(root->hiseSpecialData);
+	
+	Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> diagnostics;
 
-	auto copy = code;
+	RootObject::ObjectTypeMap::Ptr analyzer = new RootObject::ObjectTypeMap(*root, &diagnostics);
 
-	// Run preprocessor (same as execute())
-	String pid = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getId();
-	pid << "." << fileName;
+	ScopedPointer<RootObject::HiseSpecialData> hd = root->hiseSpecialData.createShadowParseData(analyzer.get());
 
-	auto ok = preprocessor->process(copy, pid);
+	using Item = DiagnosticBase::ShadowParseData::Item;
 
-	if (!ok.wasOk())
+	
+
+	Item::List l;
+
+	for (const auto& item : sd.items)
 	{
-		RootObject::ApiDiagnostic d;
-		d.line = 1;
-		d.col = 0;
-		d.fileName = fileName;
-		d.message = "Preprocessor error: " + ok.getErrorMessage().fromFirstOccurrenceOf(":", false, false);
-		d.severity = ApiClass::DiagnosticResult::Severity::Error;
-		d.classification = ApiClass::DiagnosticResult::Classification::Syntax;
+		for (auto& d : *item)
+			l.add(d);
 
-		Array<RootObject::ApiDiagnostic> result;
-		result.add(d);
-		return result;
+		l.add(item);
 	}
 
-	RootObject::ExpressionTreeBuilder tb(copy, fileName, preprocessor);
-
-	try
+	for (const auto& sdi: l)
 	{
-		root->objectTypeMap->clear();
-		tb.setupApiData(root->hiseSpecialData, copy);
-		ScopedPointer<RootObject::BlockStatement> sl = tb.parseStatementList();
-		// No sl->perform() — parse only, no execution
+		auto copy = sdi->code;
 
-		// --- Phase 2: Run ApiValidationAnalyzer on the parsed AST ---
-		if (sl != nullptr)
+		// Run preprocessor (same as execute())
+		String pid = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getId();
+		pid << "." << sdi->getFileName();
+
+		auto ok = preprocessor->process(copy, pid);
+
+		if (!ok.wasOk())
 		{
-			ApiValidationAnalyzer analyzer;
-			analyzer.setDiagnosticTarget(&tb.getDiagnostics(), &root->hiseSpecialData);
-			analyzer.process(sl);
+			RootObject::ApiDiagnostic d;
+			d.line = 1;
+			d.col = 0;
+			d.fileName = sdi->getFileName();
+			d.message = "Preprocessor error: " + ok.getErrorMessage().fromFirstOccurrenceOf(":", false, false);
+			d.severity = ApiClass::DiagnosticResult::Severity::Error;
+			d.classification = ApiClass::DiagnosticResult::Classification::Syntax;
+
+			Array<RootObject::ApiDiagnostic> result;
+			result.add(d);
+			return result;
+		}
+
+		RootObject::ExpressionTreeBuilder tb(copy, sdi->getFileName(Item::CallbackFormat::ForceEmpty), preprocessor);
+
+		try
+		{
+			tb.setupApiData(*hd.get(), copy);
+			ScopedPointer<RootObject::BlockStatement> sl = tb.parseStatementList();
+
+			// --- Phase 2: Run ApiValidationAnalyzer on the parsed AST ---
+			if (sl != nullptr)
+			{
+				prepareTimeout();
+				analyzer->shadowParse(sl);
+
+				auto cursorPosition = sdi->getBreakPosition();
+
+				if (cursorPosition != -1)
+				{
+					auto scopeTree = analyzer->getScopeTree();
+
+					DynamicObject::Ptr currentScope = new DynamicObject();
+
+					for (const auto& s : scopeTree)
+					{
+						if (s.first.contains(cursorPosition))
+						{
+							for (const auto& nv : s.second->getProperties())
+								currentScope->setProperty(nv.name, nv.value);
+						}
+					}
+
+					debugToConsole(
+						dynamic_cast<Processor*>(root->hiseSpecialData.processor),
+						JSON::toString(var(currentScope.get())));
+				}
+
+				if (sdi->t == Item::Type::Callback)
+					hd->shadowParseCallback(analyzer.get(), sdi->getFileName(Item::CallbackFormat::PureId));
 
 #if 0
-			// Also walk inline function bodies that were parsed in this file.
-			// They are temporarily stored in hiseSpecialData (restored by ScopedDiagnosticParse).
-			for (auto ns : root->hiseSpecialData.namespaces)
-			{
-				for (auto ifo : ns->inlineFunctions)
+				// --- Collect CallScope warnings from static realtime callbacks ---
 				{
-					if (auto* obj = dynamic_cast<RootObject::InlineFunction::Object*>(ifo))
-					{
-						if (obj->body != nullptr)
-							analyzer.process(obj->body);
-					}
-				}
-			}
-
-			// Walk root namespace inline functions too
-			for (auto ifo : root->hiseSpecialData.inlineFunctions)
-			{
-				if (auto* obj = dynamic_cast<RootObject::InlineFunction::Object*>(ifo))
-				{
-					if (obj->body != nullptr)
-						analyzer.process(obj->body);
-				}
-			}
-#endif
-
-			// --- Collect CallScope warnings from static realtime callbacks ---
-			{
-				auto resetInlineInfo = [](ReferenceCountedObject* ifo)
-				{
-					if (auto* obj = dynamic_cast<RootObject::InlineFunction::Object*>(ifo))
-					{
-						if (obj->body != nullptr)
+					auto resetInlineInfo = [](ReferenceCountedObject* ifo)
 						{
-							obj->realtimeSafetyInfoData.items.clear();
-							obj->realtimeSafetyInfoData.analyzed = false;
-						}
-					}
-				};
+							if (auto* obj = dynamic_cast<RootObject::InlineFunction::Object*>(ifo))
+							{
+								if (obj->body != nullptr)
+								{
+									obj->realtimeSafetyInfoData.items.clear();
+									obj->realtimeSafetyInfoData.analyzed = false;
+								}
+							}
+						};
 
-				for (auto ns : root->hiseSpecialData.namespaces)
-					for (auto ifo : ns->inlineFunctions)
+					for (auto ns : root->hiseSpecialData.namespaces)
+						for (auto ifo : ns->inlineFunctions)
+							resetInlineInfo(ifo);
+
+					for (auto ifo : root->hiseSpecialData.inlineFunctions)
 						resetInlineInfo(ifo);
 
-				for (auto ifo : root->hiseSpecialData.inlineFunctions)
-					resetInlineInfo(ifo);
-
-				for (auto c : root->hiseSpecialData.callbackNEW)
-				{
-					if (c == nullptr || c->statements == nullptr)
-						continue;
-
-					if (!isStaticRealtimeCallbackName(c->getName()))
-						continue;
-
-					c->realtimeSafetyInfoData.items.clear();
-					c->realtimeSafetyInfoData.analyzed = false;
-
-					CallScopeAnalyzer analyzer;
-					CallScopeAnalyzer::ScopedHolderSetter svs(&analyzer, c);
-					analyzer.executePass(c->statements);
-
-					using RSW = RootObject::RealtimeSafetyWarning;
-
-					for (auto item : c->realtimeSafetyInfoData.items)
+					for (auto c : root->hiseSpecialData.callbackNEW)
 					{
-						RootObject::ApiDiagnostic d;
-						d.severity = ApiClass::DiagnosticResult::Severity::Warning;
-						d.classification = ApiClass::DiagnosticResult::Classification::CallScope;
+						if (c == nullptr || c->statements == nullptr)
+							continue;
 
-						if (auto w = static_cast<RSW*>(item))
+						if (!isStaticRealtimeCallbackName(c->getName()))
+							continue;
+
+						c->realtimeSafetyInfoData.items.clear();
+						c->realtimeSafetyInfoData.analyzed = false;
+
+						CallScopeAnalyzer analyzer;
+						CallScopeAnalyzer::ScopedHolderSetter svs(&analyzer, c);
+						analyzer.executePass(c->statements);
+
+						using RSW = RootObject::RealtimeSafetyWarning;
+
+						for (auto item : c->realtimeSafetyInfoData.items)
 						{
-							if (!w->callStack.isEmpty())
+							RootObject::ApiDiagnostic d;
+							d.severity = ApiClass::DiagnosticResult::Severity::Warning;
+							d.classification = ApiClass::DiagnosticResult::Classification::CallScope;
+
+							if (auto w = static_cast<RSW*>(item))
 							{
-								w->callStack[0].location.fillColumnAndLines(d.col, d.line, d.charIndex);
-								d.fileName = w->callStack[0].location.externalFile;
+								if (!w->callStack.isEmpty())
+								{
+									w->callStack[0].location.fillColumnAndLines(d.col, d.line, d.charIndex);
+									d.fileName = w->callStack[0].location.externalFile;
+								}
 							}
-						}
 
-						String scopeLabel;
-						using CS = ApiHelpers::CallScope;
-						switch (item->scope)
-						{
+							String scopeLabel;
+							using CS = ApiHelpers::CallScope;
+							switch (item->scope)
+							{
 							case CS::Unsafe:  scopeLabel = "unsafe"; break;
 							case CS::Init:    scopeLabel = "init-only"; break;
 							case CS::Warning: scopeLabel = "warning"; break;
 							default: break;
+							}
+
+							d.message = "[CallScope] " + item->apiCall + " (" + scopeLabel + ")";
+
+							if (item->note.isNotEmpty())
+								d.message << ": " << item->note;
+
+							tb.getDiagnostics().add(d);
 						}
-
-						d.message = "[CallScope] " + item->apiCall + " (" + scopeLabel + ")";
-
-						if (item->note.isNotEmpty())
-							d.message << ": " << item->note;
-
-						tb.getDiagnostics().add(d);
 					}
 				}
+#endif
 			}
 		}
-	}
-	catch (RootObject::Error& e)
-	{
-		// Hard parse error at an unrecovered site — add as final diagnostic
-		RootObject::ApiDiagnostic d;
-		d.line = e.lineNumber;
-		d.col = e.columnNumber;
-		d.fileName = e.externalLocation.isNotEmpty() ? e.externalLocation : fileName;
-		d.message = e.errorMessage;
-		d.severity = ApiClass::DiagnosticResult::Severity::Error;
-		d.classification = ApiClass::DiagnosticResult::Classification::Syntax;
-		tb.getDiagnostics().add(d);
-	}
-	catch (String& error)
-	{
-		RootObject::ApiDiagnostic d;
-		d.fileName = fileName;
-		d.message = error;
-		d.severity = ApiClass::DiagnosticResult::Severity::Error;
-		d.classification = ApiClass::DiagnosticResult::Classification::Syntax;
-		tb.getDiagnostics().add(d);
+		catch (RootObject::Error& e)
+		{
+			// Hard parse error at an unrecovered site — add as final diagnostic
+			RootObject::ApiDiagnostic d;
+			d.line = e.lineNumber;
+			d.col = e.columnNumber;
+			d.fileName = e.externalLocation.isNotEmpty() ? e.externalLocation : sdi->getFileName();
+			d.message = e.errorMessage;
+			d.severity = ApiClass::DiagnosticResult::Severity::Error;
+			d.classification = ApiClass::DiagnosticResult::Classification::Syntax;
+			tb.getDiagnostics().add(d);
+		}
+		catch (String& error)
+		{
+			RootObject::ApiDiagnostic d;
+			d.fileName = sdi->getFileName();
+			d.message = error;
+			d.severity = ApiClass::DiagnosticResult::Severity::Error;
+			d.classification = ApiClass::DiagnosticResult::Classification::Syntax;
+			tb.getDiagnostics().add(d);
+		}
+
+		for (const auto& d : tb.getDiagnostics())
+			diagnostics.add(d);
+
+		if (l.getLast() != sdi)
+			diagnostics.clear();
 	}
 
-	return tb.getDiagnostics();
+	return diagnostics;
 }
 
 #endif // USE_BACKEND

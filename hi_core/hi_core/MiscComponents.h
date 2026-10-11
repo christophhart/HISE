@@ -106,7 +106,8 @@ public:
 		ClicksOnly,
 		ClicksAndEnter,
 		Drag,
-		AllCallbacks
+		AllCallbacks,
+		Unknown
 	};
 
 	static Identifier getCallbackLevelAsIdentifier(CallbackLevel c)
@@ -204,6 +205,10 @@ public:
 	void removeAllCallbackListeners();
 
 	static void fillMouseCallbackObject(var& clickInformation, Component* c, const MouseEvent& e, CallbackLevel level, Action action, EnterState state);
+
+	static void createAutocompleteCallbackObject(var& clickInformation, CallbackLevel level);
+
+	static CallbackLevel getMinimumCallbackLevel(const Identifier& callbackProperty);
 
 	void mouseDown(const MouseEvent& event) override;
 

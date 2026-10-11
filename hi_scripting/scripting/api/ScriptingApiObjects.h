@@ -131,6 +131,7 @@ public:
 
 	static ValueTree getApiTree();
 
+	static ValueTree getLafObjectTree();
 	
 
 	struct CallScopeInfo

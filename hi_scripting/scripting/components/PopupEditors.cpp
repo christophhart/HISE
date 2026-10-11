@@ -709,13 +709,18 @@ void PopupIncludeEditor::shadowParse(bool printToConsole)
 	
 	if (printToConsole)
 	{
-		if (externalFile == nullptr)
-			return;
-
-		fileName = externalFile->getFile().getFullPathName();
-		auto mc = dynamic_cast<Processor*>(jp.get())->getMainController();
-		mc->saveAllExternalFiles();
-		code = externalFile->getFile().loadFileAsString();
+		if (externalFile != nullptr)
+		{
+			fileName = externalFile->getFile().getFullPathName();
+			auto mc = dynamic_cast<Processor*>(jp.get())->getMainController();
+			mc->saveAllExternalFiles();
+			code = externalFile->getFile().loadFileAsString();
+		}
+		else
+		{
+			fileName = "";
+			code = editor->editor.getDocument().getAllContent();
+		}
 	}
 	else
 	{
@@ -725,7 +730,31 @@ void PopupIncludeEditor::shadowParse(bool printToConsole)
 
 	Component::SafePointer<PopupIncludeEditor> safeThis(this);
 
-	jp->shadowParseFile(code, fileName, [printToConsole, safeThis](const JavascriptProcessor::DiagnosticList& diagnostics)
+	DiagnosticBase::ShadowParseData sd;
+	using Item = DiagnosticBase::ShadowParseData::Item;
+
+	Item::Type t = Item::Type::onInit;
+
+	if (callback.isValid() && callback != Identifier("onInit"))
+	{
+		t = Item::Type::Callback;
+		fileName = callback.toString();
+	}
+	else if (externalFile != nullptr)
+		t = Item::Type::ExternalFile;
+
+	auto selection = editor->editor.getTextDocument().getSelection(0);
+
+	CodeDocument::Position pos(editor->editor.getDocument(), selection.head.x, selection.head.y);
+
+	int breakDelta = pos.getPosition();
+
+	auto item = new Item(t, fileName, code);
+	item->setBreakPosition(breakDelta);
+
+	sd.items.add(item);
+
+	jp->shadowParse(sd, [printToConsole, safeThis](const JavascriptProcessor::DiagnosticList& diagnostics)
 	{
 		if (safeThis.getComponent() == nullptr)
 			return;

@@ -1,3 +1,4 @@
+#include "ApiValidator.h"
 /*  ===========================================================================
 *
 *   This file is part of HISE.
@@ -33,11 +34,259 @@
 namespace hise {
 using namespace juce;
 
+struct HiseJavascriptEngine::RootObject::ObjectTypeMap::ScopeStack
+{
+	ScopeStack(ObjectTypeMap& parent_) :
+		parent(parent_)
+	{}
 
+	struct ParserScope
+	{
+		ParserScope(ScopeStack& p, DynamicObject* obj, Strictness scopeStrictness, ScopeSafety scopeSafety) :
+			s((p.stack.isEmpty() ? nullptr : &p.stack.getLast()->s), &p.parent.root, obj, &p.parent),
+			strictness(scopeStrictness),
+			safety(scopeSafety)
+		{}
+
+		const Strictness strictness;
+		const ScopeSafety safety;
+
+		Scope s;
+	};
+
+	using DR = DiagnosticBase::DiagnosticResult;
+
+	ScopeSafety getMinimumRequiredScopeSafety() const
+	{
+		auto onInitAllowed = true;
+		auto nonRealtimeAllowed = true;
+
+		for (auto s : stack)
+		{
+			if (s->strictness > Strictness::AllowInit)
+				onInitAllowed = false;
+
+			if (s->strictness > Strictness::Unsafe)
+				nonRealtimeAllowed = false;
+		}
+
+		if (!nonRealtimeAllowed)
+			return ScopeSafety::Safe;
+
+		if (!onInitAllowed)
+			return ScopeSafety::Unsafe;
+
+		return ScopeSafety::Init;
+	}
+
+	DR push(DynamicObject::Ptr newScope, Strictness strictness = Strictness::Unset, ScopeSafety safety = ScopeSafety::Unknown)
+	{
+		stack.add(new ParserScope(*this, newScope.get(), strictness, safety));
+
+		if (needsRealtimeSafety() && safety != ScopeSafety::Safe)
+		{
+			return DR("pushing a non realtime safe scope")
+				.withSeverity(safety == ScopeSafety::Unsafe ? DR::Severity::Error : DR::Severity::Warning)
+				.withClassification(DR::Classification::CallScope)
+				.withSuggestion("inline function");
+		}
+
+		return DR::ok();
+	}
+
+	Scope& getCurrentScope() { return stack.getLast()->s; }
+
+	DynamicObject::Ptr getCurrentScopeObject() const { return stack.getLast()->s.scope; }
+
+	DynamicObject::Ptr pop()
+	{
+		if (auto last = stack.getLast())
+		{
+			auto obj = last->s.scope;
+
+			stack.removeLast();
+
+			return obj;
+		}
+
+		return nullptr;
+	}
+
+private:
+
+	bool needsRealtimeSafety() const
+	{
+		auto needs = false;
+
+		for (auto s : stack)
+			needs |= s->strictness == Strictness::Strict;
+
+		return needs;
+	};
+
+	ObjectTypeMap& parent;
+	OwnedArray<ParserScope> stack;
+};
+
+HiseJavascriptEngine::RootObject::ObjectTypeMap::TypeScope::TypeScope(ObjectTypeMap& otm, Range<int> codeLocation_, Strictness strictness, ScopeSafety safety) :
+	parent(otm),
+	codeLocation(codeLocation_)
+{
+	callScopeReport = parent.scopeStack->push(new DynamicObject(), strictness, safety);
+}
+
+HiseJavascriptEngine::RootObject::ObjectTypeMap::TypeScope::~TypeScope()
+{
+	auto scopeToBeDeleted = parent.scopeStack->pop();
+
+	parent.scopeHistory.push_back({ codeLocation, scopeToBeDeleted });
+	parent.currentThisObject = prevThisObject;
+}
+
+HiseJavascriptEngine::RootObject::Scope* HiseJavascriptEngine::RootObject::ObjectTypeMap::TypeScope::getCurrentScope() const
+{
+	return &parent.scopeStack->getCurrentScope();
+}
+
+DynamicObject* HiseJavascriptEngine::RootObject::ObjectTypeMap::TypeScope::getCurrentScopeObject() const
+{
+	return parent.scopeStack->getCurrentScopeObject().get();
+}
+
+HiseJavascriptEngine::RootObject::ObjectTypeMap::ScopedCallStack::ScopedCallStack(ShadowParserBase* parser, const Statement* s, const String& customStackName) :
+	parent(*dynamic_cast<ObjectTypeMap*>(parser))
+{
+	DiagnosticBase::DiagnosticResult::CallStackItem ci;
+
+	s->location.fillColumnAndLines(ci.col, ci.line, ci.charIndex);
+	ci.fileName = s->location.externalFile;
+	ci.methodName = customStackName;
+
+	if (ci.methodName.isEmpty())
+		ci.methodName = s->getProfileName();
+
+	parent.currentCallstack.add(ci);
+}
+
+HiseJavascriptEngine::RootObject::ObjectTypeMap::ScopedCallStack::~ScopedCallStack()
+{
+	parent.currentCallstack.removeLast();
+}
+
+HiseJavascriptEngine::RootObject::ObjectTypeMap::ObjectTypeMap(RootObject& root_, Array<ApiDiagnostic>* target) :
+	root(root_),
+	pwsc(dynamic_cast<ProcessorWithScriptingContent*>(root_.hiseSpecialData.processor)),
+	scopeStack(new ScopeStack(*this)),
+	diagnostics(target)
+{
+	DynamicObject::Ptr rootScope = new DynamicObject();
+
+#if 0 // TODO: maybe add primitive return types for those?
+	rootScope->setProperty("exec", exec);
+	rootScope->setProperty("eval", eval);
+	rootScope->setProperty("trace", trace);
+	rootScope->setProperty("charToInt", charToInt);
+	rootScope->setProperty("parseInt", IntegerClass::parseInt);
+	rootScope->setProperty("parseFloat", IntegerClass::parseFloat);
+	rootScope->setProperty("isNaN", IntegerClass::isNaN_);
+	rootScope->setProperty("isFinite", IntegerClass::isFinite_);
+	rootScope->setProperty("typeof", typeof_internal);
+#endif
+
+	rootScope->setProperty("AsyncNotification", ApiHelpers::AsyncMagicNumber);
+	rootScope->setProperty("AsyncHiPriorityNotification", ApiHelpers::AsyncHiPriorityMagicNumber);
+	rootScope->setProperty("SyncNotification", ApiHelpers::SyncMagicNumber);
+
+	rootScope->setProperty("Buffer", getApiClassFromMap("Buffer").get());
+	rootScope->setProperty("Rectangle", getApiClassFromMap("Rectangle").get());
+	rootScope->setProperty("Content", getApiClassFromMap("Content").get());
+
+	scopeStack->push(rootScope, Strictness::AllowInit, ScopeSafety::Init);
+}
+
+HiseJavascriptEngine::RootObject::ObjectTypeMap::~ObjectTypeMap()
+{
+	delete scopeStack;
+	scopeStack = nullptr;
+}
+
+HiseJavascriptEngine::RootObject::ObjectTypeMap::ScopeSafety HiseJavascriptEngine::RootObject::ObjectTypeMap::getMinimumRequiredScopeSafety() const
+{
+	return scopeStack->getMinimumRequiredScopeSafety();
+}
+
+HiseJavascriptEngine::RootObject::ObjectTypeMap::Strictness HiseJavascriptEngine::RootObject::ObjectTypeMap::getStrictnessForCallback(const Identifier& callbackId) const
+{
+	std::map<Identifier, Strictness> defaultStrictness;
+
+	auto midiCallbackStrictness = Strictness::Strict;
+
+	if (auto jmp = dynamic_cast<JavascriptMidiProcessor*>(pwsc))
+	{
+		if (jmp->isDeferred())
+			midiCallbackStrictness = Strictness::Unsafe;
+	}
+
+	defaultStrictness["onInit"] = Strictness::AllowInit;
+	defaultStrictness["onNoteOn"] = midiCallbackStrictness;
+	defaultStrictness["onNoteOff"] = midiCallbackStrictness;
+	defaultStrictness["onController"] = midiCallbackStrictness;
+	defaultStrictness["onTimer"] = midiCallbackStrictness;
+	defaultStrictness["onControl"] = Strictness::Unsafe;
+	defaultStrictness["prepareToPlay"] = Strictness::Unsafe;
+	defaultStrictness["process"] = Strictness::Strict;
+
+	if (defaultStrictness.find(callbackId) != defaultStrictness.end())
+		return defaultStrictness.at(callbackId);
+
+	return Strictness::Unset;
+}
+
+HiseJavascriptEngine::RootObject::Scope& HiseJavascriptEngine::RootObject::ObjectTypeMap::getCurrentScope()
+{
+	return scopeStack->getCurrentScope();
+}
+
+void HiseJavascriptEngine::RootObject::ObjectTypeMap::shadowParse(Statement* s)
+{
+	var rv;
+	auto resultCode = s->perform(getCurrentScope(), &rv);
+}
+
+void HiseJavascriptEngine::RootObject::ObjectTypeMap::addDiagnostic(const ApiDiagnostic& i)
+{
+	auto item = i;
+
+	for (int i = currentCallstack.size() - 1; i >= 0; i--)
+	{
+		const auto& cs = currentCallstack.getUnchecked(i);
+
+		if (cs.charIndex != item.charIndex ||
+			cs.fileName != item.fileName)
+		{
+			item.callstack.push_back(cs);
+		}
+	}
+
+	diagnostics->add(item);
+}
+
+HiseJavascriptEngine::RootObject::ObjectTypeMap::ScopeTree HiseJavascriptEngine::RootObject::ObjectTypeMap::getScopeTree() const
+{
+	auto history = scopeHistory;
+	history.push_back({ Range<int>(0, INT_MAX), scopeStack->getCurrentScopeObject() });
+	return history;
+}
+
+
+
+#if 0
 void ApiValidationAnalyzer::setDiagnosticTarget(Array<ApiDiagnostic>* target, RO::HiseSpecialData* hsd)
 {
 	diagnostics = target;
 	hiseSpecialData = hsd;
+
+	hiseSpecialData->root->objectTypeMap->resetStack(hiseSpecialData->root, this); 
 }
 
 /** Run the QueryFunction for a method (if registered) and return the result.
@@ -63,10 +312,7 @@ ApiClass::DiagnosticResult ApiValidationAnalyzer::getQueryDiagnostic(DiagnosticB
 		}
 	}
 
-	if (auto lw = dynamic_cast<LightweightDiagnostics*>(c))
-		lw->currentParentValidator = this;
-
-	return c->performDiagnostic(methodName, diagnosticArgs);
+	return c->runTests(this, methodName, diagnosticArgs);
 }
 
 String ApiValidationAnalyzer::getArgIdFromExpression(RO::Expression* e) const
@@ -87,6 +333,15 @@ void ApiValidationAnalyzer::process(Statement* s)
 {
 	if (diagnostics == nullptr)
 		return;
+
+	lastTouchedStatement = s;
+
+	var rv;
+	auto resultCode = s->perform(getOrCreateObjectTypeMap()->getCurrentScope(), &rv);
+
+	return;
+
+
 
 	if (auto fc = dynamic_cast<RO::FunctionObject*>(s))
 	{
@@ -157,6 +412,8 @@ void ApiValidationAnalyzer::processAssignment(const String& expression, RO::Expr
 	{
 		if (auto* fo = dynamic_cast<RO::FunctionObject*>(lit->value.getDynamicObject()))
 		{
+			getOrCreateObjectTypeMap()->addFunctionObject(expression, var(fo));
+
 			if (fo->body != nullptr)
 			{
 				FunctionBody fb;
@@ -209,10 +466,11 @@ void ApiValidationAnalyzer::processInternal(RO::DotOperator* dot)
 	{
 		if (auto lw = dynamic_cast<LightweightDiagnostics*>(to.obj.get()))
 		{
-			if (!lw->checkProperty(dot->child))
-			{
-				addDiagnostic(dot->location, "Missing property: " + dot->child.toString(), {}, SV::Error, CS::ApiValidation);
-			}
+			lw->currentShadowParser = this;
+			auto dr = lw->checkProperty(dot->child);
+
+			if (dr.shouldReport())
+				addDiagnostic(dot->location, dr.getErrorMessage(), dr.getSuggestions(), dr.getSeverity(), dr.getClassification());
 		}
 	}
 }
@@ -293,7 +551,7 @@ void ApiValidationAnalyzer::processInternal(RO::FunctionCall* funcCall)
 
 		int idx = 0;
 
-		RO::ObjectTypeMap::TypeScope s(*hiseSpecialData->root->objectTypeMap);
+		RO::ObjectTypeMap::TypeScope s(*hiseSpecialData->root);
 
 		for (auto a : funcCall->arguments)
 		{
@@ -319,7 +577,7 @@ void ApiValidationAnalyzer::processInternal(RO::InlineFunction::FunctionCall* if
 	auto pNames = ifc->f->parameterNames;
 	auto& pExpressions = ifc->parameterExpressions;
 
-	RO::ObjectTypeMap::TypeScope s(*hiseSpecialData->root->objectTypeMap);
+	RO::ObjectTypeMap::TypeScope s(*hiseSpecialData->root);
 
 	for (int i = 0; i < pExpressions.size(); i++)
 	{
@@ -373,11 +631,16 @@ void ApiValidationAnalyzer::processInternal(RO::ApiCall* ac)
 	auto className = ac->apiClass->getObjectName();
 	auto methodName = ac->functionName;
 
+	jassert(LightweightDiagnostics::Helpers::isApiClass(className));
+
 	auto returnType = getOrCreateObjectTypeMap()->getReturnTypeFromApiMap(className, methodName);
 
 	auto diagnosticObj = getOrCreateObjectTypeMap()->getApiClassFromMap(className);
 
-	auto queryDr = getQueryDiagnostic(diagnosticObj, ac, methodName);
+	auto queryDr = getQueryDiagnostic(diagnosticObj.get(), ac, methodName);
+
+	diagnosticObj->markMethodTouched(methodName);
+
 	ac->setObjectTypeInformation(returnType);
 
 	if (queryDr.shouldReport())
@@ -386,5 +649,8 @@ void ApiValidationAnalyzer::processInternal(RO::ApiCall* ac)
 		emitDiagnostic(ac->location, className, ac->functionName, queryDr);
 	}
 }
+#endif
+
+
 
 }

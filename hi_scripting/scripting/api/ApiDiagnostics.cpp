@@ -66,109 +66,370 @@ struct Class::Diagnostics : public LightweightDiagnostics
 
 // ============================================================================================================
 
-struct ScriptComponentChecks
+namespace BaseObjects
 {
+
+struct ScriptComponentDiagnosticBase : public LightweightDiagnostics
+{
+    static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("ScriptComponent"); }
+
+    ScriptComponentDiagnosticBase(ProcessorWithScriptingContent* p, const ValueTree& v, const String& a) :
+        LightweightDiagnostics(p, v, a)
+    {
+        if (Helpers::isApiRoot(v))
+        {
+            if (auto sc = getScriptComponent())
+            {
+                auto classTree = v.getChildWithName(sc->getObjectName());
+
+                if (classTree.isValid())
+                    initClassTree(classTree);
+            }
+        }
+    };
+
+    CacheBehaviour getCacheBehaviour() const override
+    {
+        return CacheBehaviour::ReplaceIfPolymorphic;
+    }
+
+    NamedValueSet writtenProperties;
+
+    // Use this to fetch properties in validation checks. This checks the lightweight dictionary first
+    // and only resorts to the lookup of the real object when it can't be found.
+    var getPropertyFromObjectOrWrittenProperties(const Identifier& id) const
+    {
+        if (writtenProperties.contains(id))
+            return writtenProperties[id];
+
+        auto sc = getScriptComponent();
+        return sc->getScriptObjectProperty(id);
+    }
+
     using DR = DiagnosticBase::DiagnosticResult;
 
-    static DR checkProperty(DiagnosticBase* b, const Identifier& id, const Array<var>& args)
+    ScriptComponent* getScriptComponent() const
     {
-        auto typed = dynamic_cast<LightweightDiagnostics*>(b);
-
-        auto sc = typed->p->getScriptingContent()->getComponentWithName(typed->getArgId());
-
-        auto propId = args[0];
-
-        auto props = sc->getAllProperties();
-
-        if (props.indexOf(propId) == -1)
-        {
-            StringArray sa;
-
-            for (const auto& a : *props.getArray())
-                sa.add(a.toString());
-
-            return DR::fail("Unknown property").withWrongToken(propId.toString()).withFuzzySuggestion(sa);
-        }
-
-        auto isSet = id == Identifier("set");
-
-        if (isSet && typed->checkValidArgs(args))
-        {
-            auto v = args[1].toString();
-            auto options = sc->getOptionsFor(propId.toString());
-
-            if (!options.isEmpty())
-                return DR::fail("Illegal option for property " + propId.toString()).withWrongToken(v).withFuzzySuggestion(options);
-        }
-
-        return DR::ok();
+        return p->getScriptingContent()->getComponentWithName(getArgId());
     }
 
-    static DiagnosticBase::DiagnosticResult setControlCallback(DiagnosticBase* b, const Identifier& id, const Array<var>& args)
+    DiagnosticResult performCustomCheck(const CustomCheckData& cd) final override
     {
-        auto typed = dynamic_cast<LightweightDiagnostics*>(b);
-
-        auto callback = dynamic_cast<WeakCallbackHolder::CallableObject*>(args[0].getObject());
-
-        if (callback == nullptr || !callback->isRealtimeSafe())
+        if (cd.methodName == Identifier("set") || cd.methodName == Identifier("get"))
         {
-            return DR::fail("A control callback must be an inline function");
+            auto sc = getScriptComponent();
+            auto propId = cd.resolvedArguments["propertyName"];
+            auto props = sc->getAllProperties();
+
+            if (cd.category == Category::RuntimeIdCheck)
+            {
+                if (props.indexOf(propId) == -1)
+                {
+                    StringArray sa;
+
+                    for (const auto& a : *props.getArray())
+                        sa.add(a.toString());
+
+                    return DR::fail("Unknown property").withWrongToken(propId.toString()).withFuzzySuggestion(sa);
+                }
+
+                return DR::ok();
+            }
+
+            if (cd.category == Category::Conditional)
+            {
+                auto v = cd.resolvedArguments["value"].toString();
+                auto options = sc->getOptionsFor(propId.toString());
+
+                writtenProperties.set(propId.toString(), v);
+
+                if (!options.isEmpty() && !options.contains(v))
+                    return DR::fail("Illegal option for property " + propId.toString()).withWrongToken(v).withFuzzySuggestion(options);
+
+                return DR::ok();
+            }
         }
 
-        LightweightDiagnostics::CallbackParseOptions cb;
-        cb.callback = args[0];
-        cb.argTypes.push_back({ typed->getObjectName(), typed->getArgId() });
-        cb.argTypes.push_back({});
-        cb.thisObj = typed;
-
-        return typed->shadowParseCallbackWithArgType(cb);
-    }
-
-    static void addBaseChecks(LightweightDiagnostics* lb)
-    {
-        lb->addDiagnostic("set", checkProperty);
-        lb->addDiagnostic("get", checkProperty);
-        lb->addDiagnostic("setControlCallback", setControlCallback);
+        return LightweightDiagnostics::performCustomCheck(cd);
     }
 };
 
-struct ScriptingApi::Content::ScriptSlider::Diagnostics : public LightweightDiagnostics
+struct FunctionJSONObject : public LightweightDiagnostics
 {
-    static void addComponentDiagnostics(LightweightDiagnostics* lb)
-    {
-        ScriptComponentChecks::addBaseChecks(lb);
-    }
+    FunctionJSONObject(ProcessorWithScriptingContent* p, const ValueTree&, const String& argId) :
+        LightweightDiagnostics(p, {}, argId)
+    {};
+};
 
-    Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
+template <typename T> struct ModuleDiagnostic : public LightweightDiagnostics
+{
+    ModuleDiagnostic(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
         LightweightDiagnostics(pwsc, v, argId)
     {
-        addComponentDiagnostics(this);
+
+    }
+
+protected:
+
+    DiagnosticResult checkProperty(const Identifier& id) const override
+    {
+        auto mt = getMetadata();
+
+        for (const auto& p : mt.parameters)
+        {
+            if (p.id == id)
+                return DiagnosticResult::ok();
+        }
+
+        return LightweightDiagnostics::checkProperty(id);
+    }
+
+    template <bool CheckValue> static DiagnosticResult checkAttribute(DiagnosticBase* b, const Identifier& id, const Array<var>& args)
+    {
+        if (!Helpers::checkValidArgs(args))
+            return DiagnosticResult::unknown();
+
+        auto idx = (int)args[0];
+        auto value = (float)args[1];
+
+        auto mt = dynamic_cast<ModuleDiagnostic<T>*>(b)->getMetadata();
+
+        if (!isPositiveAndBelow(idx, mt.parameters.size()))
+        {
+            return DiagnosticResult::fail("Illegal parameter index " + String(idx)).withSuggestion("Valid parameter range: [0 - " + String(mt.parameters.size() - 1) + "]");
+        }
+
+        if constexpr (CheckValue)
+        {
+            auto p = mt.parameters[idx];
+
+            if (!(p.range.getRange().contains(value) || p.range.rng.end == value))
+            {
+                return DiagnosticResult("value " + String(value, 2) + " outside default parameter range for " + p.id.toString())
+                    .withSeverity(DiagnosticResult::Severity::Warning)
+                    .withSuggestion(RangeHelpers::toDisplayString(p.range));
+            }
+        }
+
+        return DiagnosticResult::ok();
+    }
+
+    T* getProcessor() const
+    {
+        if (resolved)
+            return dynamic_cast<T*>(processor.get());
+
+        auto chain = p->getMainController_()->getMainSynthChain();
+
+        Processor::Iterator<T> it(chain);
+
+        while (auto t = it.getNextProcessor())
+        {
+            if (dynamic_cast<Processor*>(t)->getId() == getArgId())
+            {
+                processor = dynamic_cast<Processor*>(t);
+                metadata = processor->getMetadata();
+                resolved = true;
+                break;
+            }
+        }
+
+        return dynamic_cast<T*>(processor.get());
+    }
+
+    ProcessorMetadata getMetadata() const
+    {
+        if (!resolved)
+            getProcessor();
+
+        return metadata;
+    }
+
+private:
+
+    mutable bool resolved = false;
+    mutable WeakReference<Processor> processor;
+    mutable ProcessorMetadata metadata;
+};
+
+} // namespace BaseObjects
+
+
+
+
+
+struct EventTypeObject: public BaseObjects::FunctionJSONObject
+{
+    EventTypeObject(ProcessorWithScriptingContent* p, const ValueTree&, const String& cl) :
+        FunctionJSONObject(p, {}, cl)
+    {
+        auto level = MouseCallbackComponent::getCallbackLevel(cl);
+
+        var obj(new DynamicObject());
+        MouseCallbackComponent::createAutocompleteCallbackObject(obj, level);
+
+        ValueTree v(getClassName());
+
+        for (const auto& nv : obj.getDynamicObject()->getProperties())
+            v.setProperty(nv.name, nv.value, nullptr);
+
+        initClassTree(v);
+    }
+
+    DiagnosticResult checkProperty(const Identifier& id) const override
+    {
+        auto ok = FunctionJSONObject::checkProperty(id);
+
+        if (ok.shouldReport())
+        {
+            auto cl = MouseCallbackComponent::getMinimumCallbackLevel(id);
+
+            // let the default missing property handle that...
+            if (cl == MouseCallbackComponent::CallbackLevel::Unknown)
+                return ok;
+
+            // override the generic missing property with a hint to the missing callback level
+            return DiagnosticResult::fail("Trying to access mouse callback property without setting the proper `allowCallbacks` level")
+                .withWrongToken(id.toString())
+                .withSuggestion("ScriptPanel.set(\"allowCallbacks\", \"" + MouseCallbackComponent::getCallbackLevelAsIdentifier(cl).toString() + "\")");
+        }
+
+        return ok;
+    }
+
+    static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("event"); }
+};
+
+struct ScriptingApi::Content::Diagnostics : public LightweightDiagnostics
+{
+    Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
+        LightweightDiagnostics(pwsc, v, argId)
+    {}
+
+    DiagnosticResult performCustomCheck(const CustomCheckData& cd) override
+    {
+        return LightweightDiagnostics::performCustomCheck(cd);
+    }
+
+    var getReturnType(const Identifier& methodName, const Array<var>& args) const override
+    {
+        if (methodName == Identifier("getComponent"))
+        {
+            auto id = args[0].toString();
+            
+            if (auto sc = p->getScriptingContent()->getComponentWithName(id))
+            {
+                auto typed = dynamic_cast<HiseJavascriptEngine::RootObject::ObjectTypeMap*>(currentShadowParser);
+                return var(typed->createAnonoymousDiagnosticObject(sc->getObjectName(), id).get());
+            }
+        }
+
+        return LightweightDiagnostics::getReturnType(methodName, args);
     }
 };
 
-
-struct ScriptingApi::Content::ScriptPanel::Diagnostics : public LightweightDiagnostics
+struct ScriptingApi::Content::ScriptSlider::Diagnostics : public BaseObjects::ScriptComponentDiagnosticBase
 {
-    static void addComponentDiagnostics(LightweightDiagnostics* lb)
-    {
-        ScriptComponentChecks::addBaseChecks(lb);
+    Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
+        ScriptComponentDiagnosticBase(pwsc, v, argId)
+    {}
+};
 
-        lb->addDiagnostic("setPaintRoutine", [lb](DiagnosticBase* b, const Identifier& id, const Array<var>& args)
+struct ScriptingApi::Content::ScriptButton::Diagnostics : public BaseObjects::ScriptComponentDiagnosticBase
+{
+    Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
+        ScriptComponentDiagnosticBase(pwsc, v, argId)
+    {}
+};
+
+struct ScriptingApi::Content::ScriptComboBox::Diagnostics : public BaseObjects::ScriptComponentDiagnosticBase
+{
+    Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
+        ScriptComponentDiagnosticBase(pwsc, v, argId)
+    {}
+};
+
+struct ScriptingApi::Content::ScriptLabel::Diagnostics : public BaseObjects::ScriptComponentDiagnosticBase
+{
+    Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
+        ScriptComponentDiagnosticBase(pwsc, v, argId)
+    {}
+};
+
+struct ScriptingApi::Content::ScriptImage::Diagnostics : public BaseObjects::ScriptComponentDiagnosticBase
+{
+    Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
+        ScriptComponentDiagnosticBase(pwsc, v, argId)
+    {}
+};
+
+struct ScriptingApi::Content::ScriptPanel::Diagnostics : public BaseObjects::ScriptComponentDiagnosticBase
+{
+    Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
+        ScriptComponentDiagnosticBase(pwsc, v, argId)
+    {
+        addDiagnostic("setMouseCallback", [](DiagnosticBase* b, const Identifier& id, const Array<var>& args)
         {
+            auto typed = dynamic_cast<BaseObjects::ScriptComponentDiagnosticBase*>(b);
+            auto cl = typed->getPropertyFromObjectOrWrittenProperties("allowCallbacks").toString();
+
             CallbackParseOptions cb;
             cb.callback = args[0];
-            cb.argTypes.push_back({ ScriptingObjects::GraphicsObject::getClassName(), "" });
-            cb.thisObj = lb;
+            cb.argTypes.push_back({ Helpers::makeMetaId<EventTypeObject>(), cl });
+            cb.thisObj = typed;
 
-            return lb->shadowParseCallbackWithArgType(cb);
+            return typed->shadowParseCallbackWithArgType(cb);
         });
     }
+};
 
-	Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
-		LightweightDiagnostics(pwsc, v, argId)
-	{
-        addComponentDiagnostics(this);
-	}
+struct ScriptingApi::Content::ScriptedViewport::Diagnostics : public BaseObjects::ScriptComponentDiagnosticBase
+{
+    Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
+        ScriptComponentDiagnosticBase(pwsc, v, argId)
+    {}
+};
+
+struct ScriptingApi::Content::ScriptTable::Diagnostics : public BaseObjects::ScriptComponentDiagnosticBase
+{
+    Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
+        ScriptComponentDiagnosticBase(pwsc, v, argId)
+    {}
+};
+
+struct ScriptingApi::Content::ScriptAudioWaveform::Diagnostics : public BaseObjects::ScriptComponentDiagnosticBase
+{
+    Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
+        ScriptComponentDiagnosticBase(pwsc, v, argId)
+    {}
+};
+
+struct ScriptingApi::Content::ScriptSliderPack::Diagnostics : public BaseObjects::ScriptComponentDiagnosticBase
+{
+    Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
+        ScriptComponentDiagnosticBase(pwsc, v, argId)
+    {}
+};
+
+struct ScriptingApi::Content::ScriptDynamicContainer::Diagnostics : public BaseObjects::ScriptComponentDiagnosticBase
+{
+    Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
+        ScriptComponentDiagnosticBase(pwsc, v, argId)
+    {}
+};
+
+struct ScriptingApi::Content::ScriptFloatingTile::Diagnostics : public BaseObjects::ScriptComponentDiagnosticBase
+{
+    Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
+        ScriptComponentDiagnosticBase(pwsc, v, argId)
+    {}
+};
+
+struct ScriptingApi::Content::ScriptWebView::Diagnostics : public BaseObjects::ScriptComponentDiagnosticBase
+{
+    Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
+        ScriptComponentDiagnosticBase(pwsc, v, argId)
+    {}
 };
 
 struct ScriptingApi::Synth::Diagnostics : public LightweightDiagnostics
@@ -222,101 +483,10 @@ struct ScriptingApi::Synth::Diagnostics : public LightweightDiagnostics
     }
 };
 
-template <typename T> struct ModuleDiagnostic: public LightweightDiagnostics
+
+
+struct ScriptingObjects::ScriptingEffect::Diagnostics : public BaseObjects::ModuleDiagnostic<EffectProcessor>
 {
-    ModuleDiagnostic(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
-        LightweightDiagnostics(pwsc, v, argId)
-    {
-
-    }
-
-protected:
-
-    bool checkProperty(const Identifier& id) const override
-    {
-        auto mt = getMetadata();
-
-        for (const auto& p : mt.parameters)
-        {
-            if (p.id == id)
-                return true;
-        }
-
-        return LightweightDiagnostics::checkProperty(id);
-    }
-
-    template <bool CheckValue> static DiagnosticResult checkAttribute(DiagnosticBase* b, const Identifier& id, const Array<var>& args)
-    {
-        if (!checkValidArgs(args))
-            return DiagnosticResult::unknown();
-
-        auto idx = (int)args[0];
-        auto value = (float)args[1];
-
-        auto mt = dynamic_cast<ModuleDiagnostic<T>*>(b)->getMetadata();
-
-        if (!isPositiveAndBelow(idx, mt.parameters.size()))
-        {
-            return DiagnosticResult::fail("Illegal parameter index " + String(idx)).withSuggestion("Valid parameter range: [0 - " + String(mt.parameters.size() - 1) + "]");
-        }
-
-        if constexpr (CheckValue)
-        {
-            auto p = mt.parameters[idx];
-
-            if (!(p.range.getRange().contains(value) || p.range.rng.end == value))
-            {
-                return DiagnosticResult("value " + String(value, 2) + " outside default parameter range for " + p.id.toString())
-                    .withSeverity(DiagnosticResult::Severity::Warning)
-                    .withSuggestion(RangeHelpers::toDisplayString(p.range));
-            }
-        }
-
-        return DiagnosticResult::ok();
-    }
-
-    T* getProcessor() const
-    { 
-        if(resolved)
-            return dynamic_cast<T*>(processor.get());
-
-        auto chain = p->getMainController_()->getMainSynthChain();
-
-        Processor::Iterator<T> it(chain);
-
-        while (auto t = it.getNextProcessor())
-        {
-            if (dynamic_cast<Processor*>(t)->getId() == getArgId())
-            {
-                processor = dynamic_cast<Processor*>(t);
-                metadata = processor->getMetadata();
-                resolved = true;
-                break;
-            }
-        }
-
-        return dynamic_cast<T*>(processor.get());
-    }
-
-    ProcessorMetadata getMetadata() const
-    {
-        if (!resolved)
-            getProcessor();
-
-        return metadata;
-    }
-
-private:
-
-    mutable bool resolved = false;
-    mutable WeakReference<Processor> processor;
-    mutable ProcessorMetadata metadata;
-};
-
-struct ScriptingObjects::ScriptingEffect::Diagnostics : public ModuleDiagnostic<EffectProcessor>
-{
-    
-
     Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
         ModuleDiagnostic<EffectProcessor>(pwsc, v, argId)
     {
@@ -325,6 +495,7 @@ struct ScriptingObjects::ScriptingEffect::Diagnostics : public ModuleDiagnostic<
     }
 };
 
+#if 0
 struct ScriptingObjects::PathObject::Diagnostics : public LightweightDiagnostics
 {
     Diagnostics(ProcessorWithScriptingContent* p, const ValueTree& classTree, const String&) :
@@ -347,43 +518,143 @@ struct ScriptingObjects::PathObject::Diagnostics : public LightweightDiagnostics
         });
     }
 };
+#endif
 
-#define ADD_CUSTOM_DIAGNOSTICS(className) if (sc != nullptr && sc->getObjectName() == ScriptingApi::Content::className::getClassName()) \
-                ScriptingApi::Content::className::Diagnostics::addComponentDiagnostics(this);
-
-struct ScriptComponentDiagnostics
+struct LafObj : public BaseObjects::FunctionJSONObject
 {
-    static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("ScriptComponent"); }
+    static Identifier getClassName() { return "obj"; }
 
-    struct Diagnostics : public LightweightDiagnostics
+    LafObj(ProcessorWithScriptingContent* p, const ValueTree& v, const String& argId) :
+        FunctionJSONObject(p, {}, argId)
     {
-        Diagnostics(ProcessorWithScriptingContent* p, const ValueTree& fullApiTree, const String& arg):
-            LightweightDiagnostics(p, {}, arg)
+        auto obj = ApiHelpers::getLafObjectTree().getChildWithName(argId);
+
+        ValueTree reduced(getClassName());
+
+        for (auto c : obj)
         {
-            auto sc = p->getScriptingContent()->getComponentWithName(arg);
-
-            ADD_CUSTOM_DIAGNOSTICS(ScriptPanel);
-            ADD_CUSTOM_DIAGNOSTICS(ScriptSlider);
-
-            if (sc != nullptr)
-                initClassTree(fullApiTree.getChildWithName(sc->getObjectName()));
+            reduced.setProperty(c.getType(), true, nullptr);
+            properties.add("obj." + c.getType().toString());
         }
-    };
+
+        initClassTree(reduced);
+    }
+
+    DiagnosticResult checkProperty(const Identifier& id) const override
+    {
+        auto ok = FunctionJSONObject::checkProperty(id);
+
+        if(ok.shouldReport())
+            return DiagnosticResult::fail("illegal property for LAF obj in function " + getArgId()).withWrongToken("obj." + id.toString()).withFuzzySuggestion(properties);
+
+        return ok;
+    }
+
+    StringArray properties;
 };
 
-#undef ADD_CUSTOM_DIAGNOSTICS
+struct ScriptingObjects::ScriptedLookAndFeel::Diagnostics : public LightweightDiagnostics
+{
+    Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
+        LightweightDiagnostics(pwsc, v, argId)
+    {}
+
+    DiagnosticResult performCustomCheck(const CustomCheckData& cd) override
+    {
+        if (cd.methodName == Identifier("setInlineStyleSheet"))
+        {
+            simple_css::Parser p(cd.checkString);
+            auto ok = p.parse();
+
+            if (!ok.wasOk())
+                return DiagnosticResult::fail("CSS parser error: " + ok.getErrorMessage());
+
+                auto warnings = p.getWarnings();
+
+#if 0
+                for (auto w : warnings)
+                {
+                    auto currentParentValidator = dynamic_cast<ShadowParserType*>(currentShadowParser);
+                    currentParentValidator->addCustomDiagnostics(DiagnosticResult::fail("CSS Warning " + w)
+                        .withSeverity(DiagnosticResult::Severity::Warning));
+                }
+#endif
+
+            return DiagnosticResult::ok();
+        }
+        if (cd.methodName == Identifier("registerFunction"))
+        {
+            auto fn = cd.resolvedArguments[cd.parameterId].toString();
+            auto lafTree = ApiHelpers::getLafObjectTree();
+            auto mTree = lafTree.getChildWithName(fn);
+
+            if (cd.category == Category::StringValidator)
+            {
+                if (!mTree.isValid())
+                {
+                    StringArray candidates;
+
+                    for (auto c : lafTree)
+                        candidates.add(c.getType().toString());
+
+                    return DiagnosticResult::fail("unknown function for LAF").withWrongToken(fn).withFuzzySuggestion(candidates);
+                }
+
+                return DiagnosticResult::ok();
+            }
+            if (cd.category == Category::CallbackArgCheck)
+            {
+                CallbackParseOptions cb;
+                cb.callback = cd.resolvedArguments["paintFunction"];
+                
+                auto ok = cb.parseCheckString(cd.checkString, true);
+
+                if (ok.failed())
+                    return DiagnosticResult::fail(ok.getErrorMessage());
+
+                // now pass the function name to the laf obj so it can resolve it later
+                cb.argTypes[1].second = cd.resolvedArguments["functionName"].toString();
+
+                return shadowParseCallbackWithArgType(cb);
+            }
+        }
+
+        return DiagnosticResult::ok();
+    }
+};
+
+
+
 
 LightweightDiagnostics::Factory::Factory()
 {
-    registerType<ScriptingObjects::PathObject>();
+    //registerType<ScriptingObjects::PathObject>();
     registerType<ScriptingObjects::ScriptingEffect>();
-    registerType<ScriptingApi::Content::ScriptPanel>();
+    
     registerType<ScriptingApi::Content::ScriptSlider>();
-    registerType<ScriptingApi::Synth>();
-    registerType<ScriptComponentDiagnostics>();
+    registerType<ScriptingApi::Content::ScriptButton>();
+    registerType<ScriptingApi::Content::ScriptComboBox>();
+    registerType<ScriptingApi::Content::ScriptLabel>();
+    registerType<ScriptingApi::Content::ScriptedViewport>();
+    registerType<ScriptingApi::Content::ScriptTable>();
+    registerType<ScriptingApi::Content::ScriptImage>();
+    registerType<ScriptingApi::Content::ScriptWebView>();
+    registerType<ScriptingApi::Content::ScriptSliderPack>();
+    registerType<ScriptingApi::Content::ScriptAudioWaveform>();
+    registerType<ScriptingApi::Content::ScriptFloatingTile>();
+    registerType<ScriptingApi::Content::ScriptDynamicContainer>();
+    registerType<ScriptingApi::Content::ScriptPanel>();
 
-    // final validation gate: all API class must be creatable
-    //jassert(items.size() == getNumApiClasses());
+    registerType<ScriptingApi::Synth>();
+    //registerType<ScriptingApi::Server>();
+    registerType<ScriptingApi::Content>();
+    registerType<ScriptingObjects::ScriptedLookAndFeel>();
+    
+    registerMetaType<BaseObjects::ScriptComponentDiagnosticBase>();
+    registerMetaType<EventTypeObject>();
+    registerMetaType<LafObj>();
 }
+
+
 
 }

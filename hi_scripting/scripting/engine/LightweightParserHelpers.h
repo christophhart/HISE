@@ -32,28 +32,92 @@
 
 #pragma once
 
-
-/** TODO:
-
-- migrate all DiagnosticBase lambdas to ApiDiagnostics.cpp
-- add all component types
-- make ApiClass not a DiagnosticBase method
-
-
-*/
-
-
 namespace hise {
 using namespace juce;
 struct ApiValidationAnalyzer;
 
-struct LightweightDiagnostics : public DiagnosticBase
+struct LightweightDiagnostics : public DiagnosticBase,
+                                public ObjectWithJSONConverter
 {
+    using Ptr = ReferenceCountedObjectPtr<LightweightDiagnostics>;
+
+    enum class CacheBehaviour
+    {
+        NeverCache,
+        CacheIfSameId,
+        ReplaceIfPolymorphic,
+        AlwaysCache
+    };
+
+    enum class Category
+    {
+        RangeCheck,
+        CallbackArgCheck,
+        RuntimeIdCheck,
+        Conditional,
+        GraphicsCheck,
+        StringValidator,
+        ObjectType,
+        MethodTouched,
+        numCategories
+    };
+
+    static StringArray getCategories()
+    {
+        return {
+            "RangeCheck",
+            "CallbackArgCheck",
+            "RuntimeIdCheck",
+            "Conditional",
+            "GraphicsCheck",
+            "StringValidator",
+            "ObjectType",
+            "MethodTouched"
+        };
+    }
+
+    struct CustomCheckData
+    {
+        Category category;
+        Identifier methodName;
+        Identifier parameterId;
+        NamedValueSet resolvedArguments;
+        String checkString;
+    };
+
+    virtual DiagnosticResult performCustomCheck(const CustomCheckData& cd)
+    {
+        // Convention: return unknown for callback checks, this will handle all default
+        // checks. Override this when requiring special callback checks...
+        if (cd.category == Category::CallbackArgCheck || cd.category == Category::RuntimeIdCheck)
+            return DiagnosticResult::unknown();
+
+        // must be implemented in derived class
+        return DiagnosticResult::fail("You need to implement a check for " + cd.methodName.toString() + "." + cd.parameterId.toString());
+    }
+
+    using ScopeSafety = WeakCallbackHolder::CallableObject::CallScope;
+
+    DiagnosticResult checkCallScope(ScopeSafety minimumScope, const Identifier& methodName) const;
+
+    DiagnosticResult runTests(ShadowParserBase* sp, const Identifier& methodName, const Array<var>& args);
+
+    virtual CacheBehaviour getCacheBehaviour() const
+    {
+        if (Helpers::isApiClass(getObjectName()))
+            return CacheBehaviour::AlwaysCache;
+
+        if (getArgId().isNotEmpty())
+            return CacheBehaviour::CacheIfSameId;
+
+        return CacheBehaviour::NeverCache;
+    }
+
     LightweightDiagnostics(ProcessorWithScriptingContent* p_, const ValueTree& classTree, const String& argId_) :
         p(p_),
         argId(argId_)
     {
-        if(classTree.isValid())
+        if(classTree.isValid() && !Helpers::isApiRoot(classTree))
             initClassTree(classTree);
     }
 
@@ -77,34 +141,116 @@ struct LightweightDiagnostics : public DiagnosticBase
     {
         Factory();
 
-        using CreatorFunction = std::function<DiagnosticBase* (ProcessorWithScriptingContent*, const ValueTree&, const String& argId)>;
+        using CreatorFunction = std::function<LightweightDiagnostics::Ptr (ProcessorWithScriptingContent*, const ValueTree&, const String& argId)>;
 
         template <typename T> void registerType()
         {
+            static_assert(std::is_base_of<LightweightDiagnostics, typename T::Diagnostics>(), "not a base of lightweight diagnostics");
+
             items[T::getClassName()] = [](ProcessorWithScriptingContent* p, const ValueTree& c, const String& argId)
             {
                 return new typename T::Diagnostics(p, c, argId);
             };
         }
 
-        DiagnosticBase* createLightweightPrototype(ProcessorWithScriptingContent* p, const Identifier& id, const String& argId) const;
+        /** Use this with a class that has getClassName() and a constructor that matches Lightweight diagnostics. 
+            Note: the ValueTree supplied by the constructor is the full ApiTree. 
+        */
+        template <typename T> void registerMetaType()
+        {
+            static_assert(std::is_base_of<LightweightDiagnostics, T>(), "not a base of lightweight diagnostics");
+            metaItems[T::getClassName()] = [](ProcessorWithScriptingContent* p, const ValueTree& c, const String& argId)
+            {
+                return new typename T(p, c, argId);
+            };
+        }
+
+        LightweightDiagnostics::Ptr createLightweightPrototype(ProcessorWithScriptingContent* p, const Identifier& id, const String& argId) const;
 
         Identifier getReturnTypeFromApiMap(const Identifier& className, const Identifier& methodName) const;
 
+        void clearCache()
+        {
+            cache.clear();
+        }
+
     private:
+
+        LightweightDiagnostics::Ptr createInternal(ProcessorWithScriptingContent* p, const Identifier& id, const String& argId) const;
+        
+
+        class Cache
+        {
+            struct Key
+            {
+                Identifier className;
+                String argId;
+                bool isApiClass;
+
+                bool matches(const Identifier& className_, const String& argId_) const
+                {
+                    return className_ == className &&
+                        (isApiClass || argId == argId_);
+                }
+            };
+
+        public:
+            
+
+            LightweightDiagnostics::Ptr getCached(LightweightDiagnostics::Ptr ld)
+            {
+                if (ld->getCacheBehaviour() == CacheBehaviour::NeverCache)
+                    return ld;
+
+                if(auto existing = get(ld->getObjectName(), ld->getArgId()))
+                    return existing;
+
+                Key k;
+                k.className = ld->getObjectName();
+                k.argId = ld->getArgId();
+                k.isApiClass = Helpers::isApiClass(ld->getObjectName());
+
+                cacheMap.push_back({ k, ld });
+
+                return ld;
+            }
+
+            void clear() { cacheMap.clear(); }
+
+        private:
+
+            LightweightDiagnostics::Ptr get(const Identifier& id, const String& argId) const
+            {
+                for (const auto& m : cacheMap)
+                {
+                    if (m.first.matches(id, argId))
+                        return m.second.get();
+                }
+
+                return nullptr;
+            }
+
+            std::vector<std::pair<Key, ReferenceCountedObjectPtr<LightweightDiagnostics>>> cacheMap;
+        };
+
+        mutable Cache cache;
 
         SharedResourcePointer<ApiMap> apiMap;
         std::map<Identifier, CreatorFunction> items;
+        std::map<Identifier, CreatorFunction> metaItems;
+    };
+
+    struct Validator
+    {
+        DiagnosticResult perform(DiagnosticBase* b, const Identifier& id, const Array<var>& args) const;
+
+        operator bool() const { return !validators.empty(); }
+
+        std::vector<std::pair<int, StringArray>> validators;
     };
 
     struct FunctionInfo
     {
-        /** TODO: - Complete parsing of types OK
-        *         - add optional args to Api pipeline as "requiredNumArgs" field OK
-        *         - change factory to attach live checks to valuetree base class OK
-        *         - big refactor: remove all the stuff that isn't needed with this new approach
-        */
-         
         struct Args
         {
             Args(Identifier id_) : id(id_) {};
@@ -118,6 +264,9 @@ struct LightweightDiagnostics : public DiagnosticBase
             Identifier id;
             VarTypeChecker::VarTypes type = VarTypeChecker::VarTypes::NotUndefined;
             bool optional = false;
+            StringArray validators;
+
+            bool hasValidators() const { return !validators.isEmpty(); }
         };
 
         FunctionInfo(const Identifier& id_) :
@@ -129,9 +278,18 @@ struct LightweightDiagnostics : public DiagnosticBase
         FunctionInfo withNumArgs(int numArgs) const;
         FunctionInfo withArgs(Args a) const;
 
+        Validator getValidators() const;
+
+        Identifier className;
         Identifier methodName;
         Identifier returnType;
+
+        WeakCallbackHolder::CallableObject::CallScope callscope = WeakCallbackHolder::CallableObject::CallScope::Unknown;
+        String callScopeNote;
+
         std::vector<Args> arguments;
+
+        StringArray thisValidators;
     };
 
     void addFunction(const FunctionInfo& fi) { functions.add(fi); }
@@ -148,20 +306,27 @@ struct LightweightDiagnostics : public DiagnosticBase
 
     bool getIndexAndNumArgsForFunction(const Identifier& id, int& index, int& numArgs) const override;
 
-    Identifier getReturnType(const Identifier& functionName) const override
-    {
-        for (const auto& f : functions)
-        {
-            if (f.methodName == functionName)
-                return f.returnType;
-        }
-    }
+    var getReturnType(const Identifier& functionName, const Array<var>& args) const override;
 
-    virtual bool checkProperty(const Identifier& propertyId) const;
+    virtual DiagnosticResult checkProperty(const Identifier& propertyId) const;
+
+    DiagnosticResult checkFunction(const Identifier& methodName, int expectedNumArgs) const override;
 
     struct CallbackParseOptions
     {
+        enum class FunctionType
+        {
+            Function,
+            Realtime,
+            InlineFunction
+        };
+
+        Result parseCheckString(const String& f, bool checkParameterCount);
+
+        FunctionType ft;
         var callback;
+        WeakCallbackHolder::CallableObject::StrictnessLevel strictness = WeakCallbackHolder::CallableObject::StrictnessLevel::Unsafe;
+        
         std::vector<std::pair<Identifier, String>> argTypes;
         LightweightDiagnostics* thisObj;
     };
@@ -172,33 +337,107 @@ struct LightweightDiagnostics : public DiagnosticBase
 
     Array<FunctionInfo> functions;
     ProcessorWithScriptingContent* p;
-    ApiValidationAnalyzer* currentParentValidator = nullptr;
-
-    /** small helper function : returns false if an argument couldn't be resolved. Use this in your diagnostics. */
-    static bool checkValidArgs(const Array<var>& args)
+    
+    struct Helpers
     {
-        for (auto& v : args)
+        /** small helper function : returns false if an argument couldn't be resolved. Use this in your diagnostics. */
+        static bool checkValidArgs(const Array<var>& args);
+
+        static bool isApiRoot(const ValueTree& v) { return v.getType() == Identifier("Api"); }
+        
+        static bool isApiClass(const Identifier& id);
+
+        template <typename T> static Identifier makeMetaId()
         {
-            if (v.isUndefined() || v.isVoid())
-                return false;
+            String s;
+            s << "MetaObjects::" << T::getClassName().toString();
+            return Identifier(s);
         }
 
-        return true;
+        template <int FIndex, int NumExpectedArgs> static DiagnosticResult checkCallbackArgs(DiagnosticBase*, const Identifier&, const Array<var>& args)
+        {
+            if (auto f = dynamic_cast<WeakCallbackHolder::CallableObject*>(args[FIndex].getObject()))
+            {
+                auto numActual = f->getNumArguments();
+
+                if (numActual != NumExpectedArgs)
+                    return DiagnosticResult::fail("wrong argument count for callback").withExpectation(String(numActual) + " params", String(NumExpectedArgs) + " params");
+            }
+
+            return DiagnosticResult::unknown();
+        };
+
+        static StringArray getPrimitiveTypeList();
+        static VarTypeChecker::VarTypes getVarTypeFromPrimitiveType(const String& s);
+
+        static String getTypeForObjectTypeCheck(const var& value);
+    };
+
+    var getConstantValue(const Identifier& id) const
+    {
+        return apiConstants[id];
     }
 
     Identifier getObjectName() const { return className; }
 
+    JUCE_MAKE_STREAMABLE_OBJECT(7);
+
+    void writeAsJSON(OutputStream& os, int indentLevel, bool allOnOneLine, int maximumDecimalPlaces) override
+    {
+        String rep;
+        rep << getObjectName().toString();
+
+        if (getArgId().isNotEmpty())
+            rep << "(" << getArgId().quoted() << ")";
+
+        os << rep;
+    }
+
+    void writeToStream(OutputStream& os) override
+    {
+        JUCE_WRITE_STREAMABLE_OBJECT_MARKERS(os);
+
+        String rep;
+        rep << getObjectName().toString();
+
+        if (getArgId().isNotEmpty())
+            rep << "(" << getArgId().quoted() << ")";
+
+        os.writeCompressedInt(rep.length());
+        os.writeString(rep);
+
+        jassertfalse;
+    }
+
+    static ObjectWithJSONConverter* createFromStream(InputStream& input)
+    {
+        jassertfalse;
+        return nullptr;
+    }
+
 protected:
+
+    
 
     void initClassTree(const ValueTree& classTree)
     {
-        jassert(classTree.isValid());
+        jassert(classTree.isValid() && !Helpers::isApiRoot(classTree));
 
         className = classTree.getType();
 
         for (auto& m : classTree)
         {
-            addFunction(FunctionInfo(m));
+            FunctionInfo fi(m);
+
+            addFunction(fi);
+
+            if (auto v = fi.getValidators())
+            {
+                addDiagnostic(fi.methodName, [v](DiagnosticBase* b, const Identifier& id, const Array<var>& args)
+                {
+                    return v.perform(b, id, args);
+                });
+            }
         }
 
         for (int i = 0; i < classTree.getNumProperties(); i++)
@@ -208,8 +447,7 @@ protected:
         }
     }
 
-    
-    
+    struct ValidatorEvaluator;
 
 private:
 

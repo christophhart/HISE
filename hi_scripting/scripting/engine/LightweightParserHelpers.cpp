@@ -35,20 +35,67 @@ namespace hise {
 using namespace juce;
 
 
-
-
-
-DiagnosticBase* LightweightDiagnostics::Factory::createLightweightPrototype(ProcessorWithScriptingContent* p, const Identifier& id, const String& argId) const
+struct NativeTypeDiagnostic : public LightweightDiagnostics
 {
-	const Array<Identifier> metaIds({ "ScriptComponent" });
+	NativeTypeDiagnostic(ProcessorWithScriptingContent* p, VarTypeChecker::VarTypes type, const String& argId):
+		LightweightDiagnostics(p, ValueTree(), VarTypeChecker::getTypeName(type).toString()),
+		t(type)
+	{
+		if (argId.isNotEmpty())
+		{
+			custom = true;
+
+			if (t == VarTypeChecker::VarTypes::JSON)
+			{
+				var obj;
+				auto r = JSON::parse(argId, obj);
+				jassert(r.wasOk());
+
+				ValueTree cTree(VarTypeChecker::getTypeName(type));
+
+				if (auto d = obj.getDynamicObject())
+				{
+					for (const auto& nv : d->getProperties())
+						cTree.setProperty(nv.name, nv.value, nullptr);
+				}
+
+				initClassTree(cTree);
+			}
+		}
+	}
+
+	CacheBehaviour getCacheBehaviour() const override { return custom ? CacheBehaviour::NeverCache : CacheBehaviour::AlwaysCache; };
+
+	bool custom = false;
+	VarTypeChecker::VarTypes t;
+};
+
+LightweightDiagnostics::Ptr LightweightDiagnostics::Factory::createInternal(ProcessorWithScriptingContent* p, const Identifier& id, const String& argId) const
+{
+	auto nativeType = Helpers::getVarTypeFromPrimitiveType(id.toString());
+
+	if (nativeType != VarTypeChecker::Undefined)
+		return new NativeTypeDiagnostic(p, nativeType, argId);
 
 	auto apiTree = ApiHelpers::getApiTree();
 
+	if (id.toString().startsWith("MetaObjects::"))
+	{
+		auto metaId = Identifier(id.toString().fromFirstOccurrenceOf("MetaObjects::", false, false));
+
+		for (const auto& m : metaItems)
+		{
+			if (m.first == metaId)
+				return m.second(p, apiTree, argId);
+		}
+
+		jassertfalse;
+		return nullptr;
+	}
+
 	auto cTree = apiTree.getChildWithName(id);
 
-	jassert(cTree.isValid() || metaIds.contains(id));
-
-	if (!cTree.isValid())
+	if (!cTree.isValid()) // use the full API tree and let the object resolve the actual API later
 		cTree = apiTree;
 
 	for (const auto& i : items)
@@ -57,7 +104,39 @@ DiagnosticBase* LightweightDiagnostics::Factory::createLightweightPrototype(Proc
 			return i.second(p, cTree, argId);
 	}
 
+	// meta items could also be constructed directly (coming from the parser)
+	for (const auto& i : metaItems)
+	{
+		if (i.first == id)
+			return i.second(p, cTree, argId);
+	}
+
 	return new LightweightDiagnostics(p, cTree, argId);
+}
+
+LightweightDiagnostics::Ptr LightweightDiagnostics::Factory::createLightweightPrototype(ProcessorWithScriptingContent* p, const Identifier& id, const String& argId) const
+{
+	if (auto obj = createInternal(p, id, argId))
+	{
+		auto cb = obj->getCacheBehaviour();
+
+		if (cb == CacheBehaviour::NeverCache)
+			return obj;
+
+		if (cb == CacheBehaviour::ReplaceIfPolymorphic)
+		{
+			if (obj->getObjectName() != id)
+			{
+				if (auto newObj = createInternal(p, obj->getObjectName(), argId))
+					return cache.getCached(newObj);
+			}
+		}
+
+		return cache.getCached(obj);
+	}
+
+	jassertfalse;
+	return nullptr;
 }
 
 Identifier LightweightDiagnostics::Factory::getReturnTypeFromApiMap(const Identifier& className, const Identifier& methodName) const
@@ -71,13 +150,15 @@ Identifier LightweightDiagnostics::Factory::getReturnTypeFromApiMap(const Identi
 	return {};
 }
 
+
+
+
+
 LightweightDiagnostics::ApiMap::ApiMap()
 {
 	auto tree = ApiHelpers::getApiTree();
 
-	static const StringArray primitiveTypes({
-		"Integer", "Double", "undefined", "void", "var", "JSON", "ScriptObject", "NotUndefined", "bool", "Object", "Number", "AudioData", "int", "double" }
-		);
+	auto primitiveTypes = Helpers::getPrimitiveTypeList();
 
 	StringArray foundTypes;
 
@@ -104,19 +185,29 @@ LightweightDiagnostics::ApiMap::ApiMap()
 			}
 		}
 	}
-
-	for (const auto& c : items)
-		DBG(c.toString());
-
 }
 
 LightweightDiagnostics::FunctionInfo::FunctionInfo(const ValueTree& methodTree)
 {
 	jassert(methodTree.getType() == Identifier("method"));
 
+	className = methodTree.getParent().getType();
 	methodName = methodTree["name"].toString();
 
 	auto args = methodTree["arguments"].toString();
+
+	auto callScopeString = methodTree["callScope"].toString();
+
+	if (callScopeString == "warning")
+		callscope = WeakCallbackHolder::CallableObject::CallScope::Warning;
+	if (callScopeString == "unsafe")
+		callscope = WeakCallbackHolder::CallableObject::CallScope::Unsafe;
+	if (callScopeString == "safe")
+		callscope = WeakCallbackHolder::CallableObject::CallScope::Safe;
+	if (callScopeString == "init")
+		callscope = WeakCallbackHolder::CallableObject::CallScope::Init;
+
+	callScopeNote = methodTree["callScopeNote"].toString();
 
 	args = args.substring(1, args.length() - 1);
 
@@ -134,6 +225,22 @@ LightweightDiagnostics::FunctionInfo::FunctionInfo(const ValueTree& methodTree)
 	auto rt = methodTree["returnType"].toString();
 
 	auto typed = methodTree["returnObjectType"].toString();
+
+	for (auto c : methodTree)
+	{
+		auto argName = c.getType();
+
+		if (argName == Identifier("this"))
+		{
+			thisValidators = StringArray::fromTokens(c["check"].toString(), "|", "");
+		}
+
+		for (auto& a : arguments)
+		{
+			if (a.id == argName)
+				a.validators = StringArray::fromTokens(c["check"].toString(), "|", "");
+		}
+	}
 
 	if (typed.isNotEmpty())
 		rt = typed;
@@ -166,6 +273,108 @@ LightweightDiagnostics::FunctionInfo LightweightDiagnostics::FunctionInfo::withA
 	return copy;
 }
 
+#define USE_JSON_FOR_VALIDATORS 1
+
+#if USE_JSON_FOR_VALIDATORS
+
+struct FileFetcher
+{
+	static var get()
+	{
+		auto now = Time::getMillisecondCounter();
+
+		if ((data.isUndefined() || data.isVoid()) || ((now - lastReadTime) > 1000))
+		{
+			File jf("D:\\Development\\HISE modules\\tools\\api generator");
+			jf = jf.getChildFile("enrichment/resources/constraints_normalized.json");
+
+			jassert(jf.existsAsFile());
+
+			auto ok = JSON::parse(jf.loadFileAsString(), data);
+
+			jassert(ok.wasOk());
+
+			lastReadTime = now;
+		}
+
+		return data;
+	}
+
+	static var data;
+	static uint32 lastReadTime;
+};
+
+var FileFetcher::data = var();
+uint32 FileFetcher::lastReadTime = 0;
+
+
+#endif
+
+LightweightDiagnostics::Validator LightweightDiagnostics::FunctionInfo::getValidators() const
+{
+	Validator v;
+
+#if USE_JSON_FOR_VALIDATORS
+
+	auto result = FileFetcher::get();
+
+	if (auto obj = result[className][methodName].getDynamicObject())
+	{
+		if (auto thisList = obj->getProperty("this").getArray())
+		{
+			StringArray list;
+
+			for (auto& v : *thisList)
+				list.add(v.toString());
+
+			v.validators.push_back({ -1, list });
+		}
+
+		int idx = 0;
+
+		for (const auto& a : arguments)
+		{
+			for (auto& nv : obj->getProperties())
+			{
+				if (a.id == nv.name)
+				{
+					if (auto ar = nv.value.getArray())
+					{
+						StringArray list;
+
+						for (auto& v : *ar)
+							list.add(v.toString());
+
+						v.validators.push_back({ idx, list });
+					}
+
+					break;
+				}
+			}
+
+			idx++;
+		}
+	}
+	
+#else
+
+	if (!thisValidators.isEmpty())
+		v.validators.push_back({ -1, thisValidators });
+
+	int idx = 0;
+
+	for (const auto& a : arguments)
+	{
+		if (a.hasValidators())
+			v.validators.push_back({ idx, a.validators });
+
+		idx++;
+	}
+#endif
+
+	return v;
+}
+
 LightweightDiagnostics::FunctionInfo::Args LightweightDiagnostics::FunctionInfo::Args::withType(VarTypeChecker::VarTypes t) const
 {
 	auto copy = *this;
@@ -195,6 +404,60 @@ juce::String LightweightDiagnostics::ApiMap::Item::toString() const
 	x << methodName.toString() << "() -> ";
 	x << returnType.toString();
 	return x;
+}
+
+DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkCallScope(ScopeSafety minimumScope, const Identifier& methodName) const
+{
+	if (minimumScope > ScopeSafety::Unknown)
+	{
+		for (const auto& f : functions)
+		{
+			if (f.methodName == methodName)
+			{
+				if (minimumScope > f.callscope)
+				{
+					auto msg = f.callScopeNote;
+
+					if (msg.isEmpty())
+					{
+						if (f.callscope == ScopeSafety::Init)
+							msg = "Only callable in the onInit callback";
+						else
+							msg = "Unsafe function call in realtime context";
+					}
+
+					auto sev = f.callscope == ScopeSafety::Warning ? DiagnosticResult::Severity::Warning : DiagnosticResult::Severity::Error;
+
+					return DiagnosticResult(getObjectName().toString() + "." + methodName.toString() + "(): " + msg).withSeverity(sev);
+				}
+
+				return DiagnosticResult::ok();
+			}
+		}
+	}
+
+	return DiagnosticResult::unknown();
+}
+
+DiagnosticBase::DiagnosticResult LightweightDiagnostics::runTests(ShadowParserBase* sp, const Identifier& methodName, const Array<var>& args)
+{
+	currentShadowParser = sp;
+
+	markMethodTouched(methodName);
+
+	auto ok = checkFunction(methodName, args.size());
+
+	auto typed = dynamic_cast<HiseJavascriptEngine::RootObject::ObjectTypeMap*>(sp);
+
+	ok = DiagnosticResult::max(ok, checkCallScope(typed->getMinimumRequiredScopeSafety(), methodName));
+
+	if (ok.shouldReport())
+		return ok;
+
+	if (hasDiagnosticCheck(methodName))
+		return performDiagnostic(methodName, args);
+
+	return DiagnosticResult::ok();
 }
 
 DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkArgCount(const Identifier& id, int numActual) const
@@ -256,54 +519,259 @@ bool LightweightDiagnostics::getIndexAndNumArgsForFunction(const Identifier& id,
 	return false;
 }
 
-bool LightweightDiagnostics::checkProperty(const Identifier& propertyId) const
+inline var LightweightDiagnostics::getReturnType(const Identifier& functionName, const Array<var>& args) const
+{
+	for (const auto& f : functions)
+	{
+		if (f.methodName == functionName)
+		{
+			using RO = HiseJavascriptEngine::RootObject;
+
+			auto argId = args[0].toString();
+
+			auto currentParentValidator = dynamic_cast<RO::ObjectTypeMap*>(currentShadowParser);
+			jassert(currentParentValidator != nullptr);
+
+			if (auto ptr = currentParentValidator->createAnonoymousDiagnosticObject(f.returnType, argId))
+				return var(ptr.get());
+		}
+	}
+
+	return var();
+}
+
+DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkProperty(const Identifier& propertyId) const
 {
 	for (const auto& f : functions)
 	{
 		if (f.methodName == propertyId)
-			return true;
+			return DiagnosticResult::ok();
 	}
 
-	return apiConstants.contains(propertyId);
+	for (const auto& c : apiConstants)
+	{
+		if (c.name == propertyId)
+			return DiagnosticResult::ok();
+	}
+
+	StringArray candidates;
+
+	for(const auto& c: apiConstants)
+	{
+		candidates.add(getObjectName().toString() + "." + c.name.toString());
+	}
+		
+
+	return DiagnosticResult::fail("missing property").withWrongToken(getObjectName() + "." + propertyId.toString()).withFuzzySuggestion(candidates);
+}
+
+DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkFunction(const Identifier& methodName, int expectedNumArgs) const
+{
+	for (const auto& f : functions)
+	{
+		if (f.methodName == methodName)
+		{
+			return DiagnosticResult::ok();
+		}
+	}
+
+	StringArray candidates;
+
+	for (auto f : functions)
+		candidates.add(getObjectName() + "." + f.methodName.toString() + "()");
+
+	return DiagnosticResult::fail("missing function").withWrongToken(getObjectName() + "." + methodName.toString() + "()").withFuzzySuggestion(candidates);
 }
 
 DiagnosticBase::DiagnosticResult LightweightDiagnostics::shadowParseCallbackWithArgType(const CallbackParseOptions& cbo)
 {
 	using RO = HiseJavascriptEngine::RootObject;
 
-	if (auto ifo = dynamic_cast<RO::InlineFunction::Object*>(cbo.callback.getObject()))
+	auto currentParentValidator = dynamic_cast<RO::ObjectTypeMap*>(currentShadowParser);
+	jassert(currentParentValidator != nullptr);
+
+	auto& s = currentParentValidator->getCurrentScope();
+	Array<var> args;
+
+	for (auto a : cbo.argTypes)
 	{
-		jassert(currentParentValidator != nullptr);
+		auto className = a.first;
+		auto argId = a.second;
 
-		RO::ObjectTypeMap::TypeScope t(*currentParentValidator->getOrCreateObjectTypeMap());
-
-		for (int i = 0; i < ifo->getNumArguments(); i++)
+		if (auto ptr = currentParentValidator->createAnonoymousDiagnosticObject(className, argId))
 		{
-			auto exp = ifo->parameterNames[i].toString();
-			auto typ = cbo.argTypes[i].first;
-			t.add(exp, typ, cbo.argTypes[i].second);
+			args.add(var(ptr.get()));
 		}
-
-		currentParentValidator->process(ifo->body);
 	}
+
+	if (auto ifo = dynamic_cast<RO::InlineFunction::Object*>(cbo.callback.getObject()))
+		return ifo->invokeShadowParse(s, var::NativeFunctionArgs(var(this), args.getRawDataPointer(), args.size()), cbo.strictness).second;
 
 	if (auto fo = dynamic_cast<RO::FunctionObject*>(cbo.callback.getObject()))
-	{
-		jassert(currentParentValidator != nullptr);
-
-		RO::ObjectTypeMap::TypeScope t(*currentParentValidator->getOrCreateObjectTypeMap());
-
-		for (int i = 0; i < fo->getNumArguments(); i++)
-		{
-			auto exp = fo->parameters[i].toString();
-			auto typ = cbo.argTypes[i].first;
-			t.add(exp, typ, cbo.argTypes[i].second);
-		}
-
-		currentParentValidator->process(fo->body);
-	}
+		return fo->invokeShadowParse(s, var::NativeFunctionArgs(var(this), args.getRawDataPointer(), args.size()), cbo.strictness).second;
 
 	return DiagnosticResult::ok();
+}
+
+
+
+Result LightweightDiagnostics::CallbackParseOptions::parseCheckString(const String& f, bool checkParameterCount)
+{
+	auto ftString = f.upToFirstOccurrenceOf("(", false, false);
+
+	auto idx = StringArray({ "Function", "Realtime", "Inline" }).indexOf(ftString);
+
+	if (idx == -1)
+		return Result::fail("Unknown function type " + ftString);
+
+	if (idx > 0)
+		strictness = WeakCallbackHolder::CallableObject::StrictnessLevel::Strict;
+
+	ft = (FunctionType)idx;
+
+	auto pString = f.fromFirstOccurrenceOf("(", false, false).removeCharacters("()");
+	auto parameters = StringArray::fromTokens(pString, ",", "{}");
+
+	auto parseJSONArgs = [](const String& p)
+	{
+		std::pair<Identifier, String> rv;
+
+		if (p.startsWith("JSON"))
+		{
+			rv.first = "JSON";
+			rv.second = p.fromFirstOccurrenceOf("{", true, false);
+
+			var result;
+			auto ok = JSON::parse(rv.second, result);
+			jassert(ok.wasOk());
+		}
+		else
+			rv.first = p.trim();
+
+		return rv;
+	};
+
+	for (auto p : parameters)
+		argTypes.push_back(parseJSONArgs(p));
+
+	if (auto cb = dynamic_cast<WeakCallbackHolder::CallableObject*>(callback.getObject()))
+	{
+		if (checkParameterCount && cb->getNumArguments() != argTypes.size())
+			return Result::fail("Callback signature mismatch. Expected: `f(" + pString + ")`, got: " + String(cb->getNumArguments()) + " arguments");
+	}
+	else
+	{
+		return Result::fail("not a callable object");
+	}
+
+	return Result::ok();
+}
+
+
+/** small helper function : returns false if an argument couldn't be resolved. Use this in your diagnostics. */
+bool LightweightDiagnostics::Helpers::checkValidArgs(const Array<var>& args)
+{
+	for (auto& v : args)
+	{
+		if (v.isUndefined() || v.isVoid())
+			return false;
+	}
+
+	return true;
+}
+
+bool LightweightDiagnostics::Helpers::isApiClass(const Identifier& id)
+{
+	static const Array<Identifier> classIds({
+		"Array",
+		"Colours",
+		"Console",
+		"Content",
+		"Date",
+		"Engine",
+		"FileSystem",
+		"Math",
+		"Message",
+		"ModuleIds",
+		"Sampler",
+		"Server",
+		"Settings",
+		"String",
+		"Synth",
+		"Threads"
+		});
+
+	return classIds.contains(id);
+}
+
+StringArray LightweightDiagnostics::Helpers::getPrimitiveTypeList()
+{
+	static const StringArray primitiveTypes = {
+		"Integer",
+		"Double",
+		"undefined",
+		"void",
+		"var",
+		"JSON",
+		"ScriptObject",
+		"NotUndefined",
+		"bool",
+		"Object",
+		"Number",
+		"AudioData",
+		"int",
+		"double"
+	};
+
+	return primitiveTypes;
+}
+
+VarTypeChecker::VarTypes LightweightDiagnostics::Helpers::getVarTypeFromPrimitiveType(const String& s)
+{
+	static const Array<VarTypeChecker::VarTypes> primitiveTypes = {
+		VarTypeChecker::VarTypes::Integer,
+		VarTypeChecker::VarTypes::Double,
+		VarTypeChecker::VarTypes::Undefined,
+		VarTypeChecker::VarTypes::Undefined,
+		VarTypeChecker::VarTypes::NotUndefined,
+		VarTypeChecker::VarTypes::JSON,
+		VarTypeChecker::VarTypes::ScriptObject,
+		VarTypeChecker::VarTypes::NotUndefined,
+		VarTypeChecker::VarTypes::Integer,
+		VarTypeChecker::VarTypes::Object,
+		VarTypeChecker::VarTypes::Number,
+		VarTypeChecker::VarTypes::AudioData,
+		VarTypeChecker::VarTypes::Integer,
+		VarTypeChecker::VarTypes::Double
+	};
+
+	auto idx = getPrimitiveTypeList().indexOf(s);
+
+	if (isPositiveAndBelow(idx, primitiveTypes.size()))
+		return primitiveTypes[idx];
+
+	return VarTypeChecker::VarTypes::Undefined;
+}
+
+String LightweightDiagnostics::Helpers::getTypeForObjectTypeCheck(const var& value)
+{
+	if (auto dbo = dynamic_cast<DebugableObjectBase*>(value.getObject()))
+	{
+		return dbo->getObjectName().toString();
+	}
+
+	if (auto dyn = value.getDynamicObject())
+		return "JSON";
+
+	if (auto ar = value.getArray())
+		return "Array";
+
+	if (value.isString())
+		return "String";
+
+	auto vt = VarTypeChecker::getType(value);
+
+	return VarTypeChecker::getTypeName(vt).toString();
 }
 
 }
