@@ -222,21 +222,40 @@ namespace hise { using namespace juce;
 
 	void MatrixPeakMeter::InternalComp::paint(Graphics& g)
 	{
-		if(data == nullptr || lastNumChannels == 0)
+		if(data == nullptr)
 		{
 			return;
 		}
-                
-            
+
+		// lastNumChannels is only updated by the timer callback, which will not have
+		// ticked yet if a screenshot is taken right after the interface was built (or
+		// while the component is not showing). Fall back to a direct calculation so the
+		// meter is still drawn (with the initial silent peak values) in that case.
+		auto numChannels = lastNumChannels;
+
+		if(numChannels == 0)
+		{
+			numChannels = getSource ? data->getNumSourceChannels() :
+			                           data->getNumDestinationChannels();
+
+			if(!channelIndexes.isEmpty())
+				numChannels = jmin(numChannels, channelIndexes.size());
+		}
+
+		if(numChannels == 0)
+		{
+			return;
+		}
+
 		auto lafToUse = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel());
-            
+
 		if(lafToUse == nullptr)
 			lafToUse = &fallback;
-            
+
 		lafToUse->drawMatrixPeakMeter(g,
 		                              currentPeaks,
 		                              showMaxPeaks ? maxPeaks : nullptr,
-		                              lastNumChannels,
+		                              numChannels,
 		                              getWidth() < getHeight(),
 		                              segmentSize,
 		                              paddingSize,

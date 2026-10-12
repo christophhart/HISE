@@ -200,7 +200,7 @@ public:
 	
     void paintOverChildren(Graphics& g) override;
     
-	void makeScreenshot(const File& target, Rectangle<float> area) override;
+	void makeScreenshot(const File& target, Rectangle<float> area, float scaleFactor = -1.0f) override;
 
 	void visualGuidesChanged() override;
 
