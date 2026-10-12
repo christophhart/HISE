@@ -366,6 +366,15 @@ public:
 	bool jumpToRelease()
 	{
 		auto s = getLoadedSound();
+
+		// Voice was never started for this mic position (e.g. channel is purged)
+		if(s == nullptr)
+			return false;
+
+		// Release start buffer is absent (sound purged after start, or not configured)
+		if(s->getReleaseStartBuffer() == nullptr)
+			return false;
+
 		auto startOffset = s->getReleaseStart() - s->getSampleStart();
 		auto loopStart = s->getLoopStart() - s->getSampleStart();
 
@@ -375,7 +384,7 @@ public:
 		// if the loop is enabled, always seek to the end
 		if(s->isLoopEnabled())
 			shouldSkip |= roundToInt(voiceUptime) > loopStart;
-		
+
 		if(shouldSkip)
 		{
 			jumpToReleaseOnNextRender = true;
