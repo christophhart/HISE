@@ -705,6 +705,11 @@ hise::ProcessorMetadata PolyshapeFX::createMetadata()
 			.withDescription("Adds a DC offset before the shaping function for asymmetric distortion")
 			.withSliderMode(HiSlider::NormalizedPercentage, {})
 			.withDefault(0.0f))
+		.withParameter(Par(Mix)
+			.withId("Mix")
+			.withDescription("Dry and wet balance where 0.0 is fully dry and 1.0 is fully wet")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range(0.0, 1.0, 0.0))
+			.withDefault(1.0f))
 		.withModulation(Mod(DriveModulation)
 			.withId("Drive Modulation")
 			.withDescription("Audio-rate modulation of the drive amount")
@@ -765,6 +770,7 @@ float PolyshapeFX::getAttribute(int parameterIndex) const
 	case Mode: return (float)mode;
 	case Oversampling: return oversampling ? 1.0f : 0.0f;
 	case Bias: return bias;
+	case Mix: return mix;
 	default: break;
 	}
 
@@ -779,6 +785,7 @@ void PolyshapeFX::setInternalAttribute(int parameterIndex, float newValue)
 	case Mode: mode = (int)newValue; recalculateDisplayTable(); break;
 	case Oversampling: oversampling = newValue > 0.5f; break;
 	case Bias: bias = newValue; break;
+	case Mix: mix = newValue; break;
 	}
 }
 
@@ -793,6 +800,7 @@ void PolyshapeFX::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(Mode, "Mode");
 	loadAttribute(Oversampling, "Oversampling");
 	loadAttribute(Bias, "Bias");
+	loadAttribute(Mix, "Mix");
 }
 
 juce::ValueTree PolyshapeFX::exportAsValueTree() const
@@ -806,6 +814,7 @@ juce::ValueTree PolyshapeFX::exportAsValueTree() const
 	saveAttribute(Mode, "Mode");
 	saveAttribute(Oversampling, "Oversampling");
 	saveAttribute(Bias, "Bias");
+	saveAttribute(Mix, "Mix");
 
 	return v;
 }
@@ -836,6 +845,8 @@ void PolyshapeFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 	for (int i = 0; i < NUM_POLYPHONIC_VOICES; i++)
 	{
 		driveSmoothers[i].reset(sampleRate, 0.05);
+		mixSmoothers[i].reset(sampleRate, 0.04);
+		mixSmoothers[i].setValueWithoutSmoothing(mix);
 	}
 
 	for (auto os : oversamplers)
@@ -884,6 +895,25 @@ void PolyshapeFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSam
 
 	float* l = b.getWritePointer(0, startSample);
 	float* r = b.getWritePointer(1, startSample);
+
+	auto& mixSmoother = mixSmoothers[voiceIndex];
+	mixSmoother.setTargetValue(mix);
+
+	// Process the dry/wet blend whenever we are not fully wet, or while the
+	// smoother is still ramping toward a fully wet target (so the ramp completes).
+	const bool applyMix = mix < 1.0f || mixSmoother.isSmoothing();
+
+	float* dryL = nullptr;
+	float* dryR = nullptr;
+
+	if (applyMix)
+	{
+		dryL = (float*)alloca(sizeof(float) * numSamples);
+		dryR = (float*)alloca(sizeof(float) * numSamples);
+
+		FloatVectorOperations::copy(dryL, l, numSamples);
+		FloatVectorOperations::copy(dryR, r, numSamples);
+	}
 
 	if (mode == ShapeFX::ShapeMode::Sin || mode == ShapeFX::ShapeMode::TanCos)
 	{
@@ -943,7 +973,18 @@ void PolyshapeFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSam
 		FilterHelpers::RenderData renderData(b, startSample, numSamples);
 		dcRemovers[voiceIndex].render(renderData);
 	}
-		
+
+	if (applyMix)
+	{
+		for (int i = 0; i < numSamples; i++)
+		{
+			const float m = mixSmoother.getNextValue();
+			const float dryGain = 1.0f - m;
+
+			l[i] = l[i] * m + dryL[i] * dryGain;
+			r[i] = r[i] * m + dryR[i] * dryGain;
+		}
+	}
 
 }
 
@@ -984,6 +1025,7 @@ void PolyshapeFX::startVoice(int voiceIndex, const HiseEvent& e)
 	VoiceEffectProcessor::startVoice(voiceIndex, e);
 
 	driveSmoothers[voiceIndex].setValueWithoutSmoothing(drive-1.0f);
+	mixSmoothers[voiceIndex].setValueWithoutSmoothing(mix);
 
 }
 
