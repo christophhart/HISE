@@ -557,6 +557,7 @@ juce::Component* FlexAhdsrEnvelope::Panel::createContentComponent(int index)
 					g->setColour(RingBufferComponentBase::bgColour, findPanelColour(FloatingTileContent::PanelColourId::bgColour));
 					g->setColour(RingBufferComponentBase::fillColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour1));
 					g->setColour(RingBufferComponentBase::lineColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour2));
+					g->setColour(RingBufferComponentBase::outlineColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour3));
 					g->setColour(HiseColourScheme::ColourIds::ComponentTextColourId, findPanelColour(FloatingTileContent::PanelColourId::textColour));
 
 					if (g->findColour(RingBufferComponentBase::bgColour).isOpaque())

@@ -799,6 +799,17 @@ void flex_ahdsr_base::FlexAhdsrGraph::LookAndFeelMethods::drawFlexAhdsrPosition(
 	g.fillRect(0.0f, (float)Margin, (float)pointOnPath.getX(), (float)graph.getHeight() - 2.0f * (float)Margin);
 }
 
+void flex_ahdsr_base::FlexAhdsrGraph::LookAndFeelMethods::drawFlexAhdsrBall(Graphics& g, FlexAhdsrGraph& graph,
+	State s, Point<float> pointOnPath)
+{
+	if(s == State::SUSTAIN || s == State::IDLE)
+		return;
+
+	auto circle = Rectangle<float>(pointOnPath, pointOnPath).withSizeKeepingCentre(6.0f, 6.0f);
+	g.setColour(graph.findColour(RingBufferComponentBase::lineColour).withAlpha(1.0f));
+	g.fillRoundedRectangle(circle, 2.0f);
+}
+
 void flex_ahdsr_base::FlexAhdsrGraph::LookAndFeelMethods::drawFlexAhdsrText(Graphics& g, FlexAhdsrGraph& graph,
 	const String& text)
 {
@@ -831,30 +842,31 @@ void flex_ahdsr_base::FlexAhdsrGraph::paint(Graphics& g)
 			s++;
 		}
 
-		if(isPositiveAndBelow((int)currentPlayState, boxes.size()))
+		Point<float> positionOnPath;
+		auto hasPositionOnPath = isPositiveAndBelow((int)currentPlayState, boxes.size()) && !boxes[(int)currentPlayState].isEmpty();
+
+		if(hasPositionOnPath)
 		{
 			auto b = boxes[(int)currentPlayState];
 
-			if(!b.isEmpty())
+			if(currentPlayState == State::SUSTAIN)
 			{
-				Point<float> pos;
-
-				if(currentPlayState == State::SUSTAIN)
-				{
-					pos = sustainPoint;
-				}
-				else
-				{
-					auto xPos = b.getX() + positionWithinState * b.getWidth();
-					auto yPos = Helpers::getYAt(segments[(int)currentPlayState], xPos);
-					pos = { xPos, yPos };
-				}
-				
-				laf->drawFlexAhdsrPosition(g, *this, currentPlayState, pos);
+				positionOnPath = sustainPoint;
 			}
+			else
+			{
+				auto xPos = b.getX() + positionWithinState * b.getWidth();
+				auto yPos = Helpers::getYAt(segments[(int)currentPlayState], xPos);
+				positionOnPath = { xPos, yPos };
+			}
+
+			laf->drawFlexAhdsrPosition(g, *this, currentPlayState, positionOnPath);
 		}
 
 		laf->drawFlexAhdsrFullPath(g, *this);
+
+		if(hasPositionOnPath && showBall)
+			laf->drawFlexAhdsrBall(g, *this, currentPlayState, positionOnPath);
 
 		s = 0;
 

@@ -102,6 +102,7 @@ public:
 		{
 			UseOneDimensionDrag = PanelWithProcessorConnection::SpecialPanelIds::numSpecialPanelIds,
 			CurvePointTolerance,
+			ShowBall,
 			numFlexPanelIds
 		};
 
@@ -128,6 +129,7 @@ public:
 
 			storePropertyInObject(v, (int)FlexPanelIds::CurvePointTolerance, c != nullptr ? var(c->curveTolerance) : var());
 			storePropertyInObject(v, (int)FlexPanelIds::UseOneDimensionDrag, c != nullptr ? var(c->useOneDimensionalDrag) : var());
+			storePropertyInObject(v, (int)FlexPanelIds::ShowBall, c != nullptr ? var(c->showBall) : var());
 
 			return v;
 		}
@@ -139,6 +141,7 @@ public:
 			{
 				c->curveTolerance = (float)getPropertyWithDefault(object, (int)FlexPanelIds::CurvePointTolerance);
 				c->useOneDimensionalDrag = (bool)getPropertyWithDefault(object, (int)FlexPanelIds::UseOneDimensionDrag);
+				c->showBall = (bool)getPropertyWithDefault(object, (int)FlexPanelIds::ShowBall);
 			}
 		}
 		int getNumDefaultableProperties() const override { return (int)FlexPanelIds::numFlexPanelIds; }
@@ -150,7 +153,8 @@ public:
 
 			RETURN_DEFAULT_PROPERTY_ID(index, FlexPanelIds::CurvePointTolerance, "CurvePointTolerance");
 			RETURN_DEFAULT_PROPERTY_ID(index, FlexPanelIds::UseOneDimensionDrag, "UseOneDimensionDrag");
-            
+			RETURN_DEFAULT_PROPERTY_ID(index, FlexPanelIds::ShowBall, "ShowBall");
+
             jassertfalse;
             return Identifier();
 		}
@@ -162,7 +166,8 @@ public:
 
 			RETURN_DEFAULT_PROPERTY(index, FlexPanelIds::CurvePointTolerance, 20);
 			RETURN_DEFAULT_PROPERTY(index, FlexPanelIds::UseOneDimensionDrag, true);
-            
+			RETURN_DEFAULT_PROPERTY(index, FlexPanelIds::ShowBall, false);
+
             jassertfalse;
             return var();
 		}
