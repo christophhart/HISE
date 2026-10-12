@@ -745,6 +745,11 @@ public:
 	virtual void setInverted(int rowIndex, bool value) = 0;
 
 	virtual String getIndexName() const = 0;
+
+	/** Return a width in pixels to give the index column a fixed width, or -1 (the
+	    default) to let it stretch with the Parameter column to fill the table. */
+	virtual int getFixedIndexColumnWidth() const { return -1; }
+
 	virtual String getCellText(int rowNumber, int columnId) const = 0;
 	
 	void paintCell(Graphics& g, int rowNumber, int columnId,
@@ -867,6 +872,9 @@ public:
 	SET_PANEL_NAME("MidiLearnPanel");
 
 	String getIndexName() const override { return "CC #"; };
+
+	// CC numbers are at most three characters (0-127), so the column never needs to stretch.
+	int getFixedIndexColumnWidth() const override { return 50; }
 
 	int getNumRows() override;;
 	void removeEntry(int rowIndex) override;
