@@ -404,6 +404,97 @@ public:
 };
 
 
+/** A property component that shows a text field with a button next to it that
+ *  populates the field with a freshly generated UUIDv4.
+ *
+ *  Once the field is populated both the text field and the button are disabled
+ *  so that the value can't be accidentally edited or overwritten.
+ */
+class UUIDPropertyComponent : public PropertyComponent,
+							  public Value::Listener
+{
+public:
+
+	UUIDPropertyComponent(const String& name, Value v_) :
+		PropertyComponent(name),
+		value(v_),
+		generateButton("Generate")
+	{
+		editor.setMultiLine(false);
+		editor.setFont(GLOBAL_FONT());
+		editor.setColour(TextEditor::ColourIds::backgroundColourId, Colours::black.withAlpha(0.2f));
+		editor.setColour(TextEditor::ColourIds::textColourId, Colours::white.withAlpha(0.8f));
+		editor.setColour(TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR));
+		editor.setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
+		editor.setColour(TextEditor::ColourIds::outlineColourId, Colours::transparentBlack);
+		editor.setText(value.toString(), dontSendNotification);
+
+		// Commit manual edits on focus loss / return rather than on every keystroke
+		// so the field isn't disabled mid-typing once it becomes non-empty.
+		editor.onReturnKey = [this]() { value.setValue(editor.getText()); };
+		editor.onFocusLost = [this]() { value.setValue(editor.getText()); };
+
+		addAndMakeVisible(editor);
+		addAndMakeVisible(generateButton);
+
+		generateButton.setLookAndFeel(&blaf);
+		generateButton.onClick = [this]()
+		{
+			// juce::Uuid generates an RFC 4122 version 4 UUID.
+			value.setValue(Uuid().toDashedString());
+			refresh();
+		};
+
+		value.addListener(this);
+
+		refresh();
+	}
+
+	~UUIDPropertyComponent()
+	{
+		value.removeListener(this);
+	}
+
+	void refresh() override
+	{
+		editor.setText(value.toString(), dontSendNotification);
+
+		const bool isPopulated = value.toString().isNotEmpty();
+
+		// Lock down the field and the button once a UUID exists so it can't be
+		// accidentally edited or regenerated.
+		editor.setReadOnly(isPopulated);
+		editor.setEnabled(!isPopulated);
+		generateButton.setEnabled(!isPopulated);
+	}
+
+	void valueChanged(Value&) override
+	{
+		refresh();
+	}
+
+	void resized() override
+	{
+		// Use the same content area that a regular property component would use
+		// (i.e. everything to the right of the name label).
+		auto b = getLookAndFeel().getPropertyComponentContentPosition(*this);
+
+		generateButton.setBounds(b.removeFromRight(80).reduced(1));
+		b.removeFromRight(4);
+		editor.setBounds(b.reduced(0, 1));
+	}
+
+private:
+
+	// Declared first so it outlives the button that uses it as a look and feel.
+	BlackTextButtonLookAndFeel blaf;
+
+	Value value;
+	TextEditor editor;
+	TextButton generateButton;
+};
+
+
 void SettingWindows::valueTreePropertyChanged(ValueTree& treeWhosePropertyHasChanged, const Identifier& p)
 {
 	ignoreUnused(p);
@@ -485,7 +576,11 @@ void SettingWindows::addProperty(ValueTree& c, Array<PropertyComponent*>& props)
 
 	auto items = dataObject.getOptionsFor(id);
 
-	if (HiseSettings::Data::isFileId(id))
+	if (id == HiseSettings::ExpansionSettings::UUID)
+	{
+		props.add(new UUIDPropertyComponent(name, value));
+	}
+	else if (HiseSettings::Data::isFileId(id))
 	{
 		auto ft = (id == HiseSettings::Other::ExternalEditorPath) ? File::findFiles : File::findDirectories;
 
