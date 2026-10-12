@@ -635,6 +635,12 @@ public:
 		/** Programatically sets a pseudo state (:hover, :active, :checked, :focus, :disabled) that will be used by the CSS renderer. */
 		void setStyleSheetPseudoState(const String& pseudoState);
 
+		/** Returns the full class string for this component (including the auto-generated element type class). */
+		String getStyleSheetClass() const;
+
+		/** Returns the value of a CSS variable that was set with setStyleSheetProperty(). */
+		var getStyleSheetProperty(const String& variableId) const;
+
 		// End of API Methods ============================================================================================
 
 		var getLookAndFeelObject();
