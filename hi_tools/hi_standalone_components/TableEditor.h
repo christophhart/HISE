@@ -262,7 +262,7 @@ public:
 
 	UndoManager* getUndoManager(bool useUndoManager = true);
 
-	void changePointPosition(int index, int x, int y, bool useUndoManager=false);
+	void changePointPosition(int index, float x, float y, bool useUndoManager=false);
 
 	/** If you move the mouse wheel over a point, you can adjust the curve to the left of the point */
 	void mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &wheel)  override;
@@ -359,18 +359,18 @@ private:
 		void resized();
 	
 		/** Returns the scaled position in the TableEditor. */
-		Point<int> getPos() const;;
+		Point<float> getPos() const;;
 	
 		/** Changes the position of the DragPoint
 		*
 		*	Use this when you drag the point around so it can check whether a point should be moved and how.
 		*/
-		void changePos(Point<int> newPosition);
+		void changePos(Point<float> newPosition);
 
 		/** Sets up the position of the DragPoint in the TableEditor. It doesn't check if a point is start or end, so be careful!
 		*
 		*/
-		void setPosPixel(Point<int> newPosition);;
+		void setPosPixel(Point<float> newPosition);;
 
 		void setPosNormalized(Point<float> normalizedPoint);
 
@@ -445,7 +445,7 @@ private:
 	// Updates the graph point list in the table this editor refers to. If refreshLookUpTable is true, then the look up table is also recalculated.
 	void updateTable(bool refreshLookUpTable);;
 
-	int snapXValueToGrid(int x) const;
+	float snapXValueToGrid(float x) const;
 
 	Array<WeakReference<EditListener>, CriticalSection> editListeners;
 
@@ -481,8 +481,8 @@ private:
 			numActions
 		};
 
-		TableAction(TableEditor* table_, Action what_, int index_, int x_, int y_, float curve_,
-			int oldX_, int oldY_, float oldCurve_);;
+		TableAction(TableEditor* table_, Action what_, int index_, float x_, float y_, float curve_,
+			float oldX_, float oldY_, float oldCurve_);;
 
 		bool perform() override;
 
@@ -490,7 +490,8 @@ private:
 
 		Component::SafePointer<TableEditor> table;
 		Action what;
-		int index, x, y, oldX, oldY;
+		int index;
+		float x, y, oldX, oldY;
 		float curve, oldCurve;
 	};
 
