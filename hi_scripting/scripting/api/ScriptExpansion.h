@@ -274,6 +274,9 @@ public:
 	/** Returns a meta data object from the .hr file */
 	var getMetaDataFromPackage(var packageFile);
 
+	/** Removes an expansion and its files from disk. Pass true to also delete the UserPresets folder. */
+	bool removeExpansion(var expansion, bool removeUserPresets);
+
 	/** Checks if the expansion is already installed and returns a reference to the expansion if it exists. */
 	var getExpansionForInstallPackage(var packageFile);
 
@@ -436,6 +439,8 @@ public:
 	void expansionPackLoaded(Expansion* e);
 
 	Result initialise() override;
+
+	void populateSampleMapPool() override;
 
 	Result encodeExpansion() override;
 
