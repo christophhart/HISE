@@ -347,6 +347,11 @@ public:
 		stretcher.setEnabled(shouldBeEnabled, engineId);
 	}
 
+	void setTimestretchFFTSize(int fftSize, int intervalSamples)
+	{
+		stretcher.setFFTSize(fftSize, intervalSamples);
+	}
+
 	void setTimestretchRatio(double newRatio)
 	{
 		stretchRatio = jlimit(0.0625, 2.0, newRatio);

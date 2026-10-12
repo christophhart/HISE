@@ -70,6 +70,10 @@ private:
     double playbackRatio = 0.0;
     AudioSampleBuffer resampledBuffer;
 
+    /** Applied to the engine whenever it is created or reconfigured. */
+    int blockSamples = 4096;
+    int intervalSamples = 512;
+
     int numChannels = 0;
     double sourceSampleRate = 0.0;
     

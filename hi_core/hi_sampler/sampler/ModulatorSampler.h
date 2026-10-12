@@ -279,6 +279,12 @@ public:
 		double sourceBpm = 0.0;
 		Identifier engineId;
 
+		/** The overlap sets how many FFTs per second the engine runs, so it sets the CPU cost. */
+		int fftSize = 4096;
+		int overlap = 8;
+
+		int getStretchInterval() const { return jmax(32, fftSize / overlap); }
+
 		void reset()
 		{
 			mode = TimestretchMode::Disabled;
@@ -287,6 +293,8 @@ public:
 			numQuarters = 0.0;
 			sourceBpm = 0.0;
 			engineId = {};
+			fftSize = 4096;
+			overlap = 8;
 		}
 
 		var toJSON() const
@@ -300,6 +308,8 @@ public:
 			obj->setProperty("NumQuarters", numQuarters);
 			obj->setProperty("SourceBPM", sourceBpm);
 			obj->setProperty("PreferredEngine", engineId.toString());
+			obj->setProperty("FFTSize", fftSize);
+			obj->setProperty("Overlap", overlap);
 
 			return {obj.get()};
 		}
@@ -313,6 +323,8 @@ public:
 			mode = static_cast<TimestretchMode>(modes.indexOf(json.getProperty("Mode", "Disabled").toString()));
 			numQuarters = json.getProperty("NumQuarters", 0.0);
 			sourceBpm = jmax(0.0, static_cast<double>(json.getProperty("SourceBPM", 0.0)));
+			fftSize = jlimit(256, 4096, nextPowerOfTwo(static_cast<int>(json.getProperty("FFTSize", 4096))));
+			overlap = jlimit(2, 16, static_cast<int>(json.getProperty("Overlap", 8)));
 
 			auto id = json.getProperty("PreferredEngine", "").toString();
 
