@@ -297,7 +297,9 @@ public:
 
 	ProcessorMetadata getMetadata() const override
 	{
-		return withDynamicParametersFromNetwork(createMetadata(), -1, 0);
+		if (getActiveNetwork() != nullptr)
+			return withDynamicParametersFromNetwork(createMetadata(), -1, 0);
+		return withDynamicScriptParameters(createMetadata());
 	}
 
 	enum Callback
@@ -470,7 +472,9 @@ public:
 
 	ProcessorMetadata getMetadata() const override
 	{
-		return withDynamicParametersFromNetwork(createMetadata(), -1, 0);
+		if (getActiveNetwork() != nullptr)
+			return withDynamicParametersFromNetwork(createMetadata(), -1, 0);
+		return withDynamicScriptParameters(createMetadata());
 	}
 
 	JavascriptEnvelopeModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m);
@@ -571,7 +575,9 @@ public:
 	ProcessorMetadata getMetadata() const override
 	{
 		auto numMods = HISE_GET_PREPROCESSOR(getMainController(), HISE_NUM_SCRIPTNODE_FX_MODS);
-		return withDynamicParametersFromNetwork(createMetadata(), numMods, 0);
+		if (getActiveNetwork() != nullptr)
+			return withDynamicParametersFromNetwork(createMetadata(), numMods, 0);
+		return withDynamicScriptParameters(createMetadata());
 	}
 
 	enum class Callback
@@ -686,7 +692,9 @@ public:
 	ProcessorMetadata getMetadata() const override
 	{
 		auto numMods = HISE_GET_PREPROCESSOR(getMainController(), HISE_NUM_POLYPHONIC_SCRIPTNODE_FX_MODS);
-		return withDynamicParametersFromNetwork(createMetadata(), numMods, 0);
+		if (getActiveNetwork() != nullptr)
+			return withDynamicParametersFromNetwork(createMetadata(), numMods, 0);
+		return withDynamicScriptParameters(createMetadata());
 	}
 
 	enum class Callback
