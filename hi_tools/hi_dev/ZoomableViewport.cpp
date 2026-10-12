@@ -666,7 +666,7 @@ void SubmenuComboBox::rebuildPopupMenu()
 			continue;
 
 		if(item.itemID == getSelectedId())
-			activeIndexes.add(item.itemID);
+			activeIndexes.add(item.itemID - 1);
             
 		sa.add(item.text);
 	}
