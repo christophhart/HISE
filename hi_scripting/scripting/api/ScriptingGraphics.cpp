@@ -3847,9 +3847,15 @@ void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawTextOverlay(Graphics& g,
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te,
-	Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled)
+	Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled, float gamma, bool reversed)
 {
-				
+
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawThumbnailMarker(Graphics& g, HiseAudioThumbnail& th,
+	float x, float h, int markerIndex, Colour c, bool enabled)
+{
+	HiseAudioThumbnail::LookAndFeelMethods::drawThumbnailMarker(g, th, x, h, markerIndex, c, enabled);
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawStretchableLayoutResizerBar(Graphics& g, Component& resizer,
@@ -5321,7 +5327,7 @@ HiseAudioThumbnail::RenderOptions ScriptingObjects::ScriptedLookAndFeel::Laf::ge
     return defaultOptions;
 }
 
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawThumbnailRange(Graphics& g_, HiseAudioThumbnail& th, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled)
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawThumbnailRange(Graphics& g_, HiseAudioThumbnail& th, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled, float gamma, bool reversed)
 {
 	if (functionDefined("drawThumbnailRange"))
 	{
@@ -5331,6 +5337,8 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawThumbnailRange(Graphics& g_
 		obj->setProperty("rangeIndex", areaIndex);
 		obj->setProperty("rangeColour", c.getARGB());
 		obj->setProperty("enabled", areaEnabled);
+		obj->setProperty("gamma", gamma);
+		obj->setProperty("reversed", reversed);
 
 		setColourOrBlack(obj, "bgColour", th, AudioDisplayComponent::ColourIds::bgColour);
 		setColourOrBlack(obj, "itemColour", th, AudioDisplayComponent::ColourIds::fillColour);
@@ -5340,7 +5348,34 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawThumbnailRange(Graphics& g_
 			return;
 	}
 
-	HiseAudioThumbnail::LookAndFeelMethods::drawThumbnailRange(g_, th, area, areaIndex, c, areaEnabled);
+	HiseAudioThumbnail::LookAndFeelMethods::drawThumbnailRange(g_, th, area, areaIndex, c, areaEnabled, gamma, reversed);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawThumbnailMarker(Graphics& g_, HiseAudioThumbnail& th, float x, float h, int markerIndex, Colour c, bool enabled)
+{
+	if (functionDefined("drawThumbnailMarkers"))
+	{
+		static const StringArray markerIds = { "SampleStart", "LoopStart", "LoopEnd", "LoopCrossfade", "ReleaseStart" };
+
+		auto obj = new DynamicObject();
+		writeId(obj, &th);
+		obj->setProperty("area", ApiHelpers::getVarRectangle(useRectangleClass, th.getLocalBounds().toFloat()));
+		obj->setProperty("xPosition", x);
+		obj->setProperty("index", markerIndex);
+		obj->setProperty("id", markerIndex < markerIds.size() ? markerIds[markerIndex] : String());
+		obj->setProperty("enabled", enabled);
+
+		setColourOrBlack(obj, "bgColour", th, AudioDisplayComponent::ColourIds::bgColour);
+		setColourOrBlack(obj, "itemColour1", th, AudioDisplayComponent::ColourIds::outlineColour);
+		setColourOrBlack(obj, "itemColour2", th, AudioDisplayComponent::ColourIds::fillColour);
+		setColourOrBlack(obj, "itemColour3", th, AudioDisplayComponent::ColourIds::itemColour3Id);
+		setColourOrBlack(obj, "textColour", th, AudioDisplayComponent::ColourIds::textColour);
+
+		if (get()->callWithGraphics(g_, "drawThumbnailMarkers", var(obj), &th))
+			return;
+	}
+
+	HiseAudioThumbnail::LookAndFeelMethods::drawThumbnailMarker(g_, th, x, h, markerIndex, c, enabled);
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTextOverlay(Graphics& g_, HiseAudioThumbnail& th, const String& text, Rectangle<float> area)
@@ -5351,7 +5386,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTextOverlay(Graphics& g_, H
 		writeId(obj, &th);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(useRectangleClass, area));
 		obj->setProperty("text", text);
-		
+
 		if (get()->callWithGraphics(g_, "drawThumbnailText", var(obj), &th))
 			return;
 	}
