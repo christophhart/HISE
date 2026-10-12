@@ -839,7 +839,8 @@ void MidiControllerAutomationHandler::loadUnloadedData()
 	{
 		SimpleReadWriteLock::ScopedReadLock sl(unloadLock);
 
-		if(unloadedData.isValid())
+		// skip when external: the preset data would clear the persistent external state
+		if(unloadedData.isValid() && !matchesStateTarget(UserPresetStateManager::StateTarget::External))
 			restoreFromValueTree(unloadedData);
 	}
 
