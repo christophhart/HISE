@@ -121,6 +121,17 @@ void Plotter::paint (Graphics& g)
 {
 	auto slaf = dynamic_cast<RingBufferComponentBase::LookAndFeelMethods*>(&getLookAndFeel());
 
+	if (slaf == nullptr)
+	{
+		auto* parent = getParentComponent();
+
+		while (parent != nullptr && slaf == nullptr)
+		{
+			slaf = dynamic_cast<RingBufferComponentBase::LookAndFeelMethods*>(&parent->getLookAndFeel());
+			parent = parent->getParentComponent();
+		}
+	}
+
 	if(slaf != nullptr)
 	{
 		slaf->drawOscilloscopeBackground(g, *this, getLocalBounds().toFloat());
@@ -135,7 +146,7 @@ void Plotter::paint (Graphics& g)
 
 	auto tc = findColour(textColour);
 
-	if(!tc.isTransparent())
+	if((slaf == nullptr || !slaf->providesCustomAnalyserBackground()) && !tc.isTransparent())
 	{
 		g.setColour(tc);
 
@@ -174,7 +185,7 @@ void Plotter::paint (Graphics& g)
 		g.fillPath(drawPath);
 	}
 
-	if (!popupPosition.isOrigin() && !tc.isTransparent())
+	if (popupEnabled && !popupPosition.isOrigin() && !tc.isTransparent())
 	{
 		Font f = font;
 
