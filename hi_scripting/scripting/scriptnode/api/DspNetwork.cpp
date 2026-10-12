@@ -50,6 +50,7 @@ struct DspNetwork::Wrapper
 	API_METHOD_WRAPPER_2(DspNetwork, createFromJSON);
 	API_METHOD_WRAPPER_0(DspNetwork, undo);
 	API_METHOD_WRAPPER_2(DspNetwork, injectAndProbe);
+	API_METHOD_WRAPPER_0(DspNetwork, getNumChannels);
 	//API_VOID_METHOD_WRAPPER_0(DspNetwork, disconnectAll);
 	//API_VOID_METHOD_WRAPPER_3(DspNetwork, injectAfter);
 };
@@ -173,6 +174,7 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	ADD_API_METHOD_2(createFromJSON);
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_2(injectAndProbe);
+	ADD_API_METHOD_0(getNumChannels);
 	//ADD_API_METHOD_0(disconnectAll);
 	
 	selectionUpdater = new SelectionUpdater(*this);
@@ -259,6 +261,17 @@ void DspNetwork::setNumChannels(int newNumChannels)
         currentSpecs.numChannels = newNumChannels;
         prepareToPlay(currentSpecs.sampleRate, currentSpecs.blockSize);
     }
+}
+
+int DspNetwork::getNumChannels() const
+{
+	if (currentSpecs.numChannels > 0)
+		return currentSpecs.numChannels;
+
+	if (auto rp = dynamic_cast<const RoutableProcessor*>(getScriptProcessor()))
+		return rp->getMatrix().getNumSourceChannels();
+
+	return 0;
 }
 
 void DspNetwork::createAllNodesOnce()
