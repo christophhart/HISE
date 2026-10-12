@@ -1534,7 +1534,10 @@ juce::String FrontendMacroPanel::getCellText(int rowNumber, int columnId) const
 	if (auto data = connectionList[rowNumber].get())
 	{
 		if (columnId == ColumnId::ParameterName)
-			return data->getParameterName();
+		{
+			auto prettyName = ProcessorHelpers::getPrettyNameForAutomatedParameter(data->getProcessor(), data->getParameter());
+			return prettyName.isNotEmpty() ? prettyName : data->getParameterName();
+		}
 		else if (columnId == ColumnId::CCNumber)
 			return getData(data)->getMacroName();
 	}
