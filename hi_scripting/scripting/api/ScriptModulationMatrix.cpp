@@ -246,8 +246,8 @@ ScriptingApi::Content::ScriptSlider::MatrixCableConnection::MatrixCableConnectio
 	                               valuetree::AsyncMode::Synchronously, 
 	                               BIND_MEMBER_FUNCTION_2(MatrixCableConnection::onUpdate));
 
-	sourceTargetListener.setCallback(matrixData, 
-	                                 { MatrixIds::TargetId }, 
+	sourceTargetListener.setCallback(matrixData,
+	                                 { MatrixIds::TargetId, MatrixIds::SourceIndex },
 	                                 valuetree::AsyncMode::Asynchronously,
 	                                 BIND_MEMBER_FUNCTION_2(MatrixCableConnection::onSourceTargetChange));
 }
@@ -395,6 +395,16 @@ void ScriptingApi::Content::ScriptSlider::MatrixCableConnection::onSourceTargetC
 {
 	auto isTarget = MatrixIds::Helpers::matchesTarget(v, targetId);
 
+	if(id == MatrixIds::SourceIndex)
+	{
+		// When the source becomes valid on a row that already targets this slider, create the
+		// connection (handles the target-selected-first case). addConnection is idempotent.
+		if(isTarget && isPositiveAndBelow((int)v[MatrixIds::SourceIndex], sourceNames.size()))
+			addConnection(v);
+
+		return;
+	}
+
 	if(isTarget)
 		addConnection(v);
 	else
@@ -403,6 +413,11 @@ void ScriptingApi::Content::ScriptSlider::MatrixCableConnection::onSourceTargetC
 
 void ScriptingApi::Content::ScriptSlider::MatrixCableConnection::addConnection(const ValueTree& v)
 {
+	// Don't create a duplicate Target for a connection row that's already tracked.
+	for(auto t: allTargets)
+		if(t->propertyListener.isRegisteredTo(v))
+			return;
+
 	auto idx = (int)v[MatrixIds::SourceIndex];
 
 	if(isPositiveAndBelow(idx, sourceNames.size()))
