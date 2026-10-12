@@ -33,7 +33,7 @@
 namespace hise {
 using namespace juce;
 
-MarkdownLayout::MarkdownLayout(const AttributedString& s, float width, const StringWidthFunction& f, bool allInOne)
+MarkdownLayout::MarkdownLayout(const AttributedString& s, float width, const StringWidthFunction& f, bool allInOne, float lineSpacing)
 {
 	stringWidthFunction = f;
 
@@ -103,7 +103,7 @@ MarkdownLayout::MarkdownLayout(const AttributedString& s, float width, const Str
 
 				if (allowedToWrap && ((wordEndX > width + 1.0f) || isNewLine))
 				{
-					yPos += a.font.getHeight() * 1.5f;
+					yPos += a.font.getHeight() * lineSpacing;
 					currentX = marginBetweenAttributes;
 					allowedToWrap = false;
 
@@ -289,6 +289,8 @@ bool MarkdownLayout::StyleData::fromDynamicObject(var obj, const std::function<F
 	auto bName = obj.getProperty(MarkdownStyleIds::BoldFont, "default");
 	useSpecialBoldFont = obj.getProperty(MarkdownStyleIds::UseSpecialBoldFont, useSpecialBoldFont);
 	fontSize = obj.getProperty(MarkdownStyleIds::FontSize, fontSize);
+	lineSpacing = obj.getProperty(MarkdownStyleIds::LineSpacing, lineSpacing);
+	letterSpacing = obj.getProperty(MarkdownStyleIds::LetterSpacing, letterSpacing);
 
 	if(fName == "default")
 		f = GLOBAL_FONT();
@@ -340,6 +342,8 @@ juce::var MarkdownLayout::StyleData::toDynamicObject(bool colourAsString) const
 	obj->setProperty(MarkdownStyleIds::Font, f.getTypefaceName());
 	obj->setProperty(MarkdownStyleIds::BoldFont, boldFont.getTypefaceName());
 	obj->setProperty(MarkdownStyleIds::FontSize, fontSize);
+	obj->setProperty(MarkdownStyleIds::LineSpacing, lineSpacing);
+	obj->setProperty(MarkdownStyleIds::LetterSpacing, letterSpacing);
 	obj->setProperty(MarkdownStyleIds::bgColour, getColour(backgroundColour));
 	obj->setProperty(MarkdownStyleIds::codeBgColour, getColour(codebackgroundColour));
 	obj->setProperty(MarkdownStyleIds::linkBgColour, getColour(linkBackgroundColour));
