@@ -1276,12 +1276,13 @@ bool ScriptingObjects::ScriptDownloadObject::resumeInternal()
                 options.extraHeaders = rangeHeader;
                 options.listener = this;
                 
-				download = downloadURL.downloadToFile(resumeFile, options).release();
-
+				// downloadToFile() spawns the download thread, which writes to data from progress()
 				data->setProperty("numTotal", numTotal);
 				data->setProperty("numDownloaded", existingBytesBeforeResuming);
 				data->setProperty("finished", false);
 				data->setProperty("success", false);
+
+				download = downloadURL.downloadToFile(resumeFile, options).release();
 			}
 			else
 			{
@@ -1470,13 +1471,14 @@ void ScriptingObjects::ScriptDownloadObject::start()
         options.timeoutMs = HISE_SCRIPT_SERVER_TIMEOUT;
 		options.extraHeaders = extraHeaders;
 		
-		download = downloadURL.downloadToFile(targetFile, options).release();
-
+		// downloadToFile() spawns the download thread, which writes to data from progress()
 		data->setProperty("numTotal", 0);
 		data->setProperty("numDownloaded", 0);
 		data->setProperty("finished", false);
 		data->setProperty("success", false);
 		data->setProperty("aborted", false);
+
+		download = downloadURL.downloadToFile(targetFile, options).release();
 
 		call(true);
 	}
