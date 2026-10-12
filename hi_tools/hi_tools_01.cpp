@@ -152,3 +152,13 @@
 #include "simple_css/simple_css.cpp"
 #include "hi_multipage/multipage.cpp"
 #endif
+
+#include "hi_tools/NetworkConnectivityChecker.cpp"
+
+#if JUCE_WINDOWS
+#include "hi_tools/NetworkConnectivityCheckerWindows.cpp"
+#elif JUCE_MAC || JUCE_IOS
+#include "hi_tools/NetworkConnectivityCheckerApple.cpp"
+#elif JUCE_LINUX || JUCE_ANDROID
+#include "hi_tools/NetworkConnectivityCheckerPosix.cpp"
+#endif
