@@ -96,6 +96,7 @@ public:
 		bool showFavoriteIcons = true;
 		bool fullPathFavorites = false;
 		bool showExpansions = false;
+		bool showFolderRows = false;
 	};
 
 	// ============================================================================================
@@ -272,6 +273,7 @@ private:
 	// ============================================================================================
 
 	int numColumns = 3;
+	bool showFolderRows = false;
 	Array<var> columnWidthRatios;
 	Array<var> searchBarBounds;
 	Array<var> favoriteButtonBounds;

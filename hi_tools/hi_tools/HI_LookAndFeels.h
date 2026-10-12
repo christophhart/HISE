@@ -319,6 +319,7 @@ public:
 	virtual void drawTag(Graphics& g, Component& tagButton, bool hover, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position);
 	virtual void drawModalOverlay(Graphics& g, Component& modalWindow, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command);
 	virtual void drawListItem(Graphics& g, Component& column, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover);
+	virtual void drawFolderRow(Graphics& g, Component& column, int columnIndex, int rowIndex, const String& folderName, Rectangle<int> position);
 	virtual void drawSearchBar(Graphics& g, Component& labelComponent, Rectangle<int> area);
 
 	Font getFont(bool fontForTitle);
