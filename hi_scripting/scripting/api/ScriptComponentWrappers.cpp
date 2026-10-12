@@ -812,7 +812,14 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateValue(var newValue)
 
 void ScriptCreatedComponentWrappers::SliderWrapper::sliderValueChanged(Slider *s)
 {
-	
+	if (s->getSliderStyle() == Slider::TwoValueHorizontal)
+	{
+		if (auto sc = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(getScriptComponent()))
+		{
+			sc->setMinValue(s->getMinValue());
+			sc->setMaxValue(s->getMaxValue());
+		}
+	}
 }
 
 void ScriptCreatedComponentWrappers::SliderWrapper::updateTooltip(Slider * s)

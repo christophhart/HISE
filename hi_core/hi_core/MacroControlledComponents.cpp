@@ -712,7 +712,9 @@ void HiSlider::sliderValueChanged(Slider *s)
 	{
 		if (getSliderStyle() == Slider::TwoValueHorizontal)
 		{
-			//setMinAndMaxValues(minValue, maxValue, dontSendNotification);
+			// Range sliders have no single Processor attribute to push here; the
+			// two values are synced back to the ScriptSlider by ScriptCreatedComponentWrappers::SliderWrapper,
+			// which is also registered as a listener on this component.
 		}
 		else
 		{
@@ -1966,6 +1968,22 @@ void HiSlider::mouseDown(const MouseEvent &e)
 
         if (!isConnectedToModulator())
         {
+            if (getSliderStyle() == Slider::TwoValueHorizontal)
+            {
+                auto minPos = (int)getPositionOfValue(getMinValue());
+                auto maxPos = (int)getPositionOfValue(getMaxValue());
+                auto clickX = e.getPosition().x;
+
+                if (clickX > minPos + edgeGrabMargin && clickX < maxPos - edgeGrabMargin)
+                {
+                    isDraggingWholeRange = true;
+                    rangeDragStartMin = getMinValue();
+                    rangeDragStartMax = getMaxValue();
+                    rangeDragStartPosition = e.getPosition();
+                    return;
+                }
+            }
+
             Slider::mouseDown(e);
             startTouch(e.getMouseDownPosition());
         }
@@ -1989,6 +2007,21 @@ void HiSlider::mouseDrag(const MouseEvent& e)
 	if(performModifierAction(e, false, false))
 		return;
 
+	if (isDraggingWholeRange)
+	{
+		auto width = jmax(1, getWidth());
+		auto valuesPerPixel = (getMaximum() - getMinimum()) / (double)width;
+
+		auto deltaValue = (double)(e.getPosition().x - rangeDragStartPosition.x) * valuesPerPixel;
+		auto rangeWidth = rangeDragStartMax - rangeDragStartMin;
+
+		auto newMin = jlimit(getMinimum(), getMaximum() - rangeWidth, rangeDragStartMin + deltaValue);
+		auto newMax = newMin + rangeWidth;
+
+		setMinAndMaxValues(newMin, newMax, sendNotificationAsync);
+		return;
+	}
+
 	Slider::mouseDrag(e);
 }
 
@@ -1999,6 +2032,12 @@ void HiSlider::mouseUp(const MouseEvent& e)
 	abortTouch();
 
 	showModHoverPopup(true, false);
+
+	if (isDraggingWholeRange)
+	{
+		isDraggingWholeRange = false;
+		return;
+	}
 
 	if(performModifierAction(e, false, false))
 		return;
