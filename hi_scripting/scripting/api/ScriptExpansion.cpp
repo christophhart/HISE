@@ -1246,7 +1246,12 @@ void ScriptExpansionHandler::setInstallFullDynamics(bool shouldInstallFullDynami
 void ScriptExpansionHandler::setErrorFunction(var newErrorFunction)
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(newErrorFunction))
-		errorFunction = WeakCallbackHolder(getScriptProcessor(), this, newErrorFunction, 1);
+	{
+		errorFunction = WeakCallbackHolder(getScriptProcessor(), this, newErrorFunction, 2);
+		errorFunction.incRefCount();
+		errorFunction.addAsSource(this, "onExpansionError");
+		errorFunction.setThisObject(this);
+	}
 
 	errorFunction.setHighPriority();
 }
@@ -2713,7 +2718,7 @@ Result FullInstrumentExpansion::lazyLoad()
 
 			if(missing1.isNotEmpty() && missing2.isNotEmpty())
 			{
-				return Result::fail("Error at loading samples: " + missing1);
+				return Result::fail("Error at loading samples: " + missing2);
 			}
 		}
 	}

@@ -624,7 +624,6 @@ Identifier ExpansionHandler::addEncryptionKeyForExpansionToBeEncoded(Expansion* 
 void ExpansionHandler::logStatusMessage(const String& message)
 {
 	getMainController()->getSampleManager().setCurrentPreloadMessage(message);
-	setErrorMessage(message, false);
 }
 
 void ExpansionHandler::criticalErrorOccured(const String& message)
