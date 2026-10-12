@@ -914,22 +914,24 @@ juce::String SampleMap::checkReferences(MainController* mc, ValueTree& v, const 
 	const std::string channelNames = v.getProperty("MicPositions").toString().toStdString();
 	const size_t numChannels = std::count(channelNames.begin(), channelNames.end(), ';');
 
-	const String sampleMapName = v.getProperty("ID").toString().replace("/", "_");
-
 	if (isMonolith)
 	{
-		for (size_t i = 0; i < numChannels; i++)
+		// Accounts for split monolith parts (eg. ".ch1a", ".ch1b"), unlike a plain "sampleMapName.chN" guess
+		MonolithFileReference info(v);
+		info.addSampleDirectory(sampleRootFolder);
+		info.setFileNotFoundBehaviour(MonolithFileReference::FileNotFoundBehaviour::DoNothing);
+
+		info.channelIndex = 0;
+		info.partIndex = 0;
+
+		do
 		{
-			const String fileName = sampleMapName + ".ch" + String(i + 1);
-
-			File f = sampleRootFolder.getChildFile(fileName);
-
+			File f = info.getFile(false);
 
 			if (!f.existsAsFile())
-			{
 				return f.getFullPathName();
-			}
-		}
+
+		} while (info.bumpToNextMonolith(true));
 	}
 	else
 	{
