@@ -10377,6 +10377,9 @@ struct ScriptingObjects::ScriptedMidiAutomationHandler::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiAutomationHandler, setUpdateCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiAutomationHandler, setConsumeAutomatedControllers);
 	API_VOID_METHOD_WRAPPER_2(ScriptedMidiAutomationHandler, setControllerNumberNames);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiAutomationHandler, addMPEConnection);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiAutomationHandler, removeMPEConnection);
+	API_METHOD_WRAPPER_1(ScriptedMidiAutomationHandler, isMPEConnected);
 };
 
 
@@ -10395,6 +10398,9 @@ ScriptingObjects::ScriptedMidiAutomationHandler::ScriptedMidiAutomationHandler(P
 	ADD_API_METHOD_1(setUpdateCallback);
 	ADD_API_METHOD_1(setConsumeAutomatedControllers);
 	ADD_API_METHOD_2(setControllerNumberNames);
+	ADD_API_METHOD_1(addMPEConnection);
+	ADD_API_METHOD_1(removeMPEConnection);
+	ADD_API_METHOD_1(isMPEConnected);
 }
 
 ScriptingObjects::ScriptedMidiAutomationHandler::~ScriptedMidiAutomationHandler()
@@ -10476,6 +10482,39 @@ void ScriptingObjects::ScriptedMidiAutomationHandler::setUpdateCallback(var call
 void ScriptingObjects::ScriptedMidiAutomationHandler::setConsumeAutomatedControllers(bool shouldBeConsumed)
 {
 	handler->setConsumeAutomatedControllers(shouldBeConsumed);
+}
+
+void ScriptingObjects::ScriptedMidiAutomationHandler::addMPEConnection(String modulatorId)
+{
+	auto& mpeData = handler->getMPEData();
+	auto* mod = mpeData.findMPEModulator(modulatorId);
+
+	if (mod == nullptr)
+		reportScriptError("Could not find MPE modulator: " + modulatorId);
+	else
+		mpeData.addConnection(mod);
+}
+
+void ScriptingObjects::ScriptedMidiAutomationHandler::removeMPEConnection(String modulatorId)
+{
+	auto& mpeData = handler->getMPEData();
+	auto* mod = mpeData.findMPEModulator(modulatorId);
+
+	if (mod == nullptr)
+		reportScriptError("Could not find MPE modulator: " + modulatorId);
+	else
+		mpeData.removeConnection(mod);
+}
+
+bool ScriptingObjects::ScriptedMidiAutomationHandler::isMPEConnected(String modulatorId)
+{
+	auto& mpeData = handler->getMPEData();
+	auto* mod = mpeData.findMPEModulator(modulatorId);
+
+	if (mod == nullptr)
+		reportScriptError("Could not find MPE modulator: " + modulatorId);
+
+	return mod != nullptr && mpeData.contains(mod);
 }
 
 struct ScriptingObjects::ScriptBuilder::Wrapper
