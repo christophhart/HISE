@@ -1773,7 +1773,12 @@ void TableFloatingTileBase::initTable(bool addChannelColumn)
 	table.getHeader().addColumn(getIndexName(), CCNumber, fWidth, 30, -1, TableHeaderComponent::visible);
 
 	if(addChannelColumn)
-		table.getHeader().addColumn("Channel", Channel, fWidth, 30, -1, TableHeaderComponent::visible);
+	{
+		// MIDI channels are at most two characters (1-16), so size the column to its
+		// header text and keep it fixed rather than letting it stretch with Parameter.
+		auto channelWidth = (int)font.getStringWidthFloat("Channel") + 20;
+		table.getHeader().addColumn("Channel", Channel, channelWidth, channelWidth, channelWidth, TableHeaderComponent::visible);
+	}
 
 	table.getHeader().addColumn("Parameter", ParameterName, 70, 30, -1);
 	table.getHeader().addColumn("Inverted", Inverted, 70, 70, 70);
