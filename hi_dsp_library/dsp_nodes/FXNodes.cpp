@@ -93,7 +93,7 @@ void reverb::setDamping(double newDamping)
 void reverb::setWidth(double width)
 {
 	auto p = r.getParameters();
-	p.damping = jlimit(0.0f, 1.0f, (float)width);
+	p.width = jlimit(0.0f, 1.0f, (float)width);
 	r.setParameters(p);
 }
 
