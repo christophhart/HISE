@@ -1821,6 +1821,13 @@ struct HiSlider::HoverPopup: public Component,
 void HiSlider::ModUpdater::onExclusiveSourceSelection(ModUpdater& mu, int index)
 {
 	auto& slider = mu.parent;
+
+	// If this slider already shows the dragger for this exclusive source, leave it untouched.
+	// Reselecting the same source would otherwise rebuild the popup and re-insert it into the
+	// parent's child list, creeping it up the z-order on every reselect.
+	if(index >= 0 && mu.currentExlusiveIndex == index && slider.currentHoverPopup != nullptr)
+		return;
+
 	auto matrixData = MatrixIds::Helpers::getMatrixDataFromGlobalContainer(slider.getProcessor()->getMainController());
 	auto targetId = slider.getProcessor()->getModulationTargetId(slider.getParameter());
 	auto hasConnection = MatrixIds::Helpers::getConnection(matrixData, index, targetId).isValid();
