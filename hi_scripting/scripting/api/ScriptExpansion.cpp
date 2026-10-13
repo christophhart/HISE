@@ -43,6 +43,7 @@ struct ScriptUserPresetHandler::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setCustomAutomation);
 	API_VOID_METHOD_WRAPPER_3(ScriptUserPresetHandler, setUseCustomUserPresetModel);
 	API_METHOD_WRAPPER_1(ScriptUserPresetHandler, isOldVersion);
+	API_VOID_METHOD_WRAPPER_0(ScriptUserPresetHandler, abortLoad);
     API_METHOD_WRAPPER_0(ScriptUserPresetHandler, isInternalPresetLoad);
 	API_METHOD_WRAPPER_0(ScriptUserPresetHandler, isCurrentlyLoadingPreset);
 	API_VOID_METHOD_WRAPPER_0(ScriptUserPresetHandler, clearAttachedCallbacks);
@@ -81,6 +82,7 @@ ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* 
 	getMainController()->getLockFreeDispatcher().addPresetLoadListener(this);
 
 	ADD_API_METHOD_1(isOldVersion);
+	ADD_API_METHOD_0(abortLoad);
     ADD_API_METHOD_0(isInternalPresetLoad);
 	ADD_API_METHOD_0(isCurrentlyLoadingPreset);
 	ADD_TYPED_API_METHOD_1(setPostCallback, VarTypeChecker::Function);
@@ -273,6 +275,11 @@ bool ScriptUserPresetHandler::isOldVersion(const String& version)
 	SemanticVersionChecker svs(version, thisVersion);
 
 	return svs.isUpdate();
+}
+
+void ScriptUserPresetHandler::abortLoad()
+{
+	getMainController()->getUserPresetHandler().abortPresetLoad();
 }
 
 
