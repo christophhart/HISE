@@ -573,6 +573,9 @@ private:
 
 	int64 getNumBytesForSplitSize() const;
 
+	// Scales channel 0's split cap down so wider channels reusing its split points stay under the cap too
+	double splitSizeScale = 1.0;
+
 	void checkSanity();
 
 	File getNextMonolith(const File& f) const;
