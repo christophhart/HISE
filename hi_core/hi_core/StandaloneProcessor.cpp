@@ -343,27 +343,17 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 
 	getSettingsObject().initialiseAudioDriverData();
 
-	// Apply saved MIDI input settings to ensure MIDI inputs are properly connected
-	// This fixes the issue where MIDI keyboards appear selected but don't work until manually toggled
+	// getSetting() returns the bitmask as bool or string, never int64: cast like settingWasChanged() does (#691, #716).
 	auto midiInputSetting = getSettingsObject().getSetting(HiseSettings::Midi::MidiInput);
-	if (midiInputSetting.isInt64())
+	auto mc = dynamic_cast<MainController*>(this);
+
+	if (mc != nullptr && !mc->isFlakyThreadingAllowed())
 	{
 		auto state = BigInteger((int64)midiInputSetting);
-		auto mc = dynamic_cast<MainController*>(this);
+		auto midiNames = MidiInput::getDevices();
 
-		StringArray midiNames;
-		if (mc != nullptr && !mc->isFlakyThreadingAllowed())
-		{
-			midiNames = MidiInput::getDevices();
-		}
-
-		if (midiNames.size() > 0)
-		{
-			for (int i = 0; i < midiNames.size(); i++)
-			{
-				toggleMidiInput(midiNames[i], state[i]);
-			}
-		}
+		for (int i = 0; i < midiNames.size(); i++)
+			toggleMidiInput(midiNames[i], state[i]);
 	}
 }
 
