@@ -2780,9 +2780,18 @@ void MainController::UserPresetHandler::DefaultPresetManager::init(const ValueTr
 
 	
 #else
-	
+
 	if (v.isValid())
 		defaultPreset = v;
+
+	// Resolve the preset file on disk like the USE_BACKEND branch so resetToDefault() sets currentlyLoadedFile.
+	auto userPresetRoot = FrontendHandler::getUserPresetDirectory();
+	auto f = userPresetRoot.getChildFile(defaultValue).withFileExtension(".preset");
+
+	// only set the default file if it's a child of the user preset directory
+	// (in order to allow a "hidden" default user preset)
+	if (f.existsAsFile() && f.isAChildOf(userPresetRoot))
+		defaultFile = f;
 
 #endif
 
