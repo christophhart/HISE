@@ -168,8 +168,7 @@ void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
 								if ((int)other->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::Properties::radioGroup) == group)
 								{
 									other->setValue(0);
-									// Explicitly trigger callback for buttons that get turned off in radio group
-									// to ensures callbacks fire properly regardless of component hierarchy
+									// Fire the off callback explicitly so it reaches buttons in other parents too.
 									controlCallback(other, 0.0f);
 								}
 							}
