@@ -343,13 +343,7 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 
 	getSettingsObject().initialiseAudioDriverData();
 
-	// Apply the saved MIDI input enabled-state on launch. getSetting(Midi::MidiInput) runs the
-	// value through a generic Yes/No coercion (HiseSettings.cpp getSetting), so the bitmask comes
-	// back as a bool ("1"->true, "0"->false) or a string ("3") - never an int64. The old
-	// isInt64() guard therefore always failed and the restore never ran, leaving the device
-	// disabled even though its settings checkbox read as ticked. Coerce with (int64) the same way
-	// settingWasChanged does (HiseSettings.cpp:1605): (int64)var(true)=1, (int64)var("3")=3 etc.
-	// At this point the port reads as disabled, so applying the saved state is a genuine enable.
+	// getSetting() returns the bitmask as bool or string, never int64: cast like settingWasChanged() does (#691, #716).
 	auto midiInputSetting = getSettingsObject().getSetting(HiseSettings::Midi::MidiInput);
 	auto mc = dynamic_cast<MainController*>(this);
 
