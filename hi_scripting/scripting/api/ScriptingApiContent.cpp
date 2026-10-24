@@ -10059,10 +10059,7 @@ void ScriptingApi::Content::Helpers::sanitizeNumberProperties(juce::ValueTree co
 
 		if (isNumberProperty)
 		{
-			// Sanitize in double precision - a float cast here contaminates
-			// every numeric property on load (0.1 -> 0.10000000149011612),
-			// warping the step-snap grid so a 0dB knob with a negative min
-			// can never store 0.0 again.
+			// Double precision: a float cast leaves 0.1 as 0.10000000149011612 on load and breaks step snapping.
 			double valueAsNumber = (double)copy.getProperty(id);
 			FloatSanitizers::sanitizeDoubleNumber(valueAsNumber);
 			copy.setProperty(id, var(valueAsNumber), nullptr);
