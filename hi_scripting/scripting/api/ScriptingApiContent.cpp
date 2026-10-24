@@ -2249,11 +2249,11 @@ void ScriptingApi::Content::ScriptSlider::setScriptObjectPropertyWithChangeMessa
 	}
     else if (id == getIdFor(defaultValue))
     {
-        float v = (float)jlimit((double)getScriptObjectProperty(ScriptComponent::Properties::min),
-                                (double)getScriptObjectProperty(ScriptComponent::Properties::max),
-                                (double)newValue);
-        
-        v = FloatSanitizers::sanitizeFloatNumber(v);
+        double v = jlimit((double)getScriptObjectProperty(ScriptComponent::Properties::min),
+                          (double)getScriptObjectProperty(ScriptComponent::Properties::max),
+                          (double)newValue);
+
+        FloatSanitizers::sanitizeDoubleNumber(v);
         setScriptObjectProperty(defaultValue, var(v));
         
         return;
@@ -10100,8 +10100,9 @@ void ScriptingApi::Content::Helpers::sanitizeNumberProperties(juce::ValueTree co
 
 		if (isNumberProperty)
 		{
-			float valueAsNumber = (float)copy.getProperty(id);
-			valueAsNumber = FloatSanitizers::sanitizeFloatNumber(valueAsNumber);
+			// Double precision: a float cast leaves 0.1 as 0.10000000149011612 on load and breaks step snapping.
+			double valueAsNumber = (double)copy.getProperty(id);
+			FloatSanitizers::sanitizeDoubleNumber(valueAsNumber);
 			copy.setProperty(id, var(valueAsNumber), nullptr);
 		}
 	}
