@@ -424,12 +424,10 @@ void WaveSynthVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthesis
 	if(enableSecondOsc)
 		rightGenerator.setFrequency(cyclesPerSecond * octaveTransposeFactor2);
 
-	// Get user phase offset
 	auto wavesynth = static_cast<WaveSynth*>(getOwnerSynth());
 	double phase1 = wavesynth->getStartPhaseValue(true);
 	double phase2 = wavesynth->getStartPhaseValue(false);
 
-	// Get timing offset
 	double startOffsetSamples = (double)getCurrentHiseEvent().getStartOffset();
 
 	// Fast path when phase is default and for backwards-compatibility
@@ -442,7 +440,6 @@ void WaveSynthVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthesis
 	}
 	else
 	{
-		// Apply user phase + timing offset
 		double freq1Hz = cyclesPerSecond * octaveTransposeFactor1;
 		double timingPhase1 = (startOffsetSamples / getSampleRate()) * freq1Hz;
 		leftGenerator.sync(std::fmod(phase1 + timingPhase1, 1.0));
