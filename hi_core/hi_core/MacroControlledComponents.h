@@ -188,9 +188,7 @@ struct HisePluginParameterBase: public ControlledObject,
 		{
 			parameterValueToSend = v;
 
-			// The host already holds this value: it is the one it sent us last. Do not echo it
-			// back. This catches the listener events that were queued while the dispatcher was
-			// paused (editor teardown) and fire after the sendToHost scope in setValue() ended.
+			// Do not echo the host's own value back; queued dispatcher events fire after the sendToHost scope ends.
 			if(v == lastHostValue)
 				return;
 
@@ -199,23 +197,14 @@ struct HisePluginParameterBase: public ControlledObject,
 		}
 	}
 
-	/** Called by the host-facing setValue() overrides with the normalised value the host
-	    sent, converted exactly the way onUpdate() converts the resulting attribute, so the
-	    two compare equal for stepped and skewed ranges too. */
+	/** Stores the host-sent value, normalised like onUpdate() normalises the attribute so the two compare equal. */
 	void setLastHostValue(float normalisedValue)
 	{
 		lastHostValue = normalisedValue;
 	}
 
-	/** Returns true while a parameter change must not be reported to the host.
-
-	    Three situations set a value without the user (or the host) asking for it: the host
-	    restoring plugin state, the interface being created, and the internal preset load that
-	    runs inside the state restore. Reporting those back with performEdit() makes Ableton Live
-	    treat them as manual edits: it disables the automation lane of every affected parameter
-	    and lights "Re-Enable Automation" (forum topic 15004, GitHub issue 749). The host does
-	    not need the report either - JUCE already announces restored values through
-	    restartComponent(kParamValuesChanged) after setStateInformation(). */
+	/** True during state restore, interface creation and internal preset loads. Reporting those with
+	    performEdit() makes Ableton Live disable the affected automation lanes (forum topic 15004, issue #749). */
 	bool shouldSkipHostNotification()
 	{
 		auto mc = getMainController();
@@ -260,9 +249,7 @@ struct HisePluginParameterBase: public ControlledObject,
 
 		getWrappedParameter()->asJuceParameter()->setValueNotifyingHost(parameterValueToSend);
 
-		// The host now holds the value we just sent. Without this the memo goes stale after a user
-		// edit: a later user change back to the last host-written value would compare equal and
-		// never be reported (host-facing setValue() is blocked by the recursive flag above).
+		// Without this a later user change back to the previous host value would compare equal and never be sent.
 		lastHostValue = parameterValueToSend;
 	}
 
