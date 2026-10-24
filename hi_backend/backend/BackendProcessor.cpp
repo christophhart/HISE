@@ -1070,13 +1070,9 @@ void BackendProcessor::handleLatencyCheck(AudioSampleBuffer& buffer)
 			killCounter = 0;
 			latencyCheckState = LatencyCheckState::WaitingForProcessBlock;
 
-			// Use a 20ms broadband noise burst instead of a single impulse so
-			// that effects which smear transients (eg. pitch shifters) or
-			// remove parts of the spectrum (eg. filters) still pass a
-			// detectable signal level to the output. The generator is reseeded
-			// for every run so that the measurement is repeatable.
+			// A noise burst survives filters and pitch shifters where a single impulse does not.
 			burstSamplesRemaining = roundToInt(getMainSynthChain()->getSampleRate() * 0.02);
-			burstNoise.setSeed(0x4C415445);
+			burstNoise.setSeed(0x4C415445); // fixed seed so runs are repeatable
 			burstStarted = false;
 		}
 	}
@@ -1087,8 +1083,7 @@ void BackendProcessor::handleLatencyCheck(AudioSampleBuffer& buffer)
 	if(latencyCheckState == LatencyCheckState::WaitingForProcessBlock ||
 	   latencyCheckState == LatencyCheckState::WaitingForImpulse)
 	{
-		// suppress the live input during the measurement so that it cannot
-		// trigger a false onset detection
+		// Mute the live input so it cannot trigger a false onset.
 		buffer.clear();
 
 		if(burstSamplesRemaining > 0)
@@ -1099,9 +1094,7 @@ void BackendProcessor::handleLatencyCheck(AudioSampleBuffer& buffer)
 			{
 				auto value = burstNoise.nextFloat() * 2.0f - 1.0f;
 
-				// force the very first sample of the burst to full scale so
-				// that it is guaranteed to be above the detection threshold
-				// and a zero-latency chain reports exactly 0
+				// Full-scale first sample so a zero-latency chain reports exactly 0.
 				if(!burstStarted)
 				{
 					value = 1.0f;
@@ -1126,8 +1119,7 @@ void BackendProcessor::handlePostLatencyCheck(AudioSampleBuffer& buffer)
 
 	if(latencyCheckState == LatencyCheckState::WaitingForImpulse)
 	{
-		// The latency is the onset of the noise burst at the output, so look
-		// for the first sample above the threshold instead of the peak
+		// Latency is the onset of the burst, not its peak.
 		int onsetIndex = -1;
 
 		for(int i = 0; i < buffer.getNumSamples(); i++)
