@@ -3219,6 +3219,8 @@ void ScriptedControlAudioParameter::setValue(float newValue)
 		const float convertedValue = range.convertFrom0to1(newValue);
 		const float snappedValue = range.snapToLegalValue(convertedValue);
 
+		setLastHostValue(range.convertTo0to1(snappedValue));
+
 		scriptProcessor->setAttribute(attributeIndex, snappedValue, sendNotificationSync);
 	}
 }

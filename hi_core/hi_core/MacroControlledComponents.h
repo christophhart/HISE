@@ -188,9 +188,30 @@ struct HisePluginParameterBase: public ControlledObject,
 		{
 			parameterValueToSend = v;
 
+			// Do not echo the host's own value back; queued dispatcher events fire after the sendToHost scope ends.
+			if(v == lastHostValue)
+				return;
+
 			if(sendToHost)
 				refreshParameterValue();
 		}
+	}
+
+	/** Stores the host-sent value, normalised like onUpdate() normalises the attribute so the two compare equal. */
+	void setLastHostValue(float normalisedValue)
+	{
+		lastHostValue = normalisedValue;
+	}
+
+	/** True during state restore, interface creation and internal preset loads. Reporting those with
+	    performEdit() makes Ableton Live disable the affected automation lanes (forum topic 15004, issue #749). */
+	bool shouldSkipHostNotification()
+	{
+		auto mc = getMainController();
+
+		return mc->getKillStateHandler().getStateLoadFlag() ||
+		       mc->getInterfaceCreationFlag() ||
+		       mc->getUserPresetHandler().isInternalPresetLoad();
 	}
 
 	void refreshParameterValue()
@@ -202,6 +223,9 @@ struct HisePluginParameterBase: public ControlledObject,
 		if(!getMainController()->getPluginParameterUpdateState())
 			return;
 
+		if(shouldSkipHostNotification())
+			return;
+
 		if(defer)
 			triggerAsyncUpdate();
 		else
@@ -210,18 +234,30 @@ struct HisePluginParameterBase: public ControlledObject,
 
 	void handleAsyncUpdate() override
 	{
+		// A deferred update queued before a state load began must not land in the middle of it.
+		if(shouldSkipHostNotification())
+			return;
+
+		// A deferred update that was overtaken by a host write carries the host's own value.
+		if(parameterValueToSend == lastHostValue)
+			return;
+
 		auto mc = getMainController();
 		
 		ScopedValueSetter<bool> svs(recursive, true);
 		ScopedValueSetter<bool> setter(mc->getPluginParameterUpdateState(), false, true);
 
 		getWrappedParameter()->asJuceParameter()->setValueNotifyingHost(parameterValueToSend);
+
+		// Without this a later user change back to the previous host value would compare equal and never be sent.
+		lastHostValue = parameterValueToSend;
 	}
 
     virtual void cleanup() { cleanupCalled = true; }
     
 	int parameterIndex = -1;
 	float parameterValueToSend = 0.0f;
+	float lastHostValue = -1.0f;
 	bool recursive = false;
 
 	dispatch::library::CustomAutomationSource::Listener autoListener;
