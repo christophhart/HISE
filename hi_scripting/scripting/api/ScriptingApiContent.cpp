@@ -8066,11 +8066,8 @@ void ScriptingApi::Content::setAllowRadioGroupDeselect(int radioGroupId, bool al
 		return;
 	}
 
-	// Only validate radio group exists when setting it to allow deselection (true)
-	// When removing (false), we don't need to validate
 	if (allowDeselect)
 	{
-		// Check if any buttons exist with this radio group ID
 		bool radioGroupExists = false;
 		static const Identifier radioGroup("radioGroup");
 
@@ -8078,8 +8075,6 @@ void ScriptingApi::Content::setAllowRadioGroupDeselect(int radioGroupId, bool al
 		{
 			if (auto button = dynamic_cast<ScriptButton*>(getComponent(i)))
 			{
-				// Use getProperty with default value to safely access the property
-				// This avoids crashes when the property doesn't exist
 				auto buttonTree = button->getPropertyValueTree();
 				if (buttonTree.isValid())
 				{
