@@ -123,13 +123,11 @@ ProcessorEditorBody* SineSynth::createEditor(ProcessorEditor *parentEditor)
 
 float const * SineSynth::getSaturatedTableValues()
 {
-	// Use the last tracked modulation value if modulation is active, otherwise use base parameter value
 	float currentSaturation;
 
 	auto& mb = modChains[ChainIndex::SaturationChain];
 	if (mb.getChain()->shouldBeProcessedAtAll())
 	{
-		// Use the last modulation value tracked during rendering (most accurate for display)
 		currentSaturation = lastSaturationModValue;
 	}
 	else
@@ -137,7 +135,6 @@ float const * SineSynth::getSaturatedTableValues()
 		currentSaturation = saturationAmount;
 	}
 
-	// Temporarily set the saturator to the current value for waveform display
 	saturator.setSaturationAmount(currentSaturation);
 
 	for (int i = 0; i < 128; i++)
@@ -179,10 +176,8 @@ void SineSynthVoice::calculateBlock(int startSample, int numSamples)
 		}
 	}
 
-	// Apply saturation with modulation support
 	if (auto modValues = sineSynth->getSaturationModValues(startSample))
 	{
-		// Audio-rate modulation - apply per sample
 		numSamples = samplesToCopy;
 		startSample = startIndex;
 		leftValues = voiceBuffer.getWritePointer(0, startSample);
@@ -204,14 +199,12 @@ void SineSynthVoice::calculateBlock(int startSample, int numSamples)
 	}
 	else
 	{
-		// Constant saturation value - only calculate when no modulation
 		float saturation = sineSynth->getConstantSaturationModValue();
 
 		if (saturation != 0.0f)
 		{
 			if (saturation >= 1.0f) saturation = 0.99f; // 1.0f makes it silent, so this is the best bugfix in the world...
 
-			// Cache the saturation amount calculation
 			const float saturationAmount = 2.0f * saturation / (1.0f - saturation);
 
 			// Once from the top...
@@ -250,19 +243,15 @@ void SineSynth::handlePeakDisplay(int numSamplesInOutputBuffer)
 {
 	ModulatorSynth::handlePeakDisplay(numSamplesInOutputBuffer);
 
-	// Update the last modulation value for waveform display. Only track while
-	// voices are rendering - the chain's output value is not updated when idle,
-	// so it would overwrite the value set by the SaturationAmount attribute.
+	// Only track while voices render: the idle chain output is stale and would overwrite the attribute value.
 	if (saturationChain != nullptr && saturationChain->shouldBeProcessedAtAll() && getNumActiveVoices() > 0)
 	{
 		waveformUpdateCounter += numSamplesInOutputBuffer;
-		// Update waveform display periodically (roughly every 30ms at 44.1kHz = ~1323 samples)
+		// roughly every 30ms at 44.1kHz
 		if (waveformUpdateCounter >= 1323)
 		{
 			waveformUpdateCounter = 0;
 
-			// Get the output value which is updated by setDisplayValueInternal during rendering
-			// This should reflect the current modulation state
 			auto& mb = modChains[ChainIndex::SaturationChain];
 			lastSaturationModValue = mb.getChain()->getOutputValue();
 

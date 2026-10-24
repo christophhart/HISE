@@ -290,7 +290,7 @@ private:
 	Saturator saturator;
 	ModulatorChain* saturationChain;
 	int waveformUpdateCounter;
-	float lastSaturationModValue; // Track the last modulation value for waveform display
+	float lastSaturationModValue; // for the waveform display
 	
 	friend class SineSynthVoice;
 
