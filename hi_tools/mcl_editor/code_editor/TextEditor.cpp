@@ -1797,10 +1797,8 @@ void mcl::TextEditor::updateViewTransform()
 	if (translation.x > 0.0)
 		translation.x = thisGutterWidth;
 
-	// Clamp horizontal translation based on the setting
 	if (!linebreakEnabled)
 	{
-		// Calculate the maximum width of any single line
 		float maxLineWidth = 0.0f;
 		auto charWidth = document.getCharacterRectangle().getWidth();
 		for (int i = 0; i < document.getNumRows(); i++)
@@ -1811,17 +1809,13 @@ void mcl::TextEditor::updateViewTransform()
 		float maxWidth = maxLineWidth * viewScaleFactor;
 		float visibleWidth = (float)(getWidth() - thisGutterWidth);
 
-		// When enabled, allow scrolling one viewport width past the longest line
-		// When disabled, only allow scrolling to the end of the longest line
 		float allowedMaxWidth = enableHorizontalScrollPastLineEnds
 			? maxWidth + visibleWidth
 			: maxWidth;
 
-		// Clamp translation.x so we can't scroll past the allowed limit
 		float minTranslationX = thisGutterWidth - jmax(0.0f, allowedMaxWidth - visibleWidth);
 		translation.x = jlimit(minTranslationX, (float)thisGutterWidth, translation.x);
 
-		// Update xPos to match the clamped translation
 		xPos = translation.x - thisGutterWidth;
 	}
 
@@ -1848,7 +1842,6 @@ void mcl::TextEditor::updateViewTransform()
 	if (!linebreakEnabled)
 	{
 		ScopedValueSetter<bool> svs(scrollBarRecursion, true);
-		// Calculate the maximum width of any single line
 		float maxLineWidth = 0.0f;
 		auto charWidth = document.getCharacterRectangle().getWidth();
 		for (int i = 0; i < document.getNumRows(); i++)
@@ -1857,8 +1850,6 @@ void mcl::TextEditor::updateViewTransform()
 			maxLineWidth = jmax(maxLineWidth, lineWidth);
 		}
 		
-		// When enabled, allow scrolling one viewport width past the longest line
-		// When disabled, only allow scrolling to the end of the longest line
 		float visibleWidth = (float)(getWidth() - gutter.getGutterWidth());
 		float maxRight = enableHorizontalScrollPastLineEnds 
 			? maxLineWidth + visibleWidth 
