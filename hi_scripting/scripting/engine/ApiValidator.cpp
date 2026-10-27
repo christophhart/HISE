@@ -173,32 +173,39 @@ HiseJavascriptEngine::RootObject::ObjectTypeMap::ScopedCallStack::~ScopedCallSta
 	parent.currentCallstack.removeLast();
 }
 
+
+
 HiseJavascriptEngine::RootObject::ObjectTypeMap::ObjectTypeMap(RootObject& root_, Array<ApiDiagnostic>* target) :
 	root(root_),
 	pwsc(dynamic_cast<ProcessorWithScriptingContent*>(root_.hiseSpecialData.processor)),
 	scopeStack(new ScopeStack(*this)),
 	diagnostics(target)
 {
+
 	DynamicObject::Ptr rootScope = new DynamicObject();
 
-#if 0 // TODO: maybe add primitive return types for those?
-	rootScope->setProperty("exec", exec);
-	rootScope->setProperty("eval", eval);
-	rootScope->setProperty("trace", trace);
-	rootScope->setProperty("charToInt", charToInt);
-	rootScope->setProperty("parseInt", IntegerClass::parseInt);
-	rootScope->setProperty("parseFloat", IntegerClass::parseFloat);
-	rootScope->setProperty("isNaN", IntegerClass::isNaN_);
-	rootScope->setProperty("isFinite", IntegerClass::isFinite_);
-	rootScope->setProperty("typeof", typeof_internal);
-#endif
+	using CS = WeakCallbackHolder::CallableObject::CallScope;
 
+#define ADD_INBUILT_FUNCTION(id, returnType, argType, callScope) rootScope->setProperty(id, new InbuiltFunction(pwsc, id, returnType, argType, callScope));
+
+	ADD_INBUILT_FUNCTION("exec", VarTypeChecker::NotUndefined, VarTypeChecker::String, CS::Unsafe);
+	ADD_INBUILT_FUNCTION("eval", VarTypeChecker::NotUndefined, VarTypeChecker::String, CS::Unsafe);
+	ADD_INBUILT_FUNCTION("trace", VarTypeChecker::String, VarTypeChecker::NotUndefined, CS::Warning);
+	ADD_INBUILT_FUNCTION("charToInt", VarTypeChecker::Integer, VarTypeChecker::String, CS::Safe);
+	ADD_INBUILT_FUNCTION("parseInt", VarTypeChecker::Integer, VarTypeChecker::String, CS::Safe);
+	ADD_INBUILT_FUNCTION("parseFloat", VarTypeChecker::Double, VarTypeChecker::String, CS::Safe);
+	ADD_INBUILT_FUNCTION("isNan", VarTypeChecker::Integer, VarTypeChecker::Number, CS::Safe);
+	ADD_INBUILT_FUNCTION("isFinite", VarTypeChecker::Integer, VarTypeChecker::Number, CS::Safe);
+	ADD_INBUILT_FUNCTION("typeof", VarTypeChecker::String, VarTypeChecker::NotUndefined, CS::Unsafe);
+	ADD_INBUILT_FUNCTION("Rectangle", VarTypeChecker::ScriptObject, VarTypeChecker::NotUndefined, CS::Unsafe);
+	
+#undef ADD_INBUILT_FUNCTION
+	
 	rootScope->setProperty("AsyncNotification", ApiHelpers::AsyncMagicNumber);
 	rootScope->setProperty("AsyncHiPriorityNotification", ApiHelpers::AsyncHiPriorityMagicNumber);
 	rootScope->setProperty("SyncNotification", ApiHelpers::SyncMagicNumber);
 
 	rootScope->setProperty("Buffer", getApiClassFromMap("Buffer").get());
-	rootScope->setProperty("Rectangle", getApiClassFromMap("Rectangle").get());
 	rootScope->setProperty("Content", getApiClassFromMap("Content").get());
 
 	scopeStack->push(rootScope, Strictness::AllowInit, ScopeSafety::Init);
@@ -240,6 +247,22 @@ HiseJavascriptEngine::RootObject::ObjectTypeMap::Strictness HiseJavascriptEngine
 		return defaultStrictness.at(callbackId);
 
 	return Strictness::Unset;
+}
+
+LightweightDiagnostics::Ptr HiseJavascriptEngine::RootObject::ObjectTypeMap::getLightweighDiagnosticsFromVar(const var& obj) const
+{
+	if (auto lb = dynamic_cast<LightweightDiagnostics*>(obj.getObject()))
+		return lb;
+
+	auto type = VarTypeChecker::getType(obj);
+
+	if (type == VarTypeChecker::VarTypes::Array)
+		return lightweightDiagnostics.createLightweightPrototype(pwsc, "Array", String(obj.size()));
+
+	if (auto js = obj.getDynamicObject())
+		return lightweightDiagnostics.createLightweightPrototype(pwsc, "Object", JSON::toString(obj));
+
+	return lightweightDiagnostics.createLightweightPrototype(pwsc, VarTypeChecker::getTypeName(type), "");
 }
 
 HiseJavascriptEngine::RootObject::Scope& HiseJavascriptEngine::RootObject::ObjectTypeMap::getCurrentScope()

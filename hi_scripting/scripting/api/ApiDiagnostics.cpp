@@ -538,6 +538,28 @@ struct LafObj : public BaseObjects::FunctionJSONObject
         }
 
         initClassTree(reduced);
+
+        auto useRectangleClass = HISE_GET_PREPROCESSOR(p->getMainController_(), HISE_USE_SCRIPT_RECTANGLE_OBJECT);
+
+        LightweightDiagnostics::Factory f;
+
+        areaObj = f.createLightweightPrototype(p, useRectangleClass ? "Rectangle" : "Array", "").get();
+        stringObj = f.createLightweightPrototype(p, "String", "").get();
+    }
+
+    var getConstantValue(const Identifier& childId) const override
+    {
+        if (childId == Identifier("area"))
+            return var(areaObj.get());
+
+        if(childId == Identifier("id") || 
+           childId == Identifier("text") ||
+            childId == Identifier("parentType"))
+        {
+            return var(stringObj.get());
+        }
+
+        return LightweightDiagnostics::getConstantValue(childId);
     }
 
     DiagnosticResult checkProperty(const Identifier& id) const override
@@ -551,6 +573,8 @@ struct LafObj : public BaseObjects::FunctionJSONObject
     }
 
     StringArray properties;
+
+    LightweightDiagnostics::Ptr areaObj, stringObj;
 };
 
 struct ScriptingObjects::ScriptedLookAndFeel::Diagnostics : public LightweightDiagnostics
@@ -569,7 +593,7 @@ struct ScriptingObjects::ScriptedLookAndFeel::Diagnostics : public LightweightDi
             if (!ok.wasOk())
                 return DiagnosticResult::fail("CSS parser error: " + ok.getErrorMessage());
 
-                auto warnings = p.getWarnings();
+            auto warnings = p.getWarnings();
 
 #if 0
                 for (auto w : warnings)
@@ -584,12 +608,14 @@ struct ScriptingObjects::ScriptedLookAndFeel::Diagnostics : public LightweightDi
         }
         if (cd.methodName == Identifier("registerFunction"))
         {
-            auto fn = cd.resolvedArguments[cd.parameterId].toString();
-            auto lafTree = ApiHelpers::getLafObjectTree();
-            auto mTree = lafTree.getChildWithName(fn);
+            
 
-            if (cd.category == Category::StringValidator)
+            if (cd.category == Category::Conditional)
             {
+                auto fn = cd.resolvedArguments[cd.parameterId].toString();
+                auto lafTree = ApiHelpers::getLafObjectTree();
+                auto mTree = lafTree.getChildWithName(fn);
+
                 if (!mTree.isValid())
                 {
                     StringArray candidates;
@@ -599,14 +625,13 @@ struct ScriptingObjects::ScriptedLookAndFeel::Diagnostics : public LightweightDi
 
                     return DiagnosticResult::fail("unknown function for LAF").withWrongToken(fn).withFuzzySuggestion(candidates);
                 }
-
-                return DiagnosticResult::ok();
             }
-            if (cd.category == Category::CallbackArgCheck)
+
+            if(cd.category == Category::CallbackArgCheck)
             {
                 CallbackParseOptions cb;
                 cb.callback = cd.resolvedArguments["paintFunction"];
-                
+
                 auto ok = cb.parseCheckString(cd.checkString, true);
 
                 if (ok.failed())

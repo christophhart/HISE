@@ -35,40 +35,7 @@ namespace hise {
 using namespace juce;
 
 
-struct NativeTypeDiagnostic : public LightweightDiagnostics
-{
-	NativeTypeDiagnostic(ProcessorWithScriptingContent* p, VarTypeChecker::VarTypes type, const String& argId):
-		LightweightDiagnostics(p, ValueTree(), VarTypeChecker::getTypeName(type).toString()),
-		t(type)
-	{
-		if (argId.isNotEmpty())
-		{
-			custom = true;
 
-			if (t == VarTypeChecker::VarTypes::JSON)
-			{
-				var obj;
-				auto r = JSON::parse(argId, obj);
-				jassert(r.wasOk());
-
-				ValueTree cTree(VarTypeChecker::getTypeName(type));
-
-				if (auto d = obj.getDynamicObject())
-				{
-					for (const auto& nv : d->getProperties())
-						cTree.setProperty(nv.name, nv.value, nullptr);
-				}
-
-				initClassTree(cTree);
-			}
-		}
-	}
-
-	CacheBehaviour getCacheBehaviour() const override { return custom ? CacheBehaviour::NeverCache : CacheBehaviour::AlwaysCache; };
-
-	bool custom = false;
-	VarTypeChecker::VarTypes t;
-};
 
 LightweightDiagnostics::Ptr LightweightDiagnostics::Factory::createInternal(ProcessorWithScriptingContent* p, const Identifier& id, const String& argId) const
 {
@@ -447,6 +414,8 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::runTests(ShadowParserBa
 
 	auto ok = checkFunction(methodName, args.size());
 
+	ok = DiagnosticResult::max(ok, checkArgCount(methodName, args.size()));
+
 	auto typed = dynamic_cast<HiseJavascriptEngine::RootObject::ObjectTypeMap*>(sp);
 
 	ok = DiagnosticResult::max(ok, checkCallScope(typed->getMinimumRequiredScopeSafety(), methodName));
@@ -472,6 +441,9 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkArgCount(const Ide
 			auto numExpected = f.arguments.size();
 
 			String msg;
+
+			msg << id << "(): ";
+
 			msg << "expects " << numExpected << " argument"
 				<< (numExpected != 1 ? "s" : "")
 				<< ", got " << numActual;
@@ -519,7 +491,7 @@ bool LightweightDiagnostics::getIndexAndNumArgsForFunction(const Identifier& id,
 	return false;
 }
 
-inline var LightweightDiagnostics::getReturnType(const Identifier& functionName, const Array<var>& args) const
+var LightweightDiagnostics::getReturnType(const Identifier& functionName, const Array<var>& args) const
 {
 	for (const auto& f : functions)
 	{
@@ -562,7 +534,7 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkProperty(const Ide
 	}
 		
 
-	return DiagnosticResult::fail("missing property").withWrongToken(getObjectName() + "." + propertyId.toString()).withFuzzySuggestion(candidates);
+return DiagnosticResult::fail("missing property").withWrongToken(getObjectName() + "." + propertyId.toString()).withFuzzySuggestion(candidates);
 }
 
 DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkFunction(const Identifier& methodName, int expectedNumArgs) const
@@ -633,31 +605,50 @@ Result LightweightDiagnostics::CallbackParseOptions::parseCheckString(const Stri
 	auto parameters = StringArray::fromTokens(pString, ",", "{}");
 
 	auto parseJSONArgs = [](const String& p)
-	{
-		std::pair<Identifier, String> rv;
-
-		if (p.startsWith("JSON"))
 		{
-			rv.first = "JSON";
-			rv.second = p.fromFirstOccurrenceOf("{", true, false);
+			std::pair<Identifier, String> rv;
 
-			var result;
-			auto ok = JSON::parse(rv.second, result);
-			jassert(ok.wasOk());
-		}
-		else
-			rv.first = p.trim();
+			if (p.startsWith("JSON"))
+			{
+				rv.first = "JSON";
+				rv.second = p.fromFirstOccurrenceOf("{", true, false);
 
-		return rv;
-	};
+				var result;
+				auto ok = JSON::parse(rv.second, result);
+				jassert(ok.wasOk());
+			}
+			else
+				rv.first = p.trim();
+
+			return rv;
+		};
 
 	for (auto p : parameters)
 		argTypes.push_back(parseJSONArgs(p));
 
 	if (auto cb = dynamic_cast<WeakCallbackHolder::CallableObject*>(callback.getObject()))
 	{
-		if (checkParameterCount && cb->getNumArguments() != argTypes.size())
-			return Result::fail("Callback signature mismatch. Expected: `f(" + pString + ")`, got: " + String(cb->getNumArguments()) + " arguments");
+		
+
+		if (checkParameterCount)
+		{
+			auto numArgs = cb->getNumArguments();
+
+			// allow optional parameters with the arg? syntax
+			if (numArgs < argTypes.size())
+			{
+				auto isOptional = true;
+
+				for (int i = numArgs; i < argTypes.size(); i++)
+					isOptional &= argTypes[i].first.toString().endsWithChar('?');
+
+				if (isOptional)
+					return Result::ok();
+			}
+
+			if(numArgs != argTypes.size())
+				return Result::fail("Callback signature mismatch. Expected: `f(" + pString + ")`, got: " + String(cb->getNumArguments()) + " arguments");
+		}			
 	}
 	else
 	{
@@ -720,7 +711,9 @@ StringArray LightweightDiagnostics::Helpers::getPrimitiveTypeList()
 		"Number",
 		"AudioData",
 		"int",
-		"double"
+		"double",
+		"float",
+		"string"
 	};
 
 	return primitiveTypes;
@@ -742,7 +735,9 @@ VarTypeChecker::VarTypes LightweightDiagnostics::Helpers::getVarTypeFromPrimitiv
 		VarTypeChecker::VarTypes::Number,
 		VarTypeChecker::VarTypes::AudioData,
 		VarTypeChecker::VarTypes::Integer,
-		VarTypeChecker::VarTypes::Double
+		VarTypeChecker::VarTypes::Double,
+		VarTypeChecker::VarTypes::Double,
+		VarTypeChecker::VarTypes::String
 	};
 
 	auto idx = getPrimitiveTypeList().indexOf(s);
@@ -760,6 +755,11 @@ String LightweightDiagnostics::Helpers::getTypeForObjectTypeCheck(const var& val
 		return dbo->getObjectName().toString();
 	}
 
+	if (auto lb = dynamic_cast<LightweightDiagnostics*>(value.getObject()))
+	{
+		return lb->getObjectName().toString();
+	}
+
 	if (auto dyn = value.getDynamicObject())
 		return "JSON";
 
@@ -772,6 +772,45 @@ String LightweightDiagnostics::Helpers::getTypeForObjectTypeCheck(const var& val
 	auto vt = VarTypeChecker::getType(value);
 
 	return VarTypeChecker::getTypeName(vt).toString();
+}
+
+NativeTypeDiagnostic::NativeTypeDiagnostic(ProcessorWithScriptingContent* p, VarTypeChecker::VarTypes type, const String& argId) :
+	LightweightDiagnostics(p, ValueTree(), VarTypeChecker::getTypeName(type).toString()),
+	t(type)
+{
+	if (type == VarTypeChecker::String)
+		initClassTree(ApiHelpers::getApiTree().getChildWithName("String"));
+
+	if (type == VarTypeChecker::Array)
+		initClassTree(ApiHelpers::getApiTree().getChildWithName("Array"));
+
+	if (type == VarTypeChecker::Buffer)
+		initClassTree(ApiHelpers::getApiTree().getChildWithName("Buffer"));
+
+	if (type == VarTypeChecker::JSON && argId.isEmpty())
+		initClassTree(ApiHelpers::getApiTree().getChildWithName("Object"));
+
+	if (argId.isNotEmpty())
+	{
+		custom = true;
+
+		if (t == VarTypeChecker::VarTypes::JSON)
+		{
+			var obj;
+			auto r = JSON::parse(argId, obj);
+			jassert(r.wasOk());
+
+			ValueTree cTree(VarTypeChecker::getTypeName(type));
+
+			if (auto d = obj.getDynamicObject())
+			{
+				for (const auto& nv : d->getProperties())
+					cTree.setProperty(nv.name, nv.value, nullptr);
+			}
+
+			initClassTree(cTree);
+		}
+	}
 }
 
 }

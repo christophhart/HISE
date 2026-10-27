@@ -82,6 +82,8 @@ struct HiseJavascriptEngine::RootObject::ObjectTypeMap : public ReferenceCounted
 		return lightweightDiagnostics.createLightweightPrototype(pwsc, apiClassName, {});
 	}
 
+	LightweightDiagnostics::Ptr getLightweighDiagnosticsFromVar(const var& obj) const;
+
 	LightweightDiagnostics::Ptr createAnonoymousDiagnosticObject(const Identifier& className, const String& argId)
 	{
 		return lightweightDiagnostics.createLightweightPrototype(pwsc, className, argId);

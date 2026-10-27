@@ -420,28 +420,25 @@ private:
 
 	DiagnosticResult checkMethodsTouched(const Array<Identifier>& requiredMethods, const String& errorMessage)
 	{
-		if (auto lb = dynamic_cast<LightweightDiagnostics*>(thisValue.getObject()))
+		auto ok = false;
+
+		for (const auto& m : requiredMethods)
 		{
-			Array<Identifier> missingMethods;
+			ok |= lb->wasMethodTouched(m);
 
-			for (const auto& m : requiredMethods)
-			{
-				if (!lb->wasMethodTouched(m))
-					missingMethods.add(m);
-			}
-
-			if (missingMethods.isEmpty())
-				return DiagnosticResult::ok();
-
-			auto dr = createWarning(errorMessage);
-
-			for (const auto& m : missingMethods)
-				dr = dr.withSuggestion(lb->getObjectName() + "." + m.toString() + "()");
-
-			return dr;
+			if (ok)
+				break;
 		}
 
-		return DiagnosticResult::unknown();
+		if (ok)
+			return DiagnosticResult::ok();
+
+		auto dr = createWarning(errorMessage);
+
+		for (const auto& m : requiredMethods)
+			dr = dr.withSuggestion(lb->getObjectName() + "." + m.toString() + "()");
+
+		return dr;
 	}
 
 	DiagnosticResult performGraphicsCheck(const String& valueString)
@@ -455,6 +452,17 @@ private:
 		if (valueString == "FontSet")
 		{
 			return checkMethodsTouched({ "setFont", "setFontWithSpacing" }, "Font not set");
+		}
+
+		if (valueString == "ValidJustification")
+		{
+			Result re = Result::ok();
+			auto just = ApiHelpers::getJustification(thisValue.toString(), &re);
+
+			if (re.failed())
+				return createError(re.getErrorMessage()).withFuzzySuggestion(ApiHelpers::getJustificationNames());
+
+			return DiagnosticResult::ok();
 		}
 
 		if (valueString == "Area")

@@ -373,7 +373,7 @@ struct LightweightDiagnostics : public DiagnosticBase,
         static String getTypeForObjectTypeCheck(const var& value);
     };
 
-    var getConstantValue(const Identifier& id) const
+    virtual var getConstantValue(const Identifier& id) const
     {
         return apiConstants[id];
     }
@@ -455,6 +455,71 @@ private:
     Identifier className;
 
     const String argId;
+};
+
+struct NativeTypeDiagnostic : public LightweightDiagnostics
+{
+    NativeTypeDiagnostic(ProcessorWithScriptingContent* p, VarTypeChecker::VarTypes type, const String& argId);
+
+    CacheBehaviour getCacheBehaviour() const override { return custom ? CacheBehaviour::NeverCache : CacheBehaviour::AlwaysCache; };
+
+    bool custom = false;
+    VarTypeChecker::VarTypes t;
+};
+
+struct InbuiltFunction : public LightweightDiagnostics
+{
+    using CS = WeakCallbackHolder::CallableObject::CallScope;
+
+    InbuiltFunction(ProcessorWithScriptingContent* p, const Identifier& funcName, VarTypeChecker::VarTypes returnType, VarTypeChecker::VarTypes argType, CS callScope) :
+        LightweightDiagnostics(p, ValueTree(funcName), "")
+    {
+        addFunction(createFunctionInfo(returnType, argType, callScope));
+    }
+
+    FunctionInfo createFunctionInfo(VarTypeChecker::VarTypes returnType, VarTypeChecker::VarTypes argType, CS callScope) const
+    {
+        FunctionInfo self(getObjectName());
+        
+        self.callscope = callScope;
+        self.methodName = getObjectName();
+
+        if (self.methodName == Identifier("Rectangle"))
+        {
+            self.returnType = "Rectangle";
+            
+            FunctionInfo::Args a1("a1");
+            a1.type = VarTypeChecker::IndexOrArray;
+
+            self.arguments.push_back(a1);
+
+            FunctionInfo::Args a2("a2");
+            a2.type = VarTypeChecker::IndexOrArray;
+
+            self.arguments.push_back(a2.asOptional(true));
+
+            FunctionInfo::Args a3("a3");
+            a3.type = VarTypeChecker::IndexOrArray;
+
+            self.arguments.push_back(a3.asOptional(true));
+
+            FunctionInfo::Args a4("a4");
+            a4.type = VarTypeChecker::IndexOrArray;
+
+            self.arguments.push_back(a4.asOptional(true));
+        }
+        else
+        {
+            self.returnType = VarTypeChecker::getTypeName(returnType);
+            FunctionInfo::Args singleArg("argument");
+            singleArg.type = argType;
+
+            self.arguments.push_back(singleArg);
+        }
+
+        return self;
+    }
+
 };
 
 }

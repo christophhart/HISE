@@ -306,7 +306,7 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 		{
 			auto parentValue = dot->parent->getResult(s);
 
-			if (auto lb = dynamic_cast<LightweightDiagnostics*>(parentValue.getObject()))
+			if(auto lb = s.getShadowParser()->getLightweighDiagnosticsFromVar(parentValue))
 			{
 				Array<var> thisArgs;
 
@@ -353,6 +353,17 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 					logDiagnostics(s, rv.second);
 
 				return rv.first;
+			}
+			if (auto nf = dynamic_cast<InbuiltFunction*>(f.getObject()))
+			{
+				Array<var> args;
+
+				for (auto a : arguments)
+					args.add(a->getResult(s));
+
+				logDiagnostics(s, nf->runTests(s.getShadowParser(), nf->getObjectName(), args));
+				
+				return nf->getReturnType(nf->getObjectName(), { var("") });
 			}
 			else
 			{
