@@ -1,3 +1,4 @@
+#include "CodeMap.h"
 /** ============================================================================
  *
  * MCL Text Editor JUCE module 
@@ -234,6 +235,12 @@ void FoldMap::Item::updateHeight()
 	{
 		for (auto c : children)
 		{
+			auto included = c->isIncludedInSearch();
+			c->setVisible(included);
+
+			if(!included)
+				continue;
+
 			h += c->getHeight();
 		}
 	}
@@ -261,6 +268,9 @@ void FoldMap::Item::resized()
 	{
 		for (auto c : children)
 		{
+			if (!c->isVisible())
+				continue;
+
 			c->setBounds(0, y, getWidth(), c->getHeight());
 			y = c->getBottom();
 		}
@@ -363,6 +373,15 @@ FoldMap::FoldMap(TextDocument& d):
 	doc.addFoldListener(this);
 	doc.addSelectionListener(this);
 
+	addAndMakeVisible(searchBar);
+
+	GlobalHiseLookAndFeel::setTextEditorColours(searchBar);
+
+	searchBar.onTextChange = [this]()
+	{
+		startTimer(500);
+	};
+
 	vp.setViewedComponent(&content, false);
 	addAndMakeVisible(vp);
 	vp.setColour(ScrollBar::ColourIds::thumbColourId, Colours::white.withAlpha(0.2f));
@@ -434,17 +453,34 @@ void FoldMap::rebuild()
 	displayedLineRangeChanged(lastRange);
 }
 
-void FoldMap::updateSize()
+int FoldMap::updateSize()
 {
 	auto y = 0;
 
 	for (auto i : items)
 	{
+		auto inSearch = i->isIncludedInSearch();
+
+		i->setVisible(inSearch);
 		i->setBounds(0, y, content.getWidth(), i->getHeight());
 		y += i->getHeight();
 	}
 
 	repaint();
+
+	return y;
+}
+
+void FoldMap::updateSearch()
+{
+	auto s = searchBar.getText().toLowerCase();
+
+	for (auto i : items)
+		i->setSearchTerm(s);
+
+	auto newHeight = updateSize();
+
+	content.setSize(content.getWidth(), newHeight);
 }
 
 void FoldMap::resized()
@@ -453,6 +489,7 @@ void FoldMap::resized()
 
 	auto b = getLocalBounds();
 	b.removeFromLeft(10);
+	searchBar.setBounds(b.removeFromTop(24));
 
 	vp.setBounds(b);
 }

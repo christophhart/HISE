@@ -55,7 +55,8 @@ public:
 
 class FoldMap : public Component,
 				public FoldableLineRange::Listener,
-				public Selection::Listener
+				public Selection::Listener,
+			    public juce::Timer
 {
 public:
 
@@ -128,6 +129,29 @@ public:
 		bool onScreen = false;
 		bool edgeOnScreen = false;
 
+		void setSearchTerm(const String& searchTerm)
+		{
+			includedInSearch = text.toLowerCase().contains(searchTerm);
+
+			for (auto c : children)
+				c->setSearchTerm(searchTerm);
+
+			updateHeight();
+			resized();
+		}
+
+		bool isIncludedInSearch() const
+		{
+			if (includedInSearch)
+				return true;
+
+			for (auto c : children)
+				if (c->isIncludedInSearch())
+					return true;
+
+			return false;
+		}
+
         void addLineNumbersForParentItems(Array<int>& list, int lineNumber) const
         {
             auto lr = p->getLineRange();
@@ -147,6 +171,8 @@ public:
 
 		OwnedArray<Item> children;
 		bool clicked = false;
+
+		bool includedInSearch = true;
 
 		int bestWidth = 0;
 	};
@@ -171,7 +197,15 @@ public:
 
 	void rebuild();
 
-	void updateSize();
+	int updateSize();
+
+	void timerCallback() override
+	{
+		updateSearch();
+		stopTimer();
+	}
+
+	void updateSearch();
 
 	void resized() override;
 
@@ -185,6 +219,8 @@ public:
 	Range<int> lastRange;
 
 	TextDocument& doc;
+
+	juce::TextEditor searchBar;
 };
 
 
