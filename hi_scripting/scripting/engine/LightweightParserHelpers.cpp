@@ -342,7 +342,7 @@ LightweightDiagnostics::Validator LightweightDiagnostics::FunctionInfo::getValid
 	return v;
 }
 
-LightweightDiagnostics::FunctionInfo::Args LightweightDiagnostics::FunctionInfo::Args::withType(VarTypeChecker::VarTypes t) const
+LightweightDiagnostics::FunctionInfo::Args LightweightDiagnostics::FunctionInfo::Args::withType(VarTypeChecker::WrappedType t) const
 {
 	auto copy = *this;
 	copy.type = t;
@@ -395,7 +395,9 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkCallScope(ScopeSaf
 
 					auto sev = f.callscope == ScopeSafety::Warning ? DiagnosticResult::Severity::Warning : DiagnosticResult::Severity::Error;
 
-					return DiagnosticResult(getObjectName().toString() + "." + methodName.toString() + "(): " + msg).withSeverity(sev);
+					return DiagnosticResult(getObjectName().toString() + "." + methodName.toString() + "(): " + msg)
+						.withSeverity(sev)
+						.withErrorCode(DiagnosticResult::ErrorCode::CallScopeMismatch);
 				}
 
 				return DiagnosticResult::ok();
@@ -449,13 +451,13 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkArgCount(const Ide
 				<< ", got " << numActual;
 
 			if (numActual > numExpected)
-				return DiagnosticResult::fail(msg);
+				return DiagnosticResult::fail(msg).withErrorCode(DiagnosticResult::ErrorCode::ArgMismatch);
 
 
 			for (int i = numActual; i < f.arguments.size(); i++)
 			{
 				if (!f.arguments[i].optional)
-					return DiagnosticResult::fail(msg);
+					return DiagnosticResult::fail(msg).withErrorCode(DiagnosticResult::ErrorCode::ArgMismatch);
 			}
 
 			return DiagnosticResult::ok();
@@ -467,7 +469,10 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkArgCount(const Ide
 	for (const auto& f : functions)
 		candidates.add(f.methodName.toString());
 
-	return DiagnosticResult::fail(getObjectName() + ": missing function").withWrongToken(id.toString()).withFuzzySuggestion(candidates);
+	return DiagnosticResult::fail(getObjectName() + ": missing function")
+		.withWrongToken(id.toString())
+		.withFuzzySuggestion(candidates)
+		.withErrorCode(DiagnosticResult::ErrorCode::MissingFunctionOrProperty);
 }
 
 bool LightweightDiagnostics::getIndexAndNumArgsForFunction(const Identifier& id, int& index, int& numArgs) const
@@ -534,7 +539,10 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkProperty(const Ide
 	}
 		
 
-return DiagnosticResult::fail("missing property").withWrongToken(getObjectName() + "." + propertyId.toString()).withFuzzySuggestion(candidates);
+return DiagnosticResult::fail("missing property")
+	.withWrongToken(getObjectName() + "." + propertyId.toString())
+	.withFuzzySuggestion(candidates)
+	.withErrorCode(DiagnosticResult::ErrorCode::MissingFunctionOrProperty);
 }
 
 DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkFunction(const Identifier& methodName, int expectedNumArgs) const
@@ -552,7 +560,10 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkFunction(const Ide
 	for (auto f : functions)
 		candidates.add(getObjectName() + "." + f.methodName.toString() + "()");
 
-	return DiagnosticResult::fail("missing function").withWrongToken(getObjectName() + "." + methodName.toString() + "()").withFuzzySuggestion(candidates);
+	return DiagnosticResult::fail("missing function")
+		.withWrongToken(getObjectName() + "." + methodName.toString() + "()")
+		.withFuzzySuggestion(candidates)
+		.withErrorCode(DiagnosticResult::ErrorCode::MissingFunctionOrProperty);
 }
 
 DiagnosticBase::DiagnosticResult LightweightDiagnostics::shadowParseCallbackWithArgType(const CallbackParseOptions& cbo)
@@ -628,8 +639,6 @@ Result LightweightDiagnostics::CallbackParseOptions::parseCheckString(const Stri
 
 	if (auto cb = dynamic_cast<WeakCallbackHolder::CallableObject*>(callback.getObject()))
 	{
-		
-
 		if (checkParameterCount)
 		{
 			auto numArgs = cb->getNumArguments();

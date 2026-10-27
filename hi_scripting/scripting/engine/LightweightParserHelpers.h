@@ -255,14 +255,14 @@ struct LightweightDiagnostics : public DiagnosticBase,
         {
             Args(Identifier id_) : id(id_) {};
 
-            Args withType(VarTypeChecker::VarTypes t) const;
+            Args withType(VarTypeChecker::WrappedType t) const;
 
             Args asOptional(bool isOptional) const;
 
             static Args parse(const String& argWithType);
 
             Identifier id;
-            VarTypeChecker::VarTypes type = VarTypeChecker::VarTypes::NotUndefined;
+            VarTypeChecker::WrappedType type = VarTypeChecker::WrappedType(VarTypeChecker::VarTypes::NotUndefined);
             bool optional = false;
             StringArray validators;
 
@@ -489,22 +489,22 @@ struct InbuiltFunction : public LightweightDiagnostics
             self.returnType = "Rectangle";
             
             FunctionInfo::Args a1("a1");
-            a1.type = VarTypeChecker::IndexOrArray;
+            a1.type = VarTypeChecker::WrappedType(VarTypeChecker::IndexOrArray);
 
             self.arguments.push_back(a1);
 
             FunctionInfo::Args a2("a2");
-            a2.type = VarTypeChecker::IndexOrArray;
+            a2.type = VarTypeChecker::WrappedType(VarTypeChecker::IndexOrArray);
 
             self.arguments.push_back(a2.asOptional(true));
 
             FunctionInfo::Args a3("a3");
-            a3.type = VarTypeChecker::IndexOrArray;
+            a3.type = VarTypeChecker::WrappedType(VarTypeChecker::IndexOrArray);
 
             self.arguments.push_back(a3.asOptional(true));
 
             FunctionInfo::Args a4("a4");
-            a4.type = VarTypeChecker::IndexOrArray;
+            a4.type = VarTypeChecker::WrappedType(VarTypeChecker::IndexOrArray);
 
             self.arguments.push_back(a4.asOptional(true));
         }
@@ -512,7 +512,7 @@ struct InbuiltFunction : public LightweightDiagnostics
         {
             self.returnType = VarTypeChecker::getTypeName(returnType);
             FunctionInfo::Args singleArg("argument");
-            singleArg.type = argType;
+            singleArg.type = VarTypeChecker::WrappedType(argType);
 
             self.arguments.push_back(singleArg);
         }

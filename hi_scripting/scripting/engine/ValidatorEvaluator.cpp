@@ -247,36 +247,41 @@ struct LightweightDiagnostics::ValidatorEvaluator
 			v = v.upToFirstOccurrenceOf("$?", false, false);
 		}
 
-		auto wrapDiagnostic = [&](DiagnosticResult r)
-			{
-				if (!r.shouldReport())
-					return r;
+		using EC = DiagnosticBase::DiagnosticResult::ErrorCode;
 
-				if (overrideSeverity != DiagnosticResult::Severity::Unknown)
-					r = r.withSeverity(overrideSeverity);
-
-				if (overrideMessage.isNotEmpty())
-					r = r.withMessage(overrideMessage);
-
-				if (overrideSuggestion.isNotEmpty())
-					r = r.withSuggestion(overrideSuggestion, true);
-
+		auto wrapDiagnostic = [&](DiagnosticResult r, DiagnosticBase::DiagnosticResult::ErrorCode ec)
+		{
+			if (!r.shouldReport())
 				return r;
-			};
+
+			if (overrideSeverity != DiagnosticResult::Severity::Unknown)
+				r = r.withSeverity(overrideSeverity);
+
+			if (overrideMessage.isNotEmpty())
+				r = r.withMessage(overrideMessage);
+
+			if (overrideSuggestion.isNotEmpty())
+				r = r.withSuggestion(overrideSuggestion, true);
+
+			if(ec != EC::Unknown)
+				r = r.withErrorCode(ec);
+
+			return r;
+		};
 
 		c = (Category)getCategories().indexOf(cat);
 
 		switch (c)
 		{
-		case Category::RangeCheck:			return wrapDiagnostic(performRangeCheck(v));
-		case Category::GraphicsCheck:		return wrapDiagnostic(performGraphicsCheck(v));
-		case Category::StringValidator:		return wrapDiagnostic(performStringValidation(v));
-		case Category::Conditional:			return wrapDiagnostic(lb->performCustomCheck(makeCustomCheckData(v)));
-		case Category::RuntimeIdCheck:		return wrapDiagnostic(performRuntimeIdCheck(v));
-		case Category::CallbackArgCheck:	return wrapDiagnostic(performCallbackCheck(v));
-		case Category::ObjectType:			return wrapDiagnostic(performObjectTypeCheck(v));
-		case Category::MethodTouched:		return wrapDiagnostic(performMethodTouchedCheck(v));
-		default:							return DiagnosticResult::fail("unimplemented category " + cat);
+		case Category::RangeCheck:			return wrapDiagnostic(performRangeCheck(v), EC::RangeCheck);
+		case Category::GraphicsCheck:		return wrapDiagnostic(performGraphicsCheck(v), EC::GraphicsIssue);
+		case Category::StringValidator:		return wrapDiagnostic(performStringValidation(v), EC::InvalidOption);
+		case Category::Conditional:			return wrapDiagnostic(lb->performCustomCheck(makeCustomCheckData(v)), EC::Unknown);
+		case Category::RuntimeIdCheck:		return wrapDiagnostic(performRuntimeIdCheck(v), EC::RuntimeIdFailure);
+		case Category::CallbackArgCheck:	return wrapDiagnostic(performCallbackCheck(v), EC::CallbackArgMismatch);
+		case Category::ObjectType:			return wrapDiagnostic(performObjectTypeCheck(v), EC::TypeMismatch);
+		case Category::MethodTouched:		return wrapDiagnostic(performMethodTouchedCheck(v), EC::UntouchedMethod);
+		default:							return DiagnosticResult::fail("unimplemented category " + cat).withErrorCode(EC::InternalError);
 		}
 
 		return DiagnosticResult::unknown();
@@ -359,7 +364,14 @@ private:
 
 	DiagnosticResult createError(const String& errorMessage)
 	{
-		return DiagnosticResult("argument " + String(parameterIndex + 1) + "(" + argumentId + "): " + errorMessage)
+		String msg;
+
+		if (parameterIndex != -1)
+			msg << "argument " << String(parameterIndex + 1) << "(" + argumentId + "): ";
+
+		msg << errorMessage;
+
+		return DiagnosticResult(msg)
 			.withWrongToken(thisValue.toString())
 			.withSeverity(DiagnosticResult::Severity::Error);
 	}

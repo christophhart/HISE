@@ -121,7 +121,7 @@ struct HiseJavascriptEngine::RootObject::RegisterName : public Expression
 #if ENABLE_SCRIPTING_SAFE_CHECKS
         if(type)
         {
-            auto ok = VarTypeChecker::checkType(newValue, type, true);
+            auto ok = VarTypeChecker::checkType(newValue, VarTypeChecker::WrappedType(type), true);
             
             if(ok.failed())
             {
@@ -513,18 +513,18 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
         struct Argument
         {
-            Argument(VarTypeChecker::VarTypes type_, const Identifier& id_):
+            Argument(VarTypeChecker::WrappedType type_, const Identifier& id_):
               type(type_),
               id(id_)
             {};
             
             Argument(const Identifier& id_):
-              type(VarTypeChecker::Undefined),
+              type(VarTypeChecker::WrappedType()),
               id(id_)
             {};
             
             Argument():
-              type(VarTypeChecker::Undefined),
+              type(VarTypeChecker::WrappedType()),
               id(Identifier())
             {};
             
@@ -547,7 +547,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
             {
                 String s;
                 
-                if(type != VarTypeChecker::Undefined)
+                if((bool)type)
                     s << VarTypeChecker::getTypeName(type) << " ";
                 
                 s << id.toString();
@@ -555,7 +555,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
                 return s;
             }
             
-            VarTypeChecker::VarTypes type;
+            VarTypeChecker::WrappedType type;
             Identifier id;
         };
         
@@ -911,12 +911,73 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		Location location;
         
-        VarTypeChecker::VarTypes returnType;
+        VarTypeChecker::WrappedType returnType;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Object);
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Object);
 
 	};
+
+#if HISE_SHADOW_PARSER_ENABLED
+	struct Definition : public Statement
+	{
+		Definition(const CodeLocation& l, Object::Ptr o) :
+			Statement(l),
+			obj(o)
+		{}
+
+		ResultCode perform(const Scope& s, var*) const override
+		{
+			if (s.isShadowParsing())
+			{
+				Array<var> args;
+
+				for (int i = 0; i < obj->parameterNames.size(); i++)
+				{
+					auto p = obj->parameterNames[i];
+
+					if ((bool)p.type)
+						args.add(s.getShadowParser()->createAnonoymousDiagnosticObject(VarTypeChecker::getTypeName(p.type), "").get());
+					else
+						args.add(var());
+				}
+
+				var::NativeFunctionArgs a(var(), args.getRawDataPointer(), args.size());
+
+				auto rv = obj->invokeShadowParse(s, a, WeakCallbackHolder::CallableObject::StrictnessLevel::AllowInit);
+
+				if (rv.second.shouldReport())
+					logDiagnostics(s, rv.second);
+
+				if ((bool)obj->returnType)
+				{
+					auto ok = VarTypeChecker::checkType(rv.first, obj->returnType, true);
+
+					if (ok.failed())
+					{
+						String msg;
+						msg << "error at return value for inline function " << obj->name.toString() << ": ";
+						msg << ok.getErrorMessage();
+
+						auto dr = DiagnosticBase::DiagnosticResult::fail(msg)
+							.withErrorCode(DiagnosticBase::DiagnosticResult::ErrorCode::TypeMismatch);
+
+						logDiagnostics(s, dr);
+					}
+				}
+			}
+			else
+			{
+				// should never happen, only used in diagnostic mode
+				jassertfalse;
+			}
+
+			return ResultCode::ok;
+		}
+
+		Object::Ptr obj;
+	};
+#endif
 
 	struct FunctionCall : public Expression
 	{

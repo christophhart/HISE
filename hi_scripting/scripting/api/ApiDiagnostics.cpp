@@ -130,7 +130,10 @@ struct ScriptComponentDiagnosticBase : public LightweightDiagnostics
                     for (const auto& a : *props.getArray())
                         sa.add(a.toString());
 
-                    return DR::fail("Unknown property").withWrongToken(propId.toString()).withFuzzySuggestion(sa);
+                    return DR::fail("Unknown property")
+                        .withWrongToken(propId.toString())
+                        .withFuzzySuggestion(sa)
+                        .withErrorCode(DiagnosticResult::ErrorCode::InvalidOption);
                 }
 
                 return DR::ok();
@@ -144,7 +147,10 @@ struct ScriptComponentDiagnosticBase : public LightweightDiagnostics
                 writtenProperties.set(propId.toString(), v);
 
                 if (!options.isEmpty() && !options.contains(v))
-                    return DR::fail("Illegal option for property " + propId.toString()).withWrongToken(v).withFuzzySuggestion(options);
+                    return DR::fail("Illegal option for property " + propId.toString())
+                    .withWrongToken(v)
+                    .withFuzzySuggestion(options)
+                    .withErrorCode(DiagnosticResult::ErrorCode::InvalidOption);
 
                 return DR::ok();
             }
@@ -495,30 +501,6 @@ struct ScriptingObjects::ScriptingEffect::Diagnostics : public BaseObjects::Modu
     }
 };
 
-#if 0
-struct ScriptingObjects::PathObject::Diagnostics : public LightweightDiagnostics
-{
-    Diagnostics(ProcessorWithScriptingContent* p, const ValueTree& classTree, const String&) :
-        LightweightDiagnostics(p, classTree, {})
-    {
-        addDiagnostic("clear", [this](DiagnosticBase* b, const Identifier& id, const Array<var>& args)
-        {
-            clearTouchedMethods();
-            return DiagnosticResult::ok();
-        });
-
-        addDiagnostic("addArc", [this](DiagnosticBase* b, const Identifier& id, const Array<var>& args)
-        {
-            if (!wasMethodTouched("startNewSubPath"))
-                return DiagnosticResult(DiagnosticResult::Severity::Warning, 
-                       "addArc needs a bounding box to be rendered consistently")
-                       .withSuggestion("Call startNewSubPath twice with the top-left and bottom right corner of the area that should be the consistent bounding box before calling this method.");
-
-            return DiagnosticResult::ok();
-        });
-    }
-};
-#endif
 
 struct LafObj : public BaseObjects::FunctionJSONObject
 {
@@ -567,7 +549,10 @@ struct LafObj : public BaseObjects::FunctionJSONObject
         auto ok = FunctionJSONObject::checkProperty(id);
 
         if(ok.shouldReport())
-            return DiagnosticResult::fail("illegal property for LAF obj in function " + getArgId()).withWrongToken("obj." + id.toString()).withFuzzySuggestion(properties);
+            return DiagnosticResult::fail("illegal property for LAF obj in function " + getArgId())
+            .withWrongToken("obj." + id.toString())
+            .withFuzzySuggestion(properties)
+            .withErrorCode(DiagnosticResult::ErrorCode::MissingFunctionOrProperty);
 
         return ok;
     }
@@ -623,7 +608,10 @@ struct ScriptingObjects::ScriptedLookAndFeel::Diagnostics : public LightweightDi
                     for (auto c : lafTree)
                         candidates.add(c.getType().toString());
 
-                    return DiagnosticResult::fail("unknown function for LAF").withWrongToken(fn).withFuzzySuggestion(candidates);
+                    return DiagnosticResult::fail("unknown function for LAF")
+                        .withWrongToken(fn)
+                        .withFuzzySuggestion(candidates)
+                        .withErrorCode(DiagnosticResult::ErrorCode::InvalidOption);
                 }
             }
 
@@ -635,7 +623,7 @@ struct ScriptingObjects::ScriptedLookAndFeel::Diagnostics : public LightweightDi
                 auto ok = cb.parseCheckString(cd.checkString, true);
 
                 if (ok.failed())
-                    return DiagnosticResult::fail(ok.getErrorMessage());
+                    return DiagnosticResult::fail(ok.getErrorMessage()).withErrorCode(DiagnosticResult::ErrorCode::CallbackArgMismatch);
 
                 // now pass the function name to the laf obj so it can resolve it later
                 cb.argTypes[1].second = cd.resolvedArguments["functionName"].toString();

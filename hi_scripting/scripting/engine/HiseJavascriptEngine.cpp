@@ -659,6 +659,7 @@ struct HiseJavascriptEngine::RootObject::Statement
 			d.suggestions = dr.getSuggestions();
 			d.severity = dr.getSeverity();
 			d.classification = dr.getClassification();
+			d.ec = dr.getErrorCode();
 			s.currentShadowParser->addDiagnostic(d);
 		}
 	}
@@ -983,20 +984,6 @@ void HiseJavascriptEngine::registerApiClass(ApiClass *apiClass)
 	root->hiseSpecialData.apiIds.add(apiClass->getObjectName());
 }
 
-#if 0
-const ApiClassBase* HiseJavascriptEngine::getApiClass(const Identifier &className) const
-{
-	const int index = root->hiseSpecialData.apiIds.indexOf(className);
-
-	if (index != -1)
-	{
-		return root->hiseSpecialData.apiClasses[index];
-	}
-
-	return nullptr;
-}
-#endif
-
 ApiClass::Constant ApiClass::Constant::null;
 
 #if JUCE_MSVC
@@ -1254,7 +1241,7 @@ void HiseJavascriptEngine::sendBreakpointMessage(int breakpointIndex)
 	}
 }
 
-void HiseJavascriptEngine::checkValidParameter(int index, const var& valueToTest, const RootObject::CodeLocation& location, VarTypeChecker::VarTypes expectedType)
+void HiseJavascriptEngine::checkValidParameter(int index, const var& valueToTest, const RootObject::CodeLocation& location, VarTypeChecker::WrappedType expectedType)
 {
 #if ENABLE_SCRIPTING_SAFE_CHECKS
 
@@ -1263,7 +1250,7 @@ void HiseJavascriptEngine::checkValidParameter(int index, const var& valueToTest
 		location.throwError("API call with undefined parameter at index " + String(index) + ". Use \"\" or false for an inactive value.");
 	}
     
-    if(expectedType != VarTypeChecker::Undefined)
+    if((bool)expectedType)
     {
         auto ok = VarTypeChecker::checkType(valueToTest, expectedType, false);
         

@@ -1142,7 +1142,7 @@ public:
 		root->setUseCycleReferenceCheckForNextCompilation();
 	}
 
-	static void checkValidParameter(int index, const var& valueToTest, const RootObject::CodeLocation& location, VarTypeChecker::VarTypes expectedType);
+	static void checkValidParameter(int index, const var& valueToTest, const RootObject::CodeLocation& location, VarTypeChecker::WrappedType expectedType);
 
 	
 

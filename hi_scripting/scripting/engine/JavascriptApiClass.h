@@ -82,6 +82,82 @@ namespace VarTypeIdentifiers
     DECLARE_ID(Function);
     DECLARE_ID(ComplexType);
     DECLARE_ID(NotUndefined);
+
+    // TypedObjects
+    DECLARE_ID(AudioFile);
+    DECLARE_ID(AudioSampleProcessor);
+    DECLARE_ID(BackgroundTask);
+    DECLARE_ID(BeatportManager);
+    DECLARE_ID(Broadcaster);
+    
+    DECLARE_ID(Builder);
+    DECLARE_ID(ChildSynth);
+    DECLARE_ID(ComplexGroupManager);
+    DECLARE_ID(Connection);
+    DECLARE_ID(ContainerChild);
+    DECLARE_ID(DisplayBuffer);
+    DECLARE_ID(DisplayBufferSource);
+    DECLARE_ID(Download);
+    DECLARE_ID(DspModule);
+    DECLARE_ID(DspNetwork);
+    DECLARE_ID(Effect);
+    DECLARE_ID(ErrorHandler);
+    DECLARE_ID(Expansion);
+    DECLARE_ID(ExpansionHandler);
+    DECLARE_ID(FFT);
+    DECLARE_ID(File);
+    DECLARE_ID(FixObjectArray);
+    DECLARE_ID(FixObjectFactory);
+    DECLARE_ID(FixObjectStack);
+    DECLARE_ID(GlobalCable);
+    DECLARE_ID(GlobalRoutingManager);
+    DECLARE_ID(Graphics);
+    DECLARE_ID(LorisManager);
+    DECLARE_ID(MacroHandler);
+    DECLARE_ID(MarkdownRenderer);
+    DECLARE_ID(MessageHolder);
+    DECLARE_ID(MidiAutomationHandler);
+    DECLARE_ID(MidiList);
+    DECLARE_ID(MidiPlayer);
+    DECLARE_ID(MidiProcessor);
+    DECLARE_ID(Modifiers);
+    DECLARE_ID(Modulator);
+    DECLARE_ID(NetworkTest);
+    DECLARE_ID(NeuralNetwork);
+    DECLARE_ID(Node);
+    DECLARE_ID(Parameter);
+    DECLARE_ID(Path);
+    DECLARE_ID(Rectangle);
+    DECLARE_ID(RoutingMatrix);
+    DECLARE_ID(Sample);
+    DECLARE_ID(ScriptAudioWaveform);
+    DECLARE_ID(ScriptButton);
+    DECLARE_ID(ScriptComboBox);
+    DECLARE_ID(ScriptDynamicContainer);
+    DECLARE_ID(ScriptFloatingTile);
+    DECLARE_ID(ScriptImage);
+    DECLARE_ID(ScriptLabel);
+    DECLARE_ID(ScriptLookAndFeel);
+    DECLARE_ID(ScriptModulationMatrix);
+    DECLARE_ID(ScriptMultipageDialog);
+    DECLARE_ID(ScriptPanel);
+    DECLARE_ID(ScriptShader);
+    DECLARE_ID(ScriptSlider);
+    DECLARE_ID(ScriptSliderPack);
+    DECLARE_ID(ScriptTable);
+    DECLARE_ID(ScriptWebView);
+    DECLARE_ID(ScriptedViewport);
+    DECLARE_ID(SliderPackData);
+    DECLARE_ID(SliderPackProcessor);
+    DECLARE_ID(SlotFX);
+    DECLARE_ID(Table);
+    DECLARE_ID(TableProcessor);
+    DECLARE_ID(ThreadSafeStorage);
+    DECLARE_ID(Timer);
+    DECLARE_ID(Unlocker);
+    DECLARE_ID(UnorderedStack);
+    DECLARE_ID(UserPresetHandler);
+    DECLARE_ID(WavetableController);
 }
 
 #undef DECLARE_ID
@@ -112,59 +188,175 @@ struct VarTypeChecker
         ComplexType = 4 | 8 | 16 | 32 | 64 | 128,
         NotUndefined = ComplexType | Number
     };
-    
-    using ParameterTypes = std::array<VarTypes, NumMaxArgs>;
-    
-    static Identifier getTypeName(VarTypes type)
+
+    enum class TypedObject: uint16
     {
-        switch(type)
+        AudioFile = (uint16)VarTypes::NotUndefined + 1,
+        AudioSampleProcessor,
+        BackgroundTask,
+        BeatportManager,
+        Broadcaster,
+        Buffer,
+        Builder,
+        ChildSynth,
+        ComplexGroupManager,
+        Connection,
+        ContainerChild,
+        DisplayBuffer,
+        DisplayBufferSource,
+        Download,
+        DspModule,
+        DspNetwork,
+        Effect,
+        ErrorHandler,
+        Expansion,
+        ExpansionHandler,
+        FFT,
+        File,
+        FixObjectArray,
+        FixObjectFactory,
+        FixObjectStack,
+        GlobalCable,
+        GlobalRoutingManager,
+        Graphics,
+        LorisManager,
+        MacroHandler,
+        MarkdownRenderer,
+        MessageHolder,
+        MidiAutomationHandler,
+        MidiList,
+        MidiPlayer,
+        MidiProcessor,
+        Modifiers,
+        Modulator,
+        NetworkTest,
+        NeuralNetwork,
+        Node,
+        Parameter,
+        Path,
+        Rectangle,
+        RoutingMatrix,
+        Sample,
+        ScriptAudioWaveform,
+        ScriptButton,
+        ScriptComboBox,
+        ScriptDynamicContainer,
+        ScriptFloatingTile,
+        ScriptImage,
+        ScriptLabel,
+        ScriptLookAndFeel,
+        ScriptModulationMatrix,
+        ScriptMultipageDialog,
+        ScriptPanel,
+        ScriptShader,
+        ScriptSlider,
+        ScriptSliderPack,
+        ScriptTable,
+        ScriptWebView,
+        ScriptedViewport,
+        SliderPackData,
+        SliderPackProcessor,
+        SlotFX,
+        Table,
+        TableProcessor,
+        ThreadSafeStorage,
+        Timer,
+        Unlocker,
+        UnorderedStack,
+        UserPresetHandler,
+        WavetableController
+    };
+    
+    struct WrappedType
+    {
+        WrappedType() :
+            value(0)
+        {}
+
+        explicit WrappedType(VarTypes t) :
+            value((uint16)(uint8)t)
+        {};
+
+        explicit WrappedType(TypedObject o) :
+            value((uint16)o)
+        {};
+
+        explicit operator bool() const { return value != 0; }
+
+        bool isPrimitive() const
         {
-            case Undefined: return VarTypeIdentifiers::Undefined;
-            case Integer: return VarTypeIdentifiers::Integer;
-            case Double: return VarTypeIdentifiers::Double;
-            case Number: return VarTypeIdentifiers::Number;
-            case String: return VarTypeIdentifiers::String;
-            case Colour: return VarTypeIdentifiers::Colour;
-            case Array: return VarTypeIdentifiers::Array;
-            case IndexOrArray: return VarTypeIdentifiers::IndexOrArray;
-            case AudioData: return VarTypeIdentifiers::AudioData;
-            case Buffer: return VarTypeIdentifiers::Buffer;
-            case ObjectWithLength: return VarTypeIdentifiers::ObjectWithLength;
-            case JSON: return VarTypeIdentifiers::JSON;
-            case ScriptObject: return VarTypeIdentifiers::ScriptObject;
-            case Object: return VarTypeIdentifiers::Object;
-            case Function: return VarTypeIdentifiers::Function;
-            case ComplexType: return VarTypeIdentifiers::ComplexType;
-						case NotUndefined: return VarTypeIdentifiers::NotUndefined;
-						default: jassertfalse; return "Unknown";
+            return value < (uint16)TypedObject::AudioFile;
         }
-    }
+
+        TypedObject asComplexType() const
+        {
+            jassert(!isPrimitive());
+                
+            return (TypedObject)value;
+        }
+
+        VarTypes asPrimitiveType() const 
+        {
+            if (isPrimitive())
+                return (VarTypes)(uint8)value;
+
+            return VarTypes::ScriptObject;
+        }
+
+        bool matches(WrappedType other, bool allowUndefined) const
+        {
+            auto t = value;
+            auto expectedType = other.value;
+
+            bool ok;
+
+            if (isPrimitive() && other.isPrimitive())
+            {
+                // both primitive, check bitmask
+                ok = (t & expectedType) != 0;
+            }
+            else if (!isPrimitive() && !other.isPrimitive())
+            {
+                // both complex types, compare actual type index
+                ok = t == expectedType;
+            }
+            else if (isPrimitive() != other.isPrimitive())
+            {
+                // one is primitive, the other is complex,
+                // allow one of the types to be a complex type and the other to be a ScriptObject
+
+                ok = (isPrimitive() && asPrimitiveType() == VarTypes::ScriptObject) ||
+                      (other.isPrimitive() && other.asPrimitiveType() == VarTypes::ScriptObject);
+            }
+
+            if (!ok && allowUndefined)
+                ok = t == VarTypes::Undefined;
+
+            return ok;
+        }
+
+    private:
+
+        uint16 value;
+    };
+
+    using ParameterTypes = std::array<WrappedType, NumMaxArgs>;
     
-    static forcedinline VarTypes getTypeFromString(const juce::Identifier& name)
+    static Identifier getTypeName(TypedObject to);
+
+    static Identifier getTypeName(VarTypes type);
+
+    static Identifier getTypeName(WrappedType wt)
     {
-        if(name == VarTypeIdentifiers::Undefined) return VarTypes::Undefined;
-        if(name == VarTypeIdentifiers::Integer) return VarTypes::Integer;
-        if(name == VarTypeIdentifiers::Double) return VarTypes::Double;
-        if(name == VarTypeIdentifiers::Number) return VarTypes::Number;
-        if(name == VarTypeIdentifiers::String) return VarTypes::String;
-        if(name == VarTypeIdentifiers::Colour) return VarTypes::Colour;
-        if(name == VarTypeIdentifiers::IndexOrArray) return VarTypes::IndexOrArray;
-        if(name == VarTypeIdentifiers::Array) return VarTypes::Array;
-        if(name == VarTypeIdentifiers::AudioData) return VarTypes::AudioData;
-        if(name == VarTypeIdentifiers::Buffer) return VarTypes::Buffer;
-        if(name == VarTypeIdentifiers::ObjectWithLength) return VarTypes::ObjectWithLength;
-        if(name == VarTypeIdentifiers::JSON) return VarTypes::JSON;
-        if(name == VarTypeIdentifiers::ScriptObject) return VarTypes::ScriptObject;
-        if(name == VarTypeIdentifiers::Object) return VarTypes::Object;
-        if(name == VarTypeIdentifiers::Function) return VarTypes::Function;
-        if(name == VarTypeIdentifiers::ComplexType) return VarTypes::ComplexType;
-        if(name == VarTypeIdentifiers::NotUndefined) return VarTypes::NotUndefined;
-        
-        return VarTypes::Undefined;
+        if (wt.isPrimitive())
+            return getTypeName(wt.asPrimitiveType());
+        else
+            return getTypeName(wt.asComplexType());
     }
     
-    static VarTypes getType(const var& value);
+    static WrappedType getTypeFromString(const juce::Identifier& name);
     
+    static WrappedType getType(const var& value);
     
     static ParameterTypes createParameterTypes(VarTypes t1,
                                                VarTypes t2=VarTypes::Undefined,
@@ -172,7 +364,7 @@ struct VarTypeChecker
                                                VarTypes t4=VarTypes::Undefined,
                                                VarTypes t5=VarTypes::Undefined)
     {
-        return {t1, t2, t3, t4, t5 };
+        return {WrappedType(t1), WrappedType(t2), WrappedType(t3), WrappedType(t4), WrappedType(t5) };
     }
     
     ParameterTypes createParameterTypesFromNames(const StringArray& names)
@@ -217,14 +409,18 @@ struct VarTypeChecker
     }
     
 #if ENABLE_SCRIPTING_SAFE_CHECKS
-    static Result checkType(const var& value, VarTypes expectedType, bool allowUndefined=false)
+    static Result checkType(const var& value, WrappedType expectedType, bool allowUndefined=false)
     {
-        auto t = getType(value);
+        WrappedType t = getType(value);
         
+        auto matches = t.matches(expectedType, allowUndefined);
+
+#if 0
         auto matches = (t & expectedType) != 0;
         
         if(!matches && allowUndefined)
             matches = t == VarTypes::Undefined;
+#endif
         
         if(!matches)
         {
@@ -422,6 +618,31 @@ struct DiagnosticBase: public ReferenceCountedObject
             numSeverity
         };
 
+        enum class ErrorCode
+        {
+            Unknown = 0,
+
+            // errors
+            RuntimeIdFailure = 2001,
+            CallbackArgMismatch = 2002,
+            CallScopeMismatch = 2003,
+            InvalidOption = 2004,
+            SyntaxError = 2005,
+            TypeMismatch = 2006,
+            ArgMismatch = 2007,
+            MissingFunctionOrProperty = 2008,
+            InternalError = 2009,
+
+            // warnings
+            Deprecated = 3001,
+            GraphicsIssue = 3002,
+            UntouchedMethod = 3003,
+            RangeCheck = 3004,
+
+            // hints
+            BestPractice = 5001
+        };
+
         enum class Classification
         {
             Syntax,
@@ -486,6 +707,7 @@ struct DiagnosticBase: public ReferenceCountedObject
             String message;
             StringArray suggestions;
             Severity severity = Severity::Error;
+            ErrorCode ec = ErrorCode::Unknown;
 
             std::vector<CallStackItem> callstack;
 
@@ -522,6 +744,8 @@ struct DiagnosticBase: public ReferenceCountedObject
         DiagnosticResult withMessage(const String& msg) { auto copy = *this; copy.message = msg; return copy; }
 
         DiagnosticResult withSuggestion(const String& s, bool clearOthers=false) const { auto copy = *this; if (clearOthers) copy.suggestions.clear(); copy.suggestions.add(s); return copy; }
+
+        DiagnosticResult withErrorCode(ErrorCode c) const { auto copy = *this; copy.errorCode = c; return copy; }
 
         DiagnosticResult withFuzzySuggestion(const StringArray& availableTokens) const
         {
@@ -585,6 +809,7 @@ struct DiagnosticBase: public ReferenceCountedObject
         }
         StringArray getSuggestions() const { return suggestions; }
         Classification getClassification() const { return source; }
+        ErrorCode getErrorCode() const { return errorCode; }
 
         /** Numeric priority for coalescing — higher value = more severe. */
         static int severityPriority(Severity s)
@@ -634,6 +859,7 @@ struct DiagnosticBase: public ReferenceCountedObject
 
         std::vector<CallStackItem> callstack;
         Severity severity;
+        ErrorCode errorCode = ErrorCode::Unknown;
         Classification source = Classification::ApiValidation;
         String message;
         String wrongToken;

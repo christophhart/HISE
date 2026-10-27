@@ -70,25 +70,25 @@ struct HiseJavascriptEngine::RootObject::TokenIterator
         return i;
     }
     
-    VarTypeChecker::VarTypes matchVarType()
+    VarTypeChecker::WrappedType matchVarType()
     {
         if(matchIf(TokenTypes::colon))
         {
             auto id = parseIdentifier();
             
-            VarTypeChecker::VarTypes t = VarTypeChecker::Undefined;
-            
 #if ENABLE_SCRIPTING_SAFE_CHECKS
-            t = VarTypeChecker::getTypeFromString(id);
+            auto t = VarTypeChecker::getTypeFromString(id);
             
-            if(t == VarTypeChecker::Undefined)
+            if(!(bool)t)
                 location.throwError("Unknown type annotation '" + id.toString() + "'. Valid types: int, double, String, Array, Buffer.");
+
+			return t;
+#else
+			return VarTypeChecker::WrappedType();
 #endif
-            
-            return t;
         }
         
-        return VarTypeChecker::Undefined;
+        return VarTypeChecker::WrappedType();
     }
     
 	void skipWhitespaceAndComments()
@@ -293,25 +293,6 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 		hiseSpecialData = &data;
 		currentNamespace = hiseSpecialData;
 		
-#if 0 //ENABLE_SCRIPTING_BREAKPOINTS
-
-		Identifier localId = hiseSpecialData->getBreakpointLocalIdentifier();
-
-		if (localId.isValid())
-		{
-			if (hiseSpecialData->getCallback(localId) != nullptr)
-			{
-				currentlyParsedCallback = localId;
-			}
-			else if (auto obj = hiseSpecialData->getInlineFunction(localId))
-			{
-				currentInlineFunction = obj;
-				currentlyParsingInlineFunction = true;
-			}
-
-		}
-#endif
-
 		if(codeToPreprocess.isNotEmpty())
 			preprocessCode(codeToPreprocess);
 	}
@@ -408,6 +389,18 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 
 	String uglify();
 
+	void logDiagnosticsOrThrow(const String& errorMessage)
+	{
+		if (isDiagnosticMode())
+		{
+			recordDiagnostic(location, errorMessage);
+		}
+		else
+		{
+			location.throwError(errorMessage);
+		}
+	}
+
 	void parseFunctionParamsAndBody(FunctionObject& fo)
 	{
 		if (matchIf(TokenTypes::openBracket))
@@ -426,7 +419,7 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 			{
 				if (e->getVariableName().isNull())
 				{
-					location.throwError("Cannot capture anonymous expressions. Only named variables can appear in capture lists.");
+					logDiagnosticsOrThrow("Cannot capture anonymous expressions. Only named variables can appear in capture lists.");
 				}
 			}
 
@@ -439,6 +432,12 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 		{
 			fo.parameters.add(currentValue.toString());
 			match(TokenTypes::identifier);
+
+			if (currentType == TokenTypes::colon)
+			{
+				logDiagnosticsOrThrow("Can't use parameter type info in JS function definitions. Use inline functions instead");
+				matchVarType();
+			}
 
 			if (currentType != TokenTypes::closeParen)
 				match(TokenTypes::comma);
@@ -927,12 +926,12 @@ private:
 			else if (levelStr == "strict")
 				level = CS::Init;  // nuclear: suppress everything (Init=1, covers Unsafe=2 and Warning=3)
 			else
-				location.throwError("Invalid suppress level: " + levelStr + ". Use \"warn\" or \"strict\".");
+				logDiagnosticsOrThrow("Invalid suppress level: " + levelStr + ". Use \"warn\" or \"strict\".");
 
 			return new ScopedSuppress(location, condition, level);
 		}
 
-		location.throwError("Unknown scope statement type '" + typeId.toString() + "'.");
+		logDiagnosticsOrThrow("Unknown scope statement type '" + typeId.toString() + "'.");
 		RETURN_IF_NO_THROW(nullptr);
 	}
 
@@ -1260,7 +1259,7 @@ private:
 	{
 		if (preparser)
 		{
-            auto varType = preparser->matchVarType();
+            auto varType = preparser->matchVarType().asPrimitiveType();
             
 			Identifier name = preparser->currentValue.toString();
 
@@ -1296,7 +1295,7 @@ private:
 		{
 			ScopedPointer<RegisterVarStatement> s(new RegisterVarStatement(location));
 
-            auto varType = matchVarType();
+            auto varType = matchVarType().asPrimitiveType();
             
 			s->name = parseIdentifier();
 			hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::Register, s->name, location);
@@ -1309,7 +1308,7 @@ private:
 			{
 				if (auto* lit = dynamic_cast<LiteralValue*>(s->initialiser.get()))
 				{
-					auto litType = VarTypeChecker::getType(lit->value);
+					auto litType = VarTypeChecker::getType(lit->value).asPrimitiveType();
 
 					if (litType == VarTypeChecker::Integer ||
 					    litType == VarTypeChecker::Double ||
@@ -1774,6 +1773,8 @@ private:
 		}
 		else
 		{
+			auto startLocation = location;
+
 			// Recovery site #11: Nested inline function
 			if (getCurrentInlineFunction() != nullptr)
 			{
@@ -1840,7 +1841,10 @@ private:
 
 				matchIf(TokenTypes::semicolon);
 
-				return new Statement(location);
+				if(isDiagnosticMode())
+					return new InlineFunction::Definition(startLocation, o);
+				else
+					return new Statement(location);
 			}
 			else
 			{
@@ -3259,8 +3263,6 @@ void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowCon
 		sl->perform(Scope(nullptr, this, this), nullptr);
 	}
 
-	
-
 	Array<OptimizationPass::OptimizationResult> results;
 
 	auto before = Time::getMillisecondCounter();
@@ -3286,57 +3288,6 @@ void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowCon
 
 		hiseSpecialData.processor->setOptimisationReport(s);
 	}
-
-#if USE_BACKEND
-	// Post-compilation: check static realtime callback bodies for callScope warnings
-	{
-		using SL = RealtimeSafetyInfo::StrictnessLevel;
-		auto strictness = dynamic_cast<JavascriptProcessor*>(hiseSpecialData.processor)
-		                  ->getStrictnessLevel();
-
-		if (strictness > SL::Unsafe)
-		{
-			for (auto c : hiseSpecialData.callbackNEW)
-			{
-				auto* info = c->getRealtimeSafetyInfo();
-				if (info == nullptr || info->isEmpty())
-					continue;
-
-				auto cbName = c->getName();
-				if (!isStaticRealtimeCallbackName(cbName))
-					continue;
-
-				auto* proc = dynamic_cast<Processor*>(hiseSpecialData.processor);
-				auto report = info->toString(strictness, proc);
-				if (report.isNotEmpty())
-				{
-					debugToConsole(proc,
-					    "[" + cbName.toString() + "] " + report);
-				}
-
-				if (strictness == SL::Strict && info->hasUnsafe())
-				{
-					for (auto item : info->items)
-					{
-						if (item->scope != RealtimeSafetyInfo::CallScope::Unsafe &&
-						    item->scope != RealtimeSafetyInfo::CallScope::Init)
-							continue;
-
-						if (auto w = static_cast<RealtimeSafetyWarning*>(item))
-						{
-							if (!w->callStack.isEmpty())
-							{
-								w->callStack.getFirst().location.throwError(
-								    "Unsafe API call in audio-thread callback: " + item->apiCall);
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-#endif
-
 }
 
 HiseJavascriptEngine::RootObject::FunctionObject::FunctionObject(const FunctionObject& other) : DynamicObject(), functionCode(other.functionCode)
