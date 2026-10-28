@@ -391,13 +391,25 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 
 	void logDiagnosticsOrThrow(const String& errorMessage)
 	{
+		if (errorMessage.isEmpty())
+			return;
+
 		if (isDiagnosticMode())
 		{
-			recordDiagnostic(location, errorMessage);
+			if (currentErrorLocation.getAddress() != nullptr)
+			{
+				auto copy = location;
+				copy.location = currentErrorLocation;
+				recordDiagnostic(copy, errorMessage);
+			}
+			else
+			{
+				recordDiagnostic(location, errorMessage);
+			}
 		}
 		else
 		{
-			location.throwError(errorMessage);
+			throwError(errorMessage);
 		}
 	}
 
@@ -1180,7 +1192,7 @@ private:
 		ScopedPointer<VarStatement> s(new VarStatement(location));
 		s->name = parseIdentifier();
 
-		hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::RootScope, s->name, location);
+		logDiagnosticsOrThrow(hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::RootScope, s->name));
 
 		s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
 
@@ -1200,7 +1212,6 @@ private:
 	{
 		matchIf(TokenTypes::var);
 
-		// Recovery site #5: const var inside function body
 		if(currentlyParsingInlineFunction || 
 		   currentFunctionObject != nullptr ||
 		   currentInlineFunction != nullptr ||
@@ -1208,23 +1219,15 @@ private:
 		{
 			String msg = "const var cannot be declared inside function body. Use 'local' or 'reg' instead.";
 
-#if USE_BACKEND
-			if (isDiagnosticMode())
-			{
-				recordDiagnostic(location, msg, { "local", "reg" }, SV::Error, CS::Language);
-
-				// Downgrade to local declaration and continue parsing
-				return parseLocalAssignment();
-			}
-#endif
-			location.throwError(msg);
+			logDiagnosticsOrThrow(msg);
+			return parseLocalAssignment();
 		}
 
 		ScopedPointer<ConstVarStatement> s(new ConstVarStatement(location));
 
 		s->name = parseIdentifier();
 
-		hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::ConstVariables, s->name, location);
+		logDiagnosticsOrThrow(hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::ConstVariables, s->name));
 
 		s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
 
@@ -1298,7 +1301,7 @@ private:
             auto varType = matchVarType().asPrimitiveType();
             
 			s->name = parseIdentifier();
-			hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::Register, s->name, location);
+			logDiagnosticsOrThrow(hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::Register, s->name));
 			s->varRegister = &ns->varRegister;
 			s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
 
@@ -1368,7 +1371,7 @@ private:
 			ScopedPointer<LocalVarStatement> s(new LocalVarStatement(location, ifo.get()));
 			s->name = parseIdentifier();
 			
-			hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::LocalScope, s->name, location);
+			logDiagnosticsOrThrow(hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::LocalScope, s->name));
 
 			ifo->localProperties->set(s->name, {});
 
@@ -1392,7 +1395,7 @@ private:
 			ScopedPointer<CallbackLocalStatement> s(new CallbackLocalStatement(location, callback));
 			s->name = parseIdentifier();
 			
-			hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::LocalScope, s->name, location);
+			logDiagnosticsOrThrow(hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::LocalScope, s->name));
 
 			callback->localProperties.set(s->name, var());
 
@@ -1410,14 +1413,16 @@ private:
 			return s.release();
 		}
 
-		// Context-aware: allow 'local' at root scope, but emit warning and treat as 'var'
-		debugToConsole(dynamic_cast<Processor*>(hiseSpecialData->processor), 
-			"Warning: 'local' used outside of callback/inline function, treating as 'var'");
+		if (isDiagnosticMode())
+		{
+			String msg = "`local` used outside of callback/inline function, treating as `var`";
+			recordDiagnostic(location, msg, { "const var", "reg", "var" }, SV::Warning);
+		}
 
 		ScopedPointer<VarStatement> s(new VarStatement(location));
 		s->name = parseIdentifier();
 
-		hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::RootScope, s->name, location);
+		logDiagnosticsOrThrow(hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::RootScope, s->name));
 
 		s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
 
@@ -1456,8 +1461,6 @@ private:
 		ScopedValueSetter<Identifier> cParser(currentlyParsedCallback, name, Identifier::null);
 
 		ScopedPointer<BlockStatement> s = parseBlock();
-
-		
 
 		c->setStatements(s.release());
 
@@ -1533,23 +1536,15 @@ private:
 
 		var fn = parseFunctionDefinition(name);
 
-		// Recovery site #8: Anonymous function at statement level
+		
 		if (name.isNull())
 		{
-			String msg = "Functions at statement level must have a name in HiseScript.";
+			logDiagnosticsOrThrow("Functions at statement level must have a name in HiseScript.");
 
-#if USE_BACKEND
-			if (isDiagnosticMode())
-			{
-				recordDiagnostic(location, msg, {}, ApiClass::DiagnosticResult::Severity::Error, CS::Language);
-
-				// Generate a synthetic name to allow parsing to continue
-				Identifier syntheticName("__anonymous_" + String(diagnostics.size()));
-				ExpPtr nm(new UnqualifiedName(location, syntheticName, true)), value(new LiteralValue(location, fn));
-				return new Assignment(location, nm, value);
-			}
-#endif
-			throwError(msg);
+			// Generate a synthetic name to allow parsing to continue
+			Identifier syntheticName("__anonymous_" + String(diagnostics.size()));
+			ExpPtr nm(new UnqualifiedName(location, syntheticName, true)), value(new LiteralValue(location, fn));
+			return new Assignment(location, nm, value);
 		}
 
 		ExpPtr nm(new UnqualifiedName(location, name, true)), value(new LiteralValue(location, fn));
@@ -1705,22 +1700,17 @@ private:
 					match(TokenTypes::comma);
 			}
 
-			// Recovery site #4: Inline function argument mismatch
+#if 0
 			if (f->numArgs != f->parameterExpressions.size())
 			{
 				String msg = "Inline function call " + obj->name + ": parameter amount mismatch: " + String(f->parameterExpressions.size()) + " (Expected: " + String(f->numArgs) + ")";
 
-#if USE_BACKEND
-				if (isDiagnosticMode())
-				{
-					
-					recordDiagnostic(location, msg);
-					match(TokenTypes::closeParen);
-					return new DiagnosticPlaceholder(location, msg);
-				}
-#endif
-				throwError(msg);
+				logDiagnosticsOrThrow(msg);
+
+				match(TokenTypes::closeParen);
+				return new DiagnosticPlaceholder(location, msg);
 			}
+#endif
 
 			return matchCloseParen(f.release());
 		}
@@ -1990,7 +1980,7 @@ private:
                     auto s = new VarStatement(location);
                     s->name = id;
 
-                    hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::RootScope, id, location);
+                    logDiagnosticsOrThrow(hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::RootScope, id));
 
                     s->initialiser.swapWith(assignment->newValue);
                     
@@ -2002,7 +1992,7 @@ private:
                     auto lv = new LocalVarStatement(location, ifo);
                     lv->name = id;
                     
-                    hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::LocalScope, id, location);
+                    logDiagnosticsOrThrow(hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::LocalScope, id));
                     
                     ifo->localProperties->set(lv->name, {});
                     lv->initialiser.swapWith(assignment->newValue);
@@ -2017,7 +2007,7 @@ private:
                     auto cls = new CallbackLocalStatement(location, callback);
                     cls->name = id;
                     
-                    hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::LocalScope, id, location);
+                    logDiagnosticsOrThrow(hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::LocalScope, id));
                     
                     callback->localProperties.set(cls->name, var());
                     cls->initialiser.swapWith(assignment->newValue);
@@ -2283,7 +2273,7 @@ private:
 					skipToMatchingParen();
 				}
 
-				return new DiagnosticPlaceholder(location, msg, suggestions);
+				return new Expression(location);
 			}
 #endif
 			throwError(msg);
@@ -2312,18 +2302,9 @@ private:
 				}
 				else
 				{
-					// Recovery site #2: Too many arguments
-					String msg = "Too many arguments in API call " + prettyName + "(). Expected: " + String(numArgs);
-
-#if USE_BACKEND
-					if (isDiagnosticMode())
-					{
-						recordDiagnostic(location, msg);
-						skipToMatchingParen();
-						return new DiagnosticPlaceholder(location, msg);
-					}
-#endif
-					throwError(msg);
+					logDiagnosticsOrThrow("Too many arguments in API call " + prettyName + "(). Expected: " + String(numArgs));
+					skipToMatchingParen();
+					return new Expression(location);
 				}
 			}
 
@@ -2331,16 +2312,9 @@ private:
 			if (numArgs != numActualArguments)
 			{
 				String msg = "Call to " + prettyName + "(): argument number mismatch: " + String(numActualArguments) + " (Expected: " + String(numArgs) + ")";
-
-#if USE_BACKEND
-				if (isDiagnosticMode())
-				{
-					recordDiagnostic(location, msg);
-					match(TokenTypes::closeParen);
-					return new DiagnosticPlaceholder(location, msg);
-				}
-#endif
-				throwError(msg);
+				logDiagnosticsOrThrow(msg);
+				match(TokenTypes::closeParen);
+				return new Expression(location);
 			}
 
 			return matchCloseParen(s.release());
@@ -2526,30 +2500,17 @@ private:
 					{
 						String msg = "Cannot reference inline function parameter '" + id.toString() + "' in nested function body. Use a capture: function [" + id.toString() + "](params){}.";
 
-#if USE_BACKEND
-						if (isDiagnosticMode())
-						{
-							recordDiagnostic(location, msg, {}, SV::Error, CS::Language);
-							parseIdentifier();
-							return parseSuffixes(new DiagnosticPlaceholder(location, msg));
-						}
-#endif
-						location.throwError(msg);
+						logDiagnosticsOrThrow(msg);
+						parseIdentifier();
+						return parseSuffixes(new Expression(location));
 					}
 
 					if (localParameterIndex != -1)
 					{
 						String msg = "Cannot reference local variable '" + id.toString() + "' in nested function body. Use a capture: function [" + id.toString() + "](params){}.";
-
-#if USE_BACKEND
-						if (isDiagnosticMode())
-						{
-							recordDiagnostic(location, msg, {}, SV::Error, CS::Language);
-							parseIdentifier();
-							return parseSuffixes(new DiagnosticPlaceholder(location, msg));
-						}
-#endif
-						location.throwError(msg);
+						logDiagnosticsOrThrow(msg);
+						parseIdentifier();
+						return parseSuffixes(new Expression(location));
 					}
 				}
 			}
@@ -2727,19 +2688,7 @@ private:
 
 			// Recovery site #7: Named function in expression
 			if (name.isValid())
-			{
-				String msg = "HiseScript does not support named function expressions. The name will be ignored.";
-
-#if USE_BACKEND
-				if (isDiagnosticMode())
-				{
-					recordDiagnostic(location, msg, {}, ApiClass::DiagnosticResult::Severity::Error, CS::Language);
-					// Fall through — ignore the name, return the function as LiteralValue
-				}
-				else
-#endif
-				throwError(msg);
-			}
+				logDiagnosticsOrThrow("HiseScript does not support named function expressions. The name will be ignored.");
 
 			if (auto fo = dynamic_cast<FunctionObject*>(fn.getDynamicObject()))
 			{

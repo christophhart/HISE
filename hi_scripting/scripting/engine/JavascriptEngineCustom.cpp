@@ -163,29 +163,6 @@ struct HiseJavascriptEngine::RootObject::ApiConstant : public Expression
 	var value;
 };
 
-#if USE_BACKEND
-/** Placeholder expression returned by parser soft-fail recovery in diagnostic mode.
-    Carries the error message and fuzzy suggestions so the ApiValidationAnalyzer can
-    collect them during its AST walk. Evaluates to var::undefined(). */
-struct HiseJavascriptEngine::RootObject::DiagnosticPlaceholder : public Expression
-{
-	using Severity = ApiClass::DiagnosticResult::Severity;
-
-	DiagnosticPlaceholder(const CodeLocation& l, const String& errorMessage,
-	                      const StringArray& suggestions_ = {},
-	                      Severity sev = Severity::Error)
-		: Expression(l), message(errorMessage), suggestions(suggestions_), severity(sev) {}
-
-	var getResult(const Scope&) const override { return var::undefined(); }
-
-	Statement* getChildStatement(int) override { return nullptr; }
-
-	String message;
-	StringArray suggestions;
-	Severity severity;
-};
-#endif
-
 struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 {
 	struct DynamicCall
@@ -292,7 +269,7 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 			results[i] = argumentList[i]->getResult(s);
 
 #if ENABLE_SCRIPTING_SAFE_CHECKS
-			HiseJavascriptEngine::checkValidParameter(i, results[i], argumentList[i]->location, types[i]);
+			logDiagnosticsOrThrow(s, HiseJavascriptEngine::checkValidParameter(i, results[i], types[i]));
 #endif
 		}
 
@@ -425,7 +402,7 @@ struct HiseJavascriptEngine::RootObject::ConstObjectApiCall : public Expression
 			results[i] = argumentList[i]->getResult(s);
             
 #if ENABLE_SCRIPTING_SAFE_CHECKS
-			HiseJavascriptEngine::checkValidParameter(i, results[i], location, forcedTypes[i]);
+			logDiagnosticsOrThrow(s, HiseJavascriptEngine::checkValidParameter(i, results[i], forcedTypes[i]));
 #endif
 		}
 

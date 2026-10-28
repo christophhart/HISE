@@ -645,6 +645,19 @@ struct HiseJavascriptEngine::RootObject::Statement
 		return DiagnosticBase::DiagnosticResult::ok();
 	}
 
+	void logDiagnosticsOrThrow(const Scope& s, const String& errorMessage) const
+	{
+		if (errorMessage.isEmpty())
+			return;
+
+		if (s.isShadowParsing())
+		{
+			logDiagnostics(s, DiagnosticBase::DiagnosticResult::fail(errorMessage));
+		}
+		else
+			location.throwError(errorMessage);
+	}
+
 	void logDiagnostics(const Scope& s, const DiagnosticBase::DiagnosticResult& dr) const
 	{
 		jassert(s.isShadowParsing());
@@ -1241,13 +1254,13 @@ void HiseJavascriptEngine::sendBreakpointMessage(int breakpointIndex)
 	}
 }
 
-void HiseJavascriptEngine::checkValidParameter(int index, const var& valueToTest, const RootObject::CodeLocation& location, VarTypeChecker::WrappedType expectedType)
+String HiseJavascriptEngine::checkValidParameter(int index, const var& valueToTest, VarTypeChecker::WrappedType expectedType)
 {
 #if ENABLE_SCRIPTING_SAFE_CHECKS
 
 	if (valueToTest.isUndefined() || valueToTest.isVoid())
 	{
-		location.throwError("API call with undefined parameter at index " + String(index) + ". Use \"\" or false for an inactive value.");
+		return "API call with undefined parameter at index " + String(index) + ". Use \"\" or false for an inactive value.";
 	}
     
     if((bool)expectedType)
@@ -1256,13 +1269,15 @@ void HiseJavascriptEngine::checkValidParameter(int index, const var& valueToTest
         
         if(ok.failed())
         {
-            location.throwError(ok.getErrorMessage());
+			return ok.getErrorMessage();
         }
     }
     
 #else
     ignoreUnused(location, index, valueToTest);
 #endif
+
+	return {};
 }
 
 void HiseJavascriptEngine::extendTimeout(int milliSeconds)

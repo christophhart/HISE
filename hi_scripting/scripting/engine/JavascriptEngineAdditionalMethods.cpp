@@ -415,7 +415,7 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 				parameters[i] = arguments[i]->getResult(s);
                 
 #if ENABLE_SCRIPTING_SAFE_CHECKS
-				HiseJavascriptEngine::checkValidParameter(i, parameters[i], location, types[i]);
+				logDiagnosticsOrThrow(s, HiseJavascriptEngine::checkValidParameter(i, parameters[i], types[i]));
 #endif
 			}
 				
@@ -467,7 +467,7 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 #endif
                     
 #if ENABLE_SCRIPTING_SAFE_CHECKS
-                    HiseJavascriptEngine::checkValidParameter(i, parameters[i], location, types[i]);
+                    logDiagnosticsOrThrow(s, HiseJavascriptEngine::checkValidParameter(i, parameters[i], types[i]));
 #endif
                 }
 					
@@ -1092,7 +1092,7 @@ DynamicObject* HiseJavascriptEngine::RootObject::HiseSpecialData::getInlineFunct
 }
 
 
-void HiseJavascriptEngine::RootObject::HiseSpecialData::throwExistingDefinition(const Identifier &name, VariableStorageType type, CodeLocation &l)
+String HiseJavascriptEngine::RootObject::HiseSpecialData::throwExistingDefinition(const Identifier &name, VariableStorageType type)
 {
 	String typeName;
 
@@ -1114,19 +1114,9 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::throwExistingDefinition(
 		break;
 	}
 
-	// Recovery site #6: Identifier already defined — in diagnostic mode, record as warning and continue
-#if USE_BACKEND
-	if (diagnosticMode)
-	{
-		// We can't directly record into the ExpressionTreeBuilder's diagnostics array from here,
-		// but we can use debugToConsole as a temporary measure. The shadow parse will continue
-		// with the new declaration overwriting the old one, which is acceptable for diagnostics.
-		// The diagnostic is recorded by the parser itself when it catches the error.
-		return;
-	}
-#endif
-
-	l.throwError("Identifier " + name.toString() + " is already defined as " + typeName);
+	String msg;
+	msg << "Identifier " << name.toString() << " is already defined as " << typeName;
+	return msg;
 }
 
 HiseJavascriptEngine::Breakpoint::Listener::~Listener()
@@ -1180,7 +1170,7 @@ void HiseJavascriptEngine::Breakpoint::copyLocalScopeToRoot(RootObject* r)
 	r->hiseSpecialData.createDebugInformation(r);
 }
 
-void HiseJavascriptEngine::RootObject::HiseSpecialData::checkIfExistsInOtherStorage(VariableStorageType thisType, const Identifier &name, CodeLocation& l)
+String HiseJavascriptEngine::RootObject::HiseSpecialData::checkIfExistsInOtherStorage(VariableStorageType thisType, const Identifier &name)
 {
 	VariableStorageType type = getExistingVariableStorage(name);
 
@@ -1195,29 +1185,31 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::checkIfExistsInOtherStor
 	case HiseJavascriptEngine::RootObject::HiseSpecialData::VariableStorageType::RootScope:
 
 		if (type == VariableStorageType::ConstVariables || type == VariableStorageType::Globals || type == VariableStorageType::Register)
-			throwExistingDefinition(name, type, l);
+			return throwExistingDefinition(name, type);
 		break;
 
 	case HiseJavascriptEngine::RootObject::HiseSpecialData::VariableStorageType::Register:
 
 		if (type == VariableStorageType::ConstVariables || type == VariableStorageType::Globals || type == VariableStorageType::RootScope)
-			throwExistingDefinition(name, type, l);
+			return throwExistingDefinition(name, type);
 		break;
 
 	case HiseJavascriptEngine::RootObject::HiseSpecialData::VariableStorageType::ConstVariables:
 
 		if (type == VariableStorageType::Register || type == VariableStorageType::Globals || type == VariableStorageType::RootScope)
-			throwExistingDefinition(name, type, l);
+			return throwExistingDefinition(name, type);
 		break;
 
 	case HiseJavascriptEngine::RootObject::HiseSpecialData::VariableStorageType::Globals:
 
 		if (type == VariableStorageType::RootScope || type == VariableStorageType::ConstVariables || type == VariableStorageType::Register)
-			throwExistingDefinition(name, type, l);
+			return throwExistingDefinition(name, type);
 		break;
 	default:
 		break;
 	}
+
+	return {};
 }
 
 HiseJavascriptEngine::RootObject::HiseSpecialData::VariableStorageType HiseJavascriptEngine::RootObject::HiseSpecialData::getExistingVariableStorage(const Identifier &name)

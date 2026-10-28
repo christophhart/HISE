@@ -758,9 +758,6 @@ public:
 		struct RegisterVarStatement;	struct RegisterName;		
 		struct ApiConstant;				struct ApiCall;				struct InlineFunction;
 		struct ConstVarStatement;		struct ConstReference;		struct ConstObjectApiCall;
-#if USE_BACKEND
-		struct DiagnosticPlaceholder;
-#endif
 		struct GlobalVarStatement;		struct GlobalReference;		struct LocalVarStatement;
 		struct LocalReference;			struct CallbackParameterReference;
 		struct CallbackLocalStatement;  struct CallbackLocalReference;  struct IsDefinedTest;		
@@ -1066,14 +1063,14 @@ public:
 				return nullptr;
 			}
 
-			void checkIfExistsInOtherStorage(VariableStorageType thisType, const Identifier &name, CodeLocation& l);;
+			String checkIfExistsInOtherStorage(VariableStorageType thisType, const Identifier &name);
 
 			static DebugInformation *get(ReferenceCountedObject* o) { return dynamic_cast<DebugInformation*>(o); }
 
 		private:
 
 			VariableStorageType getExistingVariableStorage(const Identifier &name);
-			void throwExistingDefinition(const Identifier &name, VariableStorageType type, CodeLocation &l);
+			String throwExistingDefinition(const Identifier &name, VariableStorageType type);
 
 			CriticalSection debugLock;
 
@@ -1142,7 +1139,7 @@ public:
 		root->setUseCycleReferenceCheckForNextCompilation();
 	}
 
-	static void checkValidParameter(int index, const var& valueToTest, const RootObject::CodeLocation& location, VarTypeChecker::WrappedType expectedType);
+	static String checkValidParameter(int index, const var& valueToTest, VarTypeChecker::WrappedType expectedType);
 
 	
 
