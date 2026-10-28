@@ -1,3 +1,4 @@
+#include "HiseJavascriptEngine.h"
 /*  ===========================================================================
 *
 *   This file is part of HISE.
@@ -1054,6 +1055,8 @@ void HiseJavascriptEngine::setCallbackParameter(int callbackIndex, int parameter
 	root->hiseSpecialData.callbackNEW[callbackIndex]->setParameterValue(parameterIndex, newValue);
 }
 
+
+
 DebugInformationBase::Ptr HiseJavascriptEngine::getDebugInformation(int index)
 {
 	return root->hiseSpecialData.getDebugInformation(index);
@@ -1515,11 +1518,6 @@ struct TokenWithDot : public mcl::TokenCollection::Token
 			return Token::matches(input, previousToken, lineNumber);
 		}
 
-#if 0
-		if (previousToken.isNotEmpty() && !previousToken.startsWith(classId))
-			return false;
-#endif
-
 		return matchesInput(previousToken + input, tokenContent);
 	}
 
@@ -1727,6 +1725,8 @@ struct HiseJavascriptEngine::TokenProvider::ApiToken : public TokenWithDot
 	MarkdownLink link;
 
 };
+
+
 
 struct HiseJavascriptEngine::TokenProvider::KeywordToken : public mcl::TokenCollection::Token
 {
@@ -1993,6 +1993,114 @@ bool HiseJavascriptEngine::TokenProvider::shouldAbortTokenRebuild(Thread* t) con
 
 void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& tokens)
 {
+#if USE_BACKEND
+
+	auto addPreprocessors = [](JavascriptProcessor* jp, mcl::TokenCollection::List& tokens)
+	{
+		for (const auto& def : jp->getScriptEngine()->preprocessor->definitions)
+			tokens.add(new snex::debug::PreprocessorMacroProvider::PreprocessorToken(def));
+	};
+
+	auto addAutoCompleteTemplates = [](JavascriptProcessor* jp, mcl::TokenCollection::List& tokens)
+	{
+		auto holder = dynamic_cast<ApiProviderBase::Holder*>(jp);
+		auto v = ApiHelpers::getApiTree();
+
+		for (const auto& t : jp->autoCompleteTemplates)
+		{
+			auto cTree = v.getChildWithName(t.classId);
+
+			for (auto m : cTree)
+			{
+				if (t.expression.isEmpty())
+					continue;
+
+				tokens.add(new TemplateToken(t.expression, m));
+			}
+		}
+	};
+
+	auto addIncludeFiles = [](JavascriptProcessor* jp, mcl::TokenCollection::List& tokens)
+	{
+		File scriptFolder = dynamic_cast<Processor*>(jp)->getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts);
+		auto scriptFiles = scriptFolder.findChildFiles(File::findFiles, true, "*.js");
+
+		for (auto sf : scriptFiles)
+		{
+			if (sf.isHidden())
+				continue;
+
+			auto alreadyIncluded = false;
+
+			for (int i = 0; i < jp->getNumWatchedFiles(); i++)
+			{
+				if (jp->getWatchedFile(i) == sf)
+				{
+					alreadyIncluded = true;
+					break;
+				}
+			}
+
+			if (alreadyIncluded)
+				continue;
+
+			auto pf = sf.getParentDirectory().getFullPathName();
+
+			if (pf.contains("ScriptProcessors") || pf.contains("ConnectedScripts"))
+				continue;
+
+			tokens.add(new IncludeFileToken(scriptFolder, sf));
+		}
+	};
+
+	auto addKeywords = [](JavascriptProcessor* jp, mcl::TokenCollection::List& tokens)
+	{
+#define X(unused, name) tokens.add(new KeywordToken(name));
+
+		X(var, "var")      X(if_, "if")     X(else_, "else")   X(do_, "do")       X(null_, "null")
+		X(while_, "while")    X(for_, "for")    X(break_, "break")  X(continue_, "continue") X(undefined, "undefined")
+		X(function, "function") X(return_, "return") X(true_, "true")   X(false_, "false")    X(new_, "new")
+		X(typeof_, "typeof")	X(switch_, "switch") X(case_, "case")	 X(default_, "default")  X(register_var, "reg")
+		X(in, "in")		X(inline_, "inline") X(const_, "const")	 X(global_, "global")	  X(local_, "local")
+		X(include_, "include") X(rLock_, "readLock") X(wLock_, "writeLock") 	X(extern_, "extern") X(namespace_, "namespace")
+		X(isDefined_, "isDefined");
+
+#undef X
+	};
+
+	auto addApiClasses = [](JavascriptProcessor* jp, mcl::TokenCollection::List& tokens)
+	{
+		for (auto id : LightweightDiagnostics::Helpers::getApiClassIds())
+		{
+			auto nt = new mcl::TokenCollection::Token(id.toString());
+			nt->c = Colour(0xFF5902A3);
+			nt->markdownDescription << "API class";
+			nt->priority = 100;
+
+			tokens.add(nt);
+		}
+	};
+
+	addPreprocessors(jp, tokens);
+	addAutoCompleteTemplates(jp, tokens);
+	addIncludeFiles(jp, tokens);
+	addKeywords(jp, tokens);
+	addApiClasses(jp, tokens);
+
+
+
+
+
+
+
+#endif
+
+
+
+
+
+#if 0
+
 	if (jp != nullptr)
 	{
 		auto mc = dynamic_cast<Processor*>(jp.get())->getMainController();
@@ -2164,6 +2272,13 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 			debugToConsole(mc->getMainSynthChain(), "Skip token rebuild during recompilation");
 		}
 	}
+
+#endif
+}
+
+void HiseJavascriptEngine::TokenProvider::addTokensWithContext(mcl::TokenCollection::List& tokens, int lineNumber, int charIndex, const String& prevExpression)
+{
+	jp->getScriptEngine()->addTokensWithContext(tokens, lineNumber, charIndex, prevExpression);
 }
 
 void HiseJavascriptEngine::TokenProvider::precompileCallback(TokenProvider& p, bool unused)

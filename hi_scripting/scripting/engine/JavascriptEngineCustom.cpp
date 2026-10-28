@@ -999,10 +999,35 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			{
 				Array<var> args;
 
+				bool skipBodyCheck = false;
+
 				for (int i = 0; i < numArgs; i++)
 				{
-					args.add(parameterExpressions[i]->getResult(s));
+					auto v = parameterExpressions[i]->getResult(s);
+
+					auto expectedType = f->parameterNames[i].type;
+
+					auto ok = VarTypeChecker::checkType(v, expectedType, true);
+
+					if (ok.failed())
+					{
+						auto actual = LightweightDiagnostics::Helpers::getTypeForObjectTypeCheck(v);
+						auto expected = VarTypeChecker::getTypeName(expectedType).toString();
+
+						auto dr = DiagnosticBase::DiagnosticResult::fail("wrong type for parameter " + String(i+1))
+							.withExpectation(expected, actual);
+
+						logDiagnostics(s, dr);
+
+						// do not parse the body, the parameter type is wrong...
+						skipBodyCheck = true;
+					}
+					
+					args.add(v);
 				}
+
+				if (skipBodyCheck)
+					return var();
 
 				auto lv = WeakCallbackHolder::CallableObject::StrictnessLevel::Unset;
 				

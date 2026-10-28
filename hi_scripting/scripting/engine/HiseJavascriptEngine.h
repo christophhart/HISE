@@ -156,6 +156,8 @@ public:
 
 		void addTokens(mcl::TokenCollection::List& tokens) override;
 
+		void addTokensWithContext(mcl::TokenCollection::List& tokens, int lineNumber, int charIndex, const String& prevExpression) override;
+
         static void precompileCallback(TokenProvider& p, bool unused);
 
 		void scriptWasCompiled(JavascriptProcessor *processor) override;
@@ -242,6 +244,7 @@ public:
 
 	void setCallbackParameter(int callbackIndex, int parameterIndex, const var& newValue);
 
+	void addTokensWithContext(mcl::TokenCollection::List& tokens, int lineNumber, int charIndex, const String& prevExpression);
 
 	String getHoverString(const String& token);
 
@@ -1169,6 +1172,10 @@ private:
 	
 
 	DynamicObject::Ptr unneededScope;
+
+	using ScopeTree = std::vector<std::pair<Range<int>, DynamicObject::Ptr>>;
+
+	ScopeTree lastShadowParseScope;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(HiseJavascriptEngine);
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HiseJavascriptEngine)

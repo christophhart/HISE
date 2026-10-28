@@ -75,6 +75,7 @@ Identifier VarTypeChecker::getTypeName(TypedObject to)
 	case TypedObject::TableProcessor: return VarTypeIdentifiers::TableProcessor;
 	case TypedObject::ThreadSafeStorage: return VarTypeIdentifiers::ThreadSafeStorage;
 	case TypedObject::Timer: return VarTypeIdentifiers::Timer;
+	case TypedObject::TransportHandler: return VarTypeIdentifiers::TransportHandler;
 	case TypedObject::Unlocker: return VarTypeIdentifiers::Unlocker;
 	case TypedObject::UnorderedStack: return VarTypeIdentifiers::UnorderedStack;
 	case TypedObject::UserPresetHandler: return VarTypeIdentifiers::UserPresetHandler;
@@ -198,6 +199,7 @@ VarTypeChecker::WrappedType VarTypeChecker::getTypeFromString(const juce::Identi
 	if(name == VarTypeIdentifiers::TableProcessor)			 return WrappedType(TypedObject::TableProcessor);
 	if(name == VarTypeIdentifiers::ThreadSafeStorage)		 return WrappedType(TypedObject::ThreadSafeStorage);
 	if(name == VarTypeIdentifiers::Timer)					 return WrappedType(TypedObject::Timer);
+	if(name == VarTypeIdentifiers::TransportHandler)		 return WrappedType(TypedObject::TransportHandler);
 	if(name == VarTypeIdentifiers::Unlocker)				 return WrappedType(TypedObject::Unlocker);
 	if(name == VarTypeIdentifiers::UnorderedStack)			 return WrappedType(TypedObject::UnorderedStack);
 	if(name == VarTypeIdentifiers::UserPresetHandler)		 return WrappedType(TypedObject::UserPresetHandler);

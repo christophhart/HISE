@@ -1,4 +1,3 @@
-#include "LightweightParserHelpers.h"
 /*  ===========================================================================
 *
 *   This file is part of HISE.
@@ -431,6 +430,108 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::runTests(ShadowParserBa
 	return DiagnosticResult::ok();
 }
 
+struct LightweightFunctionInfoToken : public TokenWithDot
+{
+	static ValueTree getMethodTree(const LightweightDiagnostics::FunctionInfo& fi)
+	{
+		auto ct = ApiHelpers::getApiTree().getChildWithName(fi.className);
+		jassert(ct.isValid());
+		auto mt = ct.getChildWithProperty("name", fi.methodName.toString());
+		jassert(mt.isValid());
+		return mt;
+	}
+
+	LightweightFunctionInfoToken(const ValueTree& mt, const String prevToken) :
+		TokenWithDot(getContent(mt, prevToken), prevToken)
+	{
+		priority = 1000;
+		c = Colour(0xFF88EECC);
+		markdownDescription = mt["description"].toString();
+	};
+
+	void setFunctionBody(int parameterIndex, const String& newFunctionBody)
+	{
+		tokenContent = tokenContent.replace("Function ", newFunctionBody);
+
+		callbackParameterIndex = parameterIndex;
+		functionBody = newFunctionBody;
+	}
+
+	int callbackParameterIndex = -1;
+	String functionBody;
+};
+
+struct LightweightConstantInfoToken : public TokenWithDot
+{
+	LightweightConstantInfoToken(const String& objectName, const Identifier& id) :
+		TokenWithDot(objectName + "." + id.toString(), objectName)
+	{
+		priority = 100;
+		c = Colour(0xFF88EECC);
+	}
+};
+
+void LightweightDiagnostics::fillAutocompleteTokens(mcl::TokenCollection::List& list, const String& prevToken)
+{
+	for (const auto& fi : functions)
+	{
+		auto mt = LightweightFunctionInfoToken::getMethodTree(fi);
+
+		auto newToken = new LightweightFunctionInfoToken(mt, prevToken);
+
+		auto cp = fi.getCallbackParameter();
+
+		if (cp != -1)
+		{
+			// resume the work here: replace the type with a suitable parameter name, replace the trailing old parameter
+			// TODO: Add a system that extrapolates / synthesises good parameter names from the docs.
+			jassertfalse;
+
+			auto found = false;
+
+			for (auto v: fi.arguments[cp].validators)
+			{
+				if (v.startsWith("CallbackArgCheck"))
+				{
+					CallbackParseOptions cpo;
+
+					auto ok = cpo.parseCheckString(v.fromFirstOccurrenceOf("CallbackArgCheck.", false, false), false);
+
+					if (cpo.ft == CallbackParseOptions::FunctionType::Function)
+					{
+						String functionBody;
+						functionBody << "function(";
+
+						for (auto a : cpo.argTypes)
+						{
+							functionBody << a.first.toString().replace("MetaObjects::", "") << ", ";
+						}
+
+						functionBody = functionBody.upToLastOccurrenceOf(", ", false, false);
+						functionBody << ")\n{\n\t\n\}";
+
+						newToken->setFunctionBody(cp, functionBody);
+						found = true;
+						break;
+					}
+				}
+			}
+
+			if (!found)
+			{
+				newToken->setFunctionBody(cp, "function(){\n\t\n}");
+			}
+		}
+
+		list.add(newToken);
+	}
+
+	for (const auto& c : apiConstants)
+	{
+		list.add(new LightweightConstantInfoToken(prevToken, c.name));
+	}
+}
+
 DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkArgCount(const Identifier& id, int numActual) const
 {
 	for (const auto& f : functions)
@@ -680,7 +781,7 @@ bool LightweightDiagnostics::Helpers::checkValidArgs(const Array<var>& args)
 	return true;
 }
 
-bool LightweightDiagnostics::Helpers::isApiClass(const Identifier& id)
+Array<Identifier> LightweightDiagnostics::Helpers::getApiClassIds()
 {
 	static const Array<Identifier> classIds({
 		"Array",
@@ -701,7 +802,12 @@ bool LightweightDiagnostics::Helpers::isApiClass(const Identifier& id)
 		"Threads"
 		});
 
-	return classIds.contains(id);
+	return classIds;
+}
+
+bool LightweightDiagnostics::Helpers::isApiClass(const Identifier& id)
+{
+	return getApiClassIds().contains(id);
 }
 
 StringArray LightweightDiagnostics::Helpers::getPrimitiveTypeList()

@@ -100,13 +100,16 @@ void Autocomplete::Item::paint(Graphics& g)
 
 
 
-Autocomplete::Autocomplete(TokenCollection::Ptr tokenCollection_, const String& input, const String& previousToken, int lineNumber, TextEditor* editor_) :
+Autocomplete::Autocomplete(TokenCollection::Ptr tokenCollection_, const String& input, const String& previousToken, int lineNumber, int charIndex, TextEditor* editor_) :
 	tokenCollection(tokenCollection_),
 	scrollbar(true),
 	shadow(DropShadow(Colours::black.withAlpha(0.7f), 5, Point<int>())),
 	editor(editor_)
 {
-	currentList = tokenCollection->getTokens();
+	currentList = tokenCollection->getTokens(lineNumber, charIndex, previousToken);
+
+	
+
 	SimpleDocumentTokenProvider::addTokensStatic(currentList, editor->docRef);
 
 	addAndMakeVisible(scrollbar);
@@ -721,7 +724,7 @@ struct CodeSnippetProvider::CodeSnippetToken: public mcl::TokenCollection::Token
 	CodeSnippetToken(const var& jsonData):
 	  Token(jsonData["name"])
 	{
-		priority = jsonData["priority"];
+		priority = -50;// jsonData["priority"];
 		markdownDescription = jsonData["description"];
 		c = Colours::yellow;
 		snippetCode = jsonData["code"];

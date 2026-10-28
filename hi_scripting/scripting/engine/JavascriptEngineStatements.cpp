@@ -929,6 +929,9 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 			{
 				for (auto st : statements)
 				{
+					if (st == nullptr)
+						continue;
+
 					if (ResultCode r = st->perform(s, returnedValue))
 						return r;
 				}

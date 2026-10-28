@@ -2024,6 +2024,116 @@ SDP::~ScopedDiagnosticParse()
 // ==============================================================================
 // HiseJavascriptEngine::shadowParse implementation
 
+void HiseJavascriptEngine::addTokensWithContext(mcl::TokenCollection::List& tokens, int lineNumber, int charIndex, const String& prevExpression)
+{
+	int x = 5;
+
+	auto expressionToEvaluate = prevExpression;
+
+	if (expressionToEvaluate.endsWithChar('.'))
+		expressionToEvaluate = expressionToEvaluate.substring(0, expressionToEvaluate.length() - 1);
+
+
+
+	if (Identifier::isValidIdentifier(expressionToEvaluate))
+	{
+		Identifier id(expressionToEvaluate);
+
+		if (LightweightDiagnostics::Helpers::isApiClass(id))
+		{
+			LightweightDiagnostics::Factory f;
+
+			auto p = dynamic_cast<ProcessorWithScriptingContent*>(root->hiseSpecialData.processor);
+
+			if (auto ptr = f.createLightweightPrototype(p, id, ""))
+			{
+				ptr->fillAutocompleteTokens(tokens, id.toString());
+				return;
+			}
+		}
+	}
+
+	Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> diagnostics;
+	RootObject::ObjectTypeMap::Ptr analyzer = new RootObject::ObjectTypeMap(*root, &diagnostics);
+
+	RootObject::ExpressionTreeBuilder tb(expressionToEvaluate, "", nullptr);
+
+	if (!lastShadowParseScope.empty())
+	{
+		auto rootObject = analyzer->getCurrentScope().getShadowParserRootObject();
+
+		DynamicObject::Ptr currentScope = new DynamicObject();
+
+		for (const auto& s : lastShadowParseScope)
+		{
+			auto rToUse = s.first;
+
+			if (rToUse.getStart() != 0)
+				rToUse = rToUse.expanded(10);
+
+			if (rToUse.contains(charIndex))
+			{
+				for (const auto& nv : s.second->getProperties())
+					currentScope->setProperty(nv.name, nv.value);
+			}
+		}
+
+		for (const auto& nv : currentScope->getProperties())
+		{
+			if(!rootObject->hasProperty(nv.name))
+				rootObject->setProperty(nv.name, nv.value);
+		}
+	}
+
+	ScopedPointer<RootObject::HiseSpecialData> hd = root->hiseSpecialData.createShadowParseData(analyzer.get());
+
+	try
+	{
+		tb.setupApiData(*hd.get(), "");
+		ScopedPointer<RootObject::BlockStatement> sl = tb.parseStatementList();
+
+		if (auto e = dynamic_cast<RootObject::Expression*>(sl->getChildStatement(0)))
+		{
+			auto v = e->getResult(analyzer->getCurrentScope());
+
+			if (auto lb = dynamic_cast<LightweightDiagnostics*>(v.getObject()))
+			{
+				lb->fillAutocompleteTokens(tokens, expressionToEvaluate);
+			}
+		}
+	}
+	catch (String& e)
+	{
+		jassertfalse;
+	}
+	catch (RootObject::Error& e)
+	{
+		jassertfalse;
+	}
+
+
+#if 0
+	ExpressionTreeBuilder tb(code, String(), preprocessor);
+	tb.setupApiData(hiseSpecialData, code);
+
+	auto& cp = currentLocalScopeCreator.get();
+
+	DynamicObject::Ptr localScope = cp != nullptr ? cp->createScope(this) : nullptr;
+
+	if (localScope == nullptr)
+		localScope = this;
+	else
+	{
+		for (const auto& x : getProperties())
+			localScope->setProperty(x.name, x.value);
+	}
+
+	return ExpPtr(tb.parseExpression())->getResult(Scope(nullptr, this, localScope.get()));
+#endif
+
+	
+}
+
 Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> HiseJavascriptEngine::shadowParse(const DiagnosticBase::ShadowParseData& sd)
 {
 	
@@ -2034,8 +2144,6 @@ Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> HiseJavascriptEngine::sha
 	ScopedPointer<RootObject::HiseSpecialData> hd = root->hiseSpecialData.createShadowParseData(analyzer.get());
 
 	using Item = DiagnosticBase::ShadowParseData::Item;
-
-	
 
 	Item::List l;
 
@@ -2079,7 +2187,6 @@ Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> HiseJavascriptEngine::sha
 			tb.setupApiData(*hd.get(), copy);
 			ScopedPointer<RootObject::BlockStatement> sl = tb.parseStatementList();
 
-			// --- Phase 2: Run ApiValidationAnalyzer on the parsed AST ---
 			if (sl != nullptr)
 			{
 				prepareTimeout();
@@ -2087,103 +2194,10 @@ Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> HiseJavascriptEngine::sha
 
 				auto cursorPosition = sdi->getBreakPosition();
 
-				if (cursorPosition != -1)
-				{
-					auto scopeTree = analyzer->getScopeTree();
-
-					DynamicObject::Ptr currentScope = new DynamicObject();
-
-					for (const auto& s : scopeTree)
-					{
-						if (s.first.contains(cursorPosition))
-						{
-							for (const auto& nv : s.second->getProperties())
-								currentScope->setProperty(nv.name, nv.value);
-						}
-					}
-
-					debugToConsole(
-						dynamic_cast<Processor*>(root->hiseSpecialData.processor),
-						JSON::toString(var(currentScope.get())));
-				}
-
+				lastShadowParseScope = analyzer->getScopeTree();
+				
 				if (sdi->t == Item::Type::Callback)
 					hd->shadowParseCallback(analyzer.get(), sdi->getFileName(Item::CallbackFormat::PureId));
-
-#if 0
-				// --- Collect CallScope warnings from static realtime callbacks ---
-				{
-					auto resetInlineInfo = [](ReferenceCountedObject* ifo)
-						{
-							if (auto* obj = dynamic_cast<RootObject::InlineFunction::Object*>(ifo))
-							{
-								if (obj->body != nullptr)
-								{
-									obj->realtimeSafetyInfoData.items.clear();
-									obj->realtimeSafetyInfoData.analyzed = false;
-								}
-							}
-						};
-
-					for (auto ns : root->hiseSpecialData.namespaces)
-						for (auto ifo : ns->inlineFunctions)
-							resetInlineInfo(ifo);
-
-					for (auto ifo : root->hiseSpecialData.inlineFunctions)
-						resetInlineInfo(ifo);
-
-					for (auto c : root->hiseSpecialData.callbackNEW)
-					{
-						if (c == nullptr || c->statements == nullptr)
-							continue;
-
-						if (!isStaticRealtimeCallbackName(c->getName()))
-							continue;
-
-						c->realtimeSafetyInfoData.items.clear();
-						c->realtimeSafetyInfoData.analyzed = false;
-
-						CallScopeAnalyzer analyzer;
-						CallScopeAnalyzer::ScopedHolderSetter svs(&analyzer, c);
-						analyzer.executePass(c->statements);
-
-						using RSW = RootObject::RealtimeSafetyWarning;
-
-						for (auto item : c->realtimeSafetyInfoData.items)
-						{
-							RootObject::ApiDiagnostic d;
-							d.severity = ApiClass::DiagnosticResult::Severity::Warning;
-							d.classification = ApiClass::DiagnosticResult::Classification::CallScope;
-
-							if (auto w = static_cast<RSW*>(item))
-							{
-								if (!w->callStack.isEmpty())
-								{
-									w->callStack[0].location.fillColumnAndLines(d.col, d.line, d.charIndex);
-									d.fileName = w->callStack[0].location.externalFile;
-								}
-							}
-
-							String scopeLabel;
-							using CS = ApiHelpers::CallScope;
-							switch (item->scope)
-							{
-							case CS::Unsafe:  scopeLabel = "unsafe"; break;
-							case CS::Init:    scopeLabel = "init-only"; break;
-							case CS::Warning: scopeLabel = "warning"; break;
-							default: break;
-							}
-
-							d.message = "[CallScope] " + item->apiCall + " (" + scopeLabel + ")";
-
-							if (item->note.isNotEmpty())
-								d.message << ": " << item->note;
-
-							tb.getDiagnostics().add(d);
-						}
-					}
-				}
-#endif
 			}
 		}
 		catch (RootObject::Error& e)

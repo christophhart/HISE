@@ -280,6 +280,21 @@ struct LightweightDiagnostics : public DiagnosticBase,
 
         Validator getValidators() const;
 
+        int getCallbackParameter() const
+        {
+            int idx = 0;
+
+            for (const auto& a : arguments)
+            {
+                if (a.type.asPrimitiveType() == VarTypeChecker::Function)
+                    return idx;
+
+                idx++;
+            }
+                
+            return -1;
+        }
+
         Identifier className;
         Identifier methodName;
         Identifier returnType;
@@ -301,6 +316,8 @@ struct LightweightDiagnostics : public DiagnosticBase,
     void addFunction3(const Identifier& id, call3 unused) override { functions.add(FunctionInfo(id).withNumArgs(3)); }
     void addFunction4(const Identifier& id, call4 unused) override { functions.add(FunctionInfo(id).withNumArgs(4)); }
     void addFunction5(const Identifier& id, call5 unused) override { functions.add(FunctionInfo(id).withNumArgs(5)); }
+
+    void fillAutocompleteTokens(mcl::TokenCollection::List& list, const String& prevToken);
 
     DiagnosticResult checkArgCount(const Identifier& id, int numActual) const override;
 
@@ -345,6 +362,8 @@ struct LightweightDiagnostics : public DiagnosticBase,
 
         static bool isApiRoot(const ValueTree& v) { return v.getType() == Identifier("Api"); }
         
+        static Array<Identifier> getApiClassIds();
+
         static bool isApiClass(const Identifier& id);
 
         template <typename T> static Identifier makeMetaId()

@@ -162,7 +162,7 @@ public:
     
 	bool gotoDefinition(Selection s1 = {});
 
-	void tokenListWasRebuild() override;;
+	
 
 	void threadStateChanged(bool isRunning) override;
 
@@ -239,6 +239,11 @@ public:
 	bool isReadOnly() const;
 
 	void addPopupMenuFunction(const PopupMenuFunction& pf, const PopupMenuResultFunction& rf);
+
+	void tokenListWasRebuild() override
+	{
+		// nothing to do here, but keep the interface
+	}
 
 	TextDocument& getTextDocument();
 

@@ -84,12 +84,21 @@ public:
 	using List = ReferenceCountedArray<Token>;
 	using TokenPtr = ReferenceCountedObjectPtr<Token>;
 
-	TokenCollection::List getTokens() const
+	TokenCollection::List getTokens(int lineNumber, int charIndex, const String& previousTokens) const
 	{
 		List l;
 
-		SimpleReadWriteLock::ScopedReadLock sl(buildLock);
-		l.addArray(tokens);
+		for (auto p : tokenProviders)
+			p->addTokensWithContext(l, lineNumber, charIndex, previousTokens);
+
+		if(!tokens.isEmpty())
+		{
+			SimpleReadWriteLock::ScopedReadLock sl(buildLock);
+			l.addArray(tokens);
+		}
+
+		
+
 		return l;
 	}
 
@@ -118,6 +127,11 @@ public:
 		void signalRebuild();
 
 		void signalClear(NotificationType n);
+
+		/** This is called synchronously just before the autocomplete opens and lets the editor add context based items
+			using the line number and token start. 
+		*/
+		virtual void addTokensWithContext(List& tokens, int lineNumber, int charIndex, const String& previousExpression) {};
 
 		WeakReference<TokenCollection> assignedCollection;
 	};
@@ -358,7 +372,7 @@ public:
 		String input;
 	};
 
-	Autocomplete(TokenCollection::Ptr tokenCollection_, const String& input, const String& previousToken, int lineNumber, TextEditor* editor_);
+	Autocomplete(TokenCollection::Ptr tokenCollection_, const String& input, const String& previousToken, int lineNumber, int charIndex, TextEditor* editor_);
 
 	~Autocomplete();
 

@@ -337,27 +337,6 @@ bool TextEditor::gotoDefinition(Selection s1)
 	return false;
 }
 
-void TextEditor::tokenListWasRebuild()
-{
-    if(tokenCollection->getTokens().isEmpty())
-        return;
-
-#if 0
-	SafeAsyncCall::call<TextEditor>(*this, [](TextEditor& te)
-	{
-		if(te.currentError != nullptr)
-		{
-			te.autofixButton = new AutofixComponent(te, *te.currentError);
-
-			if(!te.autofixButton->calculateFix())
-				te.autofixButton = nullptr;
-			else
-				te.addAndMakeVisible(te.autofixButton);
-		}
-	});
-#endif
-}
-
 TextEditor::Action::Action(TextEditor* te, List nl, Ptr ncp):
 	editor(te),
 	oldList(te->currentParameterSelection),
@@ -931,6 +910,9 @@ void TextEditor::AutofixComponent::mouseDown(const MouseEvent& e)
 
 bool TextEditor::AutofixComponent::calculateFix()
 {
+	return false;
+
+#if 0
 	auto errorMessage = editor.currentError->errorMessage;
 
 	if(errorMessage.contains("when expecting ';'"))
@@ -981,6 +963,7 @@ bool TextEditor::AutofixComponent::calculateFix()
 	}
 
 	return false;
+#endif
 }
 
 TextEditor::Error::Error(TextDocument& doc_, const String& e, bool isWarning_):
@@ -1250,6 +1233,8 @@ void TextEditor::updateAutocomplete(bool forceShow /*= false*/)
 
 	auto lineNumber = o.x;
 
+	auto charIndex = CodeDocument::Position(getDocument(), lineNumber, o.y).getPosition();
+
 	auto parent = TopLevelWindowWithOptionalOpenGL::findRoot(this); 
 
 	if(parent == nullptr)
@@ -1273,7 +1258,7 @@ void TextEditor::updateAutocomplete(bool forceShow /*= false*/)
 			currentAutoComplete->setInput(input, tokenBefore, lineNumber);
 		else if(tokenCollection != nullptr)
 		{
-			parent->addAndMakeVisible(currentAutoComplete = new Autocomplete(tokenCollection, input, tokenBefore, lineNumber, this));
+			parent->addAndMakeVisible(currentAutoComplete = new Autocomplete(tokenCollection, input, tokenBefore, lineNumber, charIndex, this));
 			addKeyListener(currentAutoComplete);
 		}
 

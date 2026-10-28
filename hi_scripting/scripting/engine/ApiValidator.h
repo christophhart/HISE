@@ -97,8 +97,6 @@ struct HiseJavascriptEngine::RootObject::ObjectTypeMap : public ReferenceCounted
 
 	void addDiagnostic(const ApiDiagnostic& i) override;
 
-	using ScopeTree = std::vector<std::pair<Range<int>, DynamicObject::Ptr>>;
-
 	ScopeTree getScopeTree() const;
 
 	ScopeSafety getMinimumRequiredScopeSafety() const;

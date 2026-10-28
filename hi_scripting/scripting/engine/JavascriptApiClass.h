@@ -154,6 +154,7 @@ namespace VarTypeIdentifiers
     DECLARE_ID(TableProcessor);
     DECLARE_ID(ThreadSafeStorage);
     DECLARE_ID(Timer);
+    DECLARE_ID(TransportHandler);
     DECLARE_ID(Unlocker);
     DECLARE_ID(UnorderedStack);
     DECLARE_ID(UserPresetHandler);
@@ -261,6 +262,7 @@ struct VarTypeChecker
         TableProcessor,
         ThreadSafeStorage,
         Timer,
+        TransportHandler,
         Unlocker,
         UnorderedStack,
         UserPresetHandler,

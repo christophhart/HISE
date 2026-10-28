@@ -294,7 +294,7 @@ void HiseJavascriptEngine::RootObject::ObjectTypeMap::addDiagnostic(const ApiDia
 	diagnostics->add(item);
 }
 
-HiseJavascriptEngine::RootObject::ObjectTypeMap::ScopeTree HiseJavascriptEngine::RootObject::ObjectTypeMap::getScopeTree() const
+HiseJavascriptEngine::ScopeTree HiseJavascriptEngine::RootObject::ObjectTypeMap::getScopeTree() const
 {
 	auto history = scopeHistory;
 	history.push_back({ Range<int>(0, INT_MAX), scopeStack->getCurrentScopeObject() });
