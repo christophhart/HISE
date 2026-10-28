@@ -1,3 +1,4 @@
+
 /*  ===========================================================================
 *
 *   This file is part of HISE.
@@ -34,7 +35,40 @@ namespace hise {
 using namespace juce;
 
 
+struct NativeTypeDiagnostic : public LightweightDiagnostics
+{
+	NativeTypeDiagnostic(ProcessorWithScriptingContent* p, VarTypeChecker::VarTypes type, const String& argId):
+		LightweightDiagnostics(p, ValueTree(), VarTypeChecker::getTypeName(type).toString()),
+		t(type)
+	{
+		if (argId.isNotEmpty())
+		{
+			custom = true;
 
+			if (t == VarTypeChecker::VarTypes::JSON)
+			{
+				var obj;
+				auto r = JSON::parse(argId, obj);
+				jassert(r.wasOk());
+
+				ValueTree cTree(VarTypeChecker::getTypeName(type));
+
+				if (auto d = obj.getDynamicObject())
+				{
+					for (const auto& nv : d->getProperties())
+						cTree.setProperty(nv.name, nv.value, nullptr);
+				}
+
+				initClassTree(cTree);
+			}
+		}
+	}
+
+	CacheBehaviour getCacheBehaviour() const override { return custom ? CacheBehaviour::NeverCache : CacheBehaviour::AlwaysCache; };
+
+	bool custom = false;
+	VarTypeChecker::VarTypes t;
+};
 
 LightweightDiagnostics::Ptr LightweightDiagnostics::Factory::createInternal(ProcessorWithScriptingContent* p, const Identifier& id, const String& argId) const
 {
@@ -251,8 +285,12 @@ struct FileFetcher
 
 		if ((data.isUndefined() || data.isVoid()) || ((now - lastReadTime) > 1000))
 		{
+#if JUCE_WINDOWS
 			File jf("D:\\Development\\HISE modules\\tools\\api generator");
-			jf = jf.getChildFile("enrichment/resources/constraints_normalized.json");
+            jf = jf.getChildFile("enrichment/resources/constraints_normalized.json");
+#else
+            File jf("/Users/christophhart/HISE/tools/api generator/enrichment/resources/constraints_normalized.json");
+#endif
 
 			jassert(jf.existsAsFile());
 
@@ -341,7 +379,7 @@ LightweightDiagnostics::Validator LightweightDiagnostics::FunctionInfo::getValid
 	return v;
 }
 
-LightweightDiagnostics::FunctionInfo::Args LightweightDiagnostics::FunctionInfo::Args::withType(VarTypeChecker::WrappedType t) const
+LightweightDiagnostics::FunctionInfo::Args LightweightDiagnostics::FunctionInfo::Args::withType(VarTypeChecker::VarTypes t) const
 {
 	auto copy = *this;
 	copy.type = t;
@@ -394,9 +432,7 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkCallScope(ScopeSaf
 
 					auto sev = f.callscope == ScopeSafety::Warning ? DiagnosticResult::Severity::Warning : DiagnosticResult::Severity::Error;
 
-					return DiagnosticResult(getObjectName().toString() + "." + methodName.toString() + "(): " + msg)
-						.withSeverity(sev)
-						.withErrorCode(DiagnosticResult::ErrorCode::CallScopeMismatch);
+					return DiagnosticResult(getObjectName().toString() + "." + methodName.toString() + "(): " + msg).withSeverity(sev);
 				}
 
 				return DiagnosticResult::ok();
@@ -415,8 +451,6 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::runTests(ShadowParserBa
 
 	auto ok = checkFunction(methodName, args.size());
 
-	ok = DiagnosticResult::max(ok, checkArgCount(methodName, args.size()));
-
 	auto typed = dynamic_cast<HiseJavascriptEngine::RootObject::ObjectTypeMap*>(sp);
 
 	ok = DiagnosticResult::max(ok, checkCallScope(typed->getMinimumRequiredScopeSafety(), methodName));
@@ -428,108 +462,6 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::runTests(ShadowParserBa
 		return performDiagnostic(methodName, args);
 
 	return DiagnosticResult::ok();
-}
-
-struct LightweightFunctionInfoToken : public TokenWithDot
-{
-	static ValueTree getMethodTree(const LightweightDiagnostics::FunctionInfo& fi)
-	{
-		auto ct = ApiHelpers::getApiTree().getChildWithName(fi.className);
-		jassert(ct.isValid());
-		auto mt = ct.getChildWithProperty("name", fi.methodName.toString());
-		jassert(mt.isValid());
-		return mt;
-	}
-
-	LightweightFunctionInfoToken(const ValueTree& mt, const String prevToken) :
-		TokenWithDot(getContent(mt, prevToken), prevToken)
-	{
-		priority = 1000;
-		c = Colour(0xFF88EECC);
-		markdownDescription = mt["description"].toString();
-	};
-
-	void setFunctionBody(int parameterIndex, const String& newFunctionBody)
-	{
-		tokenContent = tokenContent.replace("Function ", newFunctionBody);
-
-		callbackParameterIndex = parameterIndex;
-		functionBody = newFunctionBody;
-	}
-
-	int callbackParameterIndex = -1;
-	String functionBody;
-};
-
-struct LightweightConstantInfoToken : public TokenWithDot
-{
-	LightweightConstantInfoToken(const String& objectName, const Identifier& id) :
-		TokenWithDot(objectName + "." + id.toString(), objectName)
-	{
-		priority = 100;
-		c = Colour(0xFF88EECC);
-	}
-};
-
-void LightweightDiagnostics::fillAutocompleteTokens(mcl::TokenCollection::List& list, const String& prevToken)
-{
-	for (const auto& fi : functions)
-	{
-		auto mt = LightweightFunctionInfoToken::getMethodTree(fi);
-
-		auto newToken = new LightweightFunctionInfoToken(mt, prevToken);
-
-		auto cp = fi.getCallbackParameter();
-
-		if (cp != -1)
-		{
-			// resume the work here: replace the type with a suitable parameter name, replace the trailing old parameter
-			// TODO: Add a system that extrapolates / synthesises good parameter names from the docs.
-			jassertfalse;
-
-			auto found = false;
-
-			for (auto v: fi.arguments[cp].validators)
-			{
-				if (v.startsWith("CallbackArgCheck"))
-				{
-					CallbackParseOptions cpo;
-
-					auto ok = cpo.parseCheckString(v.fromFirstOccurrenceOf("CallbackArgCheck.", false, false), false);
-
-					if (cpo.ft == CallbackParseOptions::FunctionType::Function)
-					{
-						String functionBody;
-						functionBody << "function(";
-
-						for (auto a : cpo.argTypes)
-						{
-							functionBody << a.first.toString().replace("MetaObjects::", "") << ", ";
-						}
-
-						functionBody = functionBody.upToLastOccurrenceOf(", ", false, false);
-						functionBody << ")\n{\n\t\n\}";
-
-						newToken->setFunctionBody(cp, functionBody);
-						found = true;
-						break;
-					}
-				}
-			}
-
-			if (!found)
-			{
-				newToken->setFunctionBody(cp, "function(){\n\t\n}");
-			}
-		}
-
-		list.add(newToken);
-	}
-
-	for (const auto& c : apiConstants)
-	{
-		list.add(new LightweightConstantInfoToken(prevToken, c.name));
-	}
 }
 
 DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkArgCount(const Identifier& id, int numActual) const
@@ -544,21 +476,18 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkArgCount(const Ide
 			auto numExpected = f.arguments.size();
 
 			String msg;
-
-			msg << id << "(): ";
-
 			msg << "expects " << numExpected << " argument"
 				<< (numExpected != 1 ? "s" : "")
 				<< ", got " << numActual;
 
 			if (numActual > numExpected)
-				return DiagnosticResult::fail(msg).withErrorCode(DiagnosticResult::ErrorCode::ArgMismatch);
+				return DiagnosticResult::fail(msg);
 
 
 			for (int i = numActual; i < f.arguments.size(); i++)
 			{
 				if (!f.arguments[i].optional)
-					return DiagnosticResult::fail(msg).withErrorCode(DiagnosticResult::ErrorCode::ArgMismatch);
+					return DiagnosticResult::fail(msg);
 			}
 
 			return DiagnosticResult::ok();
@@ -570,10 +499,7 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkArgCount(const Ide
 	for (const auto& f : functions)
 		candidates.add(f.methodName.toString());
 
-	return DiagnosticResult::fail(getObjectName() + ": missing function")
-		.withWrongToken(id.toString())
-		.withFuzzySuggestion(candidates)
-		.withErrorCode(DiagnosticResult::ErrorCode::MissingFunctionOrProperty);
+	return DiagnosticResult::fail(getObjectName() + ": missing function").withWrongToken(id.toString()).withFuzzySuggestion(candidates);
 }
 
 bool LightweightDiagnostics::getIndexAndNumArgsForFunction(const Identifier& id, int& index, int& numArgs) const
@@ -597,7 +523,7 @@ bool LightweightDiagnostics::getIndexAndNumArgsForFunction(const Identifier& id,
 	return false;
 }
 
-var LightweightDiagnostics::getReturnType(const Identifier& functionName, const Array<var>& args) const
+inline var LightweightDiagnostics::getReturnType(const Identifier& functionName, const Array<var>& args) const
 {
 	for (const auto& f : functions)
 	{
@@ -640,10 +566,7 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkProperty(const Ide
 	}
 		
 
-return DiagnosticResult::fail("missing property")
-	.withWrongToken(getObjectName() + "." + propertyId.toString())
-	.withFuzzySuggestion(candidates)
-	.withErrorCode(DiagnosticResult::ErrorCode::MissingFunctionOrProperty);
+	return DiagnosticResult::fail("missing property").withWrongToken(getObjectName() + "." + propertyId.toString()).withFuzzySuggestion(candidates);
 }
 
 DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkFunction(const Identifier& methodName, int expectedNumArgs) const
@@ -661,10 +584,7 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkFunction(const Ide
 	for (auto f : functions)
 		candidates.add(getObjectName() + "." + f.methodName.toString() + "()");
 
-	return DiagnosticResult::fail("missing function")
-		.withWrongToken(getObjectName() + "." + methodName.toString() + "()")
-		.withFuzzySuggestion(candidates)
-		.withErrorCode(DiagnosticResult::ErrorCode::MissingFunctionOrProperty);
+	return DiagnosticResult::fail("missing function").withWrongToken(getObjectName() + "." + methodName.toString() + "()").withFuzzySuggestion(candidates);
 }
 
 DiagnosticBase::DiagnosticResult LightweightDiagnostics::shadowParseCallbackWithArgType(const CallbackParseOptions& cbo)
@@ -717,48 +637,31 @@ Result LightweightDiagnostics::CallbackParseOptions::parseCheckString(const Stri
 	auto parameters = StringArray::fromTokens(pString, ",", "{}");
 
 	auto parseJSONArgs = [](const String& p)
+	{
+		std::pair<Identifier, String> rv;
+
+		if (p.startsWith("JSON"))
 		{
-			std::pair<Identifier, String> rv;
+			rv.first = "JSON";
+			rv.second = p.fromFirstOccurrenceOf("{", true, false);
 
-			if (p.startsWith("JSON"))
-			{
-				rv.first = "JSON";
-				rv.second = p.fromFirstOccurrenceOf("{", true, false);
+			var result;
+			auto ok = JSON::parse(rv.second, result);
+			jassert(ok.wasOk());
+		}
+		else
+			rv.first = p.trim();
 
-				var result;
-				auto ok = JSON::parse(rv.second, result);
-				jassert(ok.wasOk());
-			}
-			else
-				rv.first = p.trim();
-
-			return rv;
-		};
+		return rv;
+	};
 
 	for (auto p : parameters)
 		argTypes.push_back(parseJSONArgs(p));
 
 	if (auto cb = dynamic_cast<WeakCallbackHolder::CallableObject*>(callback.getObject()))
 	{
-		if (checkParameterCount)
-		{
-			auto numArgs = cb->getNumArguments();
-
-			// allow optional parameters with the arg? syntax
-			if (numArgs < argTypes.size())
-			{
-				auto isOptional = true;
-
-				for (int i = numArgs; i < argTypes.size(); i++)
-					isOptional &= argTypes[i].first.toString().endsWithChar('?');
-
-				if (isOptional)
-					return Result::ok();
-			}
-
-			if(numArgs != argTypes.size())
-				return Result::fail("Callback signature mismatch. Expected: `f(" + pString + ")`, got: " + String(cb->getNumArguments()) + " arguments");
-		}			
+		if (checkParameterCount && cb->getNumArguments() != argTypes.size())
+			return Result::fail("Callback signature mismatch. Expected: `f(" + pString + ")`, got: " + String(cb->getNumArguments()) + " arguments");
 	}
 	else
 	{
@@ -781,7 +684,7 @@ bool LightweightDiagnostics::Helpers::checkValidArgs(const Array<var>& args)
 	return true;
 }
 
-Array<Identifier> LightweightDiagnostics::Helpers::getApiClassIds()
+bool LightweightDiagnostics::Helpers::isApiClass(const Identifier& id)
 {
 	static const Array<Identifier> classIds({
 		"Array",
@@ -802,12 +705,7 @@ Array<Identifier> LightweightDiagnostics::Helpers::getApiClassIds()
 		"Threads"
 		});
 
-	return classIds;
-}
-
-bool LightweightDiagnostics::Helpers::isApiClass(const Identifier& id)
-{
-	return getApiClassIds().contains(id);
+	return classIds.contains(id);
 }
 
 StringArray LightweightDiagnostics::Helpers::getPrimitiveTypeList()
@@ -826,9 +724,7 @@ StringArray LightweightDiagnostics::Helpers::getPrimitiveTypeList()
 		"Number",
 		"AudioData",
 		"int",
-		"double",
-		"float",
-		"string"
+		"double"
 	};
 
 	return primitiveTypes;
@@ -850,9 +746,7 @@ VarTypeChecker::VarTypes LightweightDiagnostics::Helpers::getVarTypeFromPrimitiv
 		VarTypeChecker::VarTypes::Number,
 		VarTypeChecker::VarTypes::AudioData,
 		VarTypeChecker::VarTypes::Integer,
-		VarTypeChecker::VarTypes::Double,
-		VarTypeChecker::VarTypes::Double,
-		VarTypeChecker::VarTypes::String
+		VarTypeChecker::VarTypes::Double
 	};
 
 	auto idx = getPrimitiveTypeList().indexOf(s);
@@ -870,11 +764,6 @@ String LightweightDiagnostics::Helpers::getTypeForObjectTypeCheck(const var& val
 		return dbo->getObjectName().toString();
 	}
 
-	if (auto lb = dynamic_cast<LightweightDiagnostics*>(value.getObject()))
-	{
-		return lb->getObjectName().toString();
-	}
-
 	if (auto dyn = value.getDynamicObject())
 		return "JSON";
 
@@ -887,45 +776,6 @@ String LightweightDiagnostics::Helpers::getTypeForObjectTypeCheck(const var& val
 	auto vt = VarTypeChecker::getType(value);
 
 	return VarTypeChecker::getTypeName(vt).toString();
-}
-
-NativeTypeDiagnostic::NativeTypeDiagnostic(ProcessorWithScriptingContent* p, VarTypeChecker::VarTypes type, const String& argId) :
-	LightweightDiagnostics(p, ValueTree(), VarTypeChecker::getTypeName(type).toString()),
-	t(type)
-{
-	if (type == VarTypeChecker::String)
-		initClassTree(ApiHelpers::getApiTree().getChildWithName("String"));
-
-	if (type == VarTypeChecker::Array)
-		initClassTree(ApiHelpers::getApiTree().getChildWithName("Array"));
-
-	if (type == VarTypeChecker::Buffer)
-		initClassTree(ApiHelpers::getApiTree().getChildWithName("Buffer"));
-
-	if (type == VarTypeChecker::JSON && argId.isEmpty())
-		initClassTree(ApiHelpers::getApiTree().getChildWithName("Object"));
-
-	if (argId.isNotEmpty())
-	{
-		custom = true;
-
-		if (t == VarTypeChecker::VarTypes::JSON)
-		{
-			var obj;
-			auto r = JSON::parse(argId, obj);
-			jassert(r.wasOk());
-
-			ValueTree cTree(VarTypeChecker::getTypeName(type));
-
-			if (auto d = obj.getDynamicObject())
-			{
-				for (const auto& nv : d->getProperties())
-					cTree.setProperty(nv.name, nv.value, nullptr);
-			}
-
-			initClassTree(cTree);
-		}
-	}
 }
 
 }

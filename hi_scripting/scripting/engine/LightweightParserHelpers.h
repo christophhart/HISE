@@ -161,7 +161,7 @@ struct LightweightDiagnostics : public DiagnosticBase,
             static_assert(std::is_base_of<LightweightDiagnostics, T>(), "not a base of lightweight diagnostics");
             metaItems[T::getClassName()] = [](ProcessorWithScriptingContent* p, const ValueTree& c, const String& argId)
             {
-                return new typename T(p, c, argId);
+                return new T(p, c, argId);
             };
         }
 
@@ -444,7 +444,7 @@ protected:
 
         className = classTree.getType();
 
-        for (auto& m : classTree)
+        for (const auto& m : classTree)
         {
             FunctionInfo fi(m);
 

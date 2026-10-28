@@ -1707,7 +1707,7 @@ struct IncludeParser
 		c.setProperty("LineStart", lastStart, nullptr);
 		c.setProperty("LineEnd", i - 1, nullptr);
 		c.setProperty("Code", mos, nullptr);
-		c.setProperty("NumBytes", mos.end() - mos.begin(), nullptr);
+		c.setProperty("NumBytes", (int)(mos.end() - mos.begin()), nullptr);
 		lastStart = i + 1;
 		return c;
 	}
