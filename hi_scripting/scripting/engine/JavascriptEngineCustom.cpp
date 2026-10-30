@@ -655,6 +655,48 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
             
 			return DebugableObject::Helpers::getFunctionDoc(commentDoc, justIds);
 		}
+        
+        static mcl::TokenCollection::Token* createAutocompleteTokenFromString(const var& value)
+        {
+            if(value.isString() && value.toString().startsWith("INLINEFUNCTION|"))
+            {
+                auto parts = StringArray::fromTokens(value.toString(), "|", "");
+                
+                auto nt = new mcl::TokenCollection::Token(parts[1]);
+                
+                nt->markdownDescription << "**Inline Function:**" << parts[4] << "  \n";
+                nt->markdownDescription << "**ReturnType:** " << parts[2] << "  \n";
+                nt->markdownDescription << "**Location:** " << parts[3] << "  \n";
+                
+                return nt;
+            }
+            
+            return nullptr;
+        }
+        
+        String getAutocompleteString() const
+        {
+            String signature;
+            
+            signature << "INLINEFUNCTION|";
+                        
+            signature << name << "(";
+            
+            for(auto p: parameterNames)
+                signature << p.toString() << ", ";
+            
+            signature = signature.upToLastOccurrenceOf(", ", false, false);
+            
+            signature << ")";
+            
+            signature << "|" << VarTypeChecker::getTypeName(returnType);
+            
+            signature << "|" << "Defined at" << (location.fileName.isEmpty() ? "onInit" : location.fileName);
+            
+            signature << "|" << commentDoc;
+            
+            return signature;
+        }
 
 		bool updateCyclicReferenceList(ThreadData& data, const Identifier &id) override;
 

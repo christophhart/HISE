@@ -115,9 +115,15 @@ struct ScriptComponentDiagnosticBase : public LightweightDiagnostics
 
     DiagnosticResult performCustomCheck(const CustomCheckData& cd) final override
     {
+        auto sc = getScriptComponent();
+        
+        if(sc == nullptr)
+            return DiagnosticResult::fail("Can't find component. If this script hasn't been compiled once, compile it to create the object")
+            .withSeverity(DiagnosticResult::Severity::Warning)
+            .withErrorCode(DiagnosticResult::ErrorCode::RuntimeIdFailure);
+        
         if (cd.methodName == Identifier("set") || cd.methodName == Identifier("get"))
-        {
-            auto sc = getScriptComponent();
+        {            
             auto propId = cd.resolvedArguments["propertyName"];
             auto props = sc->getAllProperties();
 
@@ -501,6 +507,23 @@ struct ScriptingObjects::ScriptingEffect::Diagnostics : public BaseObjects::Modu
     }
 };
 
+struct ProjectInfoObj: public BaseObjects::FunctionJSONObject
+{
+    static Identifier getClassName() { return "ProjectInfo"; }
+    
+    ProjectInfoObj(ProcessorWithScriptingContent* p, const ValueTree& v, const String& argId):
+      FunctionJSONObject(p, v, argId)
+    {
+        ValueTree vt(getClassName());
+        
+        auto obj = HiseSettings::Data::getProjectInfoAsJSON(p->getMainController_());
+        
+        for(const auto& nv: obj.getDynamicObject()->getProperties())
+            vt.setProperty(nv.name, nv.value, nullptr);
+        
+        initClassTree(vt);
+    }
+};
 
 struct LafObj : public BaseObjects::FunctionJSONObject
 {
@@ -666,6 +689,7 @@ LightweightDiagnostics::Factory::Factory()
     registerMetaType<BaseObjects::ScriptComponentDiagnosticBase>();
     registerMetaType<EventTypeObject>();
     registerMetaType<LafObj>();
+    registerMetaType<ProjectInfoObj>();
 }
 
 

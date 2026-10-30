@@ -80,6 +80,7 @@ namespace VarTypeIdentifiers
     static const Identifier Object("object");
     DECLARE_ID(AudioData);
     DECLARE_ID(Function);
+    DECLARE_ID(DataContent);
     DECLARE_ID(ComplexType);
     DECLARE_ID(NotUndefined);
 
@@ -186,6 +187,7 @@ struct VarTypeChecker
         ScriptObject = 64,
         Object = 32 | 64,
         Function = 128,
+        DataContent = Array | JSON | String,
         ComplexType = 4 | 8 | 16 | 32 | 64 | 128,
         NotUndefined = ComplexType | Number
     };

@@ -246,6 +246,8 @@ struct Data: public SafeChangeBroadcaster
 
 	var getSetting(const Identifier& id) const;
 
+    static var getProjectInfoAsJSON(MainController* mc);
+    
 	void initialiseAudioDriverData(bool forceReload = false);
 
 	StringArray getOptionsFor(const Identifier& id);

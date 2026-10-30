@@ -1289,8 +1289,8 @@ void TextEditor::updateAutocomplete(bool forceShow /*= false*/)
 
 void TextEditor::threadStateChanged(bool isRunning)
 {
-	tokenRebuildPending = isRunning;
-	SafeAsyncCall::repaint(this);
+	//tokenRebuildPending = isRunning;
+	//SafeAsyncCall::repaint(this);
 }
 
 void TextEditor::codeDocumentTextInserted(const String& newText, int insertIndex)
@@ -3559,10 +3559,15 @@ void TextEditor::LiveDiagnosticsTimer::timerCallback()
 	if (parent.getDocument().getNumLines() == 0)
 		return;
 
+    
+    
 	jassert(diagnosticsFunction);
 	diagnosticsFunction();
 
 	stopTimer();
+    
+    parent.tokenRebuildPending = false;
+    parent.repaint();
 }
 
 }

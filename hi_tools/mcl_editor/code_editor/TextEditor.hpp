@@ -479,7 +479,11 @@ private:
 		void trigger()
 		{
 			if(parent.shadowParseAfterDelay && diagnosticsFunction)
-				startTimer(1000);
+            {
+                parent.tokenRebuildPending = true;
+                parent.repaint();
+                startTimer(1000);
+            }
 		}
 
 		std::function<void()> diagnosticsFunction;

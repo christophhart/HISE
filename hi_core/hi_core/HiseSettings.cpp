@@ -1251,6 +1251,44 @@ juce::AudioDeviceManager* HiseSettings::Data::getDeviceManager()
 	return dynamic_cast<AudioProcessorDriver*>(mc)->deviceManager;
 }
 
+juce::var HiseSettings::Data::getProjectInfoAsJSON(MainController* mc)
+{
+    DynamicObject::Ptr obj = new DynamicObject();
+    
+    String licencee;
+
+    #if USE_BACKEND || USE_COPY_PROTECTION
+        if (auto ul = mc->getLicenseUnlocker())
+            licencee = ul->getUserEmail();
+    #endif
+
+    # if USE_BACKEND
+        obj->setProperty("Company", GET_HISE_SETTING(mc->getMainSynthChain(), HiseSettings::User::Company).toString());
+        obj->setProperty("CompanyURL", GET_HISE_SETTING(mc->getMainSynthChain(), HiseSettings::User::CompanyURL).toString());
+        obj->setProperty("CompanyCopyright", GET_HISE_SETTING(mc->getMainSynthChain(), HiseSettings::User::CompanyCopyright).toString());
+        obj->setProperty("ProjectName", GET_HISE_SETTING(mc->getMainSynthChain(), HiseSettings::Project::Name).toString());
+        obj->setProperty("ProjectVersion", GET_HISE_SETTING(mc->getMainSynthChain(), HiseSettings::Project::Version).toString());
+        obj->setProperty("EncryptionKey", GET_HISE_SETTING(mc->getMainSynthChain(), HiseSettings::Project::EncryptionKey).toString());
+        
+    #else
+        obj->setProperty("Company", hise::FrontendHandler::getCompanyName());
+        obj->setProperty("CompanyURL", hise::FrontendHandler::getCompanyWebsiteName());
+        obj->setProperty("CompanyCopyright", hise::FrontendHandler::getCompanyCopyright());
+        obj->setProperty("ProjectName", hise::FrontendHandler::getProjectName());
+        obj->setProperty("ProjectVersion", hise::FrontendHandler::getVersionString());
+        obj->setProperty("EncryptionKey", hise::FrontendHandler::getExpansionKey());
+        
+    #endif
+
+
+    obj->setProperty("HISEBuild", GlobalSettingManager::getHiseVersion());
+    
+    obj->setProperty("BuildDate", Time::getCompilationDate().toString(true, false, false, true));
+    obj->setProperty("LicensedEmail", licencee);
+            
+    return var(obj.get());
+}
+
 void HiseSettings::Data::initialiseAudioDriverData(bool forceReload/*=false*/)
 {
 	ignoreUnused(forceReload);

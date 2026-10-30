@@ -477,6 +477,26 @@ private:
 			return DiagnosticResult::ok();
 		}
 
+        if(valueString == "Point")
+        {
+            auto r = Result::ok();
+
+            if (auto lb = dynamic_cast<LightweightDiagnostics*>(thisValue.getObject()))
+            {
+                auto classId = lb->getObjectName().toString();
+
+                if (classId == "Array")
+                    return DiagnosticResult::ok();
+            }
+
+            auto point = ApiHelpers::getPointFromVar(thisValue, &r);
+
+            if (r.failed())
+                return DiagnosticResult::fail(r.getErrorMessage());
+
+            return DiagnosticResult::ok();
+        }
+        
 		if (valueString == "Area")
 		{
 			auto r = Result::ok();

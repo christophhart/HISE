@@ -1054,6 +1054,31 @@ DebugInformation* HiseJavascriptEngine::RootObject::JavascriptNamespace::createD
 	return nullptr;
 }
 
+void HiseJavascriptEngine::RootObject::HiseSpecialData::fillScopeTreeWithInlineFunctions(HiseJavascriptEngine::ScopeTree& scopeTree)
+{
+    auto rootProp = scopeTree.back().second;
+    
+    jassert(rootProp != nullptr);
+    
+    for(auto f: inlineFunctions)
+    {
+        auto typed = dynamic_cast<InlineFunction::Object*>(f);
+        rootProp->setProperty(typed->name, typed->getAutocompleteString());
+    }
+    
+    for(auto n: namespaces)
+    {
+        if(auto nProp = rootProp->getProperty(n->id).getDynamicObject())
+        {
+            for(auto f: n->inlineFunctions)
+            {
+                auto typed = dynamic_cast<InlineFunction::Object*>(f);
+                
+                nProp->setProperty(typed->name, typed->getAutocompleteString());
+            }
+        }
+    }
+}
 
 DynamicObject* HiseJavascriptEngine::RootObject::HiseSpecialData::getInlineFunction(const Identifier &inlineFunctionId)
 {
@@ -2024,6 +2049,11 @@ SDP::~ScopedDiagnosticParse()
 // ==============================================================================
 // HiseJavascriptEngine::shadowParse implementation
 
+mcl::TokenCollection::Token* HiseJavascriptEngine::createAutocompleteTokenFromInlineFunction(const var& v)
+{
+    return RootObject::InlineFunction::Object::createAutocompleteTokenFromString(v);
+}
+
 void HiseJavascriptEngine::addTokensWithContext(mcl::TokenCollection::List& tokens, int lineNumber, int charIndex, const String& prevExpression)
 {
 	int x = 5;
@@ -2081,7 +2111,23 @@ void HiseJavascriptEngine::addTokensWithContext(mcl::TokenCollection::List& toke
 		for (const auto& nv : currentScope->getProperties())
 		{
 			if(!rootObject->hasProperty(nv.name))
-				rootObject->setProperty(nv.name, nv.value);
+            {
+                auto isFunction = HiseJavascriptEngine::isJavascriptFunction(nv.value);
+                
+                if(expressionToEvaluate.isEmpty())
+                {
+                    if(auto t = createAutocompleteTokenFromInlineFunction(nv.value))
+                    {
+                        tokens.add(t);
+                    }
+                    else
+                    {
+                        tokens.add(new RootPropertyToken(nv.name.toString(), isFunction, ""));
+                    }
+                }
+
+                rootObject->setProperty(nv.name, nv.value);
+            }
 		}
 	}
 
@@ -2096,7 +2142,11 @@ void HiseJavascriptEngine::addTokensWithContext(mcl::TokenCollection::List& toke
 		{
 			auto v = e->getResult(analyzer->getCurrentScope());
 
-			if (auto lb = dynamic_cast<LightweightDiagnostics*>(v.getObject()))
+            if(auto t = createAutocompleteTokenFromInlineFunction(v))
+            {
+                tokens.add(t);
+            }
+            else if(auto lb = analyzer->getLightweighDiagnosticsFromVar(v))
 			{
 				lb->fillAutocompleteTokens(tokens, expressionToEvaluate);
 			}
@@ -2196,6 +2246,8 @@ Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> HiseJavascriptEngine::sha
 
 				lastShadowParseScope = analyzer->getScopeTree();
 				
+                hd->fillScopeTreeWithInlineFunctions(lastShadowParseScope);
+                                
 				if (sdi->t == Item::Type::Callback)
 					hd->shadowParseCallback(analyzer.get(), sdi->getFileName(Item::CallbackFormat::PureId));
 			}

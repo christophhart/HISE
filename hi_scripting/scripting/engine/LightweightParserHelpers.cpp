@@ -35,40 +35,6 @@ namespace hise {
 using namespace juce;
 
 
-struct NativeTypeDiagnostic : public LightweightDiagnostics
-{
-	NativeTypeDiagnostic(ProcessorWithScriptingContent* p, VarTypeChecker::VarTypes type, const String& argId):
-		LightweightDiagnostics(p, ValueTree(), VarTypeChecker::getTypeName(type).toString()),
-		t(type)
-	{
-		if (argId.isNotEmpty())
-		{
-			custom = true;
-
-			if (t == VarTypeChecker::VarTypes::JSON)
-			{
-				var obj;
-				auto r = JSON::parse(argId, obj);
-				jassert(r.wasOk());
-
-				ValueTree cTree(VarTypeChecker::getTypeName(type));
-
-				if (auto d = obj.getDynamicObject())
-				{
-					for (const auto& nv : d->getProperties())
-						cTree.setProperty(nv.name, nv.value, nullptr);
-				}
-
-				initClassTree(cTree);
-			}
-		}
-	}
-
-	CacheBehaviour getCacheBehaviour() const override { return custom ? CacheBehaviour::NeverCache : CacheBehaviour::AlwaysCache; };
-
-	bool custom = false;
-	VarTypeChecker::VarTypes t;
-};
 
 LightweightDiagnostics::Ptr LightweightDiagnostics::Factory::createInternal(ProcessorWithScriptingContent* p, const Identifier& id, const String& argId) const
 {
@@ -224,6 +190,19 @@ LightweightDiagnostics::FunctionInfo::FunctionInfo(const ValueTree& methodTree)
 
 	auto rt = methodTree["returnType"].toString();
 
+    if(className == Identifier("Engine") &&
+       methodName == Identifier("getProjectInfo"))
+    {
+        // Remove this once the API blob is updated
+        jassert(rt != "MetaObjects::ProjectInfo");
+        rt = "MetaObjects::ProjectInfo";
+    }
+    
+    if(methodName == Identifier("loadFromXmlFile"))
+    {
+        rt = "DataContent";
+    }
+    
 	auto typed = methodTree["returnObjectType"].toString();
 
 	for (auto c : methodTree)
@@ -231,9 +210,7 @@ LightweightDiagnostics::FunctionInfo::FunctionInfo(const ValueTree& methodTree)
 		auto argName = c.getType();
 
 		if (argName == Identifier("this"))
-		{
 			thisValidators = StringArray::fromTokens(c["check"].toString(), "|", "");
-		}
 
 		for (auto& a : arguments)
 		{
@@ -245,14 +222,8 @@ LightweightDiagnostics::FunctionInfo::FunctionInfo(const ValueTree& methodTree)
 	if (typed.isNotEmpty())
 		rt = typed;
 
-	static const StringArray primitiveTypes({
-		"Integer", "Double", "undefined", "void", "var", "JSON", "ScriptObject", "NotUndefined", "bool", "Object", "Number", "AudioData", "int", "double" }
-		);
-
-	if (!primitiveTypes.contains(rt))
-	{
+	if (true)//!Helpers::getPrimitiveTypeList().contains(rt))
 		returnType = Identifier(rt);
-	}
 }
 
 LightweightDiagnostics::FunctionInfo LightweightDiagnostics::FunctionInfo::withNumArgs(int numArgs) const
@@ -379,7 +350,7 @@ LightweightDiagnostics::Validator LightweightDiagnostics::FunctionInfo::getValid
 	return v;
 }
 
-LightweightDiagnostics::FunctionInfo::Args LightweightDiagnostics::FunctionInfo::Args::withType(VarTypeChecker::VarTypes t) const
+LightweightDiagnostics::FunctionInfo::Args LightweightDiagnostics::FunctionInfo::Args::withType(VarTypeChecker::WrappedType t) const
 {
 	auto copy = *this;
 	copy.type = t;
@@ -462,6 +433,155 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::runTests(ShadowParserBa
 		return performDiagnostic(methodName, args);
 
 	return DiagnosticResult::ok();
+}
+
+struct LightweightFunctionInfoToken : public TokenWithDot
+{
+    static ValueTree getMethodTree(const LightweightDiagnostics::FunctionInfo& fi)
+    {
+        auto ct = ApiHelpers::getApiTree().getChildWithName(fi.className);
+        jassert(ct.isValid());
+        auto mt = ct.getChildWithProperty("name", fi.methodName.toString());
+        jassert(mt.isValid());
+        return mt;
+    }
+
+    LightweightFunctionInfoToken(const ValueTree& mt, const String prevToken) :
+        TokenWithDot(getContent(mt, prevToken), prevToken)
+    {
+        priority = 1000;
+        c = Colour(0xFF88EECC);
+        markdownDescription = mt["description"].toString();
+    };
+
+    Array<Range<int>> getSelectionRangeAfterInsert(const String& input) const override
+    {
+        auto code = getCodeToInsert(input);
+
+        if (callbackParameterIndex != -1)
+        {
+            auto brIndex = code.indexOf("\t \n");
+
+            Array<Range<int>> ranges;
+
+            ranges.add({ brIndex + 1, brIndex + 2 });
+            return ranges;
+        }
+
+        return TokenWithDot::getSelectionRangeAfterInsert(input);
+    }
+    
+    void setFunctionBody(int parameterIndex, const String& newFunctionBody)
+    {
+        callbackParameterIndex = parameterIndex;
+        String classId, methodName;
+        
+        classId = tokenContent.upToFirstOccurrenceOf(".", false, false);
+        tokenContent = tokenContent.fromFirstOccurrenceOf(".", false, false);
+        
+        methodName = tokenContent.upToFirstOccurrenceOf("(", false, false);
+        tokenContent = tokenContent.fromFirstOccurrenceOf("(", false, false);
+        
+        auto args = tokenContent.upToLastOccurrenceOf(")", false, false).removeCharacters("()");
+        
+        auto argList = StringArray::fromTokens(args, ",", "");
+        
+        argList.removeEmptyStrings();
+        argList.set(parameterIndex, newFunctionBody);
+        
+        String newTokenContent;
+        
+        newTokenContent << classId << "." << methodName << "(";
+        
+        for(const auto& a: argList)
+            newTokenContent << a << ", ";
+        
+        newTokenContent = newTokenContent.upToLastOccurrenceOf(", ", false, false);
+        
+        newTokenContent << ");";
+        
+        tokenContent = newTokenContent;
+    }
+
+    int callbackParameterIndex = -1;
+    String functionBody;
+};
+
+struct LightweightConstantInfoToken : public TokenWithDot
+{
+    LightweightConstantInfoToken(const String& objectName, const Identifier& id) :
+        TokenWithDot(objectName + "." + id.toString(), objectName)
+    {
+        priority = 100;
+        c = Colour(0xFF88EECC);
+    }
+};
+
+void LightweightDiagnostics::fillAutocompleteTokens(mcl::TokenCollection::List& list, const String& prevToken)
+{
+    for (const auto& fi : functions)
+    {
+        auto mt = LightweightFunctionInfoToken::getMethodTree(fi);
+
+        auto newToken = new LightweightFunctionInfoToken(mt, prevToken);
+
+        auto cp = fi.getCallbackParameter();
+
+        if (cp != -1)
+        {
+            // resume the work here: replace the type with a suitable parameter name, replace the trailing old parameter
+            // TODO: Add a system that extrapolates / synthesises good parameter names from the docs.
+
+            auto found = false;
+
+            for (auto v: fi.arguments[cp].validators)
+            {
+                if (v.startsWith("CallbackArgCheck"))
+                {
+                    CallbackParseOptions cpo;
+
+                    auto ok = cpo.parseCheckString(v.fromFirstOccurrenceOf("CallbackArgCheck.", false, false), false);
+
+                    if (cpo.ft == CallbackParseOptions::FunctionType::Function)
+                    {
+                        String functionBody;
+                        functionBody << "function(";
+
+                        for (auto a : cpo.argTypes)
+                        {
+                            functionBody << a.first.toString().replace("MetaObjects::", "") << ", ";
+                        }
+
+                        functionBody = functionBody.upToLastOccurrenceOf(", ", false, false);
+                        functionBody << ")\n{\n\t \n}";
+
+                        newToken->setFunctionBody(cp, functionBody);
+                        found = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!found)
+            {
+                newToken->setFunctionBody(cp, "function(){\n\t \n}");
+            }
+        }
+
+        list.add(newToken);
+    }
+
+    for (const auto& c : apiConstants)
+    {
+        if(auto m = HiseJavascriptEngine::createAutocompleteTokenFromInlineFunction(c.value))
+        {
+            list.add(m);
+        }
+        else
+        {
+            list.add(new LightweightConstantInfoToken(prevToken, c.name));
+        }
+    }
 }
 
 DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkArgCount(const Identifier& id, int numActual) const
@@ -684,33 +804,38 @@ bool LightweightDiagnostics::Helpers::checkValidArgs(const Array<var>& args)
 	return true;
 }
 
+Array<Identifier> LightweightDiagnostics::Helpers::getApiClassIds()
+{
+    static const Array<Identifier> classIds({
+        "Array",
+        "Colours",
+        "Console",
+        "Content",
+        "Date",
+        "Engine",
+        "FileSystem",
+        "Math",
+        "Message",
+        "ModuleIds",
+        "Sampler",
+        "Server",
+        "Settings",
+        "String",
+        "Synth",
+        "Threads"
+        });
+
+    return classIds;
+}
+
 bool LightweightDiagnostics::Helpers::isApiClass(const Identifier& id)
 {
-	static const Array<Identifier> classIds({
-		"Array",
-		"Colours",
-		"Console",
-		"Content",
-		"Date",
-		"Engine",
-		"FileSystem",
-		"Math",
-		"Message",
-		"ModuleIds",
-		"Sampler",
-		"Server",
-		"Settings",
-		"String",
-		"Synth",
-		"Threads"
-		});
-
-	return classIds.contains(id);
+    return getApiClassIds().contains(id);
 }
 
 StringArray LightweightDiagnostics::Helpers::getPrimitiveTypeList()
 {
-	static const StringArray primitiveTypes = {
+    static const StringArray primitiveTypes = {
 		"Integer",
 		"Double",
 		"undefined",
@@ -724,7 +849,8 @@ StringArray LightweightDiagnostics::Helpers::getPrimitiveTypeList()
 		"Number",
 		"AudioData",
 		"int",
-		"double"
+		"double",
+        "DataContent"
 	};
 
 	return primitiveTypes;
@@ -746,7 +872,8 @@ VarTypeChecker::VarTypes LightweightDiagnostics::Helpers::getVarTypeFromPrimitiv
 		VarTypeChecker::VarTypes::Number,
 		VarTypeChecker::VarTypes::AudioData,
 		VarTypeChecker::VarTypes::Integer,
-		VarTypeChecker::VarTypes::Double
+		VarTypeChecker::VarTypes::Double,
+        VarTypeChecker::VarTypes::DataContent
 	};
 
 	auto idx = getPrimitiveTypeList().indexOf(s);
@@ -776,6 +903,58 @@ String LightweightDiagnostics::Helpers::getTypeForObjectTypeCheck(const var& val
 	auto vt = VarTypeChecker::getType(value);
 
 	return VarTypeChecker::getTypeName(vt).toString();
+}
+
+NativeTypeDiagnostic::NativeTypeDiagnostic(ProcessorWithScriptingContent* p, VarTypeChecker::VarTypes type, const String& argId) :
+    LightweightDiagnostics(p, ValueTree(), VarTypeChecker::getTypeName(type).toString()),
+    t(type)
+{
+    if (type == VarTypeChecker::String)
+        initClassTree(ApiHelpers::getApiTree().getChildWithName("String"));
+
+    if (type == VarTypeChecker::Array)
+        initClassTree(ApiHelpers::getApiTree().getChildWithName("Array"));
+
+    if (type == VarTypeChecker::Buffer)
+        initClassTree(ApiHelpers::getApiTree().getChildWithName("Buffer"));
+
+    if (type == VarTypeChecker::DataContent)
+    {
+        ValueTree t("DataContent");
+        
+        t.setProperty("length", 1, nullptr);
+        
+        for(auto m: ApiHelpers::getApiTree().getChildWithName("Array"))
+            t.addChild(m.createCopy(), -1, nullptr);
+        
+        for(auto m: ApiHelpers::getApiTree().getChildWithName("String"))
+            t.addChild(m.createCopy(), -1, nullptr);
+        
+        initClassTree(t);
+    }
+    
+    
+    if (argId.isNotEmpty())
+    {
+        custom = true;
+
+        if (t | VarTypeChecker::VarTypes::JSON)
+        {
+            var obj;
+            auto r = JSON::parse(argId, obj);
+            jassert(r.wasOk());
+
+            ValueTree cTree(VarTypeChecker::getTypeName(type));
+
+            if (auto d = obj.getDynamicObject())
+            {
+                for (const auto& nv : d->getProperties())
+                    cTree.setProperty(nv.name, nv.value, nullptr);
+            }
+
+            initClassTree(cTree);
+        }
+    }
 }
 
 }

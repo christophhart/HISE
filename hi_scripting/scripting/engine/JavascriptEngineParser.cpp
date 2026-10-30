@@ -22,6 +22,28 @@ struct HiseJavascriptEngine::RootObject::TokenIterator
 		currentType = matchNextToken();
 	}
 
+    void skipRestOfStatement()
+    {
+        int numBraces = 0;
+        
+        while(currentType != TokenTypes::semicolon && currentType != TokenTypes::eof)
+        {
+            if(matchIf(TokenTypes::openBrace))
+            {
+                numBraces++;
+                continue;
+            }
+
+            if (currentType == TokenTypes::closeBrace)
+            {
+                if(--numBraces < 0)
+                    return;
+            }
+            
+            skip();
+        }
+    }
+    
 	void skipBlock()
 	{
 		match(TokenTypes::openBrace);
@@ -299,17 +321,65 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 
 	void preprocessCode(const String& codeToPreprocess, const String& externalFileName="");
 
+    void recordErrorAsDiagnostic(const RootObject::Error& e)
+    {
+        ApiDiagnostic d;
+        d.col = e.columnNumber;
+        d.line = e.lineNumber;
+        d.charIndex = e.charIndex;
+        
+        d.fileName = e.externalLocation;
+        d.message = e.errorMessage;
+        d.severity = DiagnosticBase::DiagnosticResult::Severity::Error;
+        d.ec = DiagnosticBase::DiagnosticResult::ErrorCode::SyntaxError;
+        
+        diagnostics.add(d);
+    }
+    
 	BlockStatement* parseStatementList()
 	{
 		ScopedPointer<BlockStatement> b(new BlockStatement(location));
-
+        
 		bool allowScopedBlockStatements = true;
 
 		while (currentType != TokenTypes::closeBrace && currentType != TokenTypes::eof)
 		{
 #if ENABLE_SCRIPTING_BREAKPOINTS
+            
 			const int64 charactersBeforeToken = (location.location - location.program.getCharPointer());
-			ScopedPointer<Statement> s = parseStatement();
+                        
+            ScopedPointer<Statement> s;
+            
+            try
+            {
+                s = parseStatement();
+            }
+            catch(RootObject::Error& e)
+            {
+                if(isDiagnosticMode())
+                {
+                    recordErrorAsDiagnostic(e);
+                    skipRestOfStatement();
+                    continue;
+                }
+                else
+                {
+                    throw e;
+                }
+            }
+            catch(String& s)
+            {
+                if(isDiagnosticMode())
+                {
+                    skipRestOfStatement();
+                    continue;
+                }
+                else
+                {
+                    throw s;
+                }
+            }
+            
 			const int64 charactersAfterToken = (location.location - location.program.getCharPointer());
 			Range<int64> r(charactersBeforeToken, charactersAfterToken);
 
@@ -372,7 +442,7 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 					s = nullptr;
 				}
 			}
-			else
+			else if (s != nullptr)
 			{
 				b->statements.add(s.release());
 				allowScopedBlockStatements = false;

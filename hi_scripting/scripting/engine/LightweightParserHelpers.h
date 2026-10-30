@@ -482,6 +482,28 @@ struct NativeTypeDiagnostic : public LightweightDiagnostics
 
     CacheBehaviour getCacheBehaviour() const override { return custom ? CacheBehaviour::NeverCache : CacheBehaviour::AlwaysCache; };
 
+    bool isDynamicType() const
+    {
+        return (t == VarTypeChecker::DataContent && !custom);
+    }
+    
+    var getConstantValue(const Identifier& childId) const override
+    {
+        if(isDynamicType())
+            return var(const_cast<NativeTypeDiagnostic*>(this));
+        
+        return LightweightDiagnostics::getConstantValue(childId);
+    }
+        
+    DiagnosticResult checkProperty(const Identifier& propertyId) const override
+    {
+        // A JSON object might or might not have this property...
+        if(isDynamicType())
+            return DiagnosticResult::ok();
+        
+        return LightweightDiagnostics::checkProperty(propertyId);
+    }
+    
     bool custom = false;
     VarTypeChecker::VarTypes t;
 };

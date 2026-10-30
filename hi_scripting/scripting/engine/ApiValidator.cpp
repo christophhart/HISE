@@ -259,6 +259,10 @@ LightweightDiagnostics::Ptr HiseJavascriptEngine::RootObject::ObjectTypeMap::get
 	if (type.asPrimitiveType() == VarTypeChecker::VarTypes::Array)
 		return lightweightDiagnostics.createLightweightPrototype(pwsc, "Array", String(obj.size()));
 
+    if (type.asPrimitiveType() == VarTypeChecker::VarTypes::String)
+        return lightweightDiagnostics.createLightweightPrototype(pwsc, "String", obj.toString());
+
+    
 	if (auto js = obj.getDynamicObject())
 		return lightweightDiagnostics.createLightweightPrototype(pwsc, "Object", JSON::toString(obj));
 

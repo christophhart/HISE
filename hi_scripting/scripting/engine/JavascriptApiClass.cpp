@@ -104,6 +104,7 @@ Identifier VarTypeChecker::getTypeName(VarTypes type)
 	case Object: return VarTypeIdentifiers::Object;
 	case Function: return VarTypeIdentifiers::Function;
 	case ComplexType: return VarTypeIdentifiers::ComplexType;
+    case DataContent: return VarTypeIdentifiers::DataContent;
 	case NotUndefined: return VarTypeIdentifiers::NotUndefined;
 	default: jassertfalse; return "Unknown";
 	}
@@ -127,6 +128,7 @@ VarTypeChecker::WrappedType VarTypeChecker::getTypeFromString(const juce::Identi
 	if (name == VarTypeIdentifiers::Object)				return WrappedType(VarTypes::Object);
 	if (name == VarTypeIdentifiers::Function)			return WrappedType(VarTypes::Function);
 	if (name == VarTypeIdentifiers::ComplexType)		return WrappedType(VarTypes::ComplexType);
+    if (name == VarTypeIdentifiers::DataContent)        return WrappedType(VarTypes::DataContent);
 	if (name == VarTypeIdentifiers::NotUndefined)		return WrappedType(VarTypes::NotUndefined);
 
 	if(name == VarTypeIdentifiers::AudioFile)				 return WrappedType(TypedObject::AudioFile);

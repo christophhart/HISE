@@ -123,6 +123,9 @@ public:
 class HiseJavascriptEngine: public ApiProviderBase
 {
 public:
+    
+    using ScopeTree = std::vector<std::pair<Range<int>, DynamicObject::Ptr>>;
+    
 	/** Creates an instance of the engine.
 	This creates a root namespace and defines some basic Object, String, Array
 	and Math library methods.
@@ -246,6 +249,8 @@ public:
 
 	void addTokensWithContext(mcl::TokenCollection::List& tokens, int lineNumber, int charIndex, const String& prevExpression);
 
+    static mcl::TokenCollection::Token* createAutocompleteTokenFromInlineFunction(const var& v);
+    
 	String getHoverString(const String& token);
 
 	DebugInformationBase::Ptr getDebugInformation(int index);
@@ -1002,6 +1007,8 @@ public:
 
 			void registerOptimisationPasses();
 
+            void fillScopeTreeWithInlineFunctions(ScopeTree& scopeTree);
+            
 			static bool initHiddenProperties;
 
 			
@@ -1173,7 +1180,7 @@ private:
 
 	DynamicObject::Ptr unneededScope;
 
-	using ScopeTree = std::vector<std::pair<Range<int>, DynamicObject::Ptr>>;
+
 
 	ScopeTree lastShadowParseScope;
 

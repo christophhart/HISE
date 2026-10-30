@@ -5,6 +5,11 @@ struct HiseJavascriptEngine::RootObject::BinaryOperatorBase : public Expression
 	BinaryOperatorBase(const CodeLocation& l, ExpPtr& a, ExpPtr& b, TokenType op) noexcept
 	: Expression(l), lhs(a), rhs(b), operation(op) {}
 
+    virtual var getShadowParseResult(const Scope& s, const var& leftOp, const var& rightOp) const
+    {
+        return leftOp;
+    }
+    
 	bool isConstant() const override
 	{
 		return lhs->isConstant() && rhs->isConstant();
@@ -38,10 +43,19 @@ struct HiseJavascriptEngine::RootObject::BinaryOperator : public BinaryOperatorB
 	virtual var getWithArrayOrObject(const var& a, const var&) const { return throwError(a.isArray() ? "Array" : "Object"); }
 	virtual var getWithStrings(const String&, const String&) const   { return throwError("String"); }
 
+    
+    
 	var getResult(const Scope& s) const override
 	{
-		var a(lhs->getResult(s)), b(rhs->getResult(s));
-
+        var a(lhs->getResult(s)), b(rhs->getResult(s));
+        
+#if HISE_SHADOW_PARSER_ENABLED
+        if(s.isShadowParsing() && !isConstant())
+        {
+            return getShadowParseResult(s, a, b);
+        }
+#endif
+        
 		if (isNumericOrUndefined(a) && isNumericOrUndefined(b))
 			return (a.isDouble() || b.isDouble()) ? getWithDoubles(a, b) : getWithInts(a, b);
 
@@ -72,6 +86,11 @@ struct HiseJavascriptEngine::RootObject::EqualsOp : public BinaryOperator
 	var getWithInts(int64 a, int64 b) const override                      { return a == b; }
 	var getWithStrings(const String& a, const String& b) const override   { return a == b; }
 	var getWithArrayOrObject(const var& a, const var& b) const override   { return a == b; }
+    
+    var getShadowParseResult(const Scope& s, const var& leftOp, const var& rightOp) const override
+    {
+        return var(true);
+    }
 };
 
 struct HiseJavascriptEngine::RootObject::NotEqualsOp : public BinaryOperator
@@ -82,6 +101,8 @@ struct HiseJavascriptEngine::RootObject::NotEqualsOp : public BinaryOperator
 	var getWithInts(int64 a, int64 b) const override                      { return a != b; }
 	var getWithStrings(const String& a, const String& b) const override   { return a != b; }
 	var getWithArrayOrObject(const var& a, const var& b) const override   { return a != b; }
+    var getShadowParseResult(const Scope&, const var&, const var&) const override { return var(true);}
+
 };
 
 struct HiseJavascriptEngine::RootObject::LessThanOp : public BinaryOperator
@@ -90,6 +111,7 @@ struct HiseJavascriptEngine::RootObject::LessThanOp : public BinaryOperator
 	var getWithDoubles(double a, double b) const override                 { return a < b; }
 	var getWithInts(int64 a, int64 b) const override                      { return a < b; }
 	var getWithStrings(const String& a, const String& b) const override   { return a < b; }
+    var getShadowParseResult(const Scope&, const var&, const var&) const override { return var(true);}
 };
 
 struct HiseJavascriptEngine::RootObject::LessThanOrEqualOp : public BinaryOperator
@@ -98,6 +120,7 @@ struct HiseJavascriptEngine::RootObject::LessThanOrEqualOp : public BinaryOperat
 	var getWithDoubles(double a, double b) const override                 { return a <= b; }
 	var getWithInts(int64 a, int64 b) const override                      { return a <= b; }
 	var getWithStrings(const String& a, const String& b) const override   { return a <= b; }
+    var getShadowParseResult(const Scope&, const var&, const var&) const override { return var(true);}
 };
 
 struct HiseJavascriptEngine::RootObject::GreaterThanOp : public BinaryOperator
@@ -106,6 +129,7 @@ struct HiseJavascriptEngine::RootObject::GreaterThanOp : public BinaryOperator
 	var getWithDoubles(double a, double b) const override                 { return a > b; }
 	var getWithInts(int64 a, int64 b) const override                      { return a > b; }
 	var getWithStrings(const String& a, const String& b) const override   { return a > b; }
+    var getShadowParseResult(const Scope&, const var&, const var&) const override { return var(true);}
 };
 
 struct HiseJavascriptEngine::RootObject::GreaterThanOrEqualOp : public BinaryOperator
@@ -114,6 +138,7 @@ struct HiseJavascriptEngine::RootObject::GreaterThanOrEqualOp : public BinaryOpe
 	var getWithDoubles(double a, double b) const override                 { return a >= b; }
 	var getWithInts(int64 a, int64 b) const override                      { return a >= b; }
 	var getWithStrings(const String& a, const String& b) const override   { return a >= b; }
+    var getShadowParseResult(const Scope&, const var&, const var&) const override { return var(true);}
 };
 
 #if JUCE_MSVC
@@ -380,24 +405,32 @@ struct HiseJavascriptEngine::RootObject::LogicalAndOp : public BinaryOperatorBas
 {
 	LogicalAndOp(const CodeLocation& l, ExpPtr& a, ExpPtr& b) noexcept : BinaryOperatorBase(l, a, b, TokenTypes::logicalAnd) {}
 	var getResult(const Scope& s) const override       { return lhs->getResult(s) && rhs->getResult(s); }
+    
+    var getShadowParseResult(const Scope&, const var&, const var&) const override { return var(true);}
 };
 
 struct HiseJavascriptEngine::RootObject::LogicalOrOp : public BinaryOperatorBase
 {
 	LogicalOrOp(const CodeLocation& l, ExpPtr& a, ExpPtr& b) noexcept : BinaryOperatorBase(l, a, b, TokenTypes::logicalOr) {}
 	var getResult(const Scope& s) const override       { return lhs->getResult(s) || rhs->getResult(s); }
+    
+    var getShadowParseResult(const Scope&, const var&, const var&) const override { return var(true);}
 };
 
 struct HiseJavascriptEngine::RootObject::TypeEqualsOp : public BinaryOperatorBase
 {
 	TypeEqualsOp(const CodeLocation& l, ExpPtr& a, ExpPtr& b) noexcept : BinaryOperatorBase(l, a, b, TokenTypes::typeEquals) {}
 	var getResult(const Scope& s) const override       { return areTypeEqual(lhs->getResult(s), rhs->getResult(s)); }
+    
+    var getShadowParseResult(const Scope&, const var&, const var&) const override { return var(true);}
 };
 
 struct HiseJavascriptEngine::RootObject::TypeNotEqualsOp : public BinaryOperatorBase
 {
 	TypeNotEqualsOp(const CodeLocation& l, ExpPtr& a, ExpPtr& b) noexcept : BinaryOperatorBase(l, a, b, TokenTypes::typeNotEquals) {}
 	var getResult(const Scope& s) const override       { return !areTypeEqual(lhs->getResult(s), rhs->getResult(s)); }
+    
+    var getShadowParseResult(const Scope&, const var&, const var&) const override { return var(true);}
 };
 
 struct HiseJavascriptEngine::RootObject::ConditionalOp : public Expression

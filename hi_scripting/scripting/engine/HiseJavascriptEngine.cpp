@@ -1826,6 +1826,21 @@ HiseJavascriptEngine::TokenProvider::~TokenProvider()
 		pr->getMainController()->removeScriptListener(this);
 }
 
+struct RootPropertyToken: public mcl::TokenCollection::Token
+{
+    RootPropertyToken(const String& propertyId, bool isFunction, const String& description):
+        Token(propertyId)
+    {
+        if(isFunction)
+            tokenContent << "(value)";
+        
+        priority = 80;
+        c = Colour(0xFF40A304);
+        
+        markdownDescription << description;
+    }
+};
+
 struct LookAndFeelToken : public TokenWithDot
 {
 	LookAndFeelToken(const Identifier& oid, const Identifier& fid) :
@@ -2052,6 +2067,26 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 			tokens.add(new IncludeFileToken(scriptFolder, sf));
 		}
 	};
+    
+    auto addRootProperties = [](JavascriptProcessor* jp, mcl::TokenCollection::List& tokens)
+    {
+        tokens.add(new RootPropertyToken("exec", true, "Execute a JS code string"));
+        tokens.add(new RootPropertyToken("eval", true, "Evaluate a JS expression"));
+        tokens.add(new RootPropertyToken("trace", true, "Stringifies any value / object"));
+        tokens.add(new RootPropertyToken("charToInt", true, "converts a char to its numeric value"));
+        tokens.add(new RootPropertyToken("parseInt", true, "parses / rounds any value to a integer number"));
+        tokens.add(new RootPropertyToken("parseFloat", true, "parses any value to a float number"));
+        tokens.add(new RootPropertyToken("isFinite", true, "check if a number is not inf or Nan"));
+        tokens.add(new RootPropertyToken("typeof", true, "Returns the type string of the given value"));
+        tokens.add(new RootPropertyToken("Rectangle", true, "creates a Rectangle object"));
+        
+        tokens.add(new RootPropertyToken("AsyncNotification", false, "Constant value to indicate that the callback needs to be executed asynchronously."));
+        tokens.add(new RootPropertyToken("AsyncHiPriorityNotification", false, "Constant value to indicate that the callback needs to be executed asynchronously with a higher priority."));
+        tokens.add(new RootPropertyToken("SyncNotification", false, "Constant value to indicate that the callback needs to be executed synchronously."));
+
+        tokens.add(new RootPropertyToken("Buffer", false, "Factory to create Buffer objects"));
+        
+    };
 
 	auto addKeywords = [](JavascriptProcessor* jp, mcl::TokenCollection::List& tokens)
 	{
@@ -2086,7 +2121,7 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 	addIncludeFiles(jp, tokens);
 	addKeywords(jp, tokens);
 	addApiClasses(jp, tokens);
-
+    addRootProperties(jp, tokens);
 
 
 
