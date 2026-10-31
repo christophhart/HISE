@@ -63,7 +63,7 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] = R"(
                        binaryPath="Compiled/" headerPath="%FFT_HEADER_PATH%&#10;%ASIO_SDK_PATH%;%FAUST_HEADER_PATH%" useRuntimeLibDLL="0" prebuildCommand="%PREBUILD_COMMAND%"/>
         <CONFIGURATION name="Release" winWarningLevel="1" generateManifest="1" winArchitecture="x64"
                        libraryPath="%WIN_STATIC_LIB_FOLDER_R64%" isDebug="0" optimisation="3" targetName="%NAME%"
-                       binaryPath="Compiled/" headerPath="%FFT_HEADER_PATH%&#10;%ASIO_SDK_PATH%;%FAUST_HEADER_PATH%" linkTimeOptimisation="%LINK_TIME_OPTIMISATION%" useRuntimeLibDLL="0" prebuildCommand="%PREBUILD_COMMAND%;%STRIP_SYMBOLS_WIN%"/>
+                       binaryPath="Compiled/" headerPath="%FFT_HEADER_PATH%&#10;%ASIO_SDK_PATH%;%FAUST_HEADER_PATH%" linkTimeOptimisation="%LINK_TIME_OPTIMISATION%" useRuntimeLibDLL="0" prebuildCommand="%PREBUILD_COMMAND%"%STRIP_SYMBOLS_WIN%/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_core" path="%JUCE_PATH%"/>
