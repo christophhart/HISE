@@ -313,6 +313,25 @@ public:
 		virtual StringArray getOptionsFor(const Identifier &id);
 		virtual ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) = 0;
 
+		virtual Array<Identifier> checkRealtimeRequirementProperties() const
+		{
+			Array<Identifier> ids;
+
+			if (!isAutomatable())
+				return ids;
+
+			if (getScriptObjectProperty(deferControlCallback))
+				return ids;
+
+			if (isConnectedToMacroControll())
+				ids.add(getIdFor(macroControl));
+
+			if (getScriptObjectProperty(isPluginParameter))
+				ids.add(getIdFor(isPluginParameter));
+
+			return ids;
+		}
+
 		void handleAsyncUpdate() override
 		{
 			sendSynchronousChangeMessage();
@@ -1052,6 +1071,8 @@ public:
 
 		void handleDefaultDeactivatedProperties() override;
 
+		Array<Identifier> checkRealtimeRequirementProperties() const override;
+
 		ProcessorMetadata::ParameterMetadata createParameterMetadata(int indexInContent) const override
 		{
 			auto mn = getScriptObjectProperty(ScriptSlider::Properties::Mode).toString();
@@ -1209,6 +1230,8 @@ public:
 
 		void handleDefaultDeactivatedProperties() override;
 
+		Array<Identifier> checkRealtimeRequirementProperties() const override;
+
 		ProcessorMetadata::ParameterMetadata createParameterMetadata(int indexInContent) const override
 		{
 			return ScriptComponent::createParameterMetadata(indexInContent).asToggle();
@@ -1312,6 +1335,8 @@ public:
 		}
 
 		void handleDefaultDeactivatedProperties();
+
+		Array<Identifier> checkRealtimeRequirementProperties() const override;
 
 		Array<PropertyWithValue> getLinkProperties() const override;
 
@@ -1894,6 +1919,8 @@ public:
 		void prepareCycleReferenceCheck() override;
 
 		void handleDefaultDeactivatedProperties() override;
+
+		Array<Identifier> checkRealtimeRequirementProperties() const override;
 
 		int getNumChildElements() const override;
 

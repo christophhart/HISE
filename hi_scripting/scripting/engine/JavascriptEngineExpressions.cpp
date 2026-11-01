@@ -42,7 +42,24 @@ struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 		auto v = s.findSymbolInParentScopes(name); 
 
 		if (v.isUndefined() && name == this_)
-			return s.root->getLocalThisObject();
+		{
+			auto v = s.root->getLocalThisObject();
+
+			if (s.isShadowParsing() && (v.isVoid() || v.isUndefined()))
+			{
+				using DR = DiagnosticBase::DiagnosticResult;
+
+				auto dr = DR("unresolved `this` parameter")
+					.withErrorCode(DR::ErrorCode::MissingFunctionOrProperty)
+					.withSeverity(DR::Severity::Warning)
+					.withSuggestion("Pass the function into a callback or add a type-annotated `this` parameter (eg. `this:Timer`) to the function definition to silence this warning");
+
+				logDiagnostics(s, dr);
+			}
+
+			return v;
+		}
+			
 
 		return v;
 	}
@@ -73,7 +90,8 @@ struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 			}
 		}
 		
-		v = getPropertyPointer(currentScope->root.get(), name);
+		if(!s.isShadowParsing())
+			v = getPropertyPointer(currentScope->root.get(), name);
 
 		if (v != nullptr)
 			*v = newValue;
@@ -650,7 +668,9 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 														  public CyclicReferenceCheckBase,
                                                           public LocalScopeCreator
 {
-	FunctionObject() noexcept{}
+	FunctionObject(CodeLocation& l):
+		codeLocation(l)
+	{}
 
 	FunctionObject(const FunctionObject& other);
 
@@ -703,6 +723,40 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 	}
 
 	using Strictness = WeakCallbackHolder::CallableObject::StrictnessLevel;
+
+	DiagnosticBase::DiagnosticResult shadowParseIfTypedParameters(Scope& s)
+	{
+		if (alreadyShadowParsed)
+			return DiagnosticBase::DiagnosticResult::ok();
+
+		Array<var> args;
+
+		for (int i = 0; i < parameters.size(); i++)
+		{
+			if (parameterTypes[i])
+			{
+				auto className = VarTypeChecker::getTypeName(parameterTypes[i]);
+				var obj(s.getShadowParser()->createAnonoymousDiagnosticObject(className, "").get());
+				args.add(obj);
+			}
+			else
+			{
+				return DiagnosticBase::DiagnosticResult("Can't parse function because of unknown type for parameter " + parameters[i].toString())
+					.withSeverity(DiagnosticBase::DiagnosticResult::Severity::Warning)
+					.withSuggestion("Annotate the type using the syntax `parameterId:type` (eg. `" + parameters[i].toString() + ":int`)");
+
+			}
+		}
+
+		auto lv = WeakCallbackHolder::CallableObject::StrictnessLevel::AllowInit;
+
+		var thisObj;
+
+		if (thisTypeFromParameterList)
+			thisObj = var(s.getShadowParser()->createAnonoymousDiagnosticObject(VarTypeChecker::getTypeName(thisTypeFromParameterList), "").get());
+
+		return invokeShadowParse(s, var::NativeFunctionArgs(thisObj, args.getRawDataPointer(), args.size()), lv).second;
+	}
 
 	std::pair<var, DiagnosticBase::DiagnosticResult> invokeShadowParse(const Scope& s, const var::NativeFunctionArgs& args, Strictness lv) const;
 
@@ -771,6 +825,8 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 
 		return result;
 	}
+
+	
 
 	void createFunctionDefinition(const Identifier &functionName)
 	{
@@ -879,10 +935,15 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 
 	Identifier name;
 
+	CodeLocation codeLocation;
 	Location location;
 
 	String functionCode;
 	Array<Identifier> parameters;
+	Array<VarTypeChecker::WrappedType> parameterTypes;
+	Array<CodeLocation> parameterLocations;
+
+	VarTypeChecker::WrappedType thisTypeFromParameterList;
 
 	OwnedArray<Expression> capturedLocals;
 	mutable NamedValueSet capturedLocalValues;
@@ -896,7 +957,7 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 
 	DynamicObject::Ptr unneededScope;
     
-    
+	mutable bool alreadyShadowParsed = false;
 
 	mutable SimpleReadWriteLock debugScopeLock;
 	mutable DynamicObject::Ptr lastScope;

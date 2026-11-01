@@ -336,6 +336,40 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
         diagnostics.add(d);
     }
     
+	void shadowParseAllFunctions()
+	{
+		auto sd = dynamic_cast<RootObject::ObjectTypeMap*>(hiseSpecialData->currentShadowParser);
+
+		for (auto& f : functionsToShadowParse)
+		{
+			if (auto fo = dynamic_cast<FunctionObject*>(f.getObject()))
+			{
+				auto dr = fo->shadowParseIfTypedParameters(sd->getCurrentScope());
+
+				if (dr.shouldReport())
+				{
+					sd->addDiagnostic(dr.toItem([fo](ApiDiagnostic& ad)
+					{
+						fo->codeLocation.fillColumnAndLines(ad);
+					}));
+				}
+			}
+
+			if (auto ifo = dynamic_cast<InlineFunction::Object*>(f.getObject()))
+			{
+				auto dr = ifo->shadowParseIfTypedParameters(sd->getCurrentScope());
+
+				if (dr.shouldReport())
+				{
+					sd->addDiagnostic(dr.toItem([ifo](ApiDiagnostic& ad)
+					{
+						ifo->body->location.fillColumnAndLines(ad);
+					}));
+				}
+			}
+		}
+	}
+
 	BlockStatement* parseStatementList()
 	{
 		ScopedPointer<BlockStatement> b(new BlockStatement(location));
@@ -510,17 +544,29 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 
 		match(TokenTypes::openParen);
 
+		static const Identifier this_("this");
+
 		while (currentType != TokenTypes::closeParen)
 		{
-			fo.parameters.add(currentValue.toString());
-			match(TokenTypes::identifier);
+			auto pId = Identifier(currentValue.toString());
 
-			if (currentType == TokenTypes::colon)
+			if (pId == this_)
 			{
-				logDiagnosticsOrThrow("Can't use parameter type info in JS function definitions. Use inline functions instead");
-				matchVarType();
-			}
+				match(TokenTypes::identifier);
+				fo.thisTypeFromParameterList = matchVarType();
 
+				if (!fo.thisTypeFromParameterList)
+					logDiagnosticsOrThrow("You need to supply a type annotation when defining the this type through the parameter list");
+			}
+			else
+			{
+				fo.parameterLocations.add(location);
+				fo.parameters.add(pId);
+				match(TokenTypes::identifier);
+
+				fo.parameterTypes.add(matchVarType());
+			}
+				
 			if (currentType != TokenTypes::closeParen)
 				match(TokenTypes::comma);
 		}
@@ -641,7 +687,7 @@ private:
 #if USE_BACKEND
 	bool isDiagnosticMode() const
 	{
-		return hiseSpecialData != nullptr && hiseSpecialData->diagnosticMode;
+		return hiseSpecialData != nullptr && hiseSpecialData->currentShadowParser != nullptr;
 	}
 
 	Array<ApiDiagnostic> diagnostics;
@@ -1806,14 +1852,24 @@ private:
 
 			InlineFunction::Object::ArgumentList inlineArguments;
 
+			static const Identifier this_("this");
+
+			VarTypeChecker::WrappedType thisType;
+
 			while (preparser->currentType != TokenTypes::closeParen)
 			{
                 Identifier pid =preparser->currentValue.toString();
 				preparser->match(TokenTypes::identifier);
-                
-                auto argType = preparser->matchVarType();
-                
-                inlineArguments.add({argType, pid});
+				auto argType = preparser->matchVarType();
+
+				if (pid == this_)
+				{
+					thisType = argType;
+				}
+				else
+				{
+					inlineArguments.add({ argType, pid });
+				}
                 
 				if (preparser->currentType != TokenTypes::closeParen)
 					preparser->match(TokenTypes::comma);
@@ -1825,6 +1881,7 @@ private:
 
 			o->location = loc;
             o->returnType = returnType;
+			o->thisTypeFromParameterList = thisType;
 
 			ns->inlineFunctions.add(o.release());
 			preparser->matchIf(TokenTypes::semicolon);
@@ -1901,10 +1958,9 @@ private:
 
 				matchIf(TokenTypes::semicolon);
 
-				if(isDiagnosticMode())
-					return new InlineFunction::Definition(startLocation, o);
-				else
-					return new Statement(location);
+				functionsToShadowParse.add(var(o.get()));
+
+				return new Statement(location);
 			}
 			else
 			{
@@ -2097,6 +2153,7 @@ private:
 				if (it.loop == nullptr)
 				{
 					it.loop = s;
+					s->iteratorId = it.id;
 					break;
 				}
 			}
@@ -2176,7 +2233,7 @@ private:
 
 	Expression* parseArrowFunction(ExpPtr lhs)
 	{
-		ScopedPointer<FunctionObject> fo = new FunctionObject();
+		ScopedPointer<FunctionObject> fo = new FunctionObject(location);
 
 		fo->location.fileName = location.getCallbackName(true);
 		fo->location.charNumber = location.getCharIndex();
@@ -2221,7 +2278,7 @@ private:
 
 		
 
-		ScopedPointer<FunctionObject> fo(new FunctionObject());
+		ScopedPointer<FunctionObject> fo(new FunctionObject(location));
 
 		fo->location.fileName = location.getCallbackName(true);
 		fo->location.charNumber = location.getCharIndex();
@@ -2232,8 +2289,15 @@ private:
 		fo->commentDoc = lastComment;
 		clearLastComment();
 
-		return var(fo.release());
+		auto rv = var(fo.release());
+
+		if (isDiagnosticMode())
+			functionsToShadowParse.add(rv);
+
+		return rv;
 	}
+
+	Array<var> functionsToShadowParse;
 
 	Expression* parseFunctionCall(FunctionCall* call, ExpPtr& function)
 	{
@@ -3309,7 +3373,10 @@ void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowCon
 	}
 }
 
-HiseJavascriptEngine::RootObject::FunctionObject::FunctionObject(const FunctionObject& other) : DynamicObject(), functionCode(other.functionCode)
+HiseJavascriptEngine::RootObject::FunctionObject::FunctionObject(const FunctionObject& other) :
+	DynamicObject(), 
+	functionCode(other.functionCode), 
+	codeLocation(other.codeLocation)
 {
 	ExpressionTreeBuilder tb(functionCode, String(), nullptr);
 

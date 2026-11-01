@@ -313,6 +313,7 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 				for (auto a : arguments)
 					thisArgs.add(a->getResult(s));
 
+				ObjectTypeMap::ScopedLocationSetter sp(*s.getShadowParser(), this);
 				logDiagnostics(s, lb->runTests(s.currentShadowParser, dot->child, thisArgs));
 
 				return lb->getReturnType(dot->child, thisArgs);
@@ -718,7 +719,7 @@ HiseJavascriptEngine::RootObject::HiseSpecialData* HiseJavascriptEngine::RootObj
 		hd->callbackNEW.add(new Callback(c->getName(), c->getNumArgs(), 0.0));
 	}
 	
-	hd->diagnosticMode = true;
+	hd->currentShadowParser = shadowParser;
 	return hd;
 }
 
@@ -2241,6 +2242,10 @@ Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> HiseJavascriptEngine::sha
 			{
 				prepareTimeout();
 				analyzer->shadowParse(sl);
+
+				analyzer->checkDeferredDiagnostics();
+
+				tb.shadowParseAllFunctions();
 
 				auto cursorPosition = sdi->getBreakPosition();
 

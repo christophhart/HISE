@@ -1735,7 +1735,7 @@ String ScriptingApi::Engine::getOS()
 #endif
 }
 
-var ScriptingApi::Engine::getSystemStats()
+var ScriptingApi::Engine::getSystemStatsStatic()
 {
 	auto obj = new DynamicObject();
 	
@@ -1756,6 +1756,11 @@ var ScriptingApi::Engine::getSystemStats()
 	obj->setProperty("isDarkMode", Desktop::getInstance().isDarkModeActive());
 
 	return obj;
+}
+
+var ScriptingApi::Engine::getSystemStats()
+{
+	return getSystemStatsStatic();
 }
 
 String ScriptingApi::Engine::getDeviceType()

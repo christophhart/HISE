@@ -68,6 +68,19 @@ struct HiseJavascriptEngine::RootObject::ObjectTypeMap : public ReferenceCounted
 		DiagnosticBase::DiagnosticResult callScopeReport;
 	};
 
+	struct ScopedLocationSetter
+	{
+		ScopedLocationSetter(ObjectTypeMap& m, const Statement* s);
+
+		~ScopedLocationSetter()
+		{
+			parent.currentLocation = prevValue;
+		}
+
+		ObjectTypeMap& parent;
+		const CodeLocation* prevValue;
+	};
+
 	ObjectTypeMap(RootObject& parent, Array<ApiDiagnostic>* target);
 
 	~ObjectTypeMap();
@@ -97,12 +110,18 @@ struct HiseJavascriptEngine::RootObject::ObjectTypeMap : public ReferenceCounted
 
 	void addDiagnostic(const ApiDiagnostic& i) override;
 
+
 	ScopeTree getScopeTree() const;
 
 	ScopeSafety getMinimumRequiredScopeSafety() const;
 
 	Strictness getStrictnessForCallback(const Identifier& callbackId) const;
 
+	ProcessorWithScriptingContent* getProcessor() const { return pwsc; }
+
+	void addDeferredDiagnosticCheck(const var& test, const String& validatorString) override;
+
+	void checkDeferredDiagnostics();
 
 	struct ScopedCallStack
 	{
@@ -115,9 +134,20 @@ struct HiseJavascriptEngine::RootObject::ObjectTypeMap : public ReferenceCounted
 		ObjectTypeMap& parent;
 	};
 
-
+	String callscopeAnnotation;
 
 private:
+
+	const RootObject::CodeLocation* currentLocation;
+
+	struct DeferredData
+	{
+		ApiDiagnostic ad;
+		var validator;
+		String evaluationString;
+	};
+
+	std::vector<DeferredData> deferredDiagnostics;
 
 	struct ScopeStack;
 

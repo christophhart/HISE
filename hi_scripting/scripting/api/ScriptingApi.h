@@ -699,6 +699,8 @@ public:
 		/** This warning will show up in the console so people can migrate in the next years... */
 		void logSettingWarning(const String& methodName) const;
 
+		static var getSystemStatsStatic();
+
 		struct Wrapper;
 
 		double unused = 0.0;

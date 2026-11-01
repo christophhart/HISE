@@ -113,10 +113,12 @@ Identifier VarTypeChecker::getTypeName(VarTypes type)
 VarTypeChecker::WrappedType VarTypeChecker::getTypeFromString(const juce::Identifier& name)
 {
 	if (name == VarTypeIdentifiers::Undefined)			return WrappedType(VarTypes::Undefined);
+	if (name == VarTypeIdentifiers::bool_)			return WrappedType(VarTypes::Integer);
 	if (name == VarTypeIdentifiers::Integer)			return WrappedType(VarTypes::Integer);
 	if (name == VarTypeIdentifiers::Double)				return WrappedType(VarTypes::Double);
 	if (name == VarTypeIdentifiers::Number)				return WrappedType(VarTypes::Number);
 	if (name == VarTypeIdentifiers::String)				return WrappedType(VarTypes::String);
+	if (name == VarTypeIdentifiers::String_)			return WrappedType(VarTypes::String);
 	if (name == VarTypeIdentifiers::Colour)				return WrappedType(VarTypes::Colour);
 	if (name == VarTypeIdentifiers::IndexOrArray)		return WrappedType(VarTypes::IndexOrArray);
 	if (name == VarTypeIdentifiers::Array)				return WrappedType(VarTypes::Array);
@@ -130,6 +132,7 @@ VarTypeChecker::WrappedType VarTypeChecker::getTypeFromString(const juce::Identi
 	if (name == VarTypeIdentifiers::ComplexType)		return WrappedType(VarTypes::ComplexType);
     if (name == VarTypeIdentifiers::DataContent)        return WrappedType(VarTypes::DataContent);
 	if (name == VarTypeIdentifiers::NotUndefined)		return WrappedType(VarTypes::NotUndefined);
+	if (name == VarTypeIdentifiers::var_)				return WrappedType(VarTypes::NotUndefined);
 
 	if(name == VarTypeIdentifiers::AudioFile)				 return WrappedType(TypedObject::AudioFile);
 	if(name == VarTypeIdentifiers::AudioSampleProcessor)	 return WrappedType(TypedObject::AudioSampleProcessor);

@@ -1,3 +1,4 @@
+#include "ApiValidator.h"
 
 /*  ===========================================================================
 *
@@ -34,8 +35,10 @@
 namespace hise {
 using namespace juce;
 
-struct LightweightDiagnostics::ValidatorEvaluator
+struct LightweightDiagnostics::ValidatorEvaluator: public ReferenceCountedObject
 {
+	using Ptr = ReferenceCountedObjectPtr<ValidatorEvaluator>;
+	
 	ValidatorEvaluator(LightweightDiagnostics* lb_, const Identifier& methodName_, const Array<var>& values, int index) :
 		lb(lb_),
 		methodName(methodName_),
@@ -70,7 +73,7 @@ struct LightweightDiagnostics::ValidatorEvaluator
 			CallbackParseOptions cpo;
 
 			cpo.callback = f;
-			cpo.thisObj = lb;
+			cpo.thisObj = lb.get();
 
 			if (functionPrototype.startsWith("Realtime?"))
 			{
@@ -211,9 +214,14 @@ struct LightweightDiagnostics::ValidatorEvaluator
 		return checkMethodsTouched(methods, "Must be called after another function");
 	}
 
-	DiagnosticResult evaluate(const String& validationString)
+	static Category parseCategory(const String& validationString)
 	{
 		auto cat = validationString.upToFirstOccurrenceOf(".", false, false);
+		return (Category)getCategories().indexOf(cat);
+	}
+
+	DiagnosticResult evaluate(const String& validationString)
+	{
 		auto v = validationString.fromFirstOccurrenceOf(".", false, false);
 
 		String overrideMessage;
@@ -269,8 +277,8 @@ struct LightweightDiagnostics::ValidatorEvaluator
 			return r;
 		};
 
-		c = (Category)getCategories().indexOf(cat);
-
+		c = parseCategory(validationString);
+		
 		switch (c)
 		{
 		case Category::RangeCheck:			return wrapDiagnostic(performRangeCheck(v), EC::RangeCheck);
@@ -281,7 +289,7 @@ struct LightweightDiagnostics::ValidatorEvaluator
 		case Category::CallbackArgCheck:	return wrapDiagnostic(performCallbackCheck(v), EC::CallbackArgMismatch);
 		case Category::ObjectType:			return wrapDiagnostic(performObjectTypeCheck(v), EC::TypeMismatch);
 		case Category::MethodTouched:		return wrapDiagnostic(performMethodTouchedCheck(v), EC::UntouchedMethod);
-		default:							return DiagnosticResult::fail("unimplemented category " + cat).withErrorCode(EC::InternalError);
+		default:							return DiagnosticResult::fail("unimplemented category").withErrorCode(EC::InternalError);
 		}
 
 		return DiagnosticResult::unknown();
@@ -303,6 +311,9 @@ private:
 
 	DiagnosticResult performRangeCheck(const String& valueString)
 	{
+		if (auto lb = dynamic_cast<LightweightDiagnostics*>(thisValue.getObject()))
+			return DiagnosticResult::unknown();
+
 		var result;
 		auto ok = JSON::parse(valueString, result);
 
@@ -375,60 +386,6 @@ private:
 			.withWrongToken(thisValue.toString())
 			.withSeverity(DiagnosticResult::Severity::Error);
 	}
-
-#if 0
-	static DR checkColourSet(DiagnosticBase* c, const Identifier& id, const Array<var>& args)
-	{
-		auto colourSet = c->wasMethodTouched("setColour");
-		auto gradientSet = c->wasMethodTouched("setGradientFill");
-
-		if (!colourSet && !gradientSet)
-			return DR("called before setColour / setGradientFill").withSeverity(DR::Severity::Warning);
-
-		return DR::ok();
-	}
-
-	static DR checkInLayer(DiagnosticBase* c, const Identifier& id, const Array<var>& args)
-	{
-		if (!c->wasMethodTouched("beginLayer"))
-			return DR::fail("no graphic layer set").withSuggestion("Call g.beginLayer(...) before using this method");
-
-		return DR::ok();
-	}
-
-	static DR checkFontSet(DiagnosticBase* c, const Identifier& id, const Array<var>& args)
-	{
-		auto f1 = c->wasMethodTouched("setFont");
-		auto f2 = c->wasMethodTouched("setFontWithSpacing");
-
-		if (!f1 && !f2)
-			return DR("font not set").withSeverity(DR::Severity::Warning);
-
-		return DR::ok();
-	}
-
-	static DR checkAreaAsArray(DiagnosticBase* c, const Identifier& id, const Array<var>& args)
-	{
-		int numExpected = 0;
-		int unused = 0;
-		c->getIndexAndNumArgsForFunction(id, unused, numExpected);
-
-		if (args.size() > numExpected)
-		{
-			String sug;
-			sug << "g." << id.toString() << "([x, y, w, h]";
-
-			if (numExpected > 1)
-				sug << ", ...";
-
-			sug << ")";
-
-			return DR::fail("wrong signature").withSuggestion(sug);
-		}
-
-		return DR::ok();
-	}
-#endif
 
 	DiagnosticResult checkMethodsTouched(const Array<Identifier>& requiredMethods, const String& errorMessage)
 	{
@@ -526,7 +483,7 @@ private:
 	int parameterIndex;
 	var thisValue;
 	Identifier argumentId;
-	LightweightDiagnostics* lb;
+	LightweightDiagnostics::Ptr lb;
 	Identifier methodName;
 	NamedValueSet resolvedArguments;
 };
@@ -551,15 +508,64 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::Validator::perform(Diag
 
 			if (!value.isUndefined())
 			{
-				ValidatorEvaluator p(dynamic_cast<LightweightDiagnostics*>(b), id, args, v.first);
+				auto lb = dynamic_cast<LightweightDiagnostics*>(b);
+				ValidatorEvaluator::Ptr p = new ValidatorEvaluator(lb, id, args, v.first);
 
 				for (const auto& s : v.second)
-					ok = DiagnosticResult::max(ok, p.evaluate(s));
+				{
+					if (ValidatorEvaluator::parseCategory(s) == Category::CallbackArgCheck)
+					{
+						// defer callback parsing until the end
+						lb->currentShadowParser->addDeferredDiagnosticCheck(var(p.get()), s);
+					}
+					else
+					{
+						ok = DiagnosticResult::max(ok, p->evaluate(s));
+					}
+				}
 			}
 		}
 	}
 
 	return ok;
+}
+
+inline void HiseJavascriptEngine::RootObject::ObjectTypeMap::addDeferredDiagnosticCheck(const var& test, const String& validatorString)
+{
+	jassert(currentLocation != nullptr);
+
+	DeferredData nd;
+
+	currentLocation->fillColumnAndLines(nd.ad.col, nd.ad.line, nd.ad.charIndex);
+
+	nd.evaluationString = validatorString;
+	nd.validator = test;
+
+	deferredDiagnostics.push_back(nd);
+}
+
+void HiseJavascriptEngine::RootObject::ObjectTypeMap::checkDeferredDiagnostics()
+{
+	for (const auto& df : deferredDiagnostics)
+	{
+		if (auto p = dynamic_cast<LightweightDiagnostics::ValidatorEvaluator*>(df.validator.getObject()))
+		{
+			auto ok = p->evaluate(df.evaluationString);
+
+			if (ok.shouldReport())
+			{
+				auto copy = df.ad;
+
+				copy.classification = ok.getClassification();
+				copy.ec = ok.getErrorCode();
+				copy.message = ok.getErrorMessage();
+				copy.severity = ok.getSeverity();
+				copy.suggestions = ok.getSuggestions();
+
+				addDiagnostic(copy);
+			}	
+		}
+	}
 }
 
 }

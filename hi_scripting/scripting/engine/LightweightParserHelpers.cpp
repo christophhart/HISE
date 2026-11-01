@@ -1,4 +1,4 @@
-
+#include "LightweightParserHelpers.h"
 /*  ===========================================================================
 *
 *   This file is part of HISE.
@@ -40,19 +40,37 @@ LightweightDiagnostics::Ptr LightweightDiagnostics::Factory::createInternal(Proc
 {
 	auto nativeType = Helpers::getVarTypeFromPrimitiveType(id.toString());
 
-	if (nativeType != VarTypeChecker::Undefined)
+	auto isMeta = id.toString().startsWith("MetaObjects::") || argId.contains("MetaObjects::");
+
+	if (nativeType != VarTypeChecker::Undefined && !isMeta)
 		return new NativeTypeDiagnostic(p, nativeType, argId);
 
 	auto apiTree = ApiHelpers::getApiTree();
 
-	if (id.toString().startsWith("MetaObjects::"))
+	if (isMeta)
 	{
-		auto metaId = Identifier(id.toString().fromFirstOccurrenceOf("MetaObjects::", false, false));
+		auto mid = id.toString().fromFirstOccurrenceOf("MetaObjects::", false, false);
+
+		auto argToUse = argId;
+
+		if (mid.isEmpty())
+		{
+			mid = argId.fromFirstOccurrenceOf("MetaObjects::", false, false);
+
+			if (mid.containsChar('.'))
+			{
+				mid = mid.upToFirstOccurrenceOf(".", false, false);
+				argToUse = argId.fromLastOccurrenceOf(".", false, false);
+			}
+		}
+			
+
+		auto metaId = Identifier(mid);
 
 		for (const auto& m : metaItems)
 		{
 			if (m.first == metaId)
-				return m.second(p, apiTree, argId);
+				return m.second(p, apiTree, argToUse);
 		}
 
 		jassertfalse;
@@ -153,9 +171,31 @@ LightweightDiagnostics::ApiMap::ApiMap()
 	}
 }
 
+String LightweightDiagnostics::FunctionInfo::getSpecialReturnType(const Identifier& className, const Identifier& methodName)
+{
+	if (className == Identifier("Engine"))
+	{
+		if(methodName == Identifier("getProjectInfo"))
+			return "MetaObjects::ProjectInfo";
+
+		if (methodName == Identifier("getExtraDefinitionsInBackend"))
+			return "MetaObjects::ExtraDefinitions";
+
+		if (methodName == Identifier("getSystemStats"))
+			return "MetaObjects::SystemStats";
+	}
+
+	if (methodName == Identifier("loadFromXmlFile"))
+		return "DataContent";
+
+	return {};
+}
+
 LightweightDiagnostics::FunctionInfo::FunctionInfo(const ValueTree& methodTree)
 {
 	jassert(methodTree.getType() == Identifier("method"));
+
+	isStatic = methodTree.getProperty("isStatic", false);
 
 	className = methodTree.getParent().getType();
 	methodName = methodTree["name"].toString();
@@ -190,18 +230,10 @@ LightweightDiagnostics::FunctionInfo::FunctionInfo(const ValueTree& methodTree)
 
 	auto rt = methodTree["returnType"].toString();
 
-    if(className == Identifier("Engine") &&
-       methodName == Identifier("getProjectInfo"))
-    {
-        // Remove this once the API blob is updated
-        jassert(rt != "MetaObjects::ProjectInfo");
-        rt = "MetaObjects::ProjectInfo";
-    }
-    
-    if(methodName == Identifier("loadFromXmlFile"))
-    {
-        rt = "DataContent";
-    }
+	auto sn = getSpecialReturnType(className, methodName);
+
+	if (sn.isNotEmpty())
+		rt = sn;
     
 	auto typed = methodTree["returnObjectType"].toString();
 
@@ -222,8 +254,12 @@ LightweightDiagnostics::FunctionInfo::FunctionInfo(const ValueTree& methodTree)
 	if (typed.isNotEmpty())
 		rt = typed;
 
-	if (true)//!Helpers::getPrimitiveTypeList().contains(rt))
-		returnType = Identifier(rt);
+	if (rt.startsWith("JSON{"))
+		returnType = { Identifier("JSON"), rt.fromFirstOccurrenceOf("JSON", false, false) };
+	else if (rt.startsWith("Array."))
+		returnType = { Identifier("Array"), rt.fromFirstOccurrenceOf(".", false, false) };
+	else
+		returnType = { Identifier(rt), "" };
 }
 
 LightweightDiagnostics::FunctionInfo LightweightDiagnostics::FunctionInfo::withNumArgs(int numArgs) const
@@ -244,7 +280,9 @@ LightweightDiagnostics::FunctionInfo LightweightDiagnostics::FunctionInfo::withA
 	return copy;
 }
 
-#define USE_JSON_FOR_VALIDATORS 1
+
+
+#define USE_JSON_FOR_VALIDATORS 0
 
 #if USE_JSON_FOR_VALIDATORS
 
@@ -265,9 +303,14 @@ struct FileFetcher
 
 			jassert(jf.existsAsFile());
 
-			auto ok = JSON::parse(jf.loadFileAsString(), data);
+			var newData;
+
+			auto ok = JSON::parse(jf.loadFileAsString(), newData);
 
 			jassert(ok.wasOk());
+
+			if (ok.wasOk())
+				data = newData;
 
 			lastReadTime = now;
 		}
@@ -401,9 +444,11 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkCallScope(ScopeSaf
 							msg = "Unsafe function call in realtime context";
 					}
 
-					auto sev = f.callscope == ScopeSafety::Warning ? DiagnosticResult::Severity::Warning : DiagnosticResult::Severity::Error;
+					auto sev = minimumScope == ScopeSafety::Warning ? DiagnosticResult::Severity::Warning : DiagnosticResult::Severity::Error;
 
-					return DiagnosticResult(getObjectName().toString() + "." + methodName.toString() + "(): " + msg).withSeverity(sev);
+					return DiagnosticResult(getObjectName().toString() + "." + methodName.toString() + "(): " + msg)
+						.withSeverity(sev)
+						.withErrorCode(DiagnosticResult::ErrorCode::CallScopeMismatch);
 				}
 
 				return DiagnosticResult::ok();
@@ -451,7 +496,16 @@ struct LightweightFunctionInfoToken : public TokenWithDot
     {
         priority = 1000;
         c = Colour(0xFF88EECC);
-        markdownDescription = mt["description"].toString();
+
+		auto rt = mt["returnObjectType"].toString();
+
+		if (rt.isEmpty())
+			rt = mt["returnType"].toString();
+
+		markdownDescription << "> `" << VarTypeChecker::prettify(rt) << " ";
+		markdownDescription << mt.getParent().getType() << "." << mt["name"].toString();
+		markdownDescription << VarTypeChecker::prettify(mt["arguments"].toString()) << "`";
+		markdownDescription << "  \n" << mt["description"].toString();
     };
 
     Array<Range<int>> getSelectionRangeAfterInsert(const String& input) const override
@@ -549,7 +603,16 @@ void LightweightDiagnostics::fillAutocompleteTokens(mcl::TokenCollection::List& 
 
                         for (auto a : cpo.argTypes)
                         {
-                            functionBody << a.first.toString().replace("MetaObjects::", "") << ", ";
+							jassert(a.id.isValid());
+							functionBody << a.id;
+
+							if (a.typeInfo)
+							{
+								functionBody << ":";
+								functionBody << VarTypeChecker::getTypeName(a.typeInfo);
+							}
+
+							functionBody << ", ";
                         }
 
                         functionBody = functionBody.upToLastOccurrenceOf(", ", false, false);
@@ -656,7 +719,10 @@ inline var LightweightDiagnostics::getReturnType(const Identifier& functionName,
 			auto currentParentValidator = dynamic_cast<RO::ObjectTypeMap*>(currentShadowParser);
 			jassert(currentParentValidator != nullptr);
 
-			if (auto ptr = currentParentValidator->createAnonoymousDiagnosticObject(f.returnType, argId))
+			if (f.returnType.second.isNotEmpty())
+				argId = f.returnType.second;
+
+			if (auto ptr = currentParentValidator->createAnonoymousDiagnosticObject(f.returnType.first, argId))
 				return var(ptr.get());
 		}
 	}
@@ -695,6 +761,15 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkFunction(const Ide
 	{
 		if (f.methodName == methodName)
 		{
+			if (isStaticObject != f.isStatic)
+			{
+				if (isStaticObject)
+					return DiagnosticResult::fail("Trying to call object method on class");
+				else
+					return DiagnosticResult::fail("Trying to call static method on object")
+					.withSuggestion(getObjectName() + "." + methodName + "()");
+			}
+
 			return DiagnosticResult::ok();
 		}
 	}
@@ -719,8 +794,11 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::shadowParseCallbackWith
 
 	for (auto a : cbo.argTypes)
 	{
-		auto className = a.first;
-		auto argId = a.second;
+		auto className = VarTypeChecker::getTypeName(a.typeInfo);
+		auto argId = a.customData;
+
+		if (argId.contains("MetaObjects::"))
+			className = {};
 
 		if (auto ptr = currentParentValidator->createAnonoymousDiagnosticObject(className, argId))
 		{
@@ -743,34 +821,77 @@ Result LightweightDiagnostics::CallbackParseOptions::parseCheckString(const Stri
 {
 	auto ftString = f.upToFirstOccurrenceOf("(", false, false);
 
-	auto idx = StringArray({ "Function", "Realtime", "Inline" }).indexOf(ftString);
+	using SL = WeakCallbackHolder::CallableObject::StrictnessLevel;
 
-	if (idx == -1)
+	std::map<String, std::pair<SL, FunctionType>> strictnessMap;
+
+	strictnessMap["Function"] =   { SL::Unsafe, FunctionType::Function };
+	strictnessMap["Inline"] =     { SL::Strict, FunctionType::InlineFunction };
+	strictnessMap["InlineWarn"] = { SL::Warn,   FunctionType::InlineFunction };
+	strictnessMap["Realtime"] =   { SL::Strict, FunctionType::Realtime };
+
+	if (strictnessMap.find(ftString) != strictnessMap.end())
+	{
+		auto v = strictnessMap.at(ftString);;
+		strictness = v.first;
+		ft = v.second;
+	}
+	else
 		return Result::fail("Unknown function type " + ftString);
-
-	if (idx > 0)
-		strictness = WeakCallbackHolder::CallableObject::StrictnessLevel::Strict;
-
-	ft = (FunctionType)idx;
 
 	auto pString = f.fromFirstOccurrenceOf("(", false, false).removeCharacters("()");
 	auto parameters = StringArray::fromTokens(pString, ",", "{}");
 
 	auto parseJSONArgs = [](const String& p)
 	{
-		std::pair<Identifier, String> rv;
+		ArgumentData rv;
 
-		if (p.startsWith("JSON"))
+		if (p.contains("MetaObjects::"))
 		{
-			rv.first = "JSON";
-			rv.second = p.fromFirstOccurrenceOf("{", true, false);
+			rv.typeInfo = {};
+			rv.id = Identifier(p.fromFirstOccurrenceOf("MetaObjects::", false, false).trim());
+			rv.customData = p;
+			return rv;
+		}
+		else if (p.contains("JSON{"))
+		{
+			auto argId = p.upToFirstOccurrenceOf(":JSON{", false, false);
+
+			if (!argId.isEmpty())
+				rv.id = Identifier(argId);
+			else
+				rv.id = {};
+
+			rv.typeInfo = VarTypeChecker::WrappedType(VarTypeChecker::JSON);
+			rv.customData = p.fromFirstOccurrenceOf("{", true, false);
 
 			var result;
-			auto ok = JSON::parse(rv.second, result);
+			auto ok = JSON::parse(rv.customData, result);
 			jassert(ok.wasOk());
 		}
 		else
-			rv.first = p.trim();
+		{
+			if (p.containsChar(':'))
+			{
+				rv.id = p.upToFirstOccurrenceOf(":", false, false).trim();
+
+				auto typeName = p.fromFirstOccurrenceOf(":", false, false).trim();
+
+				rv.optional = typeName.containsChar('?');
+
+				typeName = typeName.removeCharacters("?");
+
+				if (Identifier::isValidIdentifier(typeName))
+					rv.typeInfo = VarTypeChecker::getTypeFromString(Identifier(typeName));
+			}
+			else
+			{
+				rv.typeInfo = VarTypeChecker::getTypeFromString(Identifier(p.trim()));
+			}
+		}
+		
+		// must be resolvable
+		jassert(rv.typeInfo);
 
 		return rv;
 	};
@@ -831,6 +952,38 @@ Array<Identifier> LightweightDiagnostics::Helpers::getApiClassIds()
 bool LightweightDiagnostics::Helpers::isApiClass(const Identifier& id)
 {
     return getApiClassIds().contains(id);
+}
+
+inline var LightweightDiagnostics::Helpers::getTypeForLoopIterator(ProcessorWithScriptingContent* p, const var& iteratedObject)
+{
+	if (iteratedObject.isArray())
+	{
+		return iteratedObject[0];
+	}
+
+	if (auto bf = iteratedObject.getBuffer())
+	{
+		
+	}
+
+	if (auto lb = dynamic_cast<LightweightDiagnostics*>(iteratedObject.getObject()))
+	{
+		if (auto ar = dynamic_cast<ArrayWithKnownElementType::Diagnostics*>(lb))
+			return ar->getAssignedValue(0);
+
+		if (lb->getObjectName() == Identifier("Buffer"))
+			return var(new NativeTypeDiagnostic(p, VarTypeChecker::Double, ""));
+	}
+
+	if (auto obj = iteratedObject.getDynamicObject())
+	{
+		const auto& prop = obj->getProperties();
+
+		if (!prop.isEmpty())
+			return var(prop.getName(0).toString());
+	}
+
+	return var();
 }
 
 StringArray LightweightDiagnostics::Helpers::getPrimitiveTypeList()
@@ -912,34 +1065,39 @@ NativeTypeDiagnostic::NativeTypeDiagnostic(ProcessorWithScriptingContent* p, Var
     if (type == VarTypeChecker::String)
         initClassTree(ApiHelpers::getApiTree().getChildWithName("String"));
 
-    if (type == VarTypeChecker::Array)
+    else if (type == VarTypeChecker::Array)
         initClassTree(ApiHelpers::getApiTree().getChildWithName("Array"));
 
-    if (type == VarTypeChecker::Buffer)
+    else if (type == VarTypeChecker::Buffer)
         initClassTree(ApiHelpers::getApiTree().getChildWithName("Buffer"));
 
-    if (type == VarTypeChecker::DataContent)
+    else if (type == VarTypeChecker::DataContent)
     {
-        ValueTree t("DataContent");
-        
-        t.setProperty("length", 1, nullptr);
-        
-        for(auto m: ApiHelpers::getApiTree().getChildWithName("Array"))
-            t.addChild(m.createCopy(), -1, nullptr);
-        
-        for(auto m: ApiHelpers::getApiTree().getChildWithName("String"))
-            t.addChild(m.createCopy(), -1, nullptr);
-        
-        initClassTree(t);
+		ValueTree t("DataContent");
+
+		t.setProperty("length", 1, nullptr);
+
+		for (auto m : ApiHelpers::getApiTree().getChildWithName("Array"))
+			t.addChild(m.createCopy(), -1, nullptr);
+
+		for (auto m : ApiHelpers::getApiTree().getChildWithName("String"))
+			t.addChild(m.createCopy(), -1, nullptr);
+
+		initClassTree(t);
     }
+	else
+	{
+		ValueTree t(VarTypeChecker::getTypeName(type));
+		initClassTree(t);
+	}
     
     
     if (argId.isNotEmpty())
     {
-        custom = true;
-
-        if (t | VarTypeChecker::VarTypes::JSON)
+        if (t | VarTypeChecker::VarTypes::JSON && argId.startsWithChar('{'))
         {
+			custom = true;
+
             var obj;
             auto r = JSON::parse(argId, obj);
             jassert(r.wasOk());
@@ -955,6 +1113,58 @@ NativeTypeDiagnostic::NativeTypeDiagnostic(ProcessorWithScriptingContent* p, Var
             initClassTree(cTree);
         }
     }
+}
+
+LightweightDiagnostics::FunctionInfo InbuiltFunction::createFunctionInfo(VarTypeChecker::VarTypes returnType, VarTypeChecker::VarTypes argType, CS callScope) const
+{
+	FunctionInfo self(getObjectName());
+
+	self.callscope = callScope;
+	self.methodName = getObjectName();
+
+	if (self.methodName == Identifier("Rectangle"))
+	{
+		self.returnType = { "Rectangle", "" };
+
+		FunctionInfo::Args a1("a1");
+		a1.type = VarTypeChecker::WrappedType(VarTypeChecker::IndexOrArray);
+
+		self.arguments.push_back(a1);
+
+		FunctionInfo::Args a2("a2");
+		a2.type = VarTypeChecker::WrappedType(VarTypeChecker::IndexOrArray);
+
+		self.arguments.push_back(a2.asOptional(true));
+
+		FunctionInfo::Args a3("a3");
+		a3.type = VarTypeChecker::WrappedType(VarTypeChecker::IndexOrArray);
+
+		self.arguments.push_back(a3.asOptional(true));
+
+		FunctionInfo::Args a4("a4");
+		a4.type = VarTypeChecker::WrappedType(VarTypeChecker::IndexOrArray);
+
+		self.arguments.push_back(a4.asOptional(true));
+	}
+	else
+	{
+		self.returnType = { VarTypeChecker::getTypeName(returnType), "" };
+		FunctionInfo::Args singleArg("argument");
+		singleArg.type = VarTypeChecker::WrappedType(argType);
+
+		self.arguments.push_back(singleArg);
+	}
+
+	return self;
+}
+
+ArrayWithKnownElementType::Diagnostics::Diagnostics(ProcessorWithScriptingContent* p, const ValueTree& v, const String& argId) :
+	LightweightDiagnostics(p, v, argId)
+{
+	LightweightDiagnostics::Factory f;
+
+	if (argId.isNotEmpty())
+		returnType = var(f.createLightweightPrototype(p, Identifier(argId), "").get());
 }
 
 }

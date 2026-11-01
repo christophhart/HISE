@@ -86,6 +86,181 @@ struct ScriptComponentDiagnosticBase : public LightweightDiagnostics
                     initClassTree(classTree);
             }
         }
+
+        auto propertyTypes = JSON::parse(R"({
+        "common": {
+            "text": "string",
+                "visible" : "bool",
+                "enabled" : "bool",
+                "locked" : "bool",
+                "x" : "int",
+                "y" : "int",
+                "width" : "int",
+                "height" : "int",
+                "min" : "double",
+                "max" : "double",
+                "defaultValue" : "double",
+                "tooltip" : "string",
+                "bgColour" : "string",
+                "itemColour" : "string",
+                "itemColour2" : "string",
+                "textColour" : "string",
+                "macroControl" : "int",
+                "saveInPreset" : "bool",
+                "isPluginParameter" : "bool",
+                "pluginParameterName" : "string",
+                "pluginParameterGroup" : "string",
+                "deferControlCallback" : "bool",
+                "isMetaParameter" : "bool",
+                "linkedTo" : "string",
+                "automationID" : "string",
+                "useUndoManager" : "bool",
+                "parentComponent" : "string",
+                "processorId" : "string",
+                "parameterId" : "string"
+        },
+            "ScriptButton": {
+            "filmstripImage": "string",
+                "numStrips" : "string",
+                "isVertical" : "bool",
+                "scaleFactor" : "double",
+                "radioGroup" : "int",
+                "isMomentary" : "int",
+                "enableMidiLearn" : "bool",
+                "setValueOnClick" : "bool",
+                "mouseCursor" : "string"
+        },
+            "ScriptSlider": {
+            "mode": "string",
+                "style" : "string",
+                "stepSize" : "double",
+                "middlePosition" : "double",
+                "suffix" : "string",
+                "filmstripImage" : "string",
+                "numStrips" : "int",
+                "isVertical" : "bool",
+                "scaleFactor" : "double",
+                "mouseSensitivity" : "double",
+                "dragDirection" : "string",
+                "showValuePopup" : "string",
+                "showTextBox" : "bool",
+                "scrollWheel" : "bool",
+                "enableMidiLearn" : "bool",
+                "sendValueOnDrag" : "bool",
+                "matrixTargetId" : "string"
+        },
+            "ScriptComboBox": {
+            "items": "string",
+                "fontName" : "string",
+                "fontSize" : "double",
+                "fontStyle" : "string",
+                "enableMidiLearn" : "bool",
+                "popupAlignment" : "string",
+                "useCustomPopup" : "bool"
+        },
+            "ScriptLabel": {
+            "fontName": "string",
+                "fontSize" : "double",
+                "fontStyle" : "string",
+                "alignment" : "string",
+                "editable" : "bool",
+                "multiline" : "bool",
+                "updateEachKey" : "bool"
+        },
+            "ScriptPanel": {
+            "borderSize": "double",
+                "borderRadius" : "double",
+                "opaque" : "bool",
+                "allowDragging" : "int",
+                "allowCallbacks" : "string",
+                "popupMenuItems" : "string",
+                "popupOnRightClick" : "bool",
+                "popupMenuAlign" : "bool",
+                "selectedPopupIndex" : "int",
+                "stepSize" : "double",
+                "enableMidiLearn" : "bool",
+                "holdIsRightClick" : "bool",
+                "isPopupPanel" : "bool",
+                "bufferToImage" : "bool"
+        },
+            "ScriptTable": {
+            "tableIndex": "int",
+                "customColours" : "string"
+        },
+            "ScriptSliderPack" : {
+            "sliderAmount": "int",
+                "stepSize" : "double",
+                "flashActive" : "bool",
+                "showValueOverlay" : "bool",
+                "SliderPackIndex" : "int",
+                "mouseUpCallback" : "bool",
+                "stepSequencerMode" : "bool"
+        },
+            "ScriptAudioWaveform": {
+            "itemColour3": "string",
+                "opaque" : "bool",
+                "showLines" : "bool",
+                "showFileName" : "bool",
+                "sampleIndex" : "int",
+                "enableRange" : "bool",
+                "loadWithLeftClick" : "bool"
+        },
+            "ScriptImage": {
+            "alpha": "double",
+                "fileName" : "string",
+                "offset" : "int",
+                "scale" : "double",
+                "blendMode" : "string",
+                "allowCallbacks" : "string",
+                "popupMenuItems" : "string",
+                "popupOnRightClick" : "bool"
+        },
+            "ScriptedViewport": {
+            "scrollBarThickness": "int",
+                "autoHide" : "bool",
+                "useList" : "bool",
+                "viewPositionX" : "int",
+                "viewPositionY" : "int",
+                "items" : "string",
+                "fontName" : "string",
+                "fontSize" : "double",
+                "fontStyle" : "string",
+                "alignment" : "string"
+        },
+            "ScriptFloatingTile": {
+            "itemColour3": "string",
+                "updateAfterInit" : "bool",
+                "ContentType" : "string",
+                "Font" : "string",
+                "FontSize" : "double",
+                "Data" : "string"
+        },
+            "ScriptDynamicContainer": {}
+        })");
+
+        
+
+        if (auto obj = propertyTypes.getDynamicObject())
+        {
+
+            if (auto c = obj->getProperty("common").getDynamicObject())
+            {
+                for (auto& nv : c->getProperties())
+                {
+                    auto t = VarTypeChecker::getTypeFromString(nv.value.toString());
+                    propertyMap[nv.name] = t;
+                }
+            }
+
+            if (auto c = obj->getProperty(getObjectName()).getDynamicObject())
+            {
+                for (auto& nv : c->getProperties())
+                {
+                    auto t = VarTypeChecker::getTypeFromString(nv.value.toString());
+                    propertyMap[nv.name] = t;
+                }
+            }
+        }
     };
 
     CacheBehaviour getCacheBehaviour() const override
@@ -103,7 +278,11 @@ struct ScriptComponentDiagnosticBase : public LightweightDiagnostics
             return writtenProperties[id];
 
         auto sc = getScriptComponent();
-        return sc->getScriptObjectProperty(id);
+
+        if(sc != nullptr)
+            return sc->getScriptObjectProperty(id);
+
+        return var();
     }
 
     using DR = DiagnosticBase::DiagnosticResult;
@@ -111,6 +290,30 @@ struct ScriptComponentDiagnosticBase : public LightweightDiagnostics
     ScriptComponent* getScriptComponent() const
     {
         return p->getScriptingContent()->getComponentWithName(getArgId());
+    }
+
+    var getReturnType(const Identifier& methodName, const Array<var>& args) const override
+    {
+        if (methodName == Identifier("get"))
+        {
+            if (auto sc = getScriptComponent())
+                return sc->get(args[0].toString());
+
+            auto prop = args[0].toString();
+
+            if (prop.isNotEmpty())
+            {
+                auto id = Identifier(prop);
+
+                if (propertyMap.find(id) != propertyMap.end())
+                {
+                    auto pt = propertyMap.at(id).asPrimitiveType();
+                    return new NativeTypeDiagnostic(p, pt, "");
+                }
+            }
+        }
+
+        return LightweightDiagnostics::getReturnType(methodName, args);
     }
 
     DiagnosticResult performCustomCheck(const CustomCheckData& cd) final override
@@ -122,13 +325,69 @@ struct ScriptComponentDiagnosticBase : public LightweightDiagnostics
             .withSeverity(DiagnosticResult::Severity::Warning)
             .withErrorCode(DiagnosticResult::ErrorCode::RuntimeIdFailure);
         
+        if (cd.methodName == Identifier("setControlCallback"))
+        {
+            auto f = cd.resolvedArguments[cd.parameterId];
+
+            CallbackParseOptions cpo;
+
+            cpo.callback = f;
+            cpo.thisObj = this;
+
+            auto ok = cpo.parseCheckString(cd.checkString, true);
+
+            auto currentParentValidator = dynamic_cast<HiseJavascriptEngine::RootObject::ObjectTypeMap*>(currentShadowParser);
+            
+            
+            String msg;
+
+            auto realtimeProperties = sc->checkRealtimeRequirementProperties();
+
+            
+
+            if (!realtimeProperties.isEmpty())
+            {
+                cpo.strictness = WeakCallbackHolder::CallableObject::StrictnessLevel::Strict;
+
+                msg << "Realtime safety required because the control callback could be executed in the audio thread. Deactivate the propert";
+                msg << (realtimeProperties.size() > 1 ? "ies: " : "y: ");
+
+                for (auto& ids : realtimeProperties)
+                    msg << "`" << ids.toString() << "`, ";
+
+                msg = msg.upToLastOccurrenceOf(", ", false, false);
+
+                msg << " for the component that is assigned to this callback to loose this restriction";
+            }
+            else
+            {
+                cpo.strictness = WeakCallbackHolder::CallableObject::StrictnessLevel::Unsafe;
+            }
+
+            ScopedValueSetter<String> annotation(currentParentValidator->callscopeAnnotation, msg);
+
+            cpo.argTypes[0].customData = getArgId();
+
+            if (!ok.wasOk())
+                return DiagnosticResult::fail(ok.getErrorMessage()).withWrongToken(cd.parameterId.toString());
+
+            return shadowParseCallbackWithArgType(cpo);
+
+        }
+
         if (cd.methodName == Identifier("set") || cd.methodName == Identifier("get"))
         {            
             auto propId = cd.resolvedArguments["propertyName"];
             auto props = sc->getAllProperties();
 
+            
+
             if (cd.category == Category::RuntimeIdCheck)
             {
+                // allow id and type queries
+                if (cd.methodName == Identifier("get") && (propId == "id" || propId == "type"))
+                    return DR::ok();
+
                 if (props.indexOf(propId) == -1)
                 {
                     StringArray sa;
@@ -164,6 +423,8 @@ struct ScriptComponentDiagnosticBase : public LightweightDiagnostics
 
         return LightweightDiagnostics::performCustomCheck(cd);
     }
+
+    std::map<Identifier, VarTypeChecker::WrappedType> propertyMap;
 };
 
 struct FunctionJSONObject : public LightweightDiagnostics
@@ -266,8 +527,33 @@ private:
 
 } // namespace BaseObjects
 
+struct KeyEventTypeObject : public BaseObjects::FunctionJSONObject
+{
+    KeyEventTypeObject(ProcessorWithScriptingContent* p, const ValueTree&, const String&) :
+        FunctionJSONObject(p, ValueTree("keyEvent"), "")
+    {
+        initClassTree(ValueTree(getClassName()));
 
+        auto bool_ = var(new NativeTypeDiagnostic(p, VarTypeChecker::Integer, ""));
+        auto int_ = bool_;
+        auto String_ = var(new NativeTypeDiagnostic(p, VarTypeChecker::String, ""));
+        
+        apiConstants.set("isFocusChange", bool_); 
+        apiConstants.set("hasFocus", bool_); 
+        apiConstants.set("character", String_); 
+        apiConstants.set("specialKey", bool_); 
+        apiConstants.set("isWhitespace", bool_); 
+        apiConstants.set("isLetter", bool_); 
+        apiConstants.set("isDigit", bool_); 
+        apiConstants.set("keyCode", int_); 
+        apiConstants.set("description", String_); 
+        apiConstants.set("shift", bool_); 
+        apiConstants.set("cmd", bool_); 
+        apiConstants.set("alt", bool_); 
+    }
 
+    static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("keyEvent"); }
+};
 
 
 struct EventTypeObject: public BaseObjects::FunctionJSONObject
@@ -335,6 +621,31 @@ struct ScriptingApi::Content::Diagnostics : public LightweightDiagnostics
                 return var(typed->createAnonoymousDiagnosticObject(sc->getObjectName(), id).get());
             }
         }
+        if (methodName == Identifier("getAllComponents"))
+        {
+            auto regex = args[0].toString();
+
+            Array<var> list;
+
+            bool getAll = regex == ".*";
+
+            auto c = p->getScriptingContent();
+
+            for (int i = 0; i < c->getNumComponents(); i++)
+            {
+                auto sc = c->getComponent(i);
+                
+                if (getAll || RegexFunctions::matchesWildcard(regex, sc->getName().toString()))
+                {
+                    auto id = sc->getName().toString();
+
+                    auto typed = dynamic_cast<HiseJavascriptEngine::RootObject::ObjectTypeMap*>(currentShadowParser);
+                    list.add(var(typed->createAnonoymousDiagnosticObject(sc->getObjectName(), id).get()));
+                }
+            }
+
+            return var(list);
+        }
 
         return LightweightDiagnostics::getReturnType(methodName, args);
     }
@@ -380,6 +691,8 @@ struct ScriptingApi::Content::ScriptPanel::Diagnostics : public BaseObjects::Scr
     Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
         ScriptComponentDiagnosticBase(pwsc, v, argId)
     {
+        apiConstants.set("data", var(new DynamicObject()));
+
         addDiagnostic("setMouseCallback", [](DiagnosticBase* b, const Identifier& id, const Array<var>& args)
         {
             auto typed = dynamic_cast<BaseObjects::ScriptComponentDiagnosticBase*>(b);
@@ -387,12 +700,20 @@ struct ScriptingApi::Content::ScriptPanel::Diagnostics : public BaseObjects::Scr
 
             CallbackParseOptions cb;
             cb.callback = args[0];
-            cb.argTypes.push_back({ Helpers::makeMetaId<EventTypeObject>(), cl });
+
+            CallbackParseOptions::ArgumentData ed;
+            ed.customData = Helpers::makeMetaId<EventTypeObject>().toString() + "." + cl;
+            ed.id = "event";
+            ed.typeInfo = VarTypeChecker::WrappedType(VarTypeChecker::JSON);
+
+            cb.argTypes.push_back(ed);
             cb.thisObj = typed;
 
             return typed->shadowParseCallbackWithArgType(cb);
         });
     }
+
+    var dataObject;
 };
 
 struct ScriptingApi::Content::ScriptedViewport::Diagnostics : public BaseObjects::ScriptComponentDiagnosticBase
@@ -525,6 +846,43 @@ struct ProjectInfoObj: public BaseObjects::FunctionJSONObject
     }
 };
 
+struct ExtraDefinitionsObj : public BaseObjects::FunctionJSONObject
+{
+    static Identifier getClassName() { return "ExtraDefinitions"; }
+
+    ExtraDefinitionsObj(ProcessorWithScriptingContent* p, const ValueTree& v, const String& argId) :
+        FunctionJSONObject(p, v, argId)
+    {
+        ValueTree vt(getClassName());
+
+        auto mc = p->getMainController_();
+        auto obj = dynamic_cast<GlobalSettingManager*>(mc)->getSettingsObject().getExtraDefinitionsAsObject();
+
+        for (const auto& nv : obj.getDynamicObject()->getProperties())
+            vt.setProperty(nv.name, nv.value, nullptr);
+
+        initClassTree(vt);
+    }
+};
+
+struct SystemStatsObj : public BaseObjects::FunctionJSONObject
+{
+    static Identifier getClassName() { return "SystemStats"; }
+
+    SystemStatsObj(ProcessorWithScriptingContent* p, const ValueTree& v, const String& argId) :
+        FunctionJSONObject(p, v, argId)
+    {
+        ValueTree vt(getClassName());
+
+        auto obj = ScriptingApi::Engine::getSystemStatsStatic();
+
+        for (const auto& nv : obj.getDynamicObject()->getProperties())
+            vt.setProperty(nv.name, nv.value, nullptr);
+
+        initClassTree(vt);
+    }
+};
+
 struct LafObj : public BaseObjects::FunctionJSONObject
 {
     static Identifier getClassName() { return "obj"; }
@@ -649,7 +1007,7 @@ struct ScriptingObjects::ScriptedLookAndFeel::Diagnostics : public LightweightDi
                     return DiagnosticResult::fail(ok.getErrorMessage()).withErrorCode(DiagnosticResult::ErrorCode::CallbackArgMismatch);
 
                 // now pass the function name to the laf obj so it can resolve it later
-                cb.argTypes[1].second = cd.resolvedArguments["functionName"].toString();
+                cb.argTypes[1].customData << "." << cd.resolvedArguments["functionName"].toString();
 
                 return shadowParseCallbackWithArgType(cb);
             }
@@ -658,7 +1016,6 @@ struct ScriptingObjects::ScriptedLookAndFeel::Diagnostics : public LightweightDi
         return DiagnosticResult::ok();
     }
 };
-
 
 
 
@@ -680,6 +1037,7 @@ LightweightDiagnostics::Factory::Factory()
     registerType<ScriptingApi::Content::ScriptFloatingTile>();
     registerType<ScriptingApi::Content::ScriptDynamicContainer>();
     registerType<ScriptingApi::Content::ScriptPanel>();
+    registerType<ArrayWithKnownElementType>();
 
     registerType<ScriptingApi::Synth>();
     //registerType<ScriptingApi::Server>();
@@ -688,8 +1046,11 @@ LightweightDiagnostics::Factory::Factory()
     
     registerMetaType<BaseObjects::ScriptComponentDiagnosticBase>();
     registerMetaType<EventTypeObject>();
+    registerMetaType<KeyEventTypeObject>();
     registerMetaType<LafObj>();
     registerMetaType<ProjectInfoObj>();
+    registerMetaType<ExtraDefinitionsObj>();
+    registerMetaType<SystemStatsObj>();
 }
 
 

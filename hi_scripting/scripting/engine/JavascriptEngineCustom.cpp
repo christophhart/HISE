@@ -21,7 +21,7 @@ std::pair<var, DiagnosticBase::DiagnosticResult> HiseJavascriptEngine::RootObjec
 
 		if (ts.getCallscopeReport().shouldReport())
 		{
-			body->logDiagnostics(s, ts.getCallscopeReport());
+			body->logDiagnostics(s, ts.getCallscopeReport(), &codeLocation);
 		}
 		
 		auto obj = ts.getCurrentScopeObject();
@@ -36,10 +36,31 @@ std::pair<var, DiagnosticBase::DiagnosticResult> HiseJavascriptEngine::RootObjec
 			auto id = parameters[i];
 
 			if (isPositiveAndBelow(i, args.numArguments))
+			{
+				if (parameterTypes[i])
+				{
+					auto ok = VarTypeChecker::checkType(args.arguments[i], parameterTypes[i], false);
+
+					if (!ok.wasOk())
+					{
+						auto actual = LightweightDiagnostics::Helpers::getTypeForObjectTypeCheck(args.arguments[i]);
+						auto expected = VarTypeChecker::getTypeName(parameterTypes[i]).toString();
+
+						auto dr = DiagnosticBase::DiagnosticResult::fail("wrong type for parameter " + String(i + 1))
+							.withExpectation(expected, actual);
+
+						return { var(), dr };
+					}
+				}
+
 				obj->setProperty(id, args.arguments[i]);
+			}
+				
 		}
 
 		body.get()->perform(*ts.getCurrentScope(), &rv.first);
+
+		alreadyShadowParsed = true;
 	}
 
 	return rv;
@@ -248,7 +269,9 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 
 			if (auto ptr = sp->getApiClassFromMap(apiClass->getObjectName()))
 			{
+				ObjectTypeMap::ScopedLocationSetter sls(*sp, this);
 				logDiagnostics(s, ptr->runTests(sp, functionName, thisArgs));
+
 				return ptr->getReturnType(functionName, thisArgs);
 			}
 
@@ -784,6 +807,60 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		using Strictness = WeakCallbackHolder::CallableObject::StrictnessLevel;
 
+		DiagnosticBase::DiagnosticResult shadowParseIfTypedParameters(const Scope& s)
+		{
+			Array<var> args;
+
+			auto allArgsDefined = true;
+
+			for (int i = 0; i < parameterNames.size(); i++)
+			{
+				auto p = parameterNames[i];
+
+				allArgsDefined &= (bool)p.type;
+
+				if ((bool)p.type)
+					args.add(s.getShadowParser()->createAnonoymousDiagnosticObject(VarTypeChecker::getTypeName(p.type), "").get());
+				else
+					args.add(var());
+			}
+
+			if (!allArgsDefined)
+				return DiagnosticBase::DiagnosticResult::unknown();
+
+			var thisObj;
+
+			if (thisTypeFromParameterList)
+				thisObj = var(s.getShadowParser()->createAnonoymousDiagnosticObject(VarTypeChecker::getTypeName(thisTypeFromParameterList), "").get());
+
+
+			var::NativeFunctionArgs a(thisObj, args.getRawDataPointer(), args.size());
+
+			auto rv = invokeShadowParse(s, a, WeakCallbackHolder::CallableObject::StrictnessLevel::AllowInit);
+
+			if ((bool)returnType)
+			{
+				auto ok = VarTypeChecker::checkType(rv.first, returnType, true);
+
+				if (ok.failed())
+				{
+					String msg;
+					msg << "error at return value for inline function " << name.toString() << ": ";
+					msg << ok.getErrorMessage();
+
+					auto dr = DiagnosticBase::DiagnosticResult::fail(msg)
+						.withErrorCode(DiagnosticBase::DiagnosticResult::ErrorCode::TypeMismatch);
+
+					return dr;
+				}
+			}
+
+			if (rv.second.shouldReport())
+				return rv.second;
+				
+			return DiagnosticBase::DiagnosticResult::ok();
+		}
+
 		std::pair<var, DiagnosticBase::DiagnosticResult> invokeShadowParse(const Scope& s, const var::NativeFunctionArgs& args, StrictnessLevel lv)
 		{
 			std::pair<var, DiagnosticBase::DiagnosticResult> rv;
@@ -904,6 +981,9 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		Identifier name;
 		ArgumentList parameterNames;
+
+		VarTypeChecker::WrappedType thisTypeFromParameterList;
+
 		typedef ReferenceCountedObjectPtr<Object> Ptr;
 		ScopedPointer<BlockStatement> body;
 
@@ -951,15 +1031,22 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			{
 				Array<var> args;
 
+				auto allArgsDefined = true;
+
 				for (int i = 0; i < obj->parameterNames.size(); i++)
 				{
 					auto p = obj->parameterNames[i];
+
+					allArgsDefined &= (bool)p.type;
 
 					if ((bool)p.type)
 						args.add(s.getShadowParser()->createAnonoymousDiagnosticObject(VarTypeChecker::getTypeName(p.type), "").get());
 					else
 						args.add(var());
 				}
+
+				if (!allArgsDefined)
+					return ResultCode::ok;
 
 				var::NativeFunctionArgs a(var(), args.getRawDataPointer(), args.size());
 
@@ -1032,8 +1119,6 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			return referenceToObject->name.toString() + "()";
 		}
 
-		
-
 		var getResult(const Scope& s) const override
 		{
 #if HISE_SHADOW_PARSER_ENABLED
@@ -1043,21 +1128,35 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 				bool skipBodyCheck = false;
 
+				auto numActualArgs = parameterExpressions.size();
+
+				if (numActualArgs != numArgs)
+				{
+					auto dr = DiagnosticBase::DiagnosticResult::fail("parameter amount mismatch")
+						.withExpectation(String(numArgs), String(numActualArgs))
+						.withErrorCode(DiagnosticBase::DiagnosticResult::ErrorCode::ArgMismatch);
+
+					logDiagnostics(s, dr);
+
+					return var();
+				}
+
 				for (int i = 0; i < numArgs; i++)
 				{
+
 					auto v = parameterExpressions[i]->getResult(s);
 
 					auto expectedType = f->parameterNames[i].type;
-
 					auto ok = VarTypeChecker::checkType(v, expectedType, true);
 
-					if (ok.failed())
+					if (expectedType && ok.failed())
 					{
 						auto actual = LightweightDiagnostics::Helpers::getTypeForObjectTypeCheck(v);
 						auto expected = VarTypeChecker::getTypeName(expectedType).toString();
 
 						auto dr = DiagnosticBase::DiagnosticResult::fail("wrong type for parameter " + String(i+1))
-							.withExpectation(expected, actual);
+							.withExpectation(expected, actual)
+							.withErrorCode(DiagnosticBase::DiagnosticResult::ErrorCode::ArgMismatch);
 
 						logDiagnostics(s, dr);
 

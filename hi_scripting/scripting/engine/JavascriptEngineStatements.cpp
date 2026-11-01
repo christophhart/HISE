@@ -1261,9 +1261,12 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 				if (s.isShadowParsing())
 				{
 					if (auto lb = dynamic_cast<LightweightDiagnostics*>(data->getObject()))
-						return var();
-				}
+					{
+						auto pwsc = s.getShadowParser()->getProcessor();
+						return LightweightDiagnostics::Helpers::getTypeForLoopIterator(pwsc, *data);
 
+					}
+				}
 #endif
 
 				if (data->isArray())
@@ -1324,12 +1327,32 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 
 #if HISE_SHADOW_PARSER_ENABLED
 
-			if (s.isShadowParsing())
+			if (auto sp = s.getShadowParser())
 			{
 				ScopedValueSetter<void*> loopScoper(s.currentLoopStatement, (void*)this);
 
-				// just execute once...
-				auto r = body->perform(s, returnedValue);
+				Range<int> charIndex;
+
+				if (auto sb = dynamic_cast<BlockStatement*>(body.get()))
+					charIndex = sb->getBlockCharIndexRange();
+				else
+				{
+					auto idx = body->location.getCharIndex();
+					charIndex = { idx, idx + 10 };
+				}
+
+				ObjectTypeMap::TypeScope ts(*sp, charIndex);
+					
+				auto pwsc = sp->getProcessor();
+
+				auto firstObject = LightweightDiagnostics::Helpers::getTypeForLoopIterator(pwsc, currentObject);
+
+				index = 0;
+				ts.getCurrentScopeObject()->setProperty(iteratorId, firstObject);
+
+				// just execute once
+				body->perform(s, returnedValue);
+				
 				currentObject = var();
 				return ok;
 			}
@@ -1453,6 +1476,8 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 	ExpPtr currentIterator;
 
 	bool isDoLoop;
+
+	Identifier iteratorId;
 
 	bool isIterator;
 

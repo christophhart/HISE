@@ -513,6 +513,11 @@ public:
 
 			void fillColumnAndLines(int& col, int& line, int& charIndex) const;
 
+			void fillColumnAndLines(DiagnosticBase::DiagnosticResult::Item& i) const
+			{
+				fillColumnAndLines(i.col, i.line, i.charIndex);
+			}
+
 			String getLocationString() const;
 
 			int getCharIndex() const;
@@ -1039,9 +1044,7 @@ public:
 			OwnedArray<ExternalFileData> includedFiles;
 
 #if USE_BACKEND
-			/** When true, the parser uses soft-fail recovery at semantic error sites
-			    instead of throwError(). Set by ScopedDiagnosticParse. */
-			bool diagnosticMode = false;
+			DiagnosticBase::ShadowParserBase* currentShadowParser = nullptr;
 #endif
 
 			/** Call this after compiling and a dictionary of all values will be created. */

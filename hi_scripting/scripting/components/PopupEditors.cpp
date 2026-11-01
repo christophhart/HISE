@@ -771,8 +771,20 @@ void PopupIncludeEditor::shadowParse(bool printToConsole)
 
 		mcl::DiagnosticLines dl;
 
+		auto matchesEditor = [safeThis](const DiagnosticBase::DiagnosticResult::Item& ad)
+		{
+				auto fileName = safeThis->externalFile != nullptr ? safeThis->externalFile->getFile().getFullPathName() : safeThis->callback.toString();
+
+				if (fileName == "onInit")
+					fileName = "";
+
+				return ad.fileName == fileName;
+		};
+
 		for (const auto& d : diagnostics)
 		{
+			auto addToEditor = matchesEditor(d);
+				
 			auto consoleMsg = d.toConsoleString(p);
 
 			String editorMsg;
@@ -780,8 +792,12 @@ void PopupIncludeEditor::shadowParse(bool printToConsole)
 
 			if (d.severity == Severity::Error)
 			{
-				dl.errorLines.addIfNotAlreadyThere(d.line-1);
-				ed.addWarning(editorMsg, false);
+				if (addToEditor)
+				{
+					dl.errorLines.addIfNotAlreadyThere(d.line - 1);
+					ed.addWarning(editorMsg, false);
+				}
+					
 
 				if (printToConsole)
 				{
@@ -800,9 +816,12 @@ void PopupIncludeEditor::shadowParse(bool printToConsole)
 			}
 			else
 			{
-				dl.warningLines.addIfNotAlreadyThere(d.line-1);
-				ed.addWarning(editorMsg, true);
-
+				if (addToEditor)
+				{
+					dl.warningLines.addIfNotAlreadyThere(d.line - 1);
+					ed.addWarning(editorMsg, true);
+				}
+				
 				if (printToConsole)
 				{
 					debugToConsole(p, consoleMsg);

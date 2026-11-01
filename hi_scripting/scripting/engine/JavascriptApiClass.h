@@ -66,10 +66,13 @@ public:
 namespace VarTypeIdentifiers
 {
     static const Identifier Undefined("undefined");
+    static const Identifier bool_("bool");
     static const Identifier Integer("int");
     static const Identifier Double("double");
     static const Identifier Number("number");
     static const Identifier String("string");
+    static const Identifier String_("String");
+    static const Identifier var_("var");
     DECLARE_ID(Colour);
     DECLARE_ID(Array);
     DECLARE_ID(Buffer);
@@ -346,6 +349,16 @@ struct VarTypeChecker
 
     using ParameterTypes = std::array<WrappedType, NumMaxArgs>;
     
+    static juce::String prettify(juce::String possiblyUglyString)
+    {
+        possiblyUglyString = possiblyUglyString.replace("NotUndefined", "var");
+        possiblyUglyString = possiblyUglyString.replace("Integer", "int");
+        possiblyUglyString = possiblyUglyString.replace("undefined", "void");
+        possiblyUglyString = possiblyUglyString.replace("Number", "double");
+
+        return possiblyUglyString;
+    }
+
     static Identifier getTypeName(TypedObject to);
 
     static Identifier getTypeName(VarTypes type);
@@ -811,6 +824,20 @@ struct DiagnosticBase: public ReferenceCountedObject
 
             return msg;
         }
+
+        Item toItem(const std::function<void(Item&)>& locationResolver) const
+        {
+            Item item;
+            locationResolver(item);
+            item.ec = getErrorCode();
+            item.message = getErrorMessage();
+            item.suggestions = getSuggestions();
+            item.severity = getSeverity();
+            item.classification = getClassification();
+
+            return item;
+        }
+
         StringArray getSuggestions() const { return suggestions; }
         Classification getClassification() const { return source; }
         ErrorCode getErrorCode() const { return errorCode; }
@@ -877,6 +904,8 @@ struct DiagnosticBase: public ReferenceCountedObject
         virtual ~ShadowParserBase() {};
 
         virtual void addDiagnostic(const DiagnosticResult::Item& r) = 0;
+
+        virtual void addDeferredDiagnosticCheck(const var& test, const String& validatorString) = 0;
 
         Identifier currentNamespace;
     };

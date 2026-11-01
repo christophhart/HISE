@@ -2663,6 +2663,16 @@ void ScriptingApi::Content::ScriptSlider::handleDefaultDeactivatedProperties()
 	deactivatedProperties.removeAllInstancesOf(getIdFor(isPluginParameter));
 }
 
+Array<Identifier> ScriptingApi::Content::ScriptSlider::checkRealtimeRequirementProperties() const
+{
+	auto ids = ScriptComponent::checkRealtimeRequirementProperties();
+
+	if (getScriptObjectProperty(enableMidiLearn))
+		ids.add(getIdFor(enableMidiLearn));
+
+	return ids;
+}
+
 juce::Array<hise::ScriptingApi::Content::ScriptComponent::PropertyWithValue> ScriptingApi::Content::ScriptSlider::getLinkProperties() const
 {
 	auto idList = ScriptComponent::getLinkProperties();
@@ -2808,6 +2818,16 @@ void ScriptingApi::Content::ScriptButton::handleDefaultDeactivatedProperties()
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
 	deactivatedProperties.removeAllInstancesOf(getIdFor(ScriptComponent::Properties::isPluginParameter));
+}
+
+inline Array<Identifier> ScriptingApi::Content::ScriptButton::checkRealtimeRequirementProperties() const
+{
+	auto ids = ScriptComponent::checkRealtimeRequirementProperties();
+
+	if (getScriptObjectProperty(enableMidiLearn))
+		ids.add(getIdFor(enableMidiLearn));
+
+	return ids;
 }
 
 
@@ -3101,6 +3121,16 @@ void ScriptingApi::Content::ScriptComboBox::handleDefaultDeactivatedProperties()
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
 	deactivatedProperties.removeAllInstancesOf(getIdFor(ScriptComponent::Properties::isPluginParameter));
+}
+
+inline Array<Identifier> ScriptingApi::Content::ScriptComboBox::checkRealtimeRequirementProperties() const
+{
+	auto ids = ScriptComponent::checkRealtimeRequirementProperties();
+
+	if (getScriptObjectProperty(enableMidiLearn))
+		ids.add(getIdFor(enableMidiLearn));
+
+	return ids;
 }
 
 juce::Array<hise::ScriptingApi::Content::ScriptComponent::PropertyWithValue> ScriptingApi::Content::ScriptComboBox::getLinkProperties() const
@@ -5114,6 +5144,16 @@ void ScriptingApi::Content::ScriptPanel::handleDefaultDeactivatedProperties()
 {
 	ScriptComponent::handleDefaultDeactivatedProperties();
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));
+}
+
+inline Array<Identifier> ScriptingApi::Content::ScriptPanel::checkRealtimeRequirementProperties() const
+{
+	auto ids = ScriptComponent::checkRealtimeRequirementProperties();
+
+	if (getScriptObjectProperty(enableMidiLearn))
+		ids.add(getIdFor(enableMidiLearn));
+
+	return ids;
 }
 
 void ScriptingApi::Content::ScriptPanel::showAsModalPopup()

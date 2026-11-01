@@ -659,7 +659,7 @@ struct HiseJavascriptEngine::RootObject::Statement
 			location.throwError(errorMessage);
 	}
 
-	void logDiagnostics(const Scope& s, const DiagnosticBase::DiagnosticResult& dr) const
+	void logDiagnostics(const Scope& s, const DiagnosticBase::DiagnosticResult& dr, const CodeLocation* locationToUse=nullptr) const
 	{
 		jassert(s.isShadowParsing());
 
@@ -667,7 +667,9 @@ struct HiseJavascriptEngine::RootObject::Statement
 		{
 			ApiDiagnostic d;
 
-			location.fillColumnAndLines(d.col, d.line, d.charIndex);
+			auto& toUse = locationToUse != nullptr ? *locationToUse : location;
+
+			toUse.fillColumnAndLines(d.col, d.line, d.charIndex);
 			d.fileName = location.externalFile;
 			d.message = dr.getErrorMessage();
 			d.suggestions = dr.getSuggestions();

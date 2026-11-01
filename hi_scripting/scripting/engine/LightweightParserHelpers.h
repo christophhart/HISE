@@ -278,6 +278,8 @@ struct LightweightDiagnostics : public DiagnosticBase,
         FunctionInfo withNumArgs(int numArgs) const;
         FunctionInfo withArgs(Args a) const;
 
+        static String getSpecialReturnType(const Identifier& className, const Identifier& methodName);
+
         Validator getValidators() const;
 
         int getCallbackParameter() const
@@ -297,7 +299,7 @@ struct LightweightDiagnostics : public DiagnosticBase,
 
         Identifier className;
         Identifier methodName;
-        Identifier returnType;
+        std::pair<Identifier, String> returnType;
 
         WeakCallbackHolder::CallableObject::CallScope callscope = WeakCallbackHolder::CallableObject::CallScope::Unknown;
         String callScopeNote;
@@ -305,6 +307,8 @@ struct LightweightDiagnostics : public DiagnosticBase,
         std::vector<Args> arguments;
 
         StringArray thisValidators;
+
+        bool isStatic = false;
     };
 
     void addFunction(const FunctionInfo& fi) { functions.add(fi); }
@@ -344,7 +348,15 @@ struct LightweightDiagnostics : public DiagnosticBase,
         var callback;
         WeakCallbackHolder::CallableObject::StrictnessLevel strictness = WeakCallbackHolder::CallableObject::StrictnessLevel::Unsafe;
         
-        std::vector<std::pair<Identifier, String>> argTypes;
+        struct ArgumentData
+        {
+            Identifier id;
+            VarTypeChecker::WrappedType typeInfo;
+            String customData;
+            bool optional = false;
+        };
+
+        std::vector<ArgumentData> argTypes;
         LightweightDiagnostics* thisObj;
     };
 
@@ -385,6 +397,8 @@ struct LightweightDiagnostics : public DiagnosticBase,
 
             return DiagnosticResult::unknown();
         };
+
+        static var getTypeForLoopIterator(ProcessorWithScriptingContent* p, const var& iteratedObject);
 
         static StringArray getPrimitiveTypeList();
         static VarTypeChecker::VarTypes getVarTypeFromPrimitiveType(const String& s);
@@ -434,9 +448,14 @@ struct LightweightDiagnostics : public DiagnosticBase,
         return nullptr;
     }
 
-protected:
+    void setIsStaticObject(bool shouldBeStatic)
+    {
+        isStaticObject = shouldBeStatic;
+    }
 
-    
+    struct ValidatorEvaluator;
+
+protected:
 
     void initClassTree(const ValueTree& classTree)
     {
@@ -466,14 +485,17 @@ protected:
         }
     }
 
-    struct ValidatorEvaluator;
-
-private:
+    
 
     NamedValueSet apiConstants;
+
+private:
+    
     Identifier className;
 
     const String argId;
+
+    bool isStaticObject = false;
 };
 
 struct NativeTypeDiagnostic : public LightweightDiagnostics
@@ -508,6 +530,29 @@ struct NativeTypeDiagnostic : public LightweightDiagnostics
     VarTypeChecker::VarTypes t;
 };
 
+struct ArrayWithKnownElementType
+{
+    struct Diagnostics : public LightweightDiagnostics,
+        public AssignableObject
+    {
+        Diagnostics(ProcessorWithScriptingContent* p, const ValueTree& v, const String& argId);
+
+        // do nothing
+        void assign(const int, var) override {}
+
+        // return the lightweight diagnostics of the element type
+        var getAssignedValue(int) const override { return returnType; }
+
+        // only return the first element ever
+        int getCachedIndex(const var&) const override { return 0; }
+
+        var returnType;
+
+    };
+
+    static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("Array"); }
+};
+
 struct InbuiltFunction : public LightweightDiagnostics
 {
     using CS = WeakCallbackHolder::CallableObject::CallScope;
@@ -518,48 +563,7 @@ struct InbuiltFunction : public LightweightDiagnostics
         addFunction(createFunctionInfo(returnType, argType, callScope));
     }
 
-    FunctionInfo createFunctionInfo(VarTypeChecker::VarTypes returnType, VarTypeChecker::VarTypes argType, CS callScope) const
-    {
-        FunctionInfo self(getObjectName());
-        
-        self.callscope = callScope;
-        self.methodName = getObjectName();
-
-        if (self.methodName == Identifier("Rectangle"))
-        {
-            self.returnType = "Rectangle";
-            
-            FunctionInfo::Args a1("a1");
-            a1.type = VarTypeChecker::WrappedType(VarTypeChecker::IndexOrArray);
-
-            self.arguments.push_back(a1);
-
-            FunctionInfo::Args a2("a2");
-            a2.type = VarTypeChecker::WrappedType(VarTypeChecker::IndexOrArray);
-
-            self.arguments.push_back(a2.asOptional(true));
-
-            FunctionInfo::Args a3("a3");
-            a3.type = VarTypeChecker::WrappedType(VarTypeChecker::IndexOrArray);
-
-            self.arguments.push_back(a3.asOptional(true));
-
-            FunctionInfo::Args a4("a4");
-            a4.type = VarTypeChecker::WrappedType(VarTypeChecker::IndexOrArray);
-
-            self.arguments.push_back(a4.asOptional(true));
-        }
-        else
-        {
-            self.returnType = VarTypeChecker::getTypeName(returnType);
-            FunctionInfo::Args singleArg("argument");
-            singleArg.type = VarTypeChecker::WrappedType(argType);
-
-            self.arguments.push_back(singleArg);
-        }
-
-        return self;
-    }
+    FunctionInfo createFunctionInfo(VarTypeChecker::VarTypes returnType, VarTypeChecker::VarTypes argType, CS callScope) const;
 
 };
 

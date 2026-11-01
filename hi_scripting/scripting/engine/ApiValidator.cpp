@@ -58,8 +58,11 @@ struct HiseJavascriptEngine::RootObject::ObjectTypeMap::ScopeStack
 
 	ScopeSafety getMinimumRequiredScopeSafety() const
 	{
+	
 		auto onInitAllowed = true;
-		auto nonRealtimeAllowed = true;
+		
+		bool nonRealtimeAllowed = true;
+		bool warnAtNonRealtime = false;
 
 		for (auto s : stack)
 		{
@@ -67,16 +70,18 @@ struct HiseJavascriptEngine::RootObject::ObjectTypeMap::ScopeStack
 				onInitAllowed = false;
 
 			if (s->strictness > Strictness::Unsafe)
+			{
 				nonRealtimeAllowed = false;
+				warnAtNonRealtime = s->strictness == Strictness::Warn;
+			}
+				
 		}
 
 		if (!nonRealtimeAllowed)
-			return ScopeSafety::Safe;
+			return warnAtNonRealtime ? ScopeSafety::Warning : ScopeSafety::Safe;
 
 		if (!onInitAllowed)
 			return ScopeSafety::Unsafe;
-
-		return ScopeSafety::Init;
 	}
 
 	DR push(DynamicObject::Ptr newScope, Strictness strictness = Strictness::Unset, ScopeSafety safety = ScopeSafety::Unknown)
@@ -205,7 +210,10 @@ HiseJavascriptEngine::RootObject::ObjectTypeMap::ObjectTypeMap(RootObject& root_
 	rootScope->setProperty("AsyncHiPriorityNotification", ApiHelpers::AsyncHiPriorityMagicNumber);
 	rootScope->setProperty("SyncNotification", ApiHelpers::SyncMagicNumber);
 
-	rootScope->setProperty("Buffer", getApiClassFromMap("Buffer").get());
+	auto bf = getApiClassFromMap("Buffer");
+	bf->setIsStaticObject(true);
+	
+	rootScope->setProperty("Buffer", bf.get());
 	rootScope->setProperty("Content", getApiClassFromMap("Content").get());
 
 	scopeStack->push(rootScope, Strictness::AllowInit, ScopeSafety::Init);
@@ -249,6 +257,8 @@ HiseJavascriptEngine::RootObject::ObjectTypeMap::Strictness HiseJavascriptEngine
 	return Strictness::Unset;
 }
 
+
+
 LightweightDiagnostics::Ptr HiseJavascriptEngine::RootObject::ObjectTypeMap::getLightweighDiagnosticsFromVar(const var& obj) const
 {
 	if (auto lb = dynamic_cast<LightweightDiagnostics*>(obj.getObject()))
@@ -257,7 +267,7 @@ LightweightDiagnostics::Ptr HiseJavascriptEngine::RootObject::ObjectTypeMap::get
 	auto type = VarTypeChecker::getType(obj);
 
 	if (type.asPrimitiveType() == VarTypeChecker::VarTypes::Array)
-		return lightweightDiagnostics.createLightweightPrototype(pwsc, "Array", String(obj.size()));
+		return lightweightDiagnostics.createLightweightPrototype(pwsc, "Array", "");
 
     if (type.asPrimitiveType() == VarTypeChecker::VarTypes::String)
         return lightweightDiagnostics.createLightweightPrototype(pwsc, "String", obj.toString());
@@ -283,6 +293,9 @@ void HiseJavascriptEngine::RootObject::ObjectTypeMap::shadowParse(Statement* s)
 void HiseJavascriptEngine::RootObject::ObjectTypeMap::addDiagnostic(const ApiDiagnostic& i)
 {
 	auto item = i;
+
+	if (item.ec == DiagnosticBase::DiagnosticResult::ErrorCode::CallScopeMismatch && callscopeAnnotation.isNotEmpty())
+		item.suggestions.add(callscopeAnnotation);
 
 	for (int i = currentCallstack.size() - 1; i >= 0; i--)
 	{
@@ -652,32 +665,16 @@ void ApiValidationAnalyzer::processInternal(RO::AnonymousFunctionWithCapture* an
 	}
 }
 
-// --- Tier 1: ApiCall (global API classes like Synth, Engine, Console) ---
-void ApiValidationAnalyzer::processInternal(RO::ApiCall* ac)
-{
-	auto className = ac->apiClass->getObjectName();
-	auto methodName = ac->functionName;
 
-	jassert(LightweightDiagnostics::Helpers::isApiClass(className));
-
-	auto returnType = getOrCreateObjectTypeMap()->getReturnTypeFromApiMap(className, methodName);
-
-	auto diagnosticObj = getOrCreateObjectTypeMap()->getApiClassFromMap(className);
-
-	auto queryDr = getQueryDiagnostic(diagnosticObj.get(), ac, methodName);
-
-	diagnosticObj->markMethodTouched(methodName);
-
-	ac->setObjectTypeInformation(returnType);
-
-	if (queryDr.shouldReport())
-	{
-		auto className = ac->apiClass->getObjectName().toString();
-		emitDiagnostic(ac->location, className, ac->functionName, queryDr);
-	}
-}
 #endif
 
 
+
+HiseJavascriptEngine::RootObject::ObjectTypeMap::ScopedLocationSetter::ScopedLocationSetter(ObjectTypeMap& m, const Statement* s) :
+	parent(m),
+	prevValue(m.currentLocation)
+{
+	m.currentLocation = &s->location;
+}
 
 }
