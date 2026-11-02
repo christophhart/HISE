@@ -124,6 +124,13 @@ struct LightweightDiagnostics::ValidatorEvaluator: public ReferenceCountedObject
 
 			return DiagnosticResult::ok();
 		}
+		if (checkType == "NotEmpty")
+		{
+			if (valueToCheck.isEmpty())
+				return DiagnosticResult::fail(this->argumentId.toString() + ": string must not be empty");
+
+			return DiagnosticResult::ok();
+		}
 		if (checkType.startsWith("Option"))
 		{
 			if (checkType.contains("$CUSTOM"))
@@ -212,12 +219,6 @@ struct LightweightDiagnostics::ValidatorEvaluator: public ReferenceCountedObject
 			methods.add(s);
 
 		return checkMethodsTouched(methods, "Must be called after another function");
-	}
-
-	static Category parseCategory(const String& validationString)
-	{
-		auto cat = validationString.upToFirstOccurrenceOf(".", false, false);
-		return (Category)getCategories().indexOf(cat);
 	}
 
 	DiagnosticResult evaluate(const String& validationString)
@@ -513,7 +514,10 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::Validator::perform(Diag
 
 				for (const auto& s : v.second)
 				{
-					if (ValidatorEvaluator::parseCategory(s) == Category::CallbackArgCheck)
+					// Note we can't just look at the base category as conditional tests also might perform a callback arg check
+					auto isCallbackCheck = s.contains(getCategories()[(int)Category::CallbackArgCheck]);
+
+					if (isCallbackCheck)
 					{
 						// defer callback parsing until the end
 						lb->currentShadowParser->addDeferredDiagnosticCheck(var(p.get()), s);
@@ -533,19 +537,45 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::Validator::perform(Diag
 inline void HiseJavascriptEngine::RootObject::ObjectTypeMap::addDeferredDiagnosticCheck(const var& test, const String& validatorString)
 {
 	jassert(currentLocation != nullptr);
+	
+	if (parsingDefferedDiagnostics)
+	{
+		if (auto p = dynamic_cast<LightweightDiagnostics::ValidatorEvaluator*>(test.getObject()))
+		{
+			auto ok = p->evaluate(validatorString);
 
-	DeferredData nd;
+			if (ok.shouldReport())
+			{
+				ApiDiagnostic copy;
+				
+				currentLocation->fillColumnAndLines(copy);
+				copy.classification = ok.getClassification();
+				copy.ec = ok.getErrorCode();
+				copy.message = ok.getErrorMessage();
+				copy.severity = ok.getSeverity();
+				copy.suggestions = ok.getSuggestions();
 
-	currentLocation->fillColumnAndLines(nd.ad.col, nd.ad.line, nd.ad.charIndex);
+				addDiagnostic(copy);
+			}
+		}
+	}
+	else
+	{
+		DeferredData nd;
 
-	nd.evaluationString = validatorString;
-	nd.validator = test;
+		currentLocation->fillColumnAndLines(nd.ad.col, nd.ad.line, nd.ad.charIndex);
 
-	deferredDiagnostics.push_back(nd);
+		nd.evaluationString = validatorString;
+		nd.validator = test;
+
+		deferredDiagnostics.push_back(nd);
+	}
 }
 
 void HiseJavascriptEngine::RootObject::ObjectTypeMap::checkDeferredDiagnostics()
 {
+	ScopedValueSetter<bool> svs(parsingDefferedDiagnostics, true);
+
 	for (const auto& df : deferredDiagnostics)
 	{
 		if (auto p = dynamic_cast<LightweightDiagnostics::ValidatorEvaluator*>(df.validator.getObject()))

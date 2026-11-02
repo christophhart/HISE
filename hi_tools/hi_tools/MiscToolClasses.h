@@ -624,8 +624,10 @@ public:
 
 	virtual ~SuspendableTimer();;
 
+	/** Starts the timer callback with the given period in milliseconds. */
 	void startTimer(int milliseconds);
 
+	/** Stops the timer if it was running. */
 	void stopTimer();
 
 	void suspendTimer(bool shouldBeSuspended);

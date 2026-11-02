@@ -134,6 +134,7 @@ namespace VarTypeIdentifiers
     DECLARE_ID(Rectangle);
     DECLARE_ID(RoutingMatrix);
     DECLARE_ID(Sample);
+    DECLARE_ID(ScriptComponent);
     DECLARE_ID(ScriptAudioWaveform);
     DECLARE_ID(ScriptButton);
     DECLARE_ID(ScriptComboBox);
@@ -163,6 +164,7 @@ namespace VarTypeIdentifiers
     DECLARE_ID(UnorderedStack);
     DECLARE_ID(UserPresetHandler);
     DECLARE_ID(WavetableController);
+    DECLARE_ID(MetaObject);
 }
 
 #undef DECLARE_ID
@@ -243,6 +245,7 @@ struct VarTypeChecker
         Rectangle,
         RoutingMatrix,
         Sample,
+        ScriptComponent,
         ScriptAudioWaveform,
         ScriptButton,
         ScriptComboBox,
@@ -271,7 +274,8 @@ struct VarTypeChecker
         Unlocker,
         UnorderedStack,
         UserPresetHandler,
-        WavetableController
+        WavetableController,
+        MetaObject
     };
     
     struct WrappedType
@@ -289,6 +293,17 @@ struct VarTypeChecker
         {};
 
         explicit operator bool() const { return value != 0; }
+
+        bool isRealType() const
+        {
+            if (!*this)
+                return false;
+
+            if (value == (uint16)TypedObject::MetaObject)
+                return false;
+
+            return true;
+        }
 
         bool isPrimitive() const
         {
@@ -604,6 +619,7 @@ struct DiagnosticBase: public ReferenceCountedObject
             int stopAtLineNumber = -1;
 
             List dependencies;
+            List postDependencies;
         };
 
         struct DependencyResolver
@@ -611,7 +627,7 @@ struct DiagnosticBase: public ReferenceCountedObject
             DependencyResolver() = default;
 
             virtual ~DependencyResolver() {}
-            virtual Item::List resolveDependencies(Item::Ptr item) = 0;
+            virtual void resolveDependencies(Item::Ptr item, Item::List& preDependencies, Item::List& postDependencies) = 0;
 
             JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DependencyResolver);
         };

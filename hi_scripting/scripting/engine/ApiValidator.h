@@ -85,11 +85,6 @@ struct HiseJavascriptEngine::RootObject::ObjectTypeMap : public ReferenceCounted
 
 	~ObjectTypeMap();
 
-	Identifier getReturnTypeFromApiMap(const Identifier& className, const Identifier& methodName) const
-	{
-		return lightweightDiagnostics.getReturnTypeFromApiMap(className, methodName);
-	}
-
 	LightweightDiagnostics::Ptr getApiClassFromMap(const Identifier& apiClassName)
 	{
 		return lightweightDiagnostics.createLightweightPrototype(pwsc, apiClassName, {});
@@ -148,6 +143,7 @@ private:
 	};
 
 	std::vector<DeferredData> deferredDiagnostics;
+	bool parsingDefferedDiagnostics = false;
 
 	struct ScopeStack;
 

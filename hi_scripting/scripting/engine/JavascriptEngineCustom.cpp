@@ -809,6 +809,9 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		DiagnosticBase::DiagnosticResult shadowParseIfTypedParameters(const Scope& s)
 		{
+			if (alreadyShadowParsed)
+				return DiagnosticBase::DiagnosticResult::ok();
+
 			Array<var> args;
 
 			auto allArgsDefined = true;
@@ -867,6 +870,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 			if (auto st = s.getShadowParser())
 			{
+				alreadyShadowParsed = true;
+
 				auto scopeType = WeakCallbackHolder::CallableObject::CallScope::Safe;
 
 				ObjectTypeMap::TypeScope ts(*st, body->getBlockCharIndexRange(), lv, scopeType);
@@ -983,6 +988,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		ArgumentList parameterNames;
 
 		VarTypeChecker::WrappedType thisTypeFromParameterList;
+		bool alreadyShadowParsed = false;
 
 		typedef ReferenceCountedObjectPtr<Object> Ptr;
 		ScopedPointer<BlockStatement> body;

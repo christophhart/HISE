@@ -1347,12 +1347,15 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 
 				auto firstObject = LightweightDiagnostics::Helpers::getTypeForLoopIterator(pwsc, currentObject);
 
-				index = 0;
-				ts.getCurrentScopeObject()->setProperty(iteratorId, firstObject);
+				if (!firstObject.isUndefined() && !firstObject.isVoid())
+				{
+					index = 0;
+					ts.getCurrentScopeObject()->setProperty(iteratorId, firstObject);
 
-				// just execute once
-				body->perform(s, returnedValue);
-				
+					// just execute once
+					body->perform(s, returnedValue);
+				}
+
 				currentObject = var();
 				return ok;
 			}

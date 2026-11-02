@@ -4868,10 +4868,10 @@ bool ScriptBroadcaster::Metadata::operator==(const var& other) const
 String ScriptBroadcaster::Metadata::getErrorMessage() const
 { return r.getErrorMessage(); }
 
-
-
 Identifier ScriptBroadcaster::getObjectName() const
-{ RETURN_STATIC_IDENTIFIER("Broadcaster"); }
+{
+	return getClassName();
+}
 
 int ScriptBroadcaster::getNumChildElements() const
 { return defaultValues.size(); }

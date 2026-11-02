@@ -89,7 +89,7 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	ScriptBroadcaster(ProcessorWithScriptingContent* p, const var& defaultValue);;
 	~ScriptBroadcaster();
 
-	
+	static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("Broadcaster"); };
 	
 	Identifier getObjectName() const override;
 
@@ -250,6 +250,8 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	const Metadata& getMetadata() const;
 
 	static bool isPrimitiveArray(const var& obj);
+
+	struct Diagnostics;
 
 private:
 

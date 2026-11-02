@@ -73,6 +73,219 @@ struct ScriptComponentDiagnosticBase : public LightweightDiagnostics
 {
     static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("ScriptComponent"); }
 
+    struct PropertyMap
+    {
+        PropertyMap()
+        {
+             auto propertyTypes = JSON::parse(R"({
+                "common": {
+                    "text": "string",
+                    "visible" : "bool",
+                    "enabled" : "bool",
+                    "locked" : "bool",
+                    "x" : "int",
+                    "y" : "int",
+                    "width" : "int",
+                    "height" : "int",
+                    "min" : "double",
+                    "max" : "double",
+                    "defaultValue" : "double",
+                    "tooltip" : "string",
+                    "bgColour" : "string",
+                    "itemColour" : "string",
+                    "itemColour2" : "string",
+                    "textColour" : "string",
+                    "macroControl" : "int",
+                    "saveInPreset" : "bool",
+                    "isPluginParameter" : "bool",
+                    "pluginParameterName" : "string",
+                    "pluginParameterGroup" : "string",
+                    "deferControlCallback" : "bool",
+                    "isMetaParameter" : "bool",
+                    "linkedTo" : "string",
+                    "automationID" : "string",
+                    "useUndoManager" : "bool",
+                    "parentComponent" : "string",
+                    "processorId" : "string",
+                    "parameterId" : "string"
+                },
+                "ScriptButton": {
+                    "filmstripImage": "string",
+                    "numStrips" : "string",
+                    "isVertical" : "bool",
+                    "scaleFactor" : "double",
+                    "radioGroup" : "int",
+                    "isMomentary" : "int",
+                    "enableMidiLearn" : "bool",
+                    "setValueOnClick" : "bool",
+                    "mouseCursor" : "string"
+            },
+                "ScriptSlider": {
+                    "mode": "string",
+                    "style" : "string",
+                    "stepSize" : "double",
+                    "middlePosition" : "double",
+                    "suffix" : "string",
+                    "filmstripImage" : "string",
+                    "numStrips" : "int",
+                    "isVertical" : "bool",
+                    "scaleFactor" : "double",
+                    "mouseSensitivity" : "double",
+                    "dragDirection" : "string",
+                    "showValuePopup" : "string",
+                    "showTextBox" : "bool",
+                    "scrollWheel" : "bool",
+                    "enableMidiLearn" : "bool",
+                    "sendValueOnDrag" : "bool",
+                    "matrixTargetId" : "string"
+            },
+                "ScriptComboBox": {
+                "items": "string",
+                    "fontName" : "string",
+                    "fontSize" : "double",
+                    "fontStyle" : "string",
+                    "enableMidiLearn" : "bool",
+                    "popupAlignment" : "string",
+                    "useCustomPopup" : "bool"
+            },
+                "ScriptLabel": {
+                "fontName": "string",
+                    "fontSize" : "double",
+                    "fontStyle" : "string",
+                    "alignment" : "string",
+                    "editable" : "bool",
+                    "multiline" : "bool",
+                    "updateEachKey" : "bool"
+            },
+                "ScriptPanel": {
+                "borderSize": "double",
+                    "borderRadius" : "double",
+                    "opaque" : "bool",
+                    "allowDragging" : "int",
+                    "allowCallbacks" : "string",
+                    "popupMenuItems" : "string",
+                    "popupOnRightClick" : "bool",
+                    "popupMenuAlign" : "bool",
+                    "selectedPopupIndex" : "int",
+                    "stepSize" : "double",
+                    "enableMidiLearn" : "bool",
+                    "holdIsRightClick" : "bool",
+                    "isPopupPanel" : "bool",
+                    "bufferToImage" : "bool"
+            },
+                "ScriptTable": {
+                "tableIndex": "int",
+                    "customColours" : "string"
+            },
+                "ScriptSliderPack" : {
+                "sliderAmount": "int",
+                    "stepSize" : "double",
+                    "flashActive" : "bool",
+                    "showValueOverlay" : "bool",
+                    "SliderPackIndex" : "int",
+                    "mouseUpCallback" : "bool",
+                    "stepSequencerMode" : "bool"
+            },
+                "ScriptAudioWaveform": {
+                "itemColour3": "string",
+                    "opaque" : "bool",
+                    "showLines" : "bool",
+                    "showFileName" : "bool",
+                    "sampleIndex" : "int",
+                    "enableRange" : "bool",
+                    "loadWithLeftClick" : "bool"
+            },
+                "ScriptImage": {
+                "alpha": "double",
+                    "fileName" : "string",
+                    "offset" : "int",
+                    "scale" : "double",
+                    "blendMode" : "string",
+                    "allowCallbacks" : "string",
+                    "popupMenuItems" : "string",
+                    "popupOnRightClick" : "bool"
+            },
+                "ScriptedViewport": {
+                "scrollBarThickness": "int",
+                    "autoHide" : "bool",
+                    "useList" : "bool",
+                    "viewPositionX" : "int",
+                    "viewPositionY" : "int",
+                    "items" : "string",
+                    "fontName" : "string",
+                    "fontSize" : "double",
+                    "fontStyle" : "string",
+                    "alignment" : "string"
+            },
+                "ScriptFloatingTile": {
+                "itemColour3": "string",
+                    "updateAfterInit" : "bool",
+                    "ContentType" : "string",
+                    "Font" : "string",
+                    "FontSize" : "double",
+                    "Data" : "string"
+            },
+                "ScriptDynamicContainer": {}
+            })");
+
+            if (auto obj = propertyTypes.getDynamicObject())
+            {
+                std::vector<std::pair<Identifier, VarTypeChecker::WrappedType>> commonTypes;
+
+                for (const auto& nv : obj->getProperty("common").getDynamicObject()->getProperties())
+                    commonTypes.push_back({ nv.name, VarTypeChecker::getTypeFromString(nv.value.toString()) });
+
+                for (auto& nv : obj->getProperties())
+                {
+                    if (nv.name == Identifier("common"))
+                        continue;
+
+                    std::map<Identifier, VarTypeChecker::WrappedType> typeMap;
+
+                    for (auto& ct : commonTypes)
+                        typeMap[ct.first] = ct.second;
+
+                    for (const auto& values : nv.value.getDynamicObject()->getProperties())
+                    {
+                        auto t = VarTypeChecker::getTypeFromString(nv.value.toString());
+                        typeMap[values.name] = t;
+                    }
+
+                    data[nv.name] = typeMap;
+                }
+            }
+        }
+
+        VarTypeChecker::WrappedType getPropertyType(const Identifier& componentId, const Identifier& propertyId) const
+        {
+            if (data.find(componentId) != data.end())
+            {
+                const auto& m = data.at(componentId);
+
+                if (m.find(propertyId) != m.end())
+                    return m.at(propertyId);
+            }
+
+            return {};
+        }
+
+        bool hasMap(const Identifier& componentId) const { return data.find(componentId) != data.end(); }
+
+        const std::map<Identifier, VarTypeChecker::WrappedType>& getPropertyMap(const Identifier& componentId) const
+        {
+            if (data.find(componentId) != data.end())
+                return data.at(componentId);
+
+            jassertfalse;
+            static std::map<Identifier, VarTypeChecker::WrappedType> m;
+            return m;
+        }
+
+    private:
+
+        std::map<Identifier, std::map<Identifier, VarTypeChecker::WrappedType>> data;
+    };
+
     ScriptComponentDiagnosticBase(ProcessorWithScriptingContent* p, const ValueTree& v, const String& a) :
         LightweightDiagnostics(p, v, a)
     {
@@ -87,180 +300,7 @@ struct ScriptComponentDiagnosticBase : public LightweightDiagnostics
             }
         }
 
-        auto propertyTypes = JSON::parse(R"({
-        "common": {
-            "text": "string",
-                "visible" : "bool",
-                "enabled" : "bool",
-                "locked" : "bool",
-                "x" : "int",
-                "y" : "int",
-                "width" : "int",
-                "height" : "int",
-                "min" : "double",
-                "max" : "double",
-                "defaultValue" : "double",
-                "tooltip" : "string",
-                "bgColour" : "string",
-                "itemColour" : "string",
-                "itemColour2" : "string",
-                "textColour" : "string",
-                "macroControl" : "int",
-                "saveInPreset" : "bool",
-                "isPluginParameter" : "bool",
-                "pluginParameterName" : "string",
-                "pluginParameterGroup" : "string",
-                "deferControlCallback" : "bool",
-                "isMetaParameter" : "bool",
-                "linkedTo" : "string",
-                "automationID" : "string",
-                "useUndoManager" : "bool",
-                "parentComponent" : "string",
-                "processorId" : "string",
-                "parameterId" : "string"
-        },
-            "ScriptButton": {
-            "filmstripImage": "string",
-                "numStrips" : "string",
-                "isVertical" : "bool",
-                "scaleFactor" : "double",
-                "radioGroup" : "int",
-                "isMomentary" : "int",
-                "enableMidiLearn" : "bool",
-                "setValueOnClick" : "bool",
-                "mouseCursor" : "string"
-        },
-            "ScriptSlider": {
-            "mode": "string",
-                "style" : "string",
-                "stepSize" : "double",
-                "middlePosition" : "double",
-                "suffix" : "string",
-                "filmstripImage" : "string",
-                "numStrips" : "int",
-                "isVertical" : "bool",
-                "scaleFactor" : "double",
-                "mouseSensitivity" : "double",
-                "dragDirection" : "string",
-                "showValuePopup" : "string",
-                "showTextBox" : "bool",
-                "scrollWheel" : "bool",
-                "enableMidiLearn" : "bool",
-                "sendValueOnDrag" : "bool",
-                "matrixTargetId" : "string"
-        },
-            "ScriptComboBox": {
-            "items": "string",
-                "fontName" : "string",
-                "fontSize" : "double",
-                "fontStyle" : "string",
-                "enableMidiLearn" : "bool",
-                "popupAlignment" : "string",
-                "useCustomPopup" : "bool"
-        },
-            "ScriptLabel": {
-            "fontName": "string",
-                "fontSize" : "double",
-                "fontStyle" : "string",
-                "alignment" : "string",
-                "editable" : "bool",
-                "multiline" : "bool",
-                "updateEachKey" : "bool"
-        },
-            "ScriptPanel": {
-            "borderSize": "double",
-                "borderRadius" : "double",
-                "opaque" : "bool",
-                "allowDragging" : "int",
-                "allowCallbacks" : "string",
-                "popupMenuItems" : "string",
-                "popupOnRightClick" : "bool",
-                "popupMenuAlign" : "bool",
-                "selectedPopupIndex" : "int",
-                "stepSize" : "double",
-                "enableMidiLearn" : "bool",
-                "holdIsRightClick" : "bool",
-                "isPopupPanel" : "bool",
-                "bufferToImage" : "bool"
-        },
-            "ScriptTable": {
-            "tableIndex": "int",
-                "customColours" : "string"
-        },
-            "ScriptSliderPack" : {
-            "sliderAmount": "int",
-                "stepSize" : "double",
-                "flashActive" : "bool",
-                "showValueOverlay" : "bool",
-                "SliderPackIndex" : "int",
-                "mouseUpCallback" : "bool",
-                "stepSequencerMode" : "bool"
-        },
-            "ScriptAudioWaveform": {
-            "itemColour3": "string",
-                "opaque" : "bool",
-                "showLines" : "bool",
-                "showFileName" : "bool",
-                "sampleIndex" : "int",
-                "enableRange" : "bool",
-                "loadWithLeftClick" : "bool"
-        },
-            "ScriptImage": {
-            "alpha": "double",
-                "fileName" : "string",
-                "offset" : "int",
-                "scale" : "double",
-                "blendMode" : "string",
-                "allowCallbacks" : "string",
-                "popupMenuItems" : "string",
-                "popupOnRightClick" : "bool"
-        },
-            "ScriptedViewport": {
-            "scrollBarThickness": "int",
-                "autoHide" : "bool",
-                "useList" : "bool",
-                "viewPositionX" : "int",
-                "viewPositionY" : "int",
-                "items" : "string",
-                "fontName" : "string",
-                "fontSize" : "double",
-                "fontStyle" : "string",
-                "alignment" : "string"
-        },
-            "ScriptFloatingTile": {
-            "itemColour3": "string",
-                "updateAfterInit" : "bool",
-                "ContentType" : "string",
-                "Font" : "string",
-                "FontSize" : "double",
-                "Data" : "string"
-        },
-            "ScriptDynamicContainer": {}
-        })");
-
-        
-
-        if (auto obj = propertyTypes.getDynamicObject())
-        {
-
-            if (auto c = obj->getProperty("common").getDynamicObject())
-            {
-                for (auto& nv : c->getProperties())
-                {
-                    auto t = VarTypeChecker::getTypeFromString(nv.value.toString());
-                    propertyMap[nv.name] = t;
-                }
-            }
-
-            if (auto c = obj->getProperty(getObjectName()).getDynamicObject())
-            {
-                for (auto& nv : c->getProperties())
-                {
-                    auto t = VarTypeChecker::getTypeFromString(nv.value.toString());
-                    propertyMap[nv.name] = t;
-                }
-            }
-        }
+       
     };
 
     CacheBehaviour getCacheBehaviour() const override
@@ -305,15 +345,25 @@ struct ScriptComponentDiagnosticBase : public LightweightDiagnostics
             {
                 auto id = Identifier(prop);
 
-                if (propertyMap.find(id) != propertyMap.end())
+                if (propertyMap->hasMap(getObjectName()))
                 {
-                    auto pt = propertyMap.at(id).asPrimitiveType();
-                    return new NativeTypeDiagnostic(p, pt, "");
+                    const auto& map = propertyMap->getPropertyMap(getObjectName());
+                    
+                    if (map.find(id) != map.end())
+                    {
+                        auto pt = map.at(id).asPrimitiveType();
+                        return new NativeTypeDiagnostic(p, pt, "");
+                    }
                 }
             }
         }
 
         return LightweightDiagnostics::getReturnType(methodName, args);
+    }
+
+    virtual VarTypeChecker::WrappedType getValueTypeForControlCallback() const 
+    {
+        return VarTypeChecker::WrappedType(VarTypeChecker::VarTypes::Double);
     }
 
     DiagnosticResult performCustomCheck(const CustomCheckData& cd) final override
@@ -367,6 +417,7 @@ struct ScriptComponentDiagnosticBase : public LightweightDiagnostics
             ScopedValueSetter<String> annotation(currentParentValidator->callscopeAnnotation, msg);
 
             cpo.argTypes[0].customData = getArgId();
+            cpo.argTypes[1].typeInfo = getValueTypeForControlCallback();
 
             if (!ok.wasOk())
                 return DiagnosticResult::fail(ok.getErrorMessage()).withWrongToken(cd.parameterId.toString());
@@ -424,7 +475,9 @@ struct ScriptComponentDiagnosticBase : public LightweightDiagnostics
         return LightweightDiagnostics::performCustomCheck(cd);
     }
 
-    std::map<Identifier, VarTypeChecker::WrappedType> propertyMap;
+    juce::SharedResourcePointer<PropertyMap> propertyMap;
+
+    
 };
 
 struct FunctionJSONObject : public LightweightDiagnostics
@@ -663,6 +716,12 @@ struct ScriptingApi::Content::ScriptButton::Diagnostics : public BaseObjects::Sc
     Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
         ScriptComponentDiagnosticBase(pwsc, v, argId)
     {}
+
+    VarTypeChecker::WrappedType getValueTypeForControlCallback() const override
+    {
+        return VarTypeChecker::WrappedType(VarTypeChecker::VarTypes::Integer);
+    }
+
 };
 
 struct ScriptingApi::Content::ScriptComboBox::Diagnostics : public BaseObjects::ScriptComponentDiagnosticBase
@@ -670,6 +729,11 @@ struct ScriptingApi::Content::ScriptComboBox::Diagnostics : public BaseObjects::
     Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
         ScriptComponentDiagnosticBase(pwsc, v, argId)
     {}
+
+    VarTypeChecker::WrappedType getValueTypeForControlCallback() const override
+    {
+        return VarTypeChecker::WrappedType(VarTypeChecker::VarTypes::Integer);
+    }
 };
 
 struct ScriptingApi::Content::ScriptLabel::Diagnostics : public BaseObjects::ScriptComponentDiagnosticBase
@@ -677,6 +741,11 @@ struct ScriptingApi::Content::ScriptLabel::Diagnostics : public BaseObjects::Scr
     Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
         ScriptComponentDiagnosticBase(pwsc, v, argId)
     {}
+
+    VarTypeChecker::WrappedType getValueTypeForControlCallback() const override
+    {
+        return VarTypeChecker::WrappedType(VarTypeChecker::VarTypes::String);
+    }
 };
 
 struct ScriptingApi::Content::ScriptImage::Diagnostics : public BaseObjects::ScriptComponentDiagnosticBase
@@ -711,6 +780,11 @@ struct ScriptingApi::Content::ScriptPanel::Diagnostics : public BaseObjects::Scr
 
             return typed->shadowParseCallbackWithArgType(cb);
         });
+    }
+
+    VarTypeChecker::WrappedType getValueTypeForControlCallback() const override
+    {
+        return VarTypeChecker::WrappedType(VarTypeChecker::VarTypes::DataContent);
     }
 
     var dataObject;
@@ -1017,7 +1091,249 @@ struct ScriptingObjects::ScriptedLookAndFeel::Diagnostics : public LightweightDi
     }
 };
 
+struct ScriptingObjects::ScriptBroadcaster::Diagnostics : public LightweightDiagnostics
+{
+    Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
+        LightweightDiagnostics(pwsc, v, argId)
+    {
+        auto mt = JSON::parse(argId);
 
+        if (auto obj = mt.getDynamicObject())
+        {
+            metadata = new ScriptBroadcaster::Metadata(mt, true);
+
+            if (auto ar = obj->getProperty("args").getArray())
+            {
+                for (auto& v : *ar)
+                {
+                    auto p = v.toString();
+
+                    if (p.containsChar(':'))
+                    {
+                        auto id = Identifier(p.upToFirstOccurrenceOf(":", false, false));
+                        auto typeString = p.fromFirstOccurrenceOf(":", false, false);
+                        auto at = VarTypeChecker::getTypeFromString(typeString);
+                        args.push_back({ id, at });
+                    }
+                    else
+                    {
+                        args.push_back({ Identifier(p), {} });
+                    }
+                }
+            }
+        }
+    };
+
+    static DiagnosticResult forEachOrSelf(const var& obj, const std::function<DiagnosticResult(const var&)>& f)
+    {
+        if (auto ar = obj.getArray())
+        {
+            auto ok = DiagnosticResult::ok();
+
+            for (auto& v : *ar)
+                ok = DiagnosticResult::max(ok, f(v));
+
+            return ok;
+        }
+        else
+            return f(obj);
+    }
+
+    DiagnosticResult performCustomCheck(const CustomCheckData& cd) override
+    {
+        auto cat = parseCategory(cd.checkString);
+
+        if (cat == Category::ObjectType)
+        {
+            auto list = JSON::parse(cd.checkString.fromFirstOccurrenceOf("[", true, false));
+
+            if (auto ar = list.getArray())
+            {
+                auto numExpected = ar->size();
+                auto numActual = args.size();
+
+                if (numExpected != numActual)
+                    return DiagnosticResult::fail("broadcaster argument amount mismatch for method " + cd.methodName.toString())
+                    .withExpectation(String(numExpected), String(numActual))
+                    .withErrorCode(DiagnosticResult::ErrorCode::ArgMismatch)
+                    .withSuggestion("metadata with a argument list that matches the expected argument count");
+
+                Array<VarTypeChecker::WrappedType> thisTypes;
+
+                for (auto& v : *ar)
+                {
+                    auto type = VarTypeChecker::getTypeFromString(v.toString());
+                    jassert(type);
+                    thisTypes.add(type);
+                }
+
+                for (int i = 0; i < args.size(); i++)
+                {
+                    auto e = args[i].second;
+                    auto a = thisTypes[i];
+
+                    if (e && !e.matches(a, false))
+                        return DiagnosticResult::fail("broadcaster argument type mismatch at argument " + String(i + 1))
+                        .withExpectation(VarTypeChecker::getTypeName(e).toString(), VarTypeChecker::getTypeName(a).toString())
+                        .withErrorCode(DiagnosticResult::ErrorCode::CallbackArgMismatch);
+
+                    args[i].second = a;
+                }
+
+                return DiagnosticResult::ok();
+            }
+            
+            return DiagnosticResult::fail("must be an JSON formatted array");
+        }
+
+        if (cat == Category::RuntimeIdCheck)
+        {
+            auto targetType = cd.checkString.fromFirstOccurrenceOf(".", false, false);
+
+            auto v = cd.resolvedArguments[cd.parameterId];
+            auto sc = p->getScriptingContent();
+
+            if (targetType == "ScriptComponent")
+            {
+                auto typeList = &targetTypeList;
+
+                auto ok = forEachOrSelf(v, [sc, typeList, this](const var& value)
+                {
+                    if (value.isString())
+                    {
+                        if (auto c = sc->getComponentWithName(value.toString()))
+                        {
+                            typeList->addIfNotAlreadyThere(c->getObjectName());
+                            return DiagnosticResult::ok();
+                        }
+                        else
+                            return DiagnosticResult::fail("Can't find component with ID " + value.toString())
+                            .withErrorCode(DiagnosticResult::ErrorCode::RuntimeIdFailure);
+                    }
+                    else if (auto lb = dynamic_cast<BaseObjects::ScriptComponentDiagnosticBase*>(value.getObject()))
+                    {
+                        typeList->addIfNotAlreadyThere(lb->getObjectName());
+                        return DiagnosticResult::ok();
+                    }
+
+                    return DiagnosticResult::fail("unknown type for component list " + value.toString())
+                        .withErrorCode(DiagnosticResult::ErrorCode::TypeMismatch);
+                });
+
+                if (targetTypeList.size() == 1)
+                {
+                    auto specialType = VarTypeChecker::getTypeFromString(targetTypeList[0].toString());
+
+                    for (auto& t : args)
+                    {
+                        if (t.second.isPrimitive())
+                            continue;
+
+                        if (t.second.asComplexType() == VarTypeChecker::TypedObject::ScriptComponent)
+                            t.second = specialType;
+                    }
+                }
+
+                return ok;
+            }
+            if (targetType == "ScriptComponentProperty")
+            {
+                SharedResourcePointer<BaseObjects::ScriptComponentDiagnosticBase::PropertyMap> pm;
+
+                auto ok = forEachOrSelf(v, [&](const var& obj)
+                {
+                    Identifier id(obj.toString());
+
+                    for (auto& t : targetTypeList)
+                    {
+                        auto typeValue = pm->getPropertyType(t, id);
+
+                        if (!typeValue)
+                            return DiagnosticResult::fail("Unknown property " + t.toString() + "." + id.toString());
+                    }
+                    
+                    return DiagnosticResult::ok();
+                });
+
+                return ok;
+            }
+        }
+
+        if (cat == Category::CallbackArgCheck)
+        {
+            auto f = cd.resolvedArguments[cd.parameterId];
+
+            if (dynamic_cast<WeakCallbackHolder::CallableObject*>(f.getObject()) == nullptr)
+                return DiagnosticResult::ok();
+
+            auto undefinedArgs = false;
+
+            for (auto& a : args)
+                undefinedArgs |= !(bool)a.second;
+
+            if (undefinedArgs)
+            {
+                auto dr = DiagnosticResult("Can't parse broadcaster callback because of missing type info")
+                    .withSuggestion("Use a `attachTo` method to defer the types or annotate the types in the `args` metadata property")
+                    .withSeverity(DiagnosticResult::Severity::Warning)
+                    .withErrorCode(DiagnosticResult::ErrorCode::CallbackArgMismatch);
+
+                return dr;
+            }
+
+            using RO = HiseJavascriptEngine::RootObject;
+
+            auto thisObj = cd.resolvedArguments.getValueAt(0);
+
+            
+
+            auto currentParentValidator = dynamic_cast<RO::ObjectTypeMap*>(currentShadowParser);
+            jassert(currentParentValidator != nullptr);
+
+            auto& s = currentParentValidator->getCurrentScope();
+            Array<var> thisArgs;
+
+            static const Array<Identifier> indexMethods({
+                Identifier("addComponentPropertyListener"),
+                Identifier("addComponentValueListener")
+            });
+
+            if (indexMethods.contains(cd.methodName))
+                thisArgs.add(var(currentParentValidator->createAnonoymousDiagnosticObject("int", "").get()));
+
+            for (const auto& a : args)
+            {
+                auto className = VarTypeChecker::getTypeName(a.second);
+                auto argId = "";
+
+                if (auto ptr = currentParentValidator->createAnonoymousDiagnosticObject(className, argId))
+                {
+                    thisArgs.add(var(ptr.get()));
+                }
+            }
+
+            auto strictness = WeakCallbackHolder::CallableObject::StrictnessLevel::Unsafe;
+
+            if (auto ifo = dynamic_cast<RO::InlineFunction::Object*>(f.getObject()))
+                return ifo->invokeShadowParse(s, var::NativeFunctionArgs(thisObj, thisArgs.getRawDataPointer(), thisArgs.size()), strictness).second;
+
+            if (auto fo = dynamic_cast<RO::FunctionObject*>(f.getObject()))
+                return fo->invokeShadowParse(s, var::NativeFunctionArgs(thisObj, thisArgs.getRawDataPointer(), thisArgs.size()), strictness).second;
+
+            return DiagnosticResult::ok();
+
+        }
+
+        return DiagnosticResult::fail("unimplemented")
+            .withErrorCode(DiagnosticResult::ErrorCode::InternalError);
+    }
+    
+
+    ScopedPointer<ScriptBroadcaster::Metadata> metadata;
+
+    std::vector<std::pair<Identifier, VarTypeChecker::WrappedType>> args;
+    Array<Identifier> targetTypeList;
+};
 
 LightweightDiagnostics::Factory::Factory()
 {
@@ -1037,9 +1353,11 @@ LightweightDiagnostics::Factory::Factory()
     registerType<ScriptingApi::Content::ScriptFloatingTile>();
     registerType<ScriptingApi::Content::ScriptDynamicContainer>();
     registerType<ScriptingApi::Content::ScriptPanel>();
+    registerType<ScriptingObjects::ScriptBroadcaster>();
     registerType<ArrayWithKnownElementType>();
 
     registerType<ScriptingApi::Synth>();
+
     //registerType<ScriptingApi::Server>();
     registerType<ScriptingApi::Content>();
     registerType<ScriptingObjects::ScriptedLookAndFeel>();

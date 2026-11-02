@@ -51,6 +51,7 @@ Identifier VarTypeChecker::getTypeName(TypedObject to)
 	case TypedObject::Rectangle: return VarTypeIdentifiers::Rectangle;
 	case TypedObject::RoutingMatrix: return VarTypeIdentifiers::RoutingMatrix;
 	case TypedObject::Sample: return VarTypeIdentifiers::Sample;
+	case TypedObject::ScriptComponent:	return VarTypeIdentifiers::ScriptComponent;
 	case TypedObject::ScriptAudioWaveform: return VarTypeIdentifiers::ScriptAudioWaveform;
 	case TypedObject::ScriptButton: return VarTypeIdentifiers::ScriptButton;
 	case TypedObject::ScriptComboBox: return VarTypeIdentifiers::ScriptComboBox;
@@ -80,6 +81,7 @@ Identifier VarTypeChecker::getTypeName(TypedObject to)
 	case TypedObject::UnorderedStack: return VarTypeIdentifiers::UnorderedStack;
 	case TypedObject::UserPresetHandler: return VarTypeIdentifiers::UserPresetHandler;
 	case TypedObject::WavetableController: return VarTypeIdentifiers::WavetableController;
+	case TypedObject::MetaObject:		return VarTypeIdentifiers::MetaObject;
 	default: jassertfalse; return {};
 	}
 }
@@ -180,6 +182,7 @@ VarTypeChecker::WrappedType VarTypeChecker::getTypeFromString(const juce::Identi
 	if(name == VarTypeIdentifiers::Rectangle)				 return WrappedType(TypedObject::Rectangle);
 	if(name == VarTypeIdentifiers::RoutingMatrix)			 return WrappedType(TypedObject::RoutingMatrix);
 	if(name == VarTypeIdentifiers::Sample)					 return WrappedType(TypedObject::Sample);
+	if(name == VarTypeIdentifiers::ScriptComponent)			 return WrappedType(TypedObject::ScriptComponent);
 	if(name == VarTypeIdentifiers::ScriptAudioWaveform)		 return WrappedType(TypedObject::ScriptAudioWaveform);
 	if(name == VarTypeIdentifiers::ScriptButton)			 return WrappedType(TypedObject::ScriptButton);
 	if(name == VarTypeIdentifiers::ScriptComboBox)			 return WrappedType(TypedObject::ScriptComboBox);
@@ -209,6 +212,7 @@ VarTypeChecker::WrappedType VarTypeChecker::getTypeFromString(const juce::Identi
 	if(name == VarTypeIdentifiers::UnorderedStack)			 return WrappedType(TypedObject::UnorderedStack);
 	if(name == VarTypeIdentifiers::UserPresetHandler)		 return WrappedType(TypedObject::UserPresetHandler);
 	if(name == VarTypeIdentifiers::WavetableController)		 return WrappedType(TypedObject::WavetableController);
+	if (name == VarTypeIdentifiers::MetaObject)				 return WrappedType(TypedObject::MetaObject);
 
 	return WrappedType();
 }
@@ -639,10 +643,18 @@ String ApiClass::DiagnosticResult::Item::toEditorString() const
 
 void hise::DiagnosticBase::ShadowParseData::Item::resolveDependencies(DependencyResolver* r)
 {
-	for (auto d : r->resolveDependencies(this))
+	r->resolveDependencies(this, dependencies, postDependencies);
+
+	for (int i = 0; i < dependencies.size(); i++)
 	{
-		if (d != this)
-			dependencies.addIfNotAlreadyThere(d);
+		if (dependencies[i] == this)
+			dependencies.remove(i--);
+	}
+
+	for (int i = 0; i < postDependencies.size(); i++)
+	{
+		if (postDependencies[i] == this)
+			postDependencies.remove(i--);
 	}
 }
 

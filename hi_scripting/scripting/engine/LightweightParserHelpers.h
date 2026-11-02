@@ -76,6 +76,12 @@ struct LightweightDiagnostics : public DiagnosticBase,
         };
     }
 
+    static Category parseCategory(const String& validationString)
+    {
+        auto cat = validationString.upToFirstOccurrenceOf(".", false, false);
+        return (Category)getCategories().indexOf(cat);
+    }
+
     struct CustomCheckData
     {
         Category category;
@@ -121,22 +127,6 @@ struct LightweightDiagnostics : public DiagnosticBase,
             initClassTree(classTree);
     }
 
-    struct ApiMap
-    {
-        struct Item
-        {
-            Identifier className;
-            Identifier methodName;
-            Identifier returnType;
-
-            juce::String toString() const;
-        };
-
-        ApiMap();
-
-        std::vector<Item> items;
-    };
-
     struct Factory
     {
         Factory();
@@ -166,8 +156,6 @@ struct LightweightDiagnostics : public DiagnosticBase,
         }
 
         LightweightDiagnostics::Ptr createLightweightPrototype(ProcessorWithScriptingContent* p, const Identifier& id, const String& argId) const;
-
-        Identifier getReturnTypeFromApiMap(const Identifier& className, const Identifier& methodName) const;
 
         void clearCache()
         {
@@ -235,7 +223,6 @@ struct LightweightDiagnostics : public DiagnosticBase,
 
         mutable Cache cache;
 
-        SharedResourcePointer<ApiMap> apiMap;
         std::map<Identifier, CreatorFunction> items;
         std::map<Identifier, CreatorFunction> metaItems;
     };
@@ -400,7 +387,7 @@ struct LightweightDiagnostics : public DiagnosticBase,
 
         static var getTypeForLoopIterator(ProcessorWithScriptingContent* p, const var& iteratedObject);
 
-        static StringArray getPrimitiveTypeList();
+        
         static VarTypeChecker::VarTypes getVarTypeFromPrimitiveType(const String& s);
 
         static String getTypeForObjectTypeCheck(const var& value);

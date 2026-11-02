@@ -123,53 +123,6 @@ LightweightDiagnostics::Ptr LightweightDiagnostics::Factory::createLightweightPr
 	return nullptr;
 }
 
-Identifier LightweightDiagnostics::Factory::getReturnTypeFromApiMap(const Identifier& className, const Identifier& methodName) const
-{
-	for (const auto& i : apiMap->items)
-	{
-		if (i.className == className && i.methodName == methodName)
-			return i.returnType;
-	}
-
-	return {};
-}
-
-
-
-
-
-LightweightDiagnostics::ApiMap::ApiMap()
-{
-	auto tree = ApiHelpers::getApiTree();
-
-	auto primitiveTypes = Helpers::getPrimitiveTypeList();
-
-	StringArray foundTypes;
-
-	for (auto c : tree)
-	{
-		for (auto m : c)
-		{
-			auto rt = m["returnType"].toString();
-
-			auto typed = m["returnObjectType"].toString();
-
-			if (typed.isNotEmpty())
-				rt = typed;
-
-			if (!primitiveTypes.contains(rt))
-			{
-				Item ni;
-				ni.className = c.getType();
-				ni.methodName = m["name"].toString();
-				ni.returnType = rt;
-
-				items.push_back(ni);
-
-			}
-		}
-	}
-}
 
 String LightweightDiagnostics::FunctionInfo::getSpecialReturnType(const Identifier& className, const Identifier& methodName)
 {
@@ -282,7 +235,7 @@ LightweightDiagnostics::FunctionInfo LightweightDiagnostics::FunctionInfo::withA
 
 
 
-#define USE_JSON_FOR_VALIDATORS 0
+#define USE_JSON_FOR_VALIDATORS 1
 
 #if USE_JSON_FOR_VALIDATORS
 
@@ -413,15 +366,6 @@ LightweightDiagnostics::FunctionInfo::Args LightweightDiagnostics::FunctionInfo:
 	auto name = argWithType.fromFirstOccurrenceOf(" ", false, false);
 
 	return Args(name).withType(VarTypeChecker::getTypeFromString(type));
-}
-
-juce::String LightweightDiagnostics::ApiMap::Item::toString() const
-{
-	juce::String x;
-	x << className.toString() << ".";
-	x << methodName.toString() << "() -> ";
-	x << returnType.toString();
-	return x;
 }
 
 DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkCallScope(ScopeSafety minimumScope, const Identifier& methodName) const
@@ -606,7 +550,7 @@ void LightweightDiagnostics::fillAutocompleteTokens(mcl::TokenCollection::List& 
 							jassert(a.id.isValid());
 							functionBody << a.id;
 
-							if (a.typeInfo)
+							if (a.typeInfo.isRealType())
 							{
 								functionBody << ":";
 								functionBody << VarTypeChecker::getTypeName(a.typeInfo);
@@ -706,7 +650,7 @@ bool LightweightDiagnostics::getIndexAndNumArgsForFunction(const Identifier& id,
 	return false;
 }
 
-inline var LightweightDiagnostics::getReturnType(const Identifier& functionName, const Array<var>& args) const
+var LightweightDiagnostics::getReturnType(const Identifier& functionName, const Array<var>& args) const
 {
 	for (const auto& f : functions)
 	{
@@ -714,7 +658,16 @@ inline var LightweightDiagnostics::getReturnType(const Identifier& functionName,
 		{
 			using RO = HiseJavascriptEngine::RootObject;
 
-			auto argId = args[0].toString();
+			String argId;
+
+			auto a = args[0];
+
+			if (a.isString() || a.isInt() || a.isBool() || a.isInt64() || a.isDouble())
+				argId = a.toString();
+			else if (auto obj = dynamic_cast<ObjectWithJSONConverter*>(a.getObject()))
+				argId = JSON::toString(a);
+			else if (auto ar = a.getArray())
+				argId = JSON::toString(a);
 
 			auto currentParentValidator = dynamic_cast<RO::ObjectTypeMap*>(currentShadowParser);
 			jassert(currentParentValidator != nullptr);
@@ -797,9 +750,6 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::shadowParseCallbackWith
 		auto className = VarTypeChecker::getTypeName(a.typeInfo);
 		auto argId = a.customData;
 
-		if (argId.contains("MetaObjects::"))
-			className = {};
-
 		if (auto ptr = currentParentValidator->createAnonoymousDiagnosticObject(className, argId))
 		{
 			args.add(var(ptr.get()));
@@ -848,7 +798,7 @@ Result LightweightDiagnostics::CallbackParseOptions::parseCheckString(const Stri
 
 		if (p.contains("MetaObjects::"))
 		{
-			rv.typeInfo = {};
+			rv.typeInfo = VarTypeChecker::WrappedType(VarTypeChecker::TypedObject::MetaObject);
 			rv.id = Identifier(p.fromFirstOccurrenceOf("MetaObjects::", false, false).trim());
 			rv.customData = p;
 			return rv;
@@ -954,10 +904,13 @@ bool LightweightDiagnostics::Helpers::isApiClass(const Identifier& id)
     return getApiClassIds().contains(id);
 }
 
-inline var LightweightDiagnostics::Helpers::getTypeForLoopIterator(ProcessorWithScriptingContent* p, const var& iteratedObject)
+var LightweightDiagnostics::Helpers::getTypeForLoopIterator(ProcessorWithScriptingContent* p, const var& iteratedObject)
 {
 	if (iteratedObject.isArray())
 	{
+		if (iteratedObject.size() == 0)
+			return var();
+
 		return iteratedObject[0];
 	}
 
@@ -986,55 +939,14 @@ inline var LightweightDiagnostics::Helpers::getTypeForLoopIterator(ProcessorWith
 	return var();
 }
 
-StringArray LightweightDiagnostics::Helpers::getPrimitiveTypeList()
-{
-    static const StringArray primitiveTypes = {
-		"Integer",
-		"Double",
-		"undefined",
-		"void",
-		"var",
-		"JSON",
-		"ScriptObject",
-		"NotUndefined",
-		"bool",
-		"Object",
-		"Number",
-		"AudioData",
-		"int",
-		"double",
-        "DataContent"
-	};
-
-	return primitiveTypes;
-}
-
 VarTypeChecker::VarTypes LightweightDiagnostics::Helpers::getVarTypeFromPrimitiveType(const String& s)
 {
-	static const Array<VarTypeChecker::VarTypes> primitiveTypes = {
-		VarTypeChecker::VarTypes::Integer,
-		VarTypeChecker::VarTypes::Double,
-		VarTypeChecker::VarTypes::Undefined,
-		VarTypeChecker::VarTypes::Undefined,
-		VarTypeChecker::VarTypes::NotUndefined,
-		VarTypeChecker::VarTypes::JSON,
-		VarTypeChecker::VarTypes::ScriptObject,
-		VarTypeChecker::VarTypes::NotUndefined,
-		VarTypeChecker::VarTypes::Integer,
-		VarTypeChecker::VarTypes::Object,
-		VarTypeChecker::VarTypes::Number,
-		VarTypeChecker::VarTypes::AudioData,
-		VarTypeChecker::VarTypes::Integer,
-		VarTypeChecker::VarTypes::Double,
-        VarTypeChecker::VarTypes::DataContent
-	};
+	auto t = VarTypeChecker::getTypeFromString(s);
 
-	auto idx = getPrimitiveTypeList().indexOf(s);
+	if (t.isPrimitive())
+		return t.asPrimitiveType();
 
-	if (isPositiveAndBelow(idx, primitiveTypes.size()))
-		return primitiveTypes[idx];
-
-	return VarTypeChecker::VarTypes::Undefined;
+	return VarTypeChecker::Undefined;
 }
 
 String LightweightDiagnostics::Helpers::getTypeForObjectTypeCheck(const var& value)
@@ -1062,14 +974,22 @@ NativeTypeDiagnostic::NativeTypeDiagnostic(ProcessorWithScriptingContent* p, Var
     LightweightDiagnostics(p, ValueTree(), VarTypeChecker::getTypeName(type).toString()),
     t(type)
 {
-    if (type == VarTypeChecker::String)
-        initClassTree(ApiHelpers::getApiTree().getChildWithName("String"));
+	auto init = [&](const Identifier& s)
+	{
+		initClassTree(ApiHelpers::getApiTree().getChildWithName(s));
+		apiConstants.set("length", 1);
+	};
 
-    else if (type == VarTypeChecker::Array)
-        initClassTree(ApiHelpers::getApiTree().getChildWithName("Array"));
+	if (type == VarTypeChecker::String)
+		init("String");
 
-    else if (type == VarTypeChecker::Buffer)
-        initClassTree(ApiHelpers::getApiTree().getChildWithName("Buffer"));
+
+	else if (type == VarTypeChecker::Array)
+		init("Array");
+
+
+	else if (type == VarTypeChecker::Buffer)
+		init("Buffer");
 
     else if (type == VarTypeChecker::DataContent)
     {
@@ -1090,7 +1010,6 @@ NativeTypeDiagnostic::NativeTypeDiagnostic(ProcessorWithScriptingContent* p, Var
 		ValueTree t(VarTypeChecker::getTypeName(type));
 		initClassTree(t);
 	}
-    
     
     if (argId.isNotEmpty())
     {
