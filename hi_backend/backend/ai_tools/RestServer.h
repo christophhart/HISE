@@ -40,7 +40,7 @@
     runtime field. Consumers read it off any response (or `/api/status`) to
     verify they are talking to a HISE build that matches their expected schema.
 */
-#define HISE_REST_API_VERSION "0.11.0"
+#define HISE_REST_API_VERSION "0.12.0"
 
 namespace hise { using namespace juce;
 
@@ -182,6 +182,11 @@ namespace RestApiIds
 
     // diagnose_script response
     DECLARE_ID(diagnostics);          // Array of diagnostic objects
+    DECLARE_ID(autocompletePosition); // Optional LSP position for completion {line, character}
+    DECLARE_ID(completionList);       // Optional LSP CompletionList response
+    DECLARE_ID(character);            // Zero-based LSP character position
+    DECLARE_ID(items);                // CompletionItem array
+    DECLARE_ID(isIncomplete);         // LSP CompletionList incompleteness flag
     DECLARE_ID(line);                 // Diagnostic line number
     DECLARE_ID(column);               // Diagnostic column number
     DECLARE_ID(severity);             // "error", "warning", "info", "hint"

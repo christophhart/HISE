@@ -3334,6 +3334,10 @@ private:
         
         DynamicObject::Ptr bodyObj = new DynamicObject();
         bodyObj->setProperty("code", "// Valid HISEScript\nConsole.print(\"hello\");\n");
+        DynamicObject::Ptr position = new DynamicObject();
+        position->setProperty("line", 1);
+        position->setProperty("character", 10);
+        bodyObj->setProperty("autocompletePosition", var(position.get()));
         
         auto response = ctx->httpPost("/api/diagnose_script",
                                       JSON::toString(var(bodyObj.get())));
@@ -3348,6 +3352,11 @@ private:
         auto diagnostics = json["diagnostics"];
         expect(diagnostics.isArray(), "diagnostics should be array");
         expectEquals<int>(diagnostics.size(), 0, "Clean code should have 0 diagnostics");
+
+        auto completionList = json["completionList"];
+        expect(completionList.isObject(), "Should include an LSP completionList when position is supplied");
+        expect((bool)completionList["isIncomplete"], "Completion list should be marked incomplete until generation is implemented");
+        expect(completionList["items"].isArray(), "Completion items should be an array");
     }
     
     void testDiagnoseScriptCodeWithDiagnostics()

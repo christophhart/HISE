@@ -40,6 +40,29 @@ public:
 	    that might use that database. */
 	struct Token: public ReferenceCountedObject
 	{
+		enum class CompletionItemKind
+		{
+			None = 0,
+			Text = 1,
+			Method = 2,
+			Function = 3,
+			Field = 5,
+			Variable = 6,
+			Class = 7,
+			Property = 10,
+			Value = 12,
+			Constant = 21,
+			File =	17,
+			Keyword	= 14,
+			Macro =	118115,
+			Namespace =	118116,
+			Operator = 24,
+			Snippet	= 15,
+			Struct = 22,
+			TypeDefinition=118118,
+			TypeParameter=25
+		};
+
 		Token(const String& text);;
 
 		virtual ~Token();;
@@ -53,11 +76,35 @@ public:
 
 		bool operator==(const Token& other) const;
 
-		
-
 		virtual Array<Range<int>> getSelectionRangeAfterInsert(const String& input) const
 		{
 			return getSelectionFromFunctionArgs(getCodeToInsert(input));
+		}
+
+		virtual DynamicObject::Ptr getLspDiagnosticObject(const String& input) const
+		{
+			DynamicObject::Ptr lsp = new DynamicObject();
+
+			if (label.isNotEmpty())
+			{
+				lsp->setProperty("label", label);
+				lsp->setProperty("detail", tokenContent);
+			}
+			else
+			{
+				lsp->setProperty("label", tokenContent);
+			}
+			
+			lsp->setProperty("kind", (int)kind);
+
+			DynamicObject::Ptr doc = new DynamicObject();
+			doc->setProperty("kind", "markdown");
+			doc->setProperty("value", markdownDescription);
+
+			lsp->setProperty("documentation", var(doc.get()));
+			lsp->setProperty("insertText", getCodeToInsert(input));
+
+			return lsp;
 		}
 
 		virtual MarkdownLink getLink() const;;
@@ -65,6 +112,7 @@ public:
 		/** Override this method if you want to customize the code that is about to be inserted. */
 		virtual String getCodeToInsert(const String& input) const;
 
+		String label;
 		String markdownDescription;
 		String tokenContent;
 		
@@ -76,6 +124,8 @@ public:
 
 		/** This can be used to limit the scope of a token. */
 		Range<int> tokenScope;
+
+		CompletionItemKind kind = CompletionItemKind::None;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Token);
 	};

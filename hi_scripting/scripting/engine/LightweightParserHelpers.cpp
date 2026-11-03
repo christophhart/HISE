@@ -440,6 +440,8 @@ struct LightweightFunctionInfoToken : public TokenWithDot
     {
         priority = 1000;
         c = Colour(0xFF88EECC);
+		label = mt["name"].toString();
+		kind = CompletionItemKind::Method;
 
 		auto rt = mt["returnObjectType"].toString();
 
@@ -510,6 +512,8 @@ struct LightweightConstantInfoToken : public TokenWithDot
     LightweightConstantInfoToken(const String& objectName, const Identifier& id) :
         TokenWithDot(objectName + "." + id.toString(), objectName)
     {
+		kind = CompletionItemKind::Property;
+		label = id.toString();
         priority = 100;
         c = Colour(0xFF88EECC);
     }

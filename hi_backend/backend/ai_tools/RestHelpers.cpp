@@ -2850,6 +2850,198 @@ static JavascriptProcessor* findProcessorForFile(MainController* mc, const File&
 	return nullptr;
 }
 
+struct AutocompleteExpressionParser: public ReferenceCountedObject
+{
+	using Ptr = ReferenceCountedObjectPtr<AutocompleteExpressionParser>;
+
+	AutocompleteExpressionParser(const String& code, int line, int col)
+	{
+		doc.replaceAllContent(code);
+		pos = CodeDocument::Position(doc, line, col);
+		lineStart = CodeDocument::Position(doc, line, 0);
+	}
+
+	int getCharIndex() const 
+	{ 
+		return pos.getPosition(); 
+	}
+
+	void addLspLocation(DynamicObject::Ptr lspObject, const String& editRange) const
+	{
+		auto fullContent = doc.getTextBetween(lineStart, pos);
+
+		auto col = fullContent.indexOf(editRange);
+
+		auto insertText = lspObject->getProperty("insertText");
+
+		auto createRange = [](int line, int col)
+		{
+			auto obj = new DynamicObject();
+			obj->setProperty("line", line);
+			obj->setProperty("character", col);
+			return var(obj);
+		};
+
+		DynamicObject::Ptr r = new DynamicObject();
+		r->setProperty("start", createRange(lineStart.getLineNumber(), col));
+		r->setProperty("end", createRange(lineStart.getLineNumber(), pos.getIndexInLine()));
+		
+		DynamicObject::Ptr te = new DynamicObject();
+
+		te->setProperty("range", r.get());
+		te->setProperty("newText", insertText);
+
+		lspObject->setProperty("textEdit", te.get());
+
+#if 0
+
+		"insertText": "startTimer(Integer intervalMilliSeconds)",
+			"textEdit" : {
+			"range": {
+				"start": { "line": 0, "character" : 13 },
+					"end" : { "line": 0, "character" : 16 }
+			},
+				"newText" : "startTimer(Integer intervalMilliSeconds)"
+		}
+
+#endif
+
+		// ???
+	}
+
+	std::pair<String, String> getExpression() const
+	{
+		auto tokenStart = pos;
+
+		while (tokenStart != lineStart)
+		{
+			auto thisChar = tokenStart.getCharacter();
+
+			if (!isValidChar(thisChar))
+				break;
+
+			if (closeChars.containsChar(thisChar))
+			{
+				auto stopChar = openChars[closeChars.indexOfChar(thisChar)];
+				skipUntil(tokenStart, stopChar, thisChar);
+				continue;
+			}
+
+			if (isSkipCharWithoutQuote(tokenStart))
+			{
+				auto stopChar = thisChar;
+				skipChar(tokenStart);
+				skipUntil(tokenStart, stopChar, thisChar);
+			}
+
+			skipChar(tokenStart);
+		}
+
+		auto rtValue = doc.getTextBetween(tokenStart, pos);
+
+		auto end = rtValue.end();
+		auto ptr = end - 1;
+		auto start = rtValue.begin();
+
+		while (ptr != start)
+		{
+			auto c = *ptr;
+
+			if (CharacterFunctions::isLetterOrDigit(c))
+				--ptr;
+			else
+				break;
+		}
+
+		++ptr;
+
+		String pre(start, ptr);
+		String post(ptr, end);
+
+		return { pre, post };
+	}
+
+private:
+
+	bool isValidChar(juce_wchar c) const
+	{
+		if (CharacterFunctions::isLetterOrDigit(c))
+			return true;
+
+		if (CharacterFunctions::isWhitespace(c))
+			return true;
+
+		if (validChars.containsChar(c))
+			return true;
+
+		if (closeChars.containsChar(c))
+			return true;
+
+		if (skipChars.containsChar(c))
+			return true;
+
+		return false;
+	}
+
+	void skipChar(CodeDocument::Position& p) const
+	{
+		if (p != lineStart)
+			p.moveBy(-1);
+	}
+
+	void skipUntil(CodeDocument::Position& p, juce_wchar stopChar, juce_wchar startChar) const
+	{
+		int numStartChars = 1;
+		auto isSkippingString = skipChars.containsChar(stopChar);
+
+		while (p != lineStart)
+		{
+			skipChar(p);
+
+			auto c = p.getCharacter();
+
+			if (isSkipCharWithoutQuote(p) && !isSkippingString)
+				skipUntil(p, c, c);
+
+			if (c == startChar)
+				numStartChars++;
+
+			if (c == stopChar)
+			{
+				// stop chars are not valid, skip again...
+				skipChar(p);
+
+				numStartChars--;
+
+				if(numStartChars <= 0)
+					break;
+			}
+		}
+	}
+
+	bool isSkipCharWithoutQuote(const CodeDocument::Position& p) const
+	{
+		auto c = p.getCharacter();
+
+		if (skipChars.containsChar(c))
+		{
+			return p.movedBy(-1).getCharacter() != '\\';
+		}
+
+		return false;
+	}
+
+	const String openChars = "([{";
+	const String skipChars = "\"'";
+	const String closeChars = ")]}";
+	const String validChars = "._";
+
+	CodeDocument doc;
+	CodeDocument::Position pos;
+	CodeDocument::Position lineStart;
+	
+};
+
 RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestServer::AsyncRequest::Ptr req)
 {
 	auto obj = req->getRequest().getJsonBody();
@@ -2857,6 +3049,28 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 	auto codeStr = obj.getProperty(RestApiIds::code, "").toString();
 	auto filePathStr = obj.getProperty(RestApiIds::filePath, "").toString();
 	auto moduleIdStr = obj.getProperty(RestApiIds::moduleId, "").toString();
+	auto hasAutocompletePosition = obj.hasProperty(RestApiIds::autocompletePosition);
+	var autocompletePosition;
+	int autocompleteLine = -1;
+	int autocompleteCharacter = -1;
+
+	if (hasAutocompletePosition)
+	{
+		autocompletePosition = obj[RestApiIds::autocompletePosition];
+
+		if (!autocompletePosition.isObject()
+			|| !autocompletePosition.hasProperty(RestApiIds::line)
+			|| !autocompletePosition.hasProperty(RestApiIds::character))
+			return req->fail(400, "autocompletePosition must contain integer line and character fields");
+
+		autocompleteLine = (int)autocompletePosition[RestApiIds::line];
+		autocompleteCharacter = (int)autocompletePosition[RestApiIds::character];
+
+		if (!autocompletePosition[RestApiIds::line].isInt()
+			|| !autocompletePosition[RestApiIds::character].isInt()
+			|| autocompleteLine < 0 || autocompleteCharacter < 0)
+			return req->fail(400, "autocompletePosition line and character must be non-negative integers");
+	}
 	
 	// The source to parse, the file name handed to the parser (used for the
 	// preprocessor id + diagnostic locations), and the path reported in the
@@ -2890,6 +3104,10 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 		// processor must already be compiled so its engine is live.
 		jp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(mc);
 		
+		// If the parsing failed, the flag might not be set...
+		if (jp == nullptr)
+			jp = dynamic_cast<JavascriptMidiProcessor*>(ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), "Interface"));
+
 		if (jp == nullptr || jp->getScriptEngine() == nullptr)
 			return req->fail(404, "No compiled interface processor available to host the shadow parse. "
 								  "Compile the interface first (F5).");
@@ -3004,25 +3222,61 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 		return diagArray;
 	};
 	
-	auto buildResponse = [resolvedModuleId, responsePath](const Array<var>& diagArray)
+	
+	
+	DiagnosticBase::ShadowParseData sd;
+
+	using Item = DiagnosticBase::ShadowParseData::Item;
+	sd.items.add(new Item(t, fileName, code));
+
+	AutocompleteExpressionParser::Ptr expressionParser;
+
+	if (hasAutocompletePosition)
+		expressionParser = new AutocompleteExpressionParser(code, autocompleteLine, autocompleteCharacter);
+
+	auto buildResponse = [resolvedModuleId, responsePath, autocompleteLine, jp, expressionParser](const Array<var>& diagArray)
 	{
 		DynamicObject::Ptr result = new DynamicObject();
 		result->setProperty(RestApiIds::success, true);
 		result->setProperty(RestApiIds::moduleId, resolvedModuleId);
 		result->setProperty(RestApiIds::filePath, responsePath);
 		result->setProperty(RestApiIds::diagnostics, var(diagArray));
+
+		if (expressionParser != nullptr)
+		{
+			mcl::TokenCollection::List tokens;
+
+			auto prevExpression = expressionParser->getExpression();
+
+			auto charIndex = expressionParser->getCharIndex();
+
+			jp->getScriptEngine()->addTokensWithContext(tokens, autocompleteLine, charIndex, prevExpression.first);
+
+			Array<var> lspList;
+
+			for (auto t : tokens)
+			{
+				if (!t->matches(prevExpression.second, prevExpression.first, autocompleteLine))
+					continue;
+
+				auto lspObject = t->getLspDiagnosticObject(prevExpression.first);
+				expressionParser->addLspLocation(lspObject, prevExpression.second);
+				lspList.add(var(lspObject.get()));
+			}
+
+			DynamicObject::Ptr completionList = new DynamicObject();
+			completionList->setProperty(RestApiIds::isIncomplete, false);
+			completionList->setProperty(RestApiIds::items, var(lspList));
+			result->setProperty(RestApiIds::completionList, var(completionList.get()));
+		}
+
 		result->setProperty(RestApiIds::logs, Array<var>());
 		result->setProperty(RestApiIds::errors, Array<var>());
 		return RestServer::Response::ok(var(result.get()));
 	};
-	
+
 	if (useAsync)
 	{
-		DiagnosticBase::ShadowParseData sd;
-
-		using Item = DiagnosticBase::ShadowParseData::Item;
-		sd.items.add(new Item(t, fileName, code));
-
 		// Async path: defer to scripting thread, callback completes the request on the message thread.
 		jp->shadowParse(sd, 
 			[req, buildDiagArray, buildResponse](const JavascriptProcessor::DiagnosticList& diagnostics)
@@ -3036,11 +3290,6 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 	// Sync path (default): run directly on the calling thread.
 	Array<var> diagArray;
 	
-	DiagnosticBase::ShadowParseData sd;
-
-	using Item = DiagnosticBase::ShadowParseData::Item;
-	sd.items.add(new Item(t, fileName, code));
-
 	jp->shadowParse(sd, 
 		[&diagArray, &buildDiagArray](const JavascriptProcessor::DiagnosticList& diagnostics)
 	{

@@ -1105,6 +1105,7 @@ Requires at least one prior successful compile (F5 or `/api/set_script` with `co
 | `moduleId` | string | conditional | The script processor's module ID (file mode). If `filePath` is omitted, uses the processor's first external file. Ignored in code mode. |
 | `filePath` | string | conditional | Path to the `.js` file (file mode, absolute, or relative to Scripts folder). If `moduleId` is omitted, HISE resolves the owning processor automatically. Mutually exclusive with `code`. |
 | `async` | bool | optional | If `true`, defer the shadow parse to the scripting thread (slower, blocks audio). Default `false`: runs directly on the HTTP thread with a read lock. |
+| `autocompletePosition` | object | optional | Zero-based LSP cursor position `{ "line": N, "character": N }`. When supplied, the response includes an LSP-shaped `completionList`. |
 
 **Request**:
 ```json
@@ -1125,6 +1126,8 @@ Requires at least one prior successful compile (F5 or `/api/set_script` with `co
   "errors": []
 }
 ```
+
+The `completionList` field is present only when `autocompletePosition` is supplied.
 
 **Response (with diagnostics)**:
 ```json
@@ -1167,6 +1170,15 @@ Requires at least one prior successful compile (F5 or `/api/set_script` with `co
   "code": "Console.prnt(\"hello\");"
 }
 ```
+
+**Request with an autocomplete position**:
+```json
+{
+  "code": "Content.getComponents(\".*\")[0].",
+  "autocompletePosition": { "line": 0, "character": 35 }
+}
+```
+When `autocompletePosition` is supplied, the response also contains `completionList` with the LSP `CompletionList` shape (`isIncomplete` and `items`). Completion item generation will be added in a follow-up implementation step; for now the list is empty and marked incomplete.
 
 **Code mode - Response** (`filePath` is empty; `moduleId` is the interface processor used as the API context):
 ```json
