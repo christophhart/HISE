@@ -2199,12 +2199,9 @@ Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> HiseJavascriptEngine::sha
 	Item::List l;
 
 	for (const auto& item : sd.items)
-	{
-		for (auto& d : *item)
-			l.add(d);
+		l.addArray(item->makeFlatParseList());
 
-		l.add(item);
-	}
+	Array<var> functionsToShadowParse;
 
 	for (const auto& sdi: l)
 	{
@@ -2243,15 +2240,11 @@ Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> HiseJavascriptEngine::sha
 				prepareTimeout();
 				analyzer->shadowParse(sl);
 
-				analyzer->checkDeferredDiagnostics();
-
-				tb.shadowParseAllFunctions();
+				functionsToShadowParse.addArray(tb.functionsToShadowParse);
 
 				auto cursorPosition = sdi->getBreakPosition();
 
-				lastShadowParseScope = analyzer->getScopeTree();
 				
-                hd->fillScopeTreeWithInlineFunctions(lastShadowParseScope);
                                 
 				if (sdi->t == Item::Type::Callback)
 					hd->shadowParseCallback(analyzer.get(), sdi->getFileName(Item::CallbackFormat::PureId));
@@ -2279,11 +2272,46 @@ Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> HiseJavascriptEngine::sha
 			tb.getDiagnostics().add(d);
 		}
 
-		for (const auto& d : tb.getDiagnostics())
-			diagnostics.add(d);
+		if (sd.items.contains(sdi))
+		{
+			for (const auto& d : tb.getDiagnostics())
+				diagnostics.add(d);
+		}
+	}
 
-		if (l.getLast() != sdi)
-			diagnostics.clear();
+	try
+	{
+		analyzer->checkDeferredDiagnostics(functionsToShadowParse);
+
+		
+
+		lastShadowParseScope = analyzer->getScopeTree();
+
+		auto dbgScopeTree = [](const ScopeTree& st)
+		{
+			String msg;
+
+			for (auto& s : st)
+			{
+				msg << "[" << String(s.first.getStart()) << "-" << String(s.first.getEnd()) << "]:\n";
+				msg << "\t" << JSON::toString(var(s.second.get()), true) << "\n";
+			}
+
+			return msg;
+		};
+
+		//DBG(dbgScopeTree(lastShadowParseScope));
+
+		hd->fillScopeTreeWithInlineFunctions(lastShadowParseScope);
+	}
+	catch (RootObject::Error& e)
+	{
+		jassertfalse;
+		
+	}
+	catch (String& error)
+	{
+		jassertfalse;
 	}
 
 	return diagnostics;

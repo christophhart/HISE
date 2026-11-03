@@ -1733,6 +1733,54 @@ struct IncludeParser
 		return includedFile;
 	}
 
+	String createCodeFrom(const File& includedFile)
+	{
+		String s;
+		size_t numBytes = 0;
+
+		auto rp = includedFile.getRelativePathFrom(scriptDir).replaceCharacter('\\', '/');
+
+		ValueTree externalFileTree;
+
+		valuetree::Helpers::forEach(includeTree, [&](const ValueTree& v)
+		{
+			if (externalFileTree.isValid() && 
+				!v.isAChildOf(externalFileTree) &&
+				v.getType() == Identifier("Code"))
+				numBytes += (int)v["NumBytes"];
+
+			if (v.getType() == Identifier("ExternalFile"))
+			{
+				if (v["FilePath"].toString() == rp)
+					externalFileTree = v;
+			}
+
+			return false;
+		});
+
+		s.preallocateBytes(numBytes);
+
+		externalFileTree = {};
+
+		valuetree::Helpers::forEach(includeTree, [&](const ValueTree& v)
+		{
+			if (externalFileTree.isValid() &&
+				!v.isAChildOf(externalFileTree) && 
+				v.getType() == Identifier("Code"))
+				s << v["Code"].toString();
+
+			if (v.getType() == Identifier("ExternalFile"))
+			{
+				if (v["FilePath"].toString() == rp)
+					externalFileTree = v;
+			}
+
+			return false;
+		});
+
+		return s;
+	}
+
 	String createCodeUpToInclude(const File& includedFile)
 	{
 		String s; 
@@ -1822,11 +1870,9 @@ private:
 	File scriptDir;
 };
 
-DiagnosticBase::ShadowParseData::Item::List JavascriptProcessor::resolveDependencies(DiagnosticBase::ShadowParseData::Item::Ptr item)
+void JavascriptProcessor::resolveDependencies(DPItem::Ptr item, DPItem::List& preDependencies, DPItem::List& postDependencies)
 {
 	using Item = DiagnosticBase::ShadowParseData::Item;
-
-	Item::List returnList;
 
 	if (item->t == Item::Type::ExternalFile)
 	{
@@ -1842,21 +1888,22 @@ DiagnosticBase::ShadowParseData::Item::List JavascriptProcessor::resolveDependen
 
 		auto code = ip.createCodeUpToInclude(File(item->getFileName()));
 
-		returnList.add(new Item(Item::Type::onInit, "", code));
+		auto postCode = ip.createCodeFrom(File(item->getFileName()));
+
+		preDependencies.add(new Item(Item::Type::onInit, "", code));
+		postDependencies.add(new Item(Item::Type::onInit, "", postCode));
 	}
 
 	if (item->t == Item::Type::onInit)
-		return returnList;
+		return;
 
 	if (item->t == Item::Type::StandaloneCode)
-		return returnList;
+		return;
 
 	if (item->t == Item::Type::Callback)
 	{
-		returnList.add(new Item(Item::Type::onInit, "", getSnippet("onInit")->getAllContent()));
+		preDependencies.add(new Item(Item::Type::onInit, "", getSnippet("onInit")->getAllContent()));
 	}
-
-	return returnList;
 }
 #endif
 

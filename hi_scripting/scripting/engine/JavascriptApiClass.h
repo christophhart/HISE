@@ -606,6 +606,21 @@ struct DiagnosticBase: public ReferenceCountedObject
             Item* const* begin() const { return dependencies.begin(); }
             Item* const* end() const { return dependencies.end(); }
 
+            List makeFlatParseList() const
+            {
+                List l;
+
+                for (auto i : dependencies)
+                    l.add(i);
+
+                l.add(const_cast<Item*>(this));
+
+                for (auto p : postDependencies)
+                    l.add(p);
+
+                return l;
+            }
+
             void setBreakPosition(int pos)
             {
                 stopAtLineNumber = pos;
@@ -737,19 +752,30 @@ struct DiagnosticBase: public ReferenceCountedObject
             int col = 0;
             int charIndex = 0;
             String fileName;
+
             String message;
             StringArray suggestions;
             Severity severity = Severity::Error;
             ErrorCode ec = ErrorCode::Unknown;
+            DiagnosticResult::Classification classification;
 
             std::vector<CallStackItem> callstack;
-
-            DiagnosticResult::Classification classification;
 
             /** Formats the diagnostic matching F5 compile error output:
                 "locationString: message {{Base64(processorId|path|charIndex|line|col)}}"
                 This makes console output double-clickable and parseable by RestHelpers::parseError(). */
             String toConsoleString(Processor* p) const;
+
+            Item withLocation(const Item& other) const
+            {
+                auto copy = *this;
+                copy.line = other.line;
+                copy.col = other.col;
+                copy.charIndex = other.charIndex;
+                copy.fileName = other.fileName;
+
+                return copy;
+            }
 
             String toEditorString() const;
 

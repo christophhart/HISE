@@ -570,7 +570,10 @@ public:
 	void shadowParse(const DiagnosticBase::ShadowParseData& sd, const DiagnosticCallback& callback,
 						 NotificationType notificationType = sendNotificationAsync);
 
-	virtual DiagnosticBase::ShadowParseData::Item::List resolveDependencies(DiagnosticBase::ShadowParseData::Item::Ptr item) override;
+	using DPItem = DiagnosticBase::ShadowParseData::Item;
+
+	void resolveDependencies(DPItem::Ptr item, DPItem::List& preDependencies, DPItem::List& postDependencies) override;
+
 #endif
 
 	void setupApi();

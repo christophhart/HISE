@@ -546,16 +546,12 @@ inline void HiseJavascriptEngine::RootObject::ObjectTypeMap::addDeferredDiagnost
 
 			if (ok.shouldReport())
 			{
-				ApiDiagnostic copy;
-				
-				currentLocation->fillColumnAndLines(copy);
-				copy.classification = ok.getClassification();
-				copy.ec = ok.getErrorCode();
-				copy.message = ok.getErrorMessage();
-				copy.severity = ok.getSeverity();
-				copy.suggestions = ok.getSuggestions();
+				auto loc = currentLocation;
 
-				addDiagnostic(copy);
+				addDiagnostic(ok.toItem([loc](ApiDiagnostic& ad)
+				{
+					loc->fillLocation(ad);
+				}));
 			}
 		}
 	}
@@ -572,7 +568,7 @@ inline void HiseJavascriptEngine::RootObject::ObjectTypeMap::addDeferredDiagnost
 	}
 }
 
-void HiseJavascriptEngine::RootObject::ObjectTypeMap::checkDeferredDiagnostics()
+void HiseJavascriptEngine::RootObject::ObjectTypeMap::checkDeferredDiagnostics(const Array<var>& functionsToShadowParse)
 {
 	ScopedValueSetter<bool> svs(parsingDefferedDiagnostics, true);
 
@@ -584,16 +580,42 @@ void HiseJavascriptEngine::RootObject::ObjectTypeMap::checkDeferredDiagnostics()
 
 			if (ok.shouldReport())
 			{
-				auto copy = df.ad;
+				auto locationDiagnostic = df.ad;
 
-				copy.classification = ok.getClassification();
-				copy.ec = ok.getErrorCode();
-				copy.message = ok.getErrorMessage();
-				copy.severity = ok.getSeverity();
-				copy.suggestions = ok.getSuggestions();
-
-				addDiagnostic(copy);
+				addDiagnostic(ok.toItem([locationDiagnostic](ApiDiagnostic& ad)
+				{
+					ad = ad.withLocation(locationDiagnostic);
+				}));
 			}	
+		}
+	}
+
+	for (auto& f : functionsToShadowParse)
+	{
+		if (auto fo = dynamic_cast<FunctionObject*>(f.getObject()))
+		{
+			auto dr = fo->shadowParseIfTypedParameters(getCurrentScope());
+
+			if (dr.shouldReport())
+			{
+				addDiagnostic(dr.toItem([fo](ApiDiagnostic& ad)
+				{
+					fo->codeLocation.fillLocation(ad);
+				}));
+			}
+		}
+
+		if (auto ifo = dynamic_cast<InlineFunction::Object*>(f.getObject()))
+		{
+			auto dr = ifo->shadowParseIfTypedParameters(getCurrentScope());
+
+			if (dr.shouldReport())
+			{
+				addDiagnostic(dr.toItem([ifo](ApiDiagnostic& ad)
+				{
+					ifo->body->location.fillLocation(ad);
+				}));
+			}
 		}
 	}
 }

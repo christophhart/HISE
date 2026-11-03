@@ -513,9 +513,10 @@ public:
 
 			void fillColumnAndLines(int& col, int& line, int& charIndex) const;
 
-			void fillColumnAndLines(DiagnosticBase::DiagnosticResult::Item& i) const
+			void fillLocation(DiagnosticBase::DiagnosticResult::Item& i) const
 			{
 				fillColumnAndLines(i.col, i.line, i.charIndex);
+				i.fileName = externalFile;
 			}
 
 			String getLocationString() const;
@@ -1183,7 +1184,7 @@ private:
 
 	DynamicObject::Ptr unneededScope;
 
-
+	
 
 	ScopeTree lastShadowParseScope;
 

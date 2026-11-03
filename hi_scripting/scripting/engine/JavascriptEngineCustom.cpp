@@ -868,6 +868,9 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		{
 			std::pair<var, DiagnosticBase::DiagnosticResult> rv;
 
+			if (body == nullptr)
+				return rv;
+
 			if (auto st = s.getShadowParser())
 			{
 				alreadyShadowParsed = true;

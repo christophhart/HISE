@@ -2871,13 +2871,21 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 
 	ItemType t = ItemType::onInit;
 
+	auto getFileFromString = [mc](const String& fileString)
+	{
+		if (fileString.isEmpty())
+			return File();
+
+		if (File::isAbsolutePath(fileString))
+			return File(fileString);
+		else
+			return mc->getSampleManager().getProjectHandler()
+			.getSubDirectory(FileHandlerBase::Scripts)
+			.getChildFile(fileString);
+	};
+
 	if (codeStr.isNotEmpty())
 	{
-		// Standalone code mode: the caller supplies the source directly.
-		if (filePathStr.isNotEmpty())
-			return req->fail(400, "code and filePath are mutually exclusive "
-								  "(code is a standalone raw-string mode; omit filePath)");
-		
 		// Validate against the first interface processor's API context. This
 		// processor must already be compiled so its engine is live.
 		jp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(mc);
@@ -2887,28 +2895,35 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 								  "Compile the interface first (F5).");
 		
 		code = codeStr;
-		fileName = "";
-		responsePath = "";
 
-		t = ItemType::StandaloneCode;
+		auto targetFile = getFileFromString(filePathStr);
+
+		fileName = targetFile.getFullPathName();
+
+		if (fileName.isNotEmpty())
+		{
+			jp = findProcessorForFile(mc, targetFile);
+
+			if (jp == nullptr)
+				return req->fail(404, "No script processor includes this file. "
+					"Has it been compiled at least once (F5)?");
+
+			t = ItemType::ExternalFile;
+		}
+			
+		else
+			t = ItemType::StandaloneCode;
+
+		responsePath = fileName.replace("\\", "/");;
 	}
 	else
 	{
 		// File mode (existing behavior): resolve a real file from disk.
-		File targetFile;
+		File targetFile = getFileFromString(filePathStr);
 		
-		if (filePathStr.isNotEmpty())
-		{
-			if (File::isAbsolutePath(filePathStr))
-				targetFile = File(filePathStr);
-			else
-				targetFile = mc->getSampleManager().getProjectHandler()
-					.getSubDirectory(FileHandlerBase::Scripts)
-					.getChildFile(filePathStr);
-
+		if (targetFile.existsAsFile())
 			t = ItemType::ExternalFile;
-		}
-		
+
 		if (moduleIdStr.isNotEmpty())
 		{
 			// moduleId provided - use it to find the processor

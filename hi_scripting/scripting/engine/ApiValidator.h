@@ -116,7 +116,7 @@ struct HiseJavascriptEngine::RootObject::ObjectTypeMap : public ReferenceCounted
 
 	void addDeferredDiagnosticCheck(const var& test, const String& validatorString) override;
 
-	void checkDeferredDiagnostics();
+	void checkDeferredDiagnostics(const Array<var>& functionsToShadowParse);
 
 	struct ScopedCallStack
 	{

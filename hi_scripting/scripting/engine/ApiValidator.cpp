@@ -274,7 +274,7 @@ LightweightDiagnostics::Ptr HiseJavascriptEngine::RootObject::ObjectTypeMap::get
 
     
 	if (auto js = obj.getDynamicObject())
-		return lightweightDiagnostics.createLightweightPrototype(pwsc, "Object", JSON::toString(obj));
+		return lightweightDiagnostics.createLightweightPrototype(pwsc, "JSON", JSON::toString(obj));
 
 	return lightweightDiagnostics.createLightweightPrototype(pwsc, VarTypeChecker::getTypeName(type), "");
 }

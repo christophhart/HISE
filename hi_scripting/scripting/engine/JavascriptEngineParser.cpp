@@ -309,6 +309,7 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 	}
 
     HiseJavascriptPreprocessor::Ptr preprocessor;
+	Array<var> functionsToShadowParse;
 
 	void setupApiData(HiseSpecialData &data, const String& codeToPreprocess)
 	{
@@ -336,40 +337,6 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
         diagnostics.add(d);
     }
     
-	void shadowParseAllFunctions()
-	{
-		auto sd = dynamic_cast<RootObject::ObjectTypeMap*>(hiseSpecialData->currentShadowParser);
-
-		for (auto& f : functionsToShadowParse)
-		{
-			if (auto fo = dynamic_cast<FunctionObject*>(f.getObject()))
-			{
-				auto dr = fo->shadowParseIfTypedParameters(sd->getCurrentScope());
-
-				if (dr.shouldReport())
-				{
-					sd->addDiagnostic(dr.toItem([fo](ApiDiagnostic& ad)
-					{
-						fo->codeLocation.fillColumnAndLines(ad);
-					}));
-				}
-			}
-
-			if (auto ifo = dynamic_cast<InlineFunction::Object*>(f.getObject()))
-			{
-				auto dr = ifo->shadowParseIfTypedParameters(sd->getCurrentScope());
-
-				if (dr.shouldReport())
-				{
-					sd->addDiagnostic(dr.toItem([ifo](ApiDiagnostic& ad)
-					{
-						ifo->body->location.fillColumnAndLines(ad);
-					}));
-				}
-			}
-		}
-	}
-
 	BlockStatement* parseStatementList()
 	{
 		ScopedPointer<BlockStatement> b(new BlockStatement(location));
@@ -698,8 +665,8 @@ private:
 	                       CS source=CS::ApiValidation)
 	{
 		ApiDiagnostic d;
-		loc.fillColumnAndLines(d.col, d.line, d.charIndex);
-		d.fileName = loc.externalFile;
+		loc.fillLocation(d);
+
 		d.message = message;
 		d.suggestions = suggestions;
 		d.severity = severity;
@@ -2297,7 +2264,7 @@ private:
 		return rv;
 	}
 
-	Array<var> functionsToShadowParse;
+	
 
 	Expression* parseFunctionCall(FunctionCall* call, ExpPtr& function)
 	{
