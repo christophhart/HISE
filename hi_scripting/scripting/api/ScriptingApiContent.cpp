@@ -7987,6 +7987,7 @@ void ScriptingApi::Content::beginInitialization()
 	updateWatcher = nullptr;
 	guides.clear();
 	registeredKeyPresses.clear();
+	nullableRadioGroups.clear();
 
 	contentProfile.setHolder(dynamic_cast<ApiProviderBase::Holder*>(getScriptProcessor()), true);
 	contentProfile.setSourceType(DebugSession::ProfileDataSource::SourceType::Script);
@@ -8069,38 +8070,30 @@ void ScriptingApi::Content::setAllowRadioGroupDeselect(int radioGroupId, bool al
 	if (allowDeselect)
 	{
 		bool radioGroupExists = false;
-		static const Identifier radioGroup("radioGroup");
 
 		for (int i = 0; i < getNumComponents(); i++)
 		{
 			if (auto button = dynamic_cast<ScriptButton*>(getComponent(i)))
 			{
-				auto buttonTree = button->getPropertyValueTree();
-				if (buttonTree.isValid())
+				if ((int)button->getScriptObjectProperty(ScriptButton::Properties::radioGroup) == radioGroupId)
 				{
-					int groupValue = (int)buttonTree.getProperty(radioGroup, var(0));
-					if (groupValue == radioGroupId)
-					{
-						radioGroupExists = true;
-						break;
-					}
+					radioGroupExists = true;
+					break;
 				}
 			}
 		}
 
 		if (!radioGroupExists)
 		{
-			String error;
-			error << "No buttons with radio group " << String(radioGroupId) << " found";
-			reportScriptError(error);
+			reportScriptError("No buttons with radio group " + String(radioGroupId) + " found");
 			return;
 		}
 
-		nullableRadioGroups.add(radioGroupId);
+		nullableRadioGroups.addIfNotAlreadyThere(radioGroupId);
 	}
 	else
 	{
-		nullableRadioGroups.removeValue(radioGroupId);
+		nullableRadioGroups.removeAllInstancesOf(radioGroupId);
 	}
 }
 

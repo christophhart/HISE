@@ -3420,7 +3420,7 @@ private:
 
 	AsyncRebuildMessageBroadcaster asyncRebuildBroadcaster;
 
-	SortedSet<int> nullableRadioGroups;
+	Array<int> nullableRadioGroups;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Content);
 	
