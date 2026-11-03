@@ -172,6 +172,25 @@ void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
 
 		if (c != nullptr)
 		{
+			if (auto b = dynamic_cast<ScriptingApi::Content::ScriptButton*>(c))
+			{
+				if (int group = b->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::Properties::radioGroup))
+				{
+					// Nullable radio group: a second click on the lit button turns it off.
+					if (content->isRadioGroupNullable(group))
+					{
+						float currentValue = (float)c->getValue();
+
+						if (currentValue > 0.5f && newValue > 0.5f)
+						{
+							c->setValue(0);
+							controlCallback(c, 0.0f);
+							return;
+						}
+					}
+				}
+			}
+
 			c->setValue(newValue);
 
 			if (auto b = dynamic_cast<ScriptingApi::Content::ScriptButton*>(c))
