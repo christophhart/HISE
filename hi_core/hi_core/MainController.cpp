@@ -2305,6 +2305,15 @@ ReferenceCountedObject* MainController::getGlobalPreprocessor()
         
         auto obj = settings.getExtraDefinitionsAsObject();
 
+		{
+			snex::jit::ExternalPreprocessorDefinition def(snex::jit::ExternalPreprocessorDefinition::Type::Definition);
+			def.name = "USE_BACKEND";
+			def.value = "1";
+			def.fileName = "EXTERNAL_DEFINITION";
+
+			pp->definitions.add(def);
+		}
+
         for(const auto& p: obj.getDynamicObject()->getProperties())
         {
             auto key = p.name.toString();

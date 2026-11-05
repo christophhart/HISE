@@ -772,6 +772,8 @@ void FileChangeListener::addFileContentToValueTree(JavascriptProcessor* jp, Valu
     
 	String fileContent = scriptFile.loadFileAsString();
     
+	HiseJavascriptPreprocessor::ScopedBackendDeactivator sps(jp);
+
     auto ok = jp->getScriptEngine()->preprocessor->process(fileContent, fileName);
     
     jassert(ok.wasOk());
