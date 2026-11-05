@@ -925,7 +925,7 @@ void ProjectHandler::createRSAKey() const
     StringArray bitLength = { "512", "1024", "2048" };
 
 	b->addItemList(bitLength, 1);
-	b->setSelectedItemIndex(0);
+	b->setSelectedItemIndex(2);
 	GlobalHiseLookAndFeel::setDefaultColours(*b);
 
 	aw.addButton("Create", 1, KeyPress(KeyPress::returnKey));

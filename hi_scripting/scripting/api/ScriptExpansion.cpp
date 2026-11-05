@@ -3559,6 +3559,8 @@ struct ScriptUnlocker::RefObject::Wrapper
 	API_METHOD_WRAPPER_1(RefObject, unlockExpansionList);
 	API_METHOD_WRAPPER_1(RefObject, writeExpansionKeyFile);
 	API_VOID_METHOD_WRAPPER_3(RefObject, performMoonbaseOp);
+	API_METHOD_WRAPPER_0(RefObject, createNonceForTimestamp);
+
 };
 
 ScriptUnlocker::RefObject::RefObject(ProcessorWithScriptingContent* p) :
@@ -3594,6 +3596,7 @@ ScriptUnlocker::RefObject::RefObject(ProcessorWithScriptingContent* p) :
 	ADD_API_METHOD_1(unlockExpansionList);
 	ADD_API_METHOD_1(writeExpansionKeyFile);
 	ADD_API_METHOD_3(performMoonbaseOp);
+	ADD_API_METHOD_0(createNonceForTimestamp);
 }
 
 ScriptUnlocker::RefObject::~RefObject()
@@ -3612,6 +3615,18 @@ juce::var ScriptUnlocker::RefObject::canExpire() const
 	return unlocker != nullptr ? var(unlocker->getExpiryTime() != juce::Time(0)) : var(false);
 }
 
+String ScriptUnlocker::RefObject::createNonceForTimestamp()
+{
+	if (unlocker != nullptr)
+	{
+		unlocker->currentNonce = Random::getSystemRandom().nextInt64();
+		auto hex = String::toHexString(unlocker->currentNonce);
+		return hex;
+	}
+	
+	return "";
+}
+
 juce::var ScriptUnlocker::RefObject::checkExpirationData(const String& encodedTimeString)
 {
 	if (unlocker != nullptr)
@@ -3624,25 +3639,55 @@ juce::var ScriptUnlocker::RefObject::checkExpirationData(const String& encodedTi
 			unlocker->getPublicKey().applyToValue(bi);
 
 			auto timeString = bi.toMemoryBlock().toString();
+			auto nonceMatches = unlocker->currentNonce == 0;
 
+			const char* n = ".NONCE:";
+
+			if (timeString.contains(n))
+			{
+				auto thisNonce = timeString.fromFirstOccurrenceOf(n, false, false).getHexValue64();
+				timeString = timeString.upToFirstOccurrenceOf(n, false, false);
+				nonceMatches = thisNonce == unlocker->currentNonce;
+			}
+			
 			auto time = Time::fromISO8601(timeString);
 
-			auto ok = unlocker->unlockWithTime(time);
-
-			auto delta = unlocker->getExpiryTime() - time;
-
-			if (ok)
+			if (canExpire())
 			{
+				if (!nonceMatches)
+					return var("nonce mismatch");
+					
+				// demo route, unlocker is not active yet
+				auto ok = unlocker->unlockWithTime(time);
+				auto delta = unlocker->getExpiryTime() - time;
+
+				if (ok)
+				{
 #if USE_FRONTEND
-				dynamic_cast<FrontendProcessor*>(getScriptProcessor()->getMainController_())->loadSamplesAfterRegistration(true);
+					dynamic_cast<FrontendProcessor*>(getScriptProcessor()->getMainController_())->loadSamplesAfterRegistration(true);
 #endif
 
-				return var(roundToInt(delta.inDays()));
-			}
-				
-			else
-				return var(false);
+					return var(roundToInt(delta.inDays()));
+				}
 
+				else
+					return var(false);
+			}
+			else
+			{
+				// full version with a aging license, check and delete license key
+
+				if (!unlocker->isUnlocked())
+					return false;
+
+				if (!nonceMatches)
+				{
+					unlocker->checkLicenseRefresh(Time(INT64_MAX));
+					return var("nonce mismatch");
+				}
+
+				return unlocker->checkLicenseRefresh(time);
+			}
 		}
 
         return var("encodedTimeString data is corrupt");
