@@ -3408,7 +3408,7 @@
                                     },
                                     "code": {
                                         "type": "string",
-                                        "description": "Raw HISEScript source to parse directly (standalone code mode). When present and the filePath is not specified, the code is shadow-parsed against the first interface processor's API context without reading any file from disk or executing. When used in combination with filePath the supplied code string takesprecedent over the file content and can be used to diagnose unsaved changes but keep the include structure from the file."
+                                        "description": "Raw HISEScript source to parse directly (standalone code mode). When present and the filePath is not specified, the code is shadow-parsed against the first interface processor's API context without reading any file from disk or executing. When used in combination with filePath the supplied code string takes precedent over the file content and can be used to diagnose unsaved changes but keep the include structure from the file."
                                     },
                                     "async": {
                                         "type": "boolean",
