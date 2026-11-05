@@ -7741,7 +7741,7 @@ private:
             if (modParams[i][RestApiIds::parameterId].toString() == "ModDepth")
             {
                 foundModDepth = true;
-                expectEquals(modParams[i][RestApiIds::externalModulation].toString(),
+                expect(modParams[i][RestApiIds::externalModulation].toString() ==
                              "Combined", "ExternalModulation should be stored");
             }
         }

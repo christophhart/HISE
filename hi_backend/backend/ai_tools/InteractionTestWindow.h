@@ -426,7 +426,11 @@ public:
         void executeMouseMove(Point<int> pixelPos, ModifierKeys mods,
                               int elapsedMs) override;
         
-        void executeScreenshot(const String& id, float scale, int elapsedMs) override;
+        Result executeScreenshot(const String& id, const String& componentId,
+                                 float scale, int elapsedMs) override;
+
+        void executeRepl(const String& id, const String& expression, int elapsedMs,
+                         const ReplCompletion& completion) override;
         
         void executeSyntheticModeStart(int elapsedMs) override;
         void executeSyntheticModeEnd(int elapsedMs) override;

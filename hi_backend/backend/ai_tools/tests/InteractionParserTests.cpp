@@ -47,6 +47,7 @@ public:
         testParseValidClickRightClick();
         testParseValidClickWithModifiers();
         testParseValidClickWithDelay();
+        testParseExplicitDuration();
         
         // DoubleClick Expansion
         testParseDoubleClickExpandsToTwoClicks();
@@ -66,8 +67,16 @@ public:
         
         // Screenshot Parsing
         testParseValidScreenshot();
+        testParseScreenshotComponent();
+        testParseScreenshotDelay();
         testParseScreenshotMissingId();
         testParseScreenshotInvalidScale();
+        testParseScreenshotNegativeDelay();
+
+        // REPL Parsing
+        testParseValidRepl();
+        testParseReplMissingId();
+        testParseReplMissingExpression();
         
         // SelectMenuItem Parsing
         testParseValidSelectMenuItem();
@@ -82,6 +91,7 @@ public:
         // Delay and Duration
         testParseNegativeDelay();
         testParseNegativeDuration();
+        testParseNonNumericDuration();
         testParseDurationExceedsLimit();
         
         // Default Values
@@ -291,6 +301,23 @@ private:
         expect(interactions.size() == 1, "Should have 1 interaction");
         expect(interactions[0].mouse.delayMs == 500, "Delay should be 500ms");
     }
+
+    void testParseExplicitDuration()
+    {
+        beginTest("Click: Explicit duration is tracked");
+
+        auto explicitDuration = parseOrFail(R"([
+            {"type": "moveTo", "target": "Button1", "duration": 100},
+            {"type": "click", "target": "Button1", "duration": 100},
+            {"type": "drag", "target": "Button1", "delta": {"x": 10, "y": 0}, "duration": 100},
+            {"type": "selectMenuItem", "menuItemText": "Option 1", "duration": 100}
+        ])");
+        auto defaultDuration = parseOrFail(R"([{"type": "click", "target": "Button1"}])");
+
+        for (const auto& interaction : explicitDuration)
+            expect(interaction.mouse.durationWasExplicit, "Supplied duration should be explicit");
+        expect(!defaultDuration[0].mouse.durationWasExplicit, "Default duration should not be explicit");
+    }
     
     //==============================================================================
     // DoubleClick Expansion Tests
@@ -449,7 +476,28 @@ private:
         expect(interactions.size() == 1, "Should have 1 interaction");
         expect(interactions[0].mouse.type == MouseInteraction::Type::Screenshot, "Should be Screenshot");
         expect(interactions[0].mouse.screenshotId == "capture1", "ID should match");
+        expect(interactions[0].mouse.screenshotComponentId.isEmpty(), "Component crop should default to empty");
         expect(interactions[0].mouse.screenshotScale == 1.0f, "Default scale should be 1.0");
+    }
+
+    void testParseScreenshotComponent()
+    {
+        beginTest("Screenshot: Component crop and scale");
+
+        auto interactions = parseOrFail(R"([{"type": "screenshot", "id": "capture1", "componentId": "Button1", "scale": 0.5}])");
+
+        expect(interactions.size() == 1, "Should have 1 interaction");
+        expect(interactions[0].mouse.screenshotComponentId == "Button1", "Component ID should match");
+        expect(interactions[0].mouse.screenshotScale == 0.5f, "Scale should match");
+    }
+
+    void testParseScreenshotDelay()
+    {
+        beginTest("Screenshot: Delay is parsed");
+
+        auto interactions = parseOrFail(R"([{"type": "screenshot", "id": "capture1", "delay": 75}])");
+
+        expectEquals(interactions[0].mouse.delayMs, 75, "Delay should match");
     }
     
     void testParseScreenshotMissingId()
@@ -469,6 +517,44 @@ private:
         ])");
         
         expect(result.failed(), "Should reject scale other than 0.5 or 1.0");
+    }
+
+    void testParseScreenshotNegativeDelay()
+    {
+        beginTest("Screenshot: Negative delay rejected");
+
+        auto result = parseExpectingFailure(R"([{"type": "screenshot", "id": "test", "delay": -1}])");
+        expect(result.failed(), "Should reject a negative screenshot delay");
+    }
+
+    void testParseValidRepl()
+    {
+        beginTest("REPL: Valid with required fields and delay");
+
+        auto interactions = parseOrFail("[{\"type\": \"repl\", \"id\": \"buttonValue\", "
+            "\"expression\": \"Button1.getValue()\", \"delay\": 25}]");
+
+        expect(interactions.size() == 1, "Should have 1 interaction");
+        expect(interactions[0].mouse.type == MouseInteraction::Type::Repl, "Should be REPL");
+        expect(interactions[0].mouse.replId == "buttonValue", "ID should match");
+        expect(interactions[0].mouse.replExpression == "Button1.getValue()", "Expression should match");
+        expectEquals(interactions[0].mouse.delayMs, 25, "Delay should match");
+    }
+
+    void testParseReplMissingId()
+    {
+        beginTest("REPL: Missing id rejected");
+
+        auto result = parseExpectingFailure(R"([{"type": "repl", "expression": "1 + 1"}])");
+        expect(result.failed(), "Should reject REPL without id");
+    }
+
+    void testParseReplMissingExpression()
+    {
+        beginTest("REPL: Missing expression rejected");
+
+        auto result = parseExpectingFailure(R"([{"type": "repl", "id": "result"}])");
+        expect(result.failed(), "Should reject REPL without expression");
     }
     
     //==============================================================================
@@ -582,6 +668,17 @@ private:
         ])");
         
         expect(result.failed(), "Should reject negative duration");
+    }
+
+    void testParseNonNumericDuration()
+    {
+        beginTest("Range: Non-numeric duration rejected");
+
+        auto result = parseExpectingFailure(R"([
+            {"type": "click", "target": "Button1", "duration": "100"}
+        ])");
+
+        expect(result.failed(), "Should reject a non-numeric duration");
     }
     
     void testParseDurationExceedsLimit()

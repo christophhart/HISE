@@ -197,6 +197,7 @@ InteractionTester::TestResult InteractionTester::executeInteractions(const var& 
     result.interactionsCompleted = execResult.interactionsCompleted;
     result.totalElapsedMs = execResult.totalElapsedMs;
     result.screenshots = executor.getScreenshots();
+    result.replResults = dispatcher.getReplResults();
     result.selectedMenuItem = dispatcher.getLastSelectedMenuItem();
     
     if (verbose)
@@ -348,6 +349,7 @@ InteractionTester::createMoveToIfNeeded(const InteractionParser::MouseInteractio
         case Type::MoveTo:
         case Type::SelectMenuItem:
         case Type::Screenshot:
+        case Type::Repl:
             // No auto-insertion needed
             break;
     }
@@ -382,6 +384,7 @@ void InteractionTester::updateMouseStateForNormalization(const InteractionParser
             break;
             
         case Type::Screenshot:
+        case Type::Repl:
             // No state change
             break;
     }
@@ -460,11 +463,16 @@ InteractionDispatcher::ExecutionResult InteractionTester::executeRawEvents(
         
         int elapsedMs = (int)(Time::getMillisecondCounter() - startTime);
         
-        // Add button modifier flag for mouseDown/mouseUp
-        if (type == InteractionIds::mouseDown.toString() || type == InteractionIds::mouseUp.toString())
+        // A release must be injected without mouse button modifiers so JUCE
+        // observes the transition from down to up.
+        if (type == InteractionIds::mouseDown.toString())
         {
             mods = mods.withFlags(rightClick ? ModifierKeys::rightButtonModifier 
                                              : ModifierKeys::leftButtonModifier);
+        }
+        else if (type == InteractionIds::mouseUp.toString())
+        {
+            mods = mods.withoutMouseButtons();
         }
         
         // Execute the event

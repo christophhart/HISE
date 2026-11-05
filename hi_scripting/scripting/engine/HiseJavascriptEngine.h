@@ -49,6 +49,14 @@ public:
     
     using Ptr = ReferenceCountedObjectPtr<HiseJavascriptPreprocessor>;
     
+	struct ScopedBackendDeactivator
+	{
+		ScopedBackendDeactivator(JavascriptProcessor* jp);
+		~ScopedBackendDeactivator();
+
+		JavascriptProcessor* jp;
+	};
+
     HiseJavascriptPreprocessor() {};
     
     Result process(String& code, const String& externalFile);

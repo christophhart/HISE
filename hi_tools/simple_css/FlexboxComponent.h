@@ -513,8 +513,9 @@ struct CSSImage: public Component
 
 	struct LoadThread: public Thread,
 					   public AsyncUpdater
-    {
+	{
 	    LoadThread(CSSImage& parent_, const URL& url);
+	    ~LoadThread() override;
 
         void handleAsyncUpdate() override;
 

@@ -2778,6 +2778,9 @@ RestServer::Response RestHelpers::handleTestingE2e(BackendProcessor* bp, RestSer
 	result->setProperty(RestApiIds::interactionsCompleted, testResult.interactionsCompleted);
 	result->setProperty(RestApiIds::totalElapsedMs, testResult.totalElapsedMs);
 	result->setProperty(RestApiIds::executionLog, testResult.executionLog);
+
+	if (!testResult.replResults.isEmpty())
+		result->setProperty(RestApiIds::replResults, var(testResult.replResults));
 	
 	// Convert screenshots to JSON object with metadata (no base64 data)
 	DynamicObject::Ptr screenshotsObj = new DynamicObject();
@@ -2785,9 +2788,16 @@ RestServer::Response RestHelpers::handleTestingE2e(BackendProcessor* bp, RestSer
 	{
 		DynamicObject::Ptr ssInfo = new DynamicObject();
 		ssInfo->setProperty(RestApiIds::id, info.id);
+		ssInfo->setProperty(RestApiIds::moduleId, info.moduleId);
+
+		if (info.componentId.isNotEmpty())
+			ssInfo->setProperty(RestApiIds::componentId, info.componentId);
+
 		ssInfo->setProperty("sizeKB", info.sizeKB);
-		ssInfo->setProperty("width", info.width);
-		ssInfo->setProperty("height", info.height);
+		ssInfo->setProperty(RestApiIds::width, info.width);
+		ssInfo->setProperty(RestApiIds::height, info.height);
+		ssInfo->setProperty(RestApiIds::scale, info.scale);
+		ssInfo->setProperty(RestApiIds::filePath, info.filePath);
 		screenshotsObj->setProperty(Identifier(id), var(ssInfo.get()));
 	}
 	result->setProperty(RestApiIds::screenshots, var(screenshotsObj.get()));
@@ -4037,29 +4047,69 @@ RestServer::Response RestHelpers::handleParseCSS(MainController* mc,
 	auto obj = req->getRequest().getJsonBody();
 	auto code = obj.getProperty(RestApiIds::code, "").toString();
 	auto filePathStr = obj.getProperty(RestApiIds::filePath, "").toString();
-	
+	auto moduleId = obj.getProperty(RestApiIds::moduleId, "").toString();
+	auto componentId = obj.getProperty(RestApiIds::componentId, "").toString();
+	var selectorInput;
+	int widthVal = 0;
+	int heightVal = 0;
+
 	String resolvedFilePath;
 	
-	// Resolve CSS code from either inline code or file path
-	if (code.isEmpty() && filePathStr.isEmpty())
-		return req->fail(400, "Either code or filePath must be provided");
+	// Component mode: moduleId + componentId resolves the component's own stylesheet,
+	// selectors and bounds. An explicit code/filePath takes precedence over the
+	// stylesheet attached to the component.
+	if (moduleId.isNotEmpty() != componentId.isNotEmpty())
+		return req->fail(400, "moduleId and componentId must be given together");
+	
+	if (code.isEmpty() && filePathStr.isEmpty() && moduleId.isEmpty())
+		return req->fail(400, "Either code, filePath, or moduleId + componentId must be provided");
 	
 	if (code.isEmpty())
 	{
-		File targetFile;
-		
-		if (File::isAbsolutePath(filePathStr))
-			targetFile = File(filePathStr);
+		if (filePathStr.isNotEmpty())
+		{
+			File targetFile;
+			
+			if (File::isAbsolutePath(filePathStr))
+				targetFile = File(filePathStr);
+			else
+				targetFile = mc->getSampleManager().getProjectHandler()
+					.getSubDirectory(FileHandlerBase::Scripts)
+					.getChildFile(filePathStr);
+			
+			if (!targetFile.existsAsFile())
+				return req->fail(404, "File not found: " + targetFile.getFullPathName());
+			
+			code = targetFile.loadFileAsString();
+			resolvedFilePath = targetFile.getFullPathName().replace("\\", "/");
+		}
 		else
-			targetFile = mc->getSampleManager().getProjectHandler()
-				.getSubDirectory(FileHandlerBase::Scripts)
-				.getChildFile(filePathStr);
-		
-		if (!targetFile.existsAsFile())
-			return req->fail(404, "File not found: " + targetFile.getFullPathName());
-		
-		code = targetFile.loadFileAsString();
-		resolvedFilePath = targetFile.getFullPathName().replace("\\", "/");
+		{
+			auto jp = dynamic_cast<ProcessorWithScriptingContent*>(ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), moduleId));
+
+			if (jp == nullptr)
+				return req->fail(404, "moduleId not found");
+
+			auto sc = jp->getScriptingContent()->getComponentWithName(componentId);
+
+			if (sc == nullptr)
+				return req->fail(404, "Component with ID " + componentId + " not found.");
+
+			code = sc->getCSSFromLocalLookAndFeel();
+
+			widthVal = sc->getWidth();
+			heightVal = sc->getHeight();
+
+			selectorInput = sc->getCSSSelectors();
+
+
+			// Component mode: fetch the stylesheet attached to the component.
+			// (to be implemented: resolve the component, read its stylesheet path,
+			//  load it into 'code' and set 'resolvedFilePath')
+			if (code.isEmpty())
+				return req->fail(404, "No stylesheet attached to component " + componentId
+					+ " - specify code or filePath to parse a specific stylesheet");
+		}
 	}
 	
 	// Parse the CSS
@@ -4142,7 +4192,8 @@ RestServer::Response RestHelpers::handleParseCSS(MainController* mc,
 	}
 	
 	// Optional: resolve properties for given selectors using CSS specificity
-	auto selectorInput = obj.getProperty(RestApiIds::selectors, var());
+	if (!selectorInput.isArray())
+		selectorInput = obj.getProperty(RestApiIds::selectors, var());
 	
 	if (parseOk && selectorInput.isArray() && selectorInput.size() > 0)
 	{
@@ -4185,8 +4236,13 @@ RestServer::Response RestHelpers::handleParseCSS(MainController* mc,
 		if (auto resolved = collection.getForComponent(&dummy))
 		{
 			// Check if size was provided for pixel resolution
-			auto widthVal = (float)(double)obj.getProperty(RestApiIds::width, 0);
-			auto heightVal = (float)(double)obj.getProperty(RestApiIds::height, 0);
+
+			if(widthVal == 0)
+				widthVal = (float)(double)obj.getProperty(RestApiIds::width, 0);
+
+			if(heightVal == 0)
+				heightVal = (float)(double)obj.getProperty(RestApiIds::height, 0);
+
 			bool hasSize = widthVal > 0.0f || heightVal > 0.0f;
 			
 			if (hasSize)

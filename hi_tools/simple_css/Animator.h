@@ -100,36 +100,47 @@ struct Animator: public Timer
 
 		bool timerCallback(double deltaMs);
 
-		void updateCurrentRange()
+		void applyDelay()
 		{
-			auto v = currentProgress;
+			waitCounter = jmax(0.0, transitionData.delay);
 
-			if(!reverse)
-				v = 1.0 - v;
-
-			v = transitionData.f ? transitionData.f(v) : v;
-
-			if(!reverse)
-				v = 1.0 - v;
-
-			currentProgress = v;
-
-			if(reverse)
+			if(transitionData.delay < 0.0)
 			{
-				currentAnimationRange = { 0.0, v };
-			}
-			else
-			{
-				currentAnimationRange = { v, 1.0 };
+				if(transitionData.duration > 0.0)
+				{
+					auto elapsedProgress = -transitionData.delay / transitionData.duration / speed;
+					currentProgress += reverse ? -elapsedProgress : elapsedProgress;
+					currentProgress = jlimit(0.0, 1.0, currentProgress);
+				}
+				else
+				{
+					currentProgress = reverse ? 0.0 : 1.0;
+				}
 			}
 		}
 
-		void resetWaitCounter()
+		void restart()
 		{
-			if(transitionData.delay != 0.0 && transitionData.duration != 0.0)
-			{
-				waitCounter = transitionData.delay / transitionData.duration;
-			}
+			currentProgress = reverse ? 1.0 : 0.0;
+			currentAnimationRange = { 0.0, 1.0 };
+			applyDelay();
+		}
+
+		void restartFromCurrent(double progress, bool shouldReverse)
+		{
+			currentProgress = jlimit(0.0, 1.0, progress);
+			reverse = shouldReverse;
+			currentAnimationRange = reverse ? Range<double>(0.0, currentProgress)
+											: Range<double>(currentProgress, 1.0);
+			applyDelay();
+		}
+
+		bool isComplete() const
+		{
+			if(waitCounter > 0.0)
+				return false;
+
+			return reverse ? currentProgress <= 0.0 : currentProgress >= 1.0;
 		}
 
 		RenderTarget target;

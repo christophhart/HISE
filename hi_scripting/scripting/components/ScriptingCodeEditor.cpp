@@ -168,7 +168,13 @@ void DebugConsoleTextEditor::textEditorReturnKeyPressed(TextEditor& /*t*/)
 		return;
 	}
     
-    processor->getMainController()->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::Compilation,
+#if USE_BACKEND
+    constexpr auto taskType = JavascriptThreadPool::Task::ReplEvaluation;
+#else
+    constexpr auto taskType = JavascriptThreadPool::Task::Compilation;
+#endif
+
+    processor->getMainController()->getJavascriptThreadPool().addJob(taskType,
                                                                      jsp, [codeToEvaluate](JavascriptProcessor* p)
     {
         Result r = Result::ok();
@@ -187,7 +193,7 @@ void DebugConsoleTextEditor::textEditorReturnKeyPressed(TextEditor& /*t*/)
             debugToConsole(pr, r.getErrorMessage());
         }
         
-        return r;
+        return Result::ok();
     });
 }
 

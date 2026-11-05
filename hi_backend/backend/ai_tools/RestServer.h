@@ -40,7 +40,7 @@
     runtime field. Consumers read it off any response (or `/api/status`) to
     verify they are talking to a HISE build that matches their expected schema.
 */
-#define HISE_REST_API_VERSION "0.12.0"
+#define HISE_REST_API_VERSION "0.13.0"  // 0.13.0: Timed E2E interactions support screenshot and REPL interleaving
 
 namespace hise { using namespace juce;
 
@@ -55,6 +55,7 @@ namespace RestApiIds
 {
     // Request/body parameters
     DECLARE_ID(moduleId);
+    DECLARE_ID(componentId);      // Component ID inside a scripting-content module (parse_css component mode)
     DECLARE_ID(callback);
     DECLARE_ID(script);
     DECLARE_ID(compile);
@@ -323,7 +324,7 @@ namespace RestApiIds
     DECLARE_ID(activeNotes);          // Number of notes currently on
     DECLARE_ID(eventsInSequence);     // Total logical events in queue
     DECLARE_ID(playedEvents);         // Number of events dispatched so far
-    DECLARE_ID(replResults);          // Array of REPL evaluation results from testing/sequence
+    DECLARE_ID(replResults);          // Array of REPL evaluation results from testing endpoints
     DECLARE_ID(processorId);          // Target processor ID for set_attribute
     DECLARE_ID(parameterId);          // Parameter name for set_attribute
     DECLARE_ID(propertyId);           // Property name for DSP node properties
