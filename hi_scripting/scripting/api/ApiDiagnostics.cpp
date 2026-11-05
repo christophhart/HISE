@@ -235,9 +235,9 @@ struct ScriptComponentDiagnosticBase : public LightweightDiagnostics
                 for (const auto& nv : obj->getProperty("common").getDynamicObject()->getProperties())
                     commonTypes.push_back({ nv.name, VarTypeChecker::getTypeFromString(nv.value.toString()) });
 
-                for (auto& nv : obj->getProperties())
+                for (auto& components : obj->getProperties())
                 {
-                    if (nv.name == Identifier("common"))
+                    if (components.name == Identifier("common"))
                         continue;
 
                     std::map<Identifier, VarTypeChecker::WrappedType> typeMap;
@@ -245,13 +245,13 @@ struct ScriptComponentDiagnosticBase : public LightweightDiagnostics
                     for (auto& ct : commonTypes)
                         typeMap[ct.first] = ct.second;
 
-                    for (const auto& values : nv.value.getDynamicObject()->getProperties())
+                    for (const auto& property : components.value.getDynamicObject()->getProperties())
                     {
-                        auto t = VarTypeChecker::getTypeFromString(nv.value.toString());
-                        typeMap[values.name] = t;
+                        auto t = VarTypeChecker::getTypeFromString(property.value.toString());
+                        typeMap[property.name] = t;
                     }
 
-                    data[nv.name] = typeMap;
+                    data[components.name] = typeMap;
                 }
             }
         }
@@ -267,6 +267,35 @@ struct ScriptComponentDiagnosticBase : public LightweightDiagnostics
             }
 
             return {};
+        }
+
+        DiagnosticResult checkProperty(const Identifier& componentId, const Identifier& propertyId) const
+        {
+            auto wt = getPropertyType(componentId, propertyId);
+
+            if (!wt)
+            {
+                if (data.find(componentId) != data.end())
+                {
+                    const auto& m = data.at(componentId);
+
+                    StringArray suggestions;
+
+                    for (const auto& s : m)
+                        suggestions.add(s.first.toString());
+
+                    return DiagnosticResult::fail("Missing component property " + componentId + "." + propertyId)
+                        .withSeverity(DiagnosticResult::Severity::Error)
+                        .withErrorCode(DiagnosticResult::ErrorCode::MissingFunctionOrProperty)
+                        .withWrongToken(propertyId.toString())
+                        .withFuzzySuggestion(suggestions);
+                }
+
+                // must be catched otherwise
+                jassertfalse;
+            }
+
+            return DiagnosticResult::ok();
         }
 
         bool hasMap(const Identifier& componentId) const { return data.find(componentId) != data.end(); }
@@ -366,14 +395,20 @@ struct ScriptComponentDiagnosticBase : public LightweightDiagnostics
         return VarTypeChecker::WrappedType(VarTypeChecker::VarTypes::Double);
     }
 
+    static DiagnosticResult createMissingComponentError(const String& id)
+    {
+        return DiagnosticResult::fail("Can't find component with ID `" + id + "`")
+            .withSeverity(DiagnosticResult::Severity::Warning)
+            .withErrorCode(DiagnosticResult::ErrorCode::RuntimeIdFailure)
+            .withSuggestion("If this script hasn't been compiled once, compile it to create the object");
+    }
+
     DiagnosticResult performCustomCheck(const CustomCheckData& cd) final override
     {
         auto sc = getScriptComponent();
         
-        if(sc == nullptr)
-            return DiagnosticResult::fail("Can't find component. If this script hasn't been compiled once, compile it to create the object")
-            .withSeverity(DiagnosticResult::Severity::Warning)
-            .withErrorCode(DiagnosticResult::ErrorCode::RuntimeIdFailure);
+        if (sc == nullptr)
+            return createMissingComponentError(getArgId());
         
         if (cd.methodName == Identifier("setControlCallback"))
         {
@@ -659,8 +694,37 @@ struct ScriptingApi::Content::Diagnostics : public LightweightDiagnostics
 
     DiagnosticResult performCustomCheck(const CustomCheckData& cd) override
     {
+        if (cd.methodName == Identifier("setPropertiesFromJSON"))
+        {
+            auto name = cd.resolvedArguments.getValueAt(0).toString();
+
+            if (auto c = p->getScriptingContent()->getComponentWithName(name))
+            {
+                auto cType = c->getObjectName();
+
+                if (auto obj = cd.resolvedArguments.getValueAt(1).getDynamicObject())
+                {
+                    for (auto& nv : obj->getProperties())
+                    {
+                        auto ok = m->checkProperty(cType, nv.name);
+
+                        if (ok.shouldReport())
+                            return ok;
+                    }
+                }
+            }
+            else
+            {
+                return BaseObjects::ScriptComponentDiagnosticBase::createMissingComponentError(name);
+            }
+
+            return DiagnosticResult::ok();
+        }
+
         return LightweightDiagnostics::performCustomCheck(cd);
     }
+
+    SharedResourcePointer<BaseObjects::ScriptComponentDiagnosticBase::PropertyMap> m;
 
     var getReturnType(const Identifier& methodName, const Array<var>& args) const override
     {
