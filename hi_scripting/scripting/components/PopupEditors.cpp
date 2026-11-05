@@ -1,3 +1,4 @@
+#include "PopupEditors.h"
 /*  ===========================================================================
 *
 *   This file is part of HISE.
@@ -179,21 +180,19 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier 
 			auto encodedState = errorMessage.fromFirstOccurrenceOf("{{", false, false).upToFirstOccurrenceOf("}}", false, false);
 			auto pId = HiseJavascriptEngine::RootObject::CodeLocation::Helpers::getProcessorId(encodedState);
 
-			DebugableObject::Location loc;
-			loc.charNumber = HiseJavascriptEngine::RootObject::CodeLocation::Helpers::getCharNumberFromBase64String(encodedState);
-			loc.fileName = HiseJavascriptEngine::RootObject::CodeLocation::Helpers::getFileName(encodedState);
-			if(loc.fileName.isEmpty())
-				loc.fileName = "onInit";
+			UriLocation loc;
+			loc.charIndex = HiseJavascriptEngine::RootObject::CodeLocation::Helpers::getCharNumberFromBase64String(encodedState);
 
-			if(e.callback.toString() == loc.fileName)
+			loc.uri = HiseJavascriptEngine::RootObject::CodeLocation::Helpers::getFileName(encodedState);
+
+			auto uri = loc.toLocationString(UriLocation::UriFormat::CallbackId);
+
+			if(e.callback.toString() == uri)
 			{
-				CodeDocument::Position pos(e.doc->getCodeDocument(), loc.charNumber);
-
-				auto line = pos.getLineNumber() + 1;
-				auto col = pos.getIndexInLine();
-
-				String mclError = "Line ";
-				mclError << line << "(" << col << "): " << m;
+				loc.fillLineAndCol(e.doc->getCodeDocument());
+				String mclError;
+				mclError << loc.toLocationString(UriLocation::UriFormat::LineAndCol);
+				mclError << ": " << errorMessage;
 				e.editor->editor.setError(mclError);
 			}
 		}
@@ -616,6 +615,12 @@ File PopupIncludeEditor::getFile() const
 	return externalFile != nullptr ? externalFile->getFile() : File();
 }
 
+int PopupIncludeEditor::jumpToFromShortcut(int lineNumber, const String& token)
+{
+	jp->jumpToDefinition(token, lineNumber, "");
+	return -1;
+}
+
 void PopupIncludeEditor::compileInternal()
 {
 	auto mc = dynamic_cast<Processor*>(getScriptProcessor())->getMainController();
@@ -741,7 +746,11 @@ void PopupIncludeEditor::shadowParse(bool printToConsole)
 		fileName = callback.toString();
 	}
 	else if (externalFile != nullptr)
+	{
 		t = Item::Type::ExternalFile;
+		fileName = externalFile->getFile().getFullPathName();
+	}
+		
 
 	auto selection = editor->editor.getTextDocument().getSelection(0);
 
@@ -771,47 +780,52 @@ void PopupIncludeEditor::shadowParse(bool printToConsole)
 
 		mcl::DiagnosticLines dl;
 
-		auto matchesEditor = [safeThis](const DiagnosticBase::DiagnosticResult::Item& ad)
+		auto matchesEditor = [safeThis](const UriLocation& loc)
 		{
-				auto fileName = safeThis->externalFile != nullptr ? safeThis->externalFile->getFile().getFullPathName() : safeThis->callback.toString();
+			auto fileName = safeThis->externalFile != nullptr ? safeThis->externalFile->getFile().getFullPathName() : safeThis->callback.toString();
 
-				if (fileName == "onInit")
-					fileName = "";
+			auto uri = loc.toLocationString(UriLocation::UriFormat::CallbackId);
 
-				return ad.fileName == fileName;
+			return uri == fileName;
 		};
 
 		for (const auto& d : diagnostics)
 		{
 			auto addToEditor = matchesEditor(d);
 				
-			auto consoleMsg = d.toConsoleString(p);
+			auto editorMessage = d.toConsoleMessage();
+			auto consoleMessage = d.toFullCallStack();
 
-			String editorMsg;
-			editorMsg << "Line " << d.line << "(" << d.col << "): " << d.toEditorString();
+			auto sev = DiagnosticBase::DiagnosticResult::getSeverityFromMetadata(d.metadata);
 
-			if (d.severity == Severity::Error)
+			if (sev == Severity::Error)
 			{
 				if (addToEditor)
 				{
 					dl.errorLines.addIfNotAlreadyThere(d.line - 1);
-					ed.addWarning(editorMsg, false);
+					ed.addWarning(d, false);
 				}
-					
 
 				if (printToConsole)
 				{
-					debugError(p, consoleMsg);
+					debugError(p, consoleMessage);
 				}
 				
 				numErrors++;
 			}
-			else if (d.severity == Severity::Hint)
+			else if (sev == Severity::Hint)
 			{
+				if (addToEditor)
+				{
+					ed.addHint(d);
+					dl.hintLines.addIfNotAlreadyThere(d.line - 1);
+				}
+
 				if (printToConsole)
 				{
 					// Hints go to console only — no editor marker
-					debugToConsole(p, consoleMsg);
+					debugToConsole(p, consoleMessage);
+					
 				}
 			}
 			else
@@ -819,12 +833,12 @@ void PopupIncludeEditor::shadowParse(bool printToConsole)
 				if (addToEditor)
 				{
 					dl.warningLines.addIfNotAlreadyThere(d.line - 1);
-					ed.addWarning(editorMsg, true);
+					ed.addWarning(d, true);
 				}
 				
 				if (printToConsole)
 				{
-					debugToConsole(p, consoleMsg);
+					debugToConsole(p, consoleMessage);
 				}
 
 				numWarnings++;

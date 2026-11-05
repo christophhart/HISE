@@ -2931,7 +2931,7 @@ var ScriptingObjects::ScriptedLookAndFeel::callDefinedFunction(const Identifier&
 			{
 				debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), errorMessage);
 			}
-			catch (HiseJavascriptEngine::RootObject::Error&)
+			catch (UriError&)
 			{
 
 			}
@@ -2950,7 +2950,7 @@ void ScriptingObjects::ScriptedLookAndFeel::clearScriptContext()
 	loadedImages.clear();
 }
 
-hise::DebugableObjectBase::Location ScriptingObjects::ScriptedLookAndFeel::getLocation() const
+hise::UriLocation ScriptingObjects::ScriptedLookAndFeel::getLocation() const
 {
 	for (const auto& s : functions.getDynamicObject()->getProperties())
 	{
@@ -2960,7 +2960,7 @@ hise::DebugableObjectBase::Location ScriptingObjects::ScriptedLookAndFeel::getLo
 		}
 	}
 
-	return Location();
+	return UriLocation();
 }
 
 Identifier ScriptingObjects::ScriptedLookAndFeel::Laf::getIdOfParentFloatingTile(Component& c)
@@ -4153,7 +4153,7 @@ DebugInformationBase* ScriptingObjects::ScriptedLookAndFeel::getChildElement(int
 
 	id << mid;
 
-	Location l = getLocation();
+	auto l = getLocation();
 
 
 	return new LambdaValueInformation(vf, id, {}, (DebugInformation::Type)getTypeNumber(), l);

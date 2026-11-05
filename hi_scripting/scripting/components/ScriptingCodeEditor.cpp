@@ -160,9 +160,9 @@ void DebugConsoleTextEditor::textEditorReturnKeyPressed(TextEditor& /*t*/)
 		auto d = codeToEvaluate.substring(5, 1000000);
 		auto tokens = StringArray::fromTokens(d, "@", "");
 
-		DebugableObject::Location loc;
-		loc.charNumber = tokens[1].getIntValue();
-		loc.fileName = tokens[0];
+		UriLocation loc;
+		loc.charIndex = tokens[1].getIntValue();
+		loc.uri = tokens[0];
 
 		DebugableObject::Helpers::gotoLocation(this, jsp, loc);
 		return;

@@ -199,10 +199,11 @@ struct DiagnosticLines
 {
 	DiagnosticLines() = default;
 
-	operator bool() const { return errorLines.isEmpty() && warningLines.isEmpty(); }
+	operator bool() const { return !(errorLines.isEmpty() && warningLines.isEmpty() && hintLines.isEmpty()); }
 
 	juce::Array<int> errorLines;
 	juce::Array<int> warningLines;
+	juce::Array<int> hintLines;
 };
 
 

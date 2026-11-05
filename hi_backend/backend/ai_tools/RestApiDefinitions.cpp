@@ -638,7 +638,7 @@ struct RestApiEndpoints
 				"filePath to read a real file from disk and parse it against its owning processor - "
 				"requires a prior compile, save pending edits first; (code) pass a raw code string to "
 				"parse it directly against the first interface processor's API context, ideal for "
-				"unsaved or in-progress code. code is mutually exclusive with filePath.")
+				"unsaved or in-progress code.")
 			.withReturns("Array of diagnostics with line, column, severity, source, message, and suggestions")
 			.withBodyParam(RouteParameter(RestApiIds::moduleId,
 				"The script processor's module ID (file mode). Required if filePath is not provided. "
@@ -646,12 +646,12 @@ struct RestApiEndpoints
 			.withBodyParam(RouteParameter(RestApiIds::filePath,
 				"Path to the external .js file (file mode, absolute or relative to Scripts folder). "
 				"Required if moduleId is not provided. When used alone, HISE resolves the owning "
-				"processor. Mutually exclusive with code.").asOptional())
+				"processor.").asOptional())
 			.withBodyParam(RouteParameter(RestApiIds::code,
-				"Raw HISEScript source to parse directly (standalone code mode). When present, the "
+				"Raw HISEScript source to parse directly (standalone code mode). When present and the filePath is not specified, the "
 				"code is shadow-parsed against the first interface processor's API context without "
-				"reading any file from disk or executing. Use it to validate unsaved or in-progress "
-				"code. Mutually exclusive with filePath (400 if both are set).").asOptional())
+				"reading any file from disk or executing. When used in combination with filePath the supplied code string takes "
+				"precedent over the file content and can be used to diagnose unsaved changes but keep the include structure from the file.").asOptional())
 			.withBodyParam(RouteParameter(RestApiIds::async,
 				"If true, defer the shadow parse to the scripting thread (slower, blocks audio). "
 				"Default is false: runs directly on the HTTP thread with a read lock.")

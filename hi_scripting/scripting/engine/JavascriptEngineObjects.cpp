@@ -14,7 +14,18 @@ struct HiseJavascriptEngine::RootObject::ObjectClass : public DynamicObject
 
 	static Identifier getClassName()   { static const Identifier i("Object"); return i; }
 	static var dump(Args a)          { DBG(JSON::toString(a.thisObject)); ignoreUnused(a); return var::undefined(); }
-	static var cloneFn(Args a)        { return a.thisObject.clone(); }
+	static var cloneFn(Args a)        
+	{ 
+		if (auto fo = dynamic_cast<FunctionObject*>(a.thisObject.getObject()))
+		{
+			UriError e;
+			fo->codeLocation.fillLocation(e);
+			e.errorMessage = "Can't clone functions";
+			throw e;
+		}
+
+		return a.thisObject.clone(); 
+	}
 
 	static var keys(Args a)
 	{

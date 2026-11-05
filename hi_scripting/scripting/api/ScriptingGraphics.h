@@ -1467,7 +1467,7 @@ namespace ScriptingObjects
 
 		int getNumChildElements() const override;
 
-		Location getLocation() const override;
+		UriLocation getLocation() const override;
 
 		DebugInformationBase* getChildElement(int index) override;
 

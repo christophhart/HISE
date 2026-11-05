@@ -4,7 +4,11 @@
 
 - [ ] Implement predefined objects
 - [ ] add RuntimeIdCheck as classification, demote to warning on Standalone code
-- [ ] add Warning / Error numbers - eg. "E1002", "W4090" with hise-cli -geterror E1002 explaining what the issue is
+- [X] add Warning / Error numbers - eg. "E1002", "W4090" with hise-cli -geterror E1002 explaining what the issue is
+- [ ] remove DiagnosticResult::Classification enum and fold into DiagnosticResult::ErrorCode
+- [X] added type detection from vartype return type & parameter types
+- [ ] add Autocomplete token system for line number scoped tokens with each autocomplete popup
+- [X] redesign location.throwError() to logDiagnostics() if recoverable
 
 ## Parser Functionality
 
@@ -23,6 +27,7 @@
 - [X] cleanup all ObjectTypeMap structures, all is handled by ScopedStack now
 - [ ] remove all #if 0s
 - [ ] make all diagnostic stuff hide behind HISE_SHADOW_PARSER_ENABLED
+- [ ] remove RealtimeSafetyInfo
 
 ## Diagnostics:
 

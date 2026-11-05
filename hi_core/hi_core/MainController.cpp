@@ -2313,7 +2313,7 @@ ReferenceCountedObject* MainController::getGlobalPreprocessor()
             snex::jit::ExternalPreprocessorDefinition def(snex::jit::ExternalPreprocessorDefinition::Type::Definition);
             def.name = key;
             def.value = v;
-            def.fileName = "EXTERNAL_DEFINITION";
+            def.location.uri = "EXTERNAL_DEFINITION";
             
             pp->definitions.add(def);
         }

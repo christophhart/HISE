@@ -612,34 +612,7 @@ ApiClass::Constant& ApiClass::Constant::operator=(const Constant& other)
 	return *this;
 }
 
-#if USE_BACKEND
-juce::String ApiClass::DiagnosticResult::Item::toConsoleString(Processor* p) const
-{
-	return HiseJavascriptEngine::toConsoleString(*this, p);
-}
 
-String ApiClass::DiagnosticResult::Item::toEditorString() const
-{
-	String s;
-
-	if (ec != ErrorCode::Unknown)
-	{
-		auto sev = (Severity)((int)ec / 1000);
-		s << "[";
-		s << getSeverityString(sev).toUpperCase()[0];
-		s << String((int)ec);
-		s << "] ";
-	}
-
-	s << message;
-
-	if (!suggestions.isEmpty())
-		s << ". Use: " << suggestions.joinIntoString(", ");
-
-	return s;
-}
-
-#endif
 
 void hise::DiagnosticBase::ShadowParseData::Item::resolveDependencies(DependencyResolver* r)
 {

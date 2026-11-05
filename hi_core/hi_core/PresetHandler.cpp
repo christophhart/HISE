@@ -1052,6 +1052,24 @@ void ProjectHandler::checkActiveProject()
 	
 }
 
+UriLocation ProjectHandler::createScriptUriLocation(const String& uri) const
+{
+	UriLocation loc;
+	loc.uri = uri;
+
+	if (loc.getUriType() == UriLocation::UriType::ExternalFile)
+	{
+		if (!File::isAbsolutePath(uri))
+		{
+			auto sd = getSubDirectory(SubDirectories::Scripts);
+			auto p = uri.replace("{PROJECT_FOLDER}", "");
+			loc.uri = sd.getChildFile(p).getFullPathName();
+		}
+	}
+
+	return loc;
+}
+
 juce::File ProjectHandler::getAppDataRoot(MainController* mc)
 {
 #if USE_BACKEND

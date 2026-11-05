@@ -38,13 +38,11 @@ struct HiseJavascriptEngine::RootObject::BinaryOperator : public BinaryOperatorB
 	: BinaryOperatorBase(l, a, b, op) {}
 
 	virtual var getWithUndefinedArg() const                           { return var::undefined(); }
-	virtual var getWithDoubles(double, double) const                 { return throwError("Double"); }
-	virtual var getWithInts(int64, int64) const                      { return throwError("Integer"); }
-	virtual var getWithArrayOrObject(const var& a, const var&) const { return throwError(a.isArray() ? "Array" : "Object"); }
-	virtual var getWithStrings(const String&, const String&) const   { return throwError("String"); }
+	virtual var getWithDoubles(double, double) const                 { return throwTypeMismatch("Double"); }
+	virtual var getWithInts(int64, int64) const                      { return throwTypeMismatch("Integer"); }
+	virtual var getWithArrayOrObject(const var& a, const var&) const { return throwTypeMismatch(a.isArray() ? "Array" : "Object"); }
+	virtual var getWithStrings(const String&, const String&) const   { return throwTypeMismatch("String"); }
 
-    
-    
 	var getResult(const Scope& s) const override
 	{
         var a(lhs->getResult(s)), b(rhs->getResult(s));
@@ -56,25 +54,46 @@ struct HiseJavascriptEngine::RootObject::BinaryOperator : public BinaryOperatorB
         }
 #endif
         
-		if (isNumericOrUndefined(a) && isNumericOrUndefined(b))
-			return (a.isDouble() || b.isDouble()) ? getWithDoubles(a, b) : getWithInts(a, b);
+		try
+		{
+			if (isNumericOrUndefined(a) && isNumericOrUndefined(b))
+				return (a.isDouble() || b.isDouble()) ? getWithDoubles(a, b) : getWithInts(a, b);
 
-		if ((a.isUndefined() || a.isVoid()) && (b.isUndefined() || b.isVoid()))
-			return getWithUndefinedArg();
+			if ((a.isUndefined() || a.isVoid()) && (b.isUndefined() || b.isVoid()))
+				return getWithUndefinedArg();
 
-		if (a.isArray() || a.isObject())
-			return getWithArrayOrObject(a, b);
+			if (a.isArray() || a.isObject())
+				return getWithArrayOrObject(a, b);
 
-		if (isNumericOrUndefined(a) && b.isBuffer())
-			return getWithArrayOrObject(a, b);
+			if (isNumericOrUndefined(a) && b.isBuffer())
+				return getWithArrayOrObject(a, b);
 
-		return getWithStrings(a.toString(), b.toString());
+			return getWithStrings(a.toString(), b.toString());
+		}
+		catch (String& errorMessage)
+		{
+			throwError(s, errorMessage);
+			return var();
+		}
 	}
 
-	var throwError(const char* typeName) const
+	var throwCustomError(const String& errorMessage) const
 	{
-		location.throwError(getTokenName(operation) + " is not allowed on the " + typeName + " type"); 
-		RETURN_IF_NO_THROW(var());
+#if USE_BACKEND
+		throw errorMessage;
+#else
+		return var();
+#endif
+	}
+
+	var throwTypeMismatch(const char* typeName) const
+	{
+#if USE_BACKEND
+		String s = getTokenName(operation) + " is not allowed on the " + typeName + " type";
+		return throwCustomError(s);
+#else
+		return var();
+#endif
 	}
 };
 
@@ -169,7 +188,7 @@ struct HiseJavascriptEngine::RootObject::AdditionOp : public BinaryOperator
 
 				if (vbb->buffer.getNumSamples() != vba->buffer.getNumSamples())
 				{
-					location.throwError("Buffer size mismatch: " + String(b.getBuffer()->buffer.getNumSamples()) + " vs. " + String(a.getBuffer()->buffer.getNumSamples()));
+					throwCustomError("Buffer size mismatch: " + String(b.getBuffer()->buffer.getNumSamples()) + " vs. " + String(a.getBuffer()->buffer.getNumSamples()));
 				}
 
 				*vba += *vbb;
@@ -207,7 +226,7 @@ struct HiseJavascriptEngine::RootObject::SubtractionOp : public BinaryOperator
 
 				if (vbb->buffer.getNumSamples() != vba->buffer.getNumSamples())
 				{
-					location.throwError("Buffer size mismatch: " + String(b.getBuffer()->buffer.getNumSamples()) + " vs. " + String(a.getBuffer()->buffer.getNumSamples()));
+					throwCustomError("Buffer size mismatch: " + String(b.getBuffer()->buffer.getNumSamples()) + " vs. " + String(a.getBuffer()->buffer.getNumSamples()));
 				}
 
 				*vba -= *vbb;
@@ -247,7 +266,7 @@ struct HiseJavascriptEngine::RootObject::MultiplyOp : public BinaryOperator
 
 				if (vbb->buffer.getNumSamples() != vba->buffer.getNumSamples())
 				{
-					location.throwError("Buffer size mismatch: " + String(b.getBuffer()->buffer.getNumSamples()) + " vs. " + String(a.getBuffer()->buffer.getNumSamples()));
+					throwCustomError("Buffer size mismatch: " + String(b.getBuffer()->buffer.getNumSamples()) + " vs. " + String(a.getBuffer()->buffer.getNumSamples()));
 				}
 
 				*vba *= *vbb;

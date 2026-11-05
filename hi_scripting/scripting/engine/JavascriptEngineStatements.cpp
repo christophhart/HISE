@@ -111,7 +111,7 @@ struct HiseJavascriptEngine::RootObject::ScopedBypasser: public HiseJavascriptEn
 		}
 		else
 		{
-			location.throwError("Expected a broadcaster object, but the expression evaluated to a different type.");
+			throwError(s, "Expected a broadcaster object, but the expression evaluated to a different type.");
 		}
 
 		if(!state)
@@ -177,11 +177,11 @@ struct HiseJavascriptEngine::RootObject::ScopedCall: public HiseJavascriptEngine
                 argValues.set(i, var());
             
             if(!ok)
-                location.throwError(ok.getErrorMessage());
+                throwError(s, ok.getErrorMessage());
         }
         else
         {
-            location.throwError("Expected a callable object (function or Broadcaster), but the expression is not callable.");
+            throwError(s, "Expected a callable object (function or Broadcaster), but the expression is not callable.");
         }
 
         return ResultCode::ok;
@@ -203,7 +203,7 @@ struct HiseJavascriptEngine::RootObject::ScopedCall: public HiseJavascriptEngine
                 argValues.set(i, var());
             
             if(!ok)
-                location.throwError(ok.getErrorMessage());
+                throwError(s, ok.getErrorMessage());
         }
     }
 
@@ -268,7 +268,7 @@ struct HiseJavascriptEngine::RootObject::ScopedLocker: public HiseJavascriptEngi
 		}
 		catch(const LockHelpers::BadLockException& e)
 		{
-			location.throwError(e.getErrorMessage());
+			throwError(s, e.getErrorMessage());
 		}
 		
 		return ResultCode::ok;
@@ -378,9 +378,9 @@ struct HiseJavascriptEngine::RootObject::ScopedTracer: public HiseJavascriptEngi
 
 			if(dataSource->locationString.isEmpty())
 			{
-				auto p = dynamic_cast<Processor*>(s.root->hiseSpecialData.processor);
-				auto sf = p->getMainController()->getActiveFileHandler()->getSubDirectory(FileHandlerBase::Scripts);
-				dataSource->locationString = location.getEncodedLocationString(p->getId(), sf, col, line);
+				UriLocation loc;
+				location.fillLocation(loc);
+				dataSource->locationString = loc.toLocationString(UriLocation::UriFormat::Base64);
 			}
 
 			p.startProfiling(s.root->hiseSpecialData.processor);
@@ -425,7 +425,11 @@ struct HiseJavascriptEngine::RootObject::ScopedDumper: public HiseJavascriptEngi
 	void dump(const Scope& s, bool before) const
 	{
 		auto p = dynamic_cast<Processor*>(s.root->hiseSpecialData.processor);
-		auto loc = location.getEncodedLocationString(p->getId(), p->getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts));
+
+		UriLocation loc;
+		location.fillLocation(loc);
+		auto locString = loc.toLocationString(UriLocation::UriFormat::Base64);
+
 		String m;
 		m << "dump ";
 
@@ -434,7 +438,7 @@ struct HiseJavascriptEngine::RootObject::ScopedDumper: public HiseJavascriptEngi
 		else
 			m << "after: ";
 
-		m << loc << "\n";
+		m << locString << "\n";
 
 		int counter = 0;
 
@@ -528,7 +532,8 @@ struct HiseJavascriptEngine::RootObject::ScopedCounter: public HiseJavascriptEng
 
 		String m;
 		m << "counter " << name << ": " << String(counter++) << " - ";
-		m << location.getEncodedLocationString(p->getId(), p->getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts));
+
+		m << location.createUriLocation().toLocationString(UriLocation::UriFormat::Base64);
 
 		debugToConsole(p, m);
 
@@ -554,7 +559,7 @@ struct HiseJavascriptEngine::RootObject::ScopedProfiler: public HiseJavascriptEn
 	{
 #if HISE_INCLUDE_PROFILING_TOOLKIT
 		dataSource->name = name_;
-		dataSource->locationString = location.getEncodedLocationString("", File());
+		dataSource->locationString = location.createUriLocation().toLocationString(UriLocation::UriFormat::Base64);
 		dataSource->sourceType = DebugSession::ProfileDataSource::SourceType::Script;
 
 		int col = 0;
@@ -701,7 +706,7 @@ template <bool CheckBefore> struct ScopedAssert: public HiseJavascriptEngine::Ro
 		{
 			dispatch::StringBuilder n;
 			n << "assert before failed. Expected: " << v1.toString() << ", actual: " << v2.toString();
-			location.throwError(n.toString());
+			throwError(s, n.toString());
 		}
 	}
 
@@ -761,7 +766,7 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 			{
 				reportLocation(sbs, "BREAKPOINT");
 			}
-			catch(const HiseJavascriptEngine::RootObject::Error& e)
+			catch(const UriError& e)
 			{
 				reportLocation(sbs, e.errorMessage);
 			}
@@ -804,16 +809,11 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 		if(currentProfileRoot != nullptr)
 		{
 			String pid;
-			File sf;
 
 			if(blockData == nullptr)
 			{
 				auto pr = dynamic_cast<Processor*>(s.root->hiseSpecialData.processor);
 				pid = pr->getId();
-#if USE_BACKEND
-				sf = pr->getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts);
-#endif
-
 				blockData = new DebugSession::ProfileDataSource();
 				blockData->sourceType = DebugSession::ProfileDataSource::SourceType::Script;
 				blockData->name = getProfileName();
@@ -821,13 +821,15 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 				CodeLocation e(location);
 				e.location = closeLocation;
 
-				int col, line, charIndex;
-				e.fillColumnAndLines(col, line, charIndex);
-				auto endLine = line;
-				location.fillColumnAndLines(col, line, charIndex);
-				auto startLine = line-1;
+				UriLocation loc;
+				loc.processorId = pid;
+				e.fillLocation(loc);
+				blockData->locationString = loc.toLocationString(UriLocation::UriFormat::Base64);
+				auto endLine = loc.line;
+				location.fillLocation(loc);
+				auto startLine = loc.line;
 				blockData->lineRange = { startLine, endLine };
-				blockData->locationString = location.getEncodedLocationString(pid, sf, col, line);
+				
 			}
 
 			if(statements.size() != statementData.size())
@@ -840,12 +842,11 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 					statementData.getLast()->sourceType = DebugSession::ProfileDataSource::SourceType::Script;
 					statementData.getLast()->isLoop = st->getProfileName() == "loop {}";
 					
-					int col, line, charIndex;
-					st->location.fillColumnAndLines(col, line, charIndex);
-
-					statementData.getLast()->locationString = st->location.getEncodedLocationString(pid, sf, col, line);
-
-					statementData.getLast()->lineRange = { line, line + 1};
+					UriLocation loc;
+					loc.processorId = pid;
+					st->location.fillLocation(loc);
+					statementData.getLast()->locationString = loc.toLocationString(UriLocation::UriFormat::Base64);
+					statementData.getLast()->lineRange = loc.getLineRange();
 				}
 			}
 		}
@@ -988,7 +989,7 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 			cleanup(s);
 			throw bp;
 		}
-		catch(const HiseJavascriptEngine::RootObject::Error& e)
+		catch(const UriError& e)
 		{
 			cleanup(s);
 			throw e;
@@ -1186,7 +1187,9 @@ struct HiseJavascriptEngine::RootObject::VarStatement : public Expression
 
 	ResultCode perform(const Scope& s, var*) const override
 	{
-		s.scope->setProperty(name, initialiser->getResult(s));
+		auto v = initialiser->getResult(s);
+		fillLocation(s, v, name.toString(), true);
+		s.scope->setProperty(name, v);
 		return ok;
 	}
 
@@ -1207,12 +1210,17 @@ struct HiseJavascriptEngine::RootObject::ConstVarStatement : public Statement
 {
 	ConstVarStatement(const CodeLocation& l) noexcept : Statement(l) {}
 
+	
+
 	ResultCode perform(const Scope& s, var*) const override
 	{
 #if HISE_SHADOW_PARSER_ENABLED
 		if (s.isShadowParsing())
 		{
-			s.getShadowParserRootObject(ns->id)->setProperty(name, initialiser->getResult(s));
+			auto v = initialiser->getResult(s);
+			fillLocation(s, v, name.toString(), true);
+
+			s.getShadowParserRootObject(ns->id)->setProperty(name, v);
 			return ok;
 		}
 #endif
@@ -1272,7 +1280,7 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 				if (data->isArray())
 				{
 					if (loop->index >= data->size())
-						location.throwError("Loop iterator index invalid. Do not change the array in a for...in loop");
+						throwError(s, "Loop iterator index invalid. Do not change the array in a for...in loop");
 
 					return data->getArray()->getUnchecked(loop->index);
 				}
@@ -1282,7 +1290,7 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 					return obj->getProperties().getName(loop->index).toString();
 				else if (auto fo = dynamic_cast<fixobj::Array*>(data->getObject()))
 					return fo->getAssignedValue(loop->index);
-				else location.throwError("Illegal iterator target. for...in loops can only iterate over Arrays, Buffers, and Objects.");
+				else throwError(s, "Illegal iterator target. for...in loops can only iterate over Arrays, Buffers, and Objects.");
 			}
 			
 			return var();
@@ -1379,7 +1387,7 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 				size = fixArray->getConstantValue(0);
 			else
 			{
-				location.throwError("Cannot iterate over this type. for...in loops support Arrays, Buffers, and Objects.");
+				throwError(s, "Cannot iterate over this type. for...in loops support Arrays, Buffers, and Objects.");
 			}
 
 

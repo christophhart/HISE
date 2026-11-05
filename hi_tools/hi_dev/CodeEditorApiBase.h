@@ -47,34 +47,13 @@ struct ValueTreeApiHelpers
 
 };
 
+
+
 class DebugInformationBase;
 
 class DebugableObjectBase
 {
 public:
-
-	struct Location
-	{
-		operator bool() const { return charNumber != 0 || fileName.isNotEmpty(); }
-		bool operator==(const Location& other) { return other.charNumber == charNumber && fileName == other.fileName; }
-		String fileName = String();
-		int charNumber = 0;
-
-		String toGotoString() const
-		{
-			String loc;
-
-			loc << "goto ";
-			if(fileName.isEmpty())
-				loc << "onInit";
-			else
-				loc << fileName;
-
-			loc << "@" << charNumber;
-
-			return loc;
-		}
-	};
 
 	virtual ~DebugableObjectBase() {};
 
@@ -148,9 +127,9 @@ public:
 	/** Override this and return a component that will be shown as popup in the value table. */
 	virtual Component* createPopupComponent(const MouseEvent& e, Component* parent) { return nullptr; }
 
-	virtual Location getLocation() const { return Location(); }
+	virtual UriLocation getLocation() const { return UriLocation(); }
 
-	static void updateLocation(Location& l, var possibleObject);
+	static void updateLocation(UriLocation& l, var possibleObject);
 
 	String currentExpression;
 
@@ -196,7 +175,7 @@ public:
 	virtual Ptr getChildElement(int index);
 	virtual String getTextForName() const;
 	virtual String getCategory() const;
-	virtual DebugableObjectBase::Location getLocation() const;
+	virtual UriLocation getLocation() const;
 	virtual String getTextForType() const;
 	virtual String getTextForDataType() const;
 	virtual String getTextForValue() const;
@@ -390,7 +369,7 @@ public:
 		/** Override this method and return a ValueTree containing the API documentation. */
 		virtual ValueTree createApiTree();;
 
-		virtual void jumpToDefinition(const String& token, const String& namespaceId);
+		virtual void jumpToDefinition(const String& token, int lineNumber, const String& namespaceId);
 
 		virtual void rebuild();;
 

@@ -178,23 +178,9 @@ String DebugInformation::toString()
 }
 
 #if USE_BACKEND
-CodeEditorPanel* findOrCreateEditorPanel(CodeEditorPanel* panel, Processor* processor, DebugableObject::Location location)
+CodeEditorPanel* findOrCreateEditorPanel(CodeEditorPanel* panel, Processor* processor, UriLocation location)
 {
-	auto getSanitizedId = [](DebugableObject::Location l)
-	{
-		auto s = l.fileName;
-
-		if (s.isEmpty())
-			return String("onInit");
-
-		if (s.contains("("))
-			return s.removeCharacters("()");
-			
-		if (File::isAbsolutePath(s))
-			return File(s).getFileName();
-
-		return s;
-	};
+	auto sanitized = location.toLocationString(UriLocation::UriFormat::ConnectionId);
 
 	auto matches = [&](CodeEditorPanel* p)
 	{
@@ -205,7 +191,7 @@ CodeEditorPanel* findOrCreateEditorPanel(CodeEditorPanel* panel, Processor* proc
 			auto idx = p->getCurrentIndex();
 			auto id = indexList[idx];
 
-			auto expId = getSanitizedId(location);
+			auto expId = sanitized;
 
 			if (expId == id)
 				return true;
@@ -220,14 +206,12 @@ CodeEditorPanel* findOrCreateEditorPanel(CodeEditorPanel* panel, Processor* proc
 	if (auto tabs = panel->getParentShell()->findParentComponentOfClass<FloatingTabComponent>())
 	{
 		int idx = 0;
-		if (location.fileName.isNotEmpty())
-		{
-			StringArray indexList;
-			panel->fillIndexList(indexList);
+		
+		StringArray indexList;
+		panel->fillIndexList(indexList);
 
-			auto expId = getSanitizedId(location);
-			idx = indexList.indexOf(expId);
-		}
+		auto expId = sanitized;
+		idx = indexList.indexOf(expId);
 
 		return CodeEditorPanel::showOrCreateTab(tabs, dynamic_cast<JavascriptProcessor*>(processor), idx);
 	}
@@ -282,9 +266,9 @@ struct UndoableLocationSwitch: public UndoableAction
         return d;
     }
     
-    DebugableObject::Location getPosition(Processor* p)
+    UriLocation getPosition(Processor* p)
     {
-        DebugableObject::Location location;
+        UriLocation location;
         
         if (auto editor = p->getMainController()->getLastActiveEditor())
         {
@@ -299,15 +283,15 @@ struct UndoableLocationSwitch: public UndoableAction
                 editorPanel->fillIndexList(indexList);
                 auto idx = editorPanel->getCurrentIndex();
                 
-                location.charNumber = pos.getPosition();
-                location.fileName = getLocationString(dynamic_cast<JavascriptProcessor*>(p), indexList[idx]);
+                location.charIndex = pos.getPosition();
+                location.uri = getLocationString(dynamic_cast<JavascriptProcessor*>(p), indexList[idx]);
             }
         }
         
         return location;
     }
     
-    UndoableLocationSwitch(Processor* p, DebugableObject::Location location)
+    UndoableLocationSwitch(Processor* p, UriLocation location)
     {
         newProcessor = p;
         newLocation = location;
@@ -337,7 +321,7 @@ struct UndoableLocationSwitch: public UndoableAction
         return gotoInternal(oldProcessor.get(), oldLocation);
     }
     
-    bool gotoInternal(Processor* processor, DebugableObject::Location location)
+    bool gotoInternal(Processor* processor, UriLocation location)
     {
         if(processor == nullptr)
             return false;
@@ -350,22 +334,22 @@ struct UndoableLocationSwitch: public UndoableAction
         if (auto editorPanel = editor->findParentComponentOfClass<CodeEditorPanel>())
         {
             editorPanel = findOrCreateEditorPanel(editorPanel, processor, location);
-            editorPanel->gotoLocation(processor, location.fileName, location.charNumber);
+            editorPanel->gotoLocation(processor, location);
             return true;
         }
-        else if (location.fileName.isNotEmpty())
+        else if (location.getUriType() == UriLocation::UriType::ExternalFile)
         {
             auto jsp = dynamic_cast<JavascriptProcessor*>(processor);
 
-            File f(location.fileName);
+            File f(location.uri);
 
-            jsp->showPopupForFile(f, location.charNumber);
+            jsp->showPopupForFile(f, location.charIndex);
             return true;
         }
         else if (auto scriptEditor = editor->findParentComponentOfClass<ScriptingEditor>())
         {
             scriptEditor->showOnInitCallback();
-            scriptEditor->gotoChar(location.charNumber);
+            scriptEditor->gotoChar(location.charIndex);
             return true;
         }
     
@@ -373,11 +357,11 @@ struct UndoableLocationSwitch: public UndoableAction
     }
     
     WeakReference<Processor> oldProcessor, newProcessor;
-    DebugableObject::Location oldLocation, newLocation;
+    UriLocation oldLocation, newLocation;
 };
 #endif
 
-bool gotoLocationInternal(Processor* processor, DebugableObject::Location location)
+bool gotoLocationInternal(Processor* processor, UriLocation location)
 {
     if(!location)
         return false;
@@ -417,7 +401,7 @@ AttributedString DebugableObject::Helpers::getFunctionDoc(const String& docBody,
 	return info;
 }
 
-bool DebugableObject::Helpers::gotoLocation(Component* ed, JavascriptProcessor* sp, const Location& location)
+bool DebugableObject::Helpers::gotoLocation(Component* ed, JavascriptProcessor* sp, const UriLocation& location)
 {
 #if USE_BACKEND
 	auto handler = dynamic_cast<ScriptEditHandler*>(ed);
@@ -450,13 +434,12 @@ bool DebugableObject::Helpers::gotoLocation(Processor* processor, DebugInformati
 
 
 
-DebugableObject::Location DebugableObject::Helpers::getLocationFromProvider(Processor* p, DebugableObjectBase* obj)
+UriLocation DebugableObject::Helpers::getLocationFromProvider(Processor* p, DebugableObjectBase* obj)
 {
-	auto loc = obj->getLocation();
-
-	if (loc.charNumber != 0 || loc.fileName.isNotEmpty())
+	if (auto loc = obj->getLocation())
 		return loc;
 
+	
 	if (auto asProvider = dynamic_cast<ApiProviderBase::Holder*>(p))
 	{
 		auto engine = asProvider->getProviderBase();
@@ -465,7 +448,7 @@ DebugableObject::Location DebugableObject::Helpers::getLocationFromProvider(Proc
 			return ptr->getLocation();
 	}
 
-	return loc;
+	return {};
 }
 
 Component* DebugableObject::Helpers::showProcessorEditorPopup( Component* table, Processor* p)

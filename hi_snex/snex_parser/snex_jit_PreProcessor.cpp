@@ -676,8 +676,8 @@ void Preprocessor::addNewDefinitions(ExternalPreprocessorDefinition::List& a)
 
 		newDef.value = e->body;
 		newDef.name = e->id.toString();
-		newDef.charNumber = e->charNumber;
-		newDef.fileName = currentFileName;
+		newDef.location.charIndex = e->charNumber;
+		newDef.location.uri = currentFileName;
 		a.add(newDef);
 	}
 }
@@ -802,7 +802,7 @@ String Preprocessor::processWithResult(ExternalPreprocessorDefinition::List& def
 {
 	for (int i = 0; i < definitions.size(); i++)
 	{
-		if (currentFileName.isNotEmpty() && definitions[i].fileName == currentFileName)
+		if (currentFileName.isNotEmpty() && definitions[i].location.uri == currentFileName)
 			definitions.remove(i--);
 	}
 

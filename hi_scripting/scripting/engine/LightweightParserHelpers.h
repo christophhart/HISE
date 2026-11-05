@@ -91,6 +91,18 @@ struct LightweightDiagnostics : public DiagnosticBase,
         String checkString;
     };
 
+    struct NavigationToken : public mcl::TokenCollection::Token
+    {
+        NavigationToken(LightweightDiagnostics* lb) :
+            Token("")
+        {
+            for (const auto& o : lb->occurrences)
+                occurrences.add(o.toJSON());
+        }
+
+        Array<var> occurrences;
+    };
+
     virtual DiagnosticResult performCustomCheck(const CustomCheckData& cd)
     {
         // Convention: return unknown for callback checks, this will handle all default
@@ -346,6 +358,8 @@ struct LightweightDiagnostics : public DiagnosticBase,
         std::vector<ArgumentData> argTypes;
         LightweightDiagnostics* thisObj;
     };
+
+    std::vector<UriLocation> occurrences;
 
     DiagnosticResult shadowParseCallbackWithArgType(const CallbackParseOptions& callbackOptions);
 

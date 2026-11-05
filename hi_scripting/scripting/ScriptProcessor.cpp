@@ -608,7 +608,11 @@ void FileChangeListener::showPopupForFile(int index, int charNumberToDisplay/*=0
 
 	auto editor = dynamic_cast<CodeEditorPanel*>(root->getCurrentFloatingPanel());
 
-	editor->gotoLocation(dynamic_cast<Processor*>(this), watchers[index]->getFile().getFullPathName(), charNumberToDisplay);
+	UriLocation loc;
+	loc.uri = watchers[index]->getFile().getFullPathName();
+	loc.charIndex = charNumberToDisplay;
+
+	editor->gotoLocation(dynamic_cast<Processor*>(this), loc);
 
 #else
 	ignoreUnused(index, charNumberToDisplay);
@@ -956,7 +960,7 @@ HiseJavascriptEngine::Breakpoint JavascriptProcessor::getBreakpointForLine(const
 {
 	for (int i = 0; i < breakpoints.size(); i++)
 	{
-		if (breakpoints[i].snippetId == id && breakpoints[i].lineNumber == lineIndex)
+		if (breakpoints[i].uri == id.toString() && breakpoints[i].line == lineIndex)
 			return breakpoints[i];
 	}
 
@@ -968,11 +972,12 @@ void JavascriptProcessor::getBreakPointsForDisplayedRange(const Identifier& snip
 {
 	for (int i = 0; i < breakpoints.size(); i++)
 	{
-		if (breakpoints[i].snippetId != snippetId) continue;
+		if (breakpoints[i].uri != snippetId.toString())
+			continue;
 
-		if (displayedLineNumbers.contains(breakpoints[i].lineNumber))
+		if (displayedLineNumbers.contains(breakpoints[i].line))
 		{
-			lineNumbers.add(breakpoints[i].lineNumber);
+			lineNumbers.add(breakpoints[i].line);
 		}
 	}
 }
@@ -1121,10 +1126,10 @@ void JavascriptProcessor::handleBreakpoints(const Identifier& codefile, Graphics
 		{
 			HiseJavascriptEngine::Breakpoint bp = getBreakpointForLine(codefile, i);
 
-			if (bp.lineNumber != -1)
+			if (bp.line != -1)
 			{
 				const float x = 5.0f;
-				const float y = (float)((bp.lineNumber - ed->getFirstLineOnScreen()) * ed->getLineHeight() + 1);
+				const float y = (float)((bp.line - ed->getFirstLineOnScreen()) * ed->getLineHeight() + 1);
 
 				const float w = (float)(ed->getLineHeight() - 2);
 				const float h = w;
@@ -1169,7 +1174,7 @@ void JavascriptProcessor::handleBreakpointClick(const Identifier& codeFile, Code
 }
 
 
-void JavascriptProcessor::jumpToDefinition(const String& token, const String& namespaceId)
+void JavascriptProcessor::jumpToDefinition(const String& token, int lineNumber, const String& namespaceId)
 {
 #if USE_BACKEND
 	if (token.isNotEmpty())
@@ -1182,9 +1187,9 @@ void JavascriptProcessor::jumpToDefinition(const String& token, const String& na
 
 			if (sf.existsAsFile())
 			{
-				DebugableObject::Location l;
-				l.fileName = sf.getFullPathName();
-				l.charNumber = 0;
+				UriLocation l;
+				l.uri = sf.getFullPathName();
+				l.charIndex = 0;
 
 				DebugableObject::Helpers::gotoLocation(nullptr, this, l);
 				return;
@@ -1470,7 +1475,7 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 			for (int k = 0; k < breakpoints.size(); k++)
 			{
-				if (breakpoints[k].snippetId == callbackId || breakpoints[k].snippetId.toString().startsWith("File_"))
+				if (breakpoints[k].uri == callbackId.toString())
 					breakpointsForCallback.add(breakpoints[k]);
 			}
 
@@ -1972,35 +1977,31 @@ const JavascriptProcessor::SnippetDocument * JavascriptProcessor::getSnippet(con
 	return nullptr;
 }
 
-CodeDocument* JavascriptProcessor::getSnippet(const DebugableObjectBase::Location& loc)
+CodeDocument* JavascriptProcessor::getSnippet(const UriLocation& loc)
 {
-	auto fileName = loc.fileName;
+	auto uriType = loc.getUriType();
 
-	if (fileName.isEmpty() || fileName == "onInit")
+	switch (uriType)
 	{
-		// onInit callback - empty fileName or "onInit" means onInit
-		return getSnippet(Identifier("onInit"));
-	}
-	else if (fileName.contains("()"))
-	{
-		// Other callback like "onNoteOn()" - strip the "()"
-		auto callbackName = fileName.upToFirstOccurrenceOf("()", false, false);
-		return getSnippet(Identifier(callbackName));
-	}
-	else
+	case UriLocation::UriType::onInit:
+	case UriLocation::UriType::OtherCallback:
+		return getSnippet(Identifier(loc.toLocationString(UriLocation::UriFormat::CallbackId)));
+	case UriLocation::UriType::ExternalFile:
 	{
 		auto scriptFolder = GET_PROJECT_HANDLER(dynamic_cast<Processor*>(this)).getSubDirectory(FileHandlerBase::Scripts);
-
-		// External file - fileName is full path
-		auto f = File(scriptFolder).getChildFile(fileName);
+		auto f = loc.getFile(scriptFolder);
 
 		for (int i = 0; i < getNumWatchedFiles(); i++)
 		{
-			
-
 			if (getWatchedFile(i) == f)
 				return &getWatchedFileDocument(i);
 		}
+
+		jassertfalse;
+		return nullptr;
+	}
+	default:
+		jassertfalse;
 		return nullptr;
 	}
 }
@@ -2384,14 +2385,6 @@ String JavascriptProcessor::collectScript(bool silent) const
 	Array<File> includedFiles;
 	String everything = Helpers::resolveIncludeStatements(x, includedFiles, this);
 
-	if (!silent && counter != 0)
-	{
-		everything = Helpers::stripUnusedNamespaces(everything, counter);
-
-		if(counter != 0)
-			PresetHandler::showMessageWindow("Unneeded namespaces detected", String(counter) + " namespaces will be removed before exporting");
-	}
-
 	return everything;
 }
 
@@ -2400,9 +2393,6 @@ String JavascriptProcessor::collectScript(bool silent) const
 String JavascriptProcessor::getBase64CompressedScript(bool silent) const
 {
 	auto stripped = collectScript(silent);
-
-	if (silent || PresetHandler::showYesNoWindow("Uglify Script", "Do you want to strip comments & whitespace before compressing?"))
-		stripped = Helpers::uglify(stripped);
 
 	MemoryOutputStream mos;
 	GZIPCompressorOutputStream gos(&mos, 9);

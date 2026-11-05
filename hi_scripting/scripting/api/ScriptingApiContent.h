@@ -425,12 +425,12 @@ public:
 			return {};
 		}
 
-		Location getLocation() const override
+		UriLocation getLocation() const override
 		{
 			return location;
 		}
 
-		Location location;
+		UriLocation location;
 
 		bool isLocked() const
 		{
@@ -3549,7 +3549,7 @@ public:
 		Array<RegisteredComponent> assignedComponents;
 			String variableName;     // "LafNamespace.buttonLaf"
 			RenderStyle renderStyle = RenderStyle::Unassigned; // Script, Css, CssInline, Mixed
-			DebugableObjectBase::Location location;  // Raw location, encoded lazily by REST API
+			UriLocation location;  // Raw location, encoded lazily by REST API
 			String cssLocation;      // CSS file full path - empty for inline/script style
 		};
 
@@ -3580,7 +3580,7 @@ public:
 		// --- Called by HISE internals ---
 
 		// Called by debug info listener when LAF object is discovered
-		void registerLaf(DebugableObjectBase* laf, const String& variableName, const DebugableObjectBase::Location& location);
+		void registerLaf(DebugableObjectBase* laf, const String& variableName, const UriLocation& location);
 
 		// Called by setLocalLookAndFeel()
 		void registerRecipient(DebugableObjectBase* laf, ScriptComponent* component);

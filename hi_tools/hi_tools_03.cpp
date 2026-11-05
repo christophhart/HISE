@@ -33,6 +33,8 @@
 #include "../hi_dsp_library/hi_dsp_library.h"
 #include "hi_tools.h"
 
+#include "hi_dev/UriLocation.cpp"
+
 #if !HISE_NO_GUI_TOOLS
 #include "hi_dev/CodeEditorApiBase.cpp"
 #endif

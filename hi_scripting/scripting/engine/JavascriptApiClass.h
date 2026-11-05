@@ -447,13 +447,6 @@ struct VarTypeChecker
         
         auto matches = t.matches(expectedType, allowUndefined);
 
-#if 0
-        auto matches = (t & expectedType) != 0;
-        
-        if(!matches && allowUndefined)
-            matches = t == VarTypes::Undefined;
-#endif
-        
         if(!matches)
         {
             juce::String errorMessage;
@@ -722,6 +715,25 @@ struct DiagnosticBase: public ReferenceCountedObject
             }
         }
 
+        static ErrorCode getErrorCodeFromMetadata(const var& mt)
+        {
+            return (ErrorCode)(int)mt["errorCode"];
+        }
+
+        static Severity getSeverityFromMetadata(const var& mt)
+        {
+            auto d = mt["severity"].toString();
+
+            if(d == "error")   return Severity::Error;
+            if(d == "warning") return Severity::Warning;
+            if(d == "info")    return Severity::Info;
+            if(d == "hint")    return Severity::Hint;
+            if(d == "unknown") return Severity::Unknown;
+            if(d == "ok")      return Severity::OK;
+            
+            return Severity::Unknown;
+        }
+
         static String getSeverityString(Severity s)
         {
             switch (s)
@@ -736,51 +748,56 @@ struct DiagnosticBase: public ReferenceCountedObject
             }
         }
 
-        struct CallStackItem
+        var createMetadata() const
         {
-            int line = 0;
-            int col = 0;
-            int charIndex = 0;
-            String fileName;
-            String methodName;
-        };
+            DynamicObject* d = new DynamicObject();
 
-        /** A small helper POD that carries over the data from a diagnostic event. */
-        struct Item
+            Array<var> sug;
+
+            for (const auto& s : suggestions)
+                sug.add(s);
+
+            d->setProperty("message", message);
+            d->setProperty("wrongToken", wrongToken);
+            d->setProperty("rightToken", rightToken);
+            d->setProperty("suggestions", var(sug));
+            d->setProperty("severity", getSeverityString(severity));
+            d->setProperty("source", getClassificationString(getClassification()));
+            d->setProperty("errorCode", (int)getErrorCode());
+
+            return var(d);
+        }
+
+        UriError createUriError(const UriLocation& loc) const
         {
-            int line = 0;
-            int col = 0;
-            int charIndex = 0;
-            String fileName;
+            UriError e;
+            e.fillLocation(loc);
+            e.errorMessage = getEditorString();
+            e.metadata = createMetadata();
+            return e;
+        }
 
-            String message;
-            StringArray suggestions;
-            Severity severity = Severity::Error;
-            ErrorCode ec = ErrorCode::Unknown;
-            DiagnosticResult::Classification classification;
+        String getEditorString() const
+        {
+            String s;
 
-            std::vector<CallStackItem> callstack;
-
-            /** Formats the diagnostic matching F5 compile error output:
-                "locationString: message {{Base64(processorId|path|charIndex|line|col)}}"
-                This makes console output double-clickable and parseable by RestHelpers::parseError(). */
-            String toConsoleString(Processor* p) const;
-
-            Item withLocation(const Item& other) const
+            if (errorCode != ErrorCode::Unknown)
             {
-                auto copy = *this;
-                copy.line = other.line;
-                copy.col = other.col;
-                copy.charIndex = other.charIndex;
-                copy.fileName = other.fileName;
-
-                return copy;
+                auto sev = (Severity)((int)errorCode / 1000);
+                s << "[";
+                s << getSeverityString(severity).toUpperCase()[0];
+                s << String((int)errorCode);
+                s << "] ";
             }
 
-            String toEditorString() const;
+            s << getErrorMessage();
 
-        };
+            if (!suggestions.isEmpty())
+                s << ". Use: " << suggestions.joinIntoString(", ");
 
+            return s;
+        }
+        
         DiagnosticResult(Severity s, const String& msg) :
             severity(s),
             message(msg)
@@ -802,6 +819,7 @@ struct DiagnosticBase: public ReferenceCountedObject
 
         DiagnosticResult withMessage(const String& msg) { auto copy = *this; copy.message = msg; return copy; }
 
+        DiagnosticResult withSuggestions(const StringArray& suggestions_) const { auto copy = *this; copy.suggestions.addArray(suggestions_); return copy; }
         DiagnosticResult withSuggestion(const String& s, bool clearOthers=false) const { auto copy = *this; if (clearOthers) copy.suggestions.clear(); copy.suggestions.add(s); return copy; }
 
         DiagnosticResult withErrorCode(ErrorCode c) const { auto copy = *this; copy.errorCode = c; return copy; }
@@ -867,19 +885,6 @@ struct DiagnosticBase: public ReferenceCountedObject
             return msg;
         }
 
-        Item toItem(const std::function<void(Item&)>& locationResolver) const
-        {
-            Item item;
-            locationResolver(item);
-            item.ec = getErrorCode();
-            item.message = getErrorMessage();
-            item.suggestions = getSuggestions();
-            item.severity = getSeverity();
-            item.classification = getClassification();
-
-            return item;
-        }
-
         StringArray getSuggestions() const { return suggestions; }
         Classification getClassification() const { return source; }
         ErrorCode getErrorCode() const { return errorCode; }
@@ -920,17 +925,8 @@ struct DiagnosticBase: public ReferenceCountedObject
             };
         }
 
-        /** Appends a callstack item to the callstack. */
-        DiagnosticResult withCallStackItem(const CallStackItem& item) const
-        {
-            auto copy = *this;
-            copy.callstack.push_back(item);
-            return copy;
-        }
-
     private:
 
-        std::vector<CallStackItem> callstack;
         Severity severity;
         ErrorCode errorCode = ErrorCode::Unknown;
         Classification source = Classification::ApiValidation;
@@ -945,7 +941,7 @@ struct DiagnosticBase: public ReferenceCountedObject
     {
         virtual ~ShadowParserBase() {};
 
-        virtual void addDiagnostic(const DiagnosticResult::Item& r) = 0;
+        virtual void addDiagnostic(const UriError& r) = 0;
 
         virtual void addDeferredDiagnosticCheck(const var& test, const String& validatorString) = 0;
 
@@ -1281,7 +1277,7 @@ public:
 		}
 	}
 
-	DebugableObjectBase::Location getCurrentLocationInFunctionCall()
+    UriLocation getCurrentLocationInFunctionCall()
 	{
 		return currentLocation;
 	}
@@ -1295,8 +1291,8 @@ public:
 
 	void setCurrentLocation(const String& file, int charNumber)
 	{
-		currentLocation.fileName = file;
-		currentLocation.charNumber = charNumber;
+		currentLocation.uri = file;
+		currentLocation.charIndex = charNumber;
 	}
 
 #if USE_BACKEND
@@ -1316,7 +1312,7 @@ public:
 private:
 
 	bool wantsLocation = false;
-	DebugableObjectBase::Location currentLocation;
+	UriLocation currentLocation;
 
 
 	Array<WeakReference<DebugableObjectBase>> optimizableFunctions;

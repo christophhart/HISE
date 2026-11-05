@@ -3,15 +3,18 @@ namespace hise { using namespace juce;
 //==============================================================================
 struct HiseJavascriptEngine::RootObject::TokenIterator
 {
-	TokenIterator(const String& code, const String &externalFile) : location(code, externalFile), p(code.getCharPointer()) { skip(); }
+	TokenIterator(RootObject& r, const String& processorId, const String& code, const String &externalFile):
+		root(r),
+		location(processorId, code, externalFile), 
+		p(code.getCharPointer()) 
+	{ 
+		skip(); 
+	}
 
-	DebugableObject::Location createDebugLocation()
+	UriLocation createDebugLocation()
 	{
-		DebugableObject::Location loc;
-
-		loc.fileName = location.externalFile;
-		loc.charNumber = (int)(location.location - location.program.getCharPointer());
-
+		UriLocation loc;
+		location.fillLocation(loc, false);
 		return loc;
 	}
 
@@ -62,7 +65,7 @@ struct HiseJavascriptEngine::RootObject::TokenIterator
 	void match(TokenType expected)
 	{
 		if (currentType != expected)
-			location.throwError("Found " + getTokenName(currentType) + " when expecting " + getTokenName(expected));
+			throwError("Found " + getTokenName(currentType) + " when expecting " + getTokenName(expected));
 
 		skip();
 	}
@@ -102,7 +105,7 @@ struct HiseJavascriptEngine::RootObject::TokenIterator
             auto t = VarTypeChecker::getTypeFromString(id);
             
             if(!(bool)t)
-                location.throwError("Unknown type annotation '" + id.toString() + "'. Valid types: int, double, String, Array, Buffer.");
+                throwError("Unknown type annotation '" + id.toString() + "'. Valid types: int, double, String, Array, Buffer.");
 
 			return t;
 #else
@@ -134,7 +137,9 @@ struct HiseJavascriptEngine::RootObject::TokenIterator
 					p = CharacterFunctions::find(p + 2, CharPointer_ASCII("*/"));
 
 
-					if (p.isEmpty()) location.throwError("Unterminated '/*' comment");
+					if (p.isEmpty()) 
+						throwError("Unterminated '/*' comment");
+
 					p += 2; continue;
 				}
 			}
@@ -143,7 +148,18 @@ struct HiseJavascriptEngine::RootObject::TokenIterator
 		}
 	}
 
+protected:
+
+	virtual void throwError(const String& errorMessage) const
+	{
+		location.throwError(root, errorMessage);
+	}
+
+	RootObject& root;
+
 private:
+
+	
 	String::CharPointerType p;
 
 	static bool isIdentifierStart(const juce_wchar c) noexcept{ return CharacterFunctions::isLetter(c) || c == '_'; }
@@ -169,7 +185,7 @@ private:
 			if (parseHexLiteral() || parseFloatLiteral() || parseOctalLiteral() || parseDecimalLiteral())
 				return TokenTypes::literal;
 
-			location.throwError("Syntax error in numeric constant");
+			throwError("Syntax error in numeric constant");
 		}
 
 		if (parseStringLiteral(*p) || (*p == '.' && parseFloatLiteral()))
@@ -179,7 +195,7 @@ private:
 		JUCE_JS_OPERATORS(JUCE_JS_COMPARE_OPERATOR)
 
 			if (!p.isEmpty())
-				location.throwError("Unexpected character '" + String::charToString(*p) + "' in source");
+				throwError("Unexpected character '" + String::charToString(*p) + "' in source");
 
 		return TokenTypes::eof;
 	}
@@ -199,7 +215,7 @@ private:
 			return false;
 
 		Result r(JSON::parseQuotedString(p, currentValue));
-		if (r.failed()) location.throwError(r.getErrorMessage());
+		if (r.failed()) throwError(r.getErrorMessage());
 		return true;
 	}
 
@@ -263,7 +279,7 @@ private:
 		{
 			const int digit = (int)(*++t - '0');
 			if (isPositiveAndBelow(digit, 8))        v = v * 8 + digit;
-			else if (isPositiveAndBelow(digit, 10))  location.throwError("Decimal digit in octal constant");
+			else if (isPositiveAndBelow(digit, 10))  throwError("Decimal digit in octal constant");
 			else break;
 		}
 
@@ -295,16 +311,15 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 	using SV = ApiClass::DiagnosticResult::Severity;
 #endif
 
-	ExpressionTreeBuilder(const String code, const String externalFile, HiseJavascriptPreprocessor::Ptr preprocessor_) :
-		TokenIterator(code, externalFile),
+	ExpressionTreeBuilder(RootObject& r, const String& processorId, const String code, const String externalFile, HiseJavascriptPreprocessor::Ptr preprocessor_) :
+		TokenIterator(r, processorId, code, externalFile),
 		preprocessor(preprocessor_),
 	    currentErrorLocation(nullptr)
 	{
 #if ENABLE_SCRIPTING_BREAKPOINTS
-		if (externalFile.isNotEmpty())
-		{
-			fileId = Identifier("File_" + File(externalFile).getFileNameWithoutExtension());
-		}
+		baseLocation.charIndex = 0;
+		baseLocation.processorId = processorId;
+		baseLocation.uri = externalFile;
 #endif
 	}
 
@@ -322,19 +337,18 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 
 	void preprocessCode(const String& codeToPreprocess, const String& externalFileName="");
 
-    void recordErrorAsDiagnostic(const RootObject::Error& e)
+    void recordErrorAsDiagnostic(const UriError& e)
     {
-        ApiDiagnostic d;
-        d.col = e.columnNumber;
-        d.line = e.lineNumber;
-        d.charIndex = e.charIndex;
-        
-        d.fileName = e.externalLocation;
-        d.message = e.errorMessage;
-        d.severity = DiagnosticBase::DiagnosticResult::Severity::Error;
-        d.ec = DiagnosticBase::DiagnosticResult::ErrorCode::SyntaxError;
-        
-        diagnostics.add(d);
+		using DR = DiagnosticBase::DiagnosticResult;
+		
+		auto dr = DR::fail(e.errorMessage)
+			.withErrorCode(DR::ErrorCode::SyntaxError)
+			.withSeverity(DR::Severity::Error);
+
+		auto copy = dr.createUriError(e);
+		copy.callstack = e.callstack;
+
+        diagnostics.add(copy);
     }
     
 	BlockStatement* parseStatementList()
@@ -355,7 +369,7 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
             {
                 s = parseStatement();
             }
-            catch(RootObject::Error& e)
+            catch(UriError& e)
             {
                 if(isDiagnosticMode())
                 {
@@ -386,10 +400,10 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 
 			for (int i = 0; i < breakpoints.size(); i++)
 			{
-				const bool isOtherFile = !fileId.isNull() && breakpoints[i].snippetId != fileId;
-				const bool isFileButOnInit = fileId.isNull() && breakpoints[i].snippetId.toString().startsWith("File");
+				auto b = breakpoints[i].toLocationString(UriLocation::UriFormat::CallbackId);
+				auto br = baseLocation.toLocationString(UriLocation::UriFormat::CallbackId);
 
-				if (isOtherFile || isFileButOnInit)
+				if (br != b)
 					continue;
 
 				if (breakpoints[i].found)
@@ -430,7 +444,7 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 			{
 				if(!allowScopedBlockStatements)
 				{
-					location.throwError("Scoped block statements must be added at the scope start.");
+					throwError("Scoped block statements must be added at the scope start.");
 				}
 
 				if(auto shouldBeUsed = (USE_BACKEND || !sbs->isDebugStatement()))
@@ -625,8 +639,8 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 
 #if USE_BACKEND
 	/** Returns the diagnostics collected during a diagnostic-mode parse. */
-	const Array<ApiDiagnostic>& getDiagnostics() const { return diagnostics; }
-	Array<ApiDiagnostic>& getDiagnostics() { return diagnostics; }
+	const Array<UriError>& getDiagnostics() const { return diagnostics; }
+	Array<UriError>& getDiagnostics() { return diagnostics; }
 #endif
 
 private:
@@ -636,7 +650,7 @@ private:
 	bool currentlyParsingInlineFunction = false;
 	Identifier currentlyParsedCallback = Identifier::null;
 
-	Identifier fileId;
+	UriLocation baseLocation;
 
 	DynamicObject* currentFunctionObject = nullptr;
 	DynamicObject* outerInlineFunction = nullptr;
@@ -657,21 +671,23 @@ private:
 		return hiseSpecialData != nullptr && hiseSpecialData->currentShadowParser != nullptr;
 	}
 
-	Array<ApiDiagnostic> diagnostics;
+	Array<UriError> diagnostics;
 
 	void recordDiagnostic(const CodeLocation& loc, const String& message,
 	                       const StringArray& suggestions = {},
 	                       SV severity = SV::Error,
 	                       CS source=CS::ApiValidation)
 	{
-		ApiDiagnostic d;
-		loc.fillLocation(d);
+		using DR = DiagnosticBase::DiagnosticResult;
 
-		d.message = message;
-		d.suggestions = suggestions;
-		d.severity = severity;
-		d.classification = source;
-		diagnostics.add(d);
+		auto dr = DR::fail(message)
+			.withSeverity(severity)
+			.withClassification(source)
+			.withSuggestions(suggestions);
+
+		auto e = root.withCallStack(loc.createUriLocation(), dr.getEditorString());
+		e.metadata = dr.createMetadata();
+		diagnostics.add(e);
 	}
 
 	/** Skip tokens until a matching close paren is found (handles nesting). */
@@ -719,17 +735,17 @@ private:
 		return parseExpression();
 	}
 
-	void throwError(const String& err) const
+	void throwError(const String& err) const override
 	{
 		if(currentErrorLocation.getAddress() != nullptr)
 		{
 			auto copy = location;
 			copy.location = currentErrorLocation;
-			copy.throwError(err);
+			copy.throwError(root, err);
 		}
 		else
 		{
-			location.throwError(err);
+			location.throwError(root, err);
 		}
 		
 	}
@@ -833,7 +849,7 @@ private:
 			}
 			catch(Result& r)
 			{
-				location.throwError(r.getErrorMessage());
+				throwError(r.getErrorMessage());
 			}
 		}
 		else if(typeId == ScopedBypasser::getStaticId())
@@ -926,7 +942,7 @@ private:
 			}
 
 			if(expressions.isEmpty())
-				location.throwError("expected expressions");
+				throwError("expected expressions");
 
 			auto n = new ScopedDumper(location, condition);
 			n->dumpObjects.swapWith(expressions);
@@ -1139,7 +1155,7 @@ private:
 	{
 		if (getCurrentNamespace() != hiseSpecialData)
 		{
-			location.throwError("Including files inside namespaces is not supported in HiseScript. Move the include() to the global scope.");
+			throwError("Including files inside namespaces is not supported in HiseScript. Move the include() to the global scope.");
 		}
 
 		match(TokenTypes::openParen);
@@ -1187,12 +1203,12 @@ private:
                 
                 if (!ok.wasOk())
                 {
-                    CodeLocation loc(fileContent, refFileName);
+                    CodeLocation loc(location.processorId, fileContent, refFileName);
                     loc.location = loc.program.getCharPointer() + (ok.getErrorMessage().getIntValue()-1);
-                    loc.throwError(ok.getErrorMessage().fromFirstOccurrenceOf(":", false, false));
+                    loc.throwError(root, ok.getErrorMessage().fromFirstOccurrenceOf(":", false, false));
                 }
                 
-				ExpressionTreeBuilder ftb(fileContent, refFileName, preprocessor);
+				ExpressionTreeBuilder ftb(root, location.processorId, fileContent, refFileName, preprocessor);
 
 #if ENABLE_SCRIPTING_BREAKPOINTS
 				ftb.breakpoints.addArray(breakpoints);
@@ -1372,7 +1388,7 @@ private:
 
 				s << name << ": register variable already defined.";
 
-				preparser->location.throwError(s);
+				preparser->location.throwError(root, s);
 			}
 
 			return nullptr;
@@ -1572,13 +1588,13 @@ private:
         };
         
         if(illegalIds.contains(namespaceId))
-            prevLoc.throwError("Illegal namespace ID '" + namespaceId.toString() + "'. This name is reserved for a built-in API class.");
+            prevLoc.throwError(root, "Illegal namespace ID '" + namespaceId.toString() + "'. This name is reserved for a built-in API class.");
         
 		currentNamespace = hiseSpecialData->getNamespace(namespaceId);
 
 		if (currentNamespace == nullptr)
 		{
-            prevLoc.throwError("Namespace '" + namespaceId.toString() + "' was not found. It must be declared before it can be used.");
+            prevLoc.throwError(root, "Namespace '" + namespaceId.toString() + "' was not found. It must be declared before it can be used.");
 		}
 
 		ScopedPointer<BlockStatement> block = parseBlock();
@@ -1772,7 +1788,7 @@ private:
 		if (currentType == TokenTypes::openParen)
 		{
             if(currentInlineFunction == obj)
-                location.throwError("Recursive function call!");
+                throwError("Recursive function call!");
             
 			match(TokenTypes::openParen);
 
@@ -1783,7 +1799,6 @@ private:
 					match(TokenTypes::comma);
 			}
 
-#if 0
 			if (f->numArgs != f->parameterExpressions.size())
 			{
 				String msg = "Inline function call " + obj->name + ": parameter amount mismatch: " + String(f->parameterExpressions.size()) + " (Expected: " + String(f->numArgs) + ")";
@@ -1791,9 +1806,8 @@ private:
 				logDiagnosticsOrThrow(msg);
 
 				match(TokenTypes::closeParen);
-				return new DiagnosticPlaceholder(location, msg);
+				return new Expression(location);
 			}
-#endif
 
 			return matchCloseParen(f.release());
 		}
@@ -1807,7 +1821,7 @@ private:
 	{
 		if (preparser != nullptr)
 		{
-			DebugableObject::Location loc = preparser->createDebugLocation();
+			UriLocation loc = preparser->createDebugLocation();
 
 			preparser->match(TokenTypes::function);
 			
@@ -1933,7 +1947,7 @@ private:
 			{
 				currentInlineFunction = nullptr;
 
-				location.throwError("Error at inline function parsing. Check the function signature and body for syntax errors.");
+				throwError("Error at inline function parsing. Check the function signature and body for syntax errors.");
 
 				return nullptr;
 			}
@@ -2202,8 +2216,8 @@ private:
 	{
 		ScopedPointer<FunctionObject> fo = new FunctionObject(location);
 
-		fo->location.fileName = location.getCallbackName(true);
-		fo->location.charNumber = location.getCharIndex();
+		fo->location.uri = location.getCallbackName(true);
+		fo->location.charIndex = location.getCharIndex();
 
 		if(auto el = dynamic_cast<ExpressionList*>(lhs.get()))
 		{
@@ -2237,7 +2251,6 @@ private:
 
 	var parseFunctionDefinition(Identifier& functionName)
 	{
-		
 		const String::CharPointerType functionStart(location.location);
 
 		if (currentType == TokenTypes::identifier)
@@ -2247,8 +2260,8 @@ private:
 
 		ScopedPointer<FunctionObject> fo(new FunctionObject(location));
 
-		fo->location.fileName = location.getCallbackName(true);
-		fo->location.charNumber = location.getCharIndex();
+		fo->location.uri = location.getCallbackName(true);
+		fo->location.charIndex = location.getCharIndex();
 
 		parseFunctionParamsAndBody(*fo);
 		fo->functionCode = String(functionStart, location.location);
@@ -2422,7 +2435,7 @@ private:
 		}
 		else
 		{
-			ApiCall::DynamicCall call(location, apiClass, numArgs, functionIndex);
+			ApiCall::DynamicCall call(root, location, apiClass, numArgs, functionIndex);
 			
 			return new LiteralValue(location, var(call));
 		}
@@ -2852,7 +2865,7 @@ private:
 
 	Expression* parseNewOperator()
 	{
-		location.throwError("The 'new' operator is not supported in HiseScript.");
+		throwError("The 'new' operator is not supported in HiseScript.");
 		RETURN_IF_NO_THROW(nullptr);
 	}
 
@@ -2995,7 +3008,8 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(con
 
 	JavascriptNamespace* rootNamespace = hiseSpecialData;
 	JavascriptNamespace* cns = rootNamespace;
-	TokenIterator it(codeToPreprocess, externalFileName);
+
+	TokenIterator it(root, location.processorId, codeToPreprocess, externalFileName);
 
 	int braceLevel = 0;
 
@@ -3092,7 +3106,7 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(con
 			if (isDiagnosticMode())
 			{
 				try { parseRegisterVar(cns, &it); }
-				catch (Error& e)
+				catch (UriError& e)
 				{
 					recordDiagnostic(it.location, e.errorMessage, {}, SV::Error, CS::Syntax);
 				}
@@ -3170,7 +3184,7 @@ String HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::removeUnneededNa
 	{
 		const String namespaceId = RegexFunctions::getFirstMatch("namespace\\s+(\\w+)", namespaces[i])[1];
 		const String remainingCode = returnCode.fromFirstOccurrenceOf(namespaces[i], false, false);
-		TokenIterator it(remainingCode, "");
+		TokenIterator it(root, location.processorId, remainingCode, "");
 		bool found = false;
 
 		while (it.currentType != TokenTypes::eof)
@@ -3257,7 +3271,9 @@ String HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::uglify()
 
 var HiseJavascriptEngine::RootObject::evaluate(const String& code)
 {
-	ExpressionTreeBuilder tb(code, String(), preprocessor);
+	auto pid = dynamic_cast<Processor*>(hiseSpecialData.processor)->getId();
+
+	ExpressionTreeBuilder tb(*this, pid, code, String(), preprocessor);
 	tb.setupApiData(hiseSpecialData, code);
     
 	auto& cp = currentLocalScopeCreator.get();
@@ -3283,7 +3299,7 @@ bool HiseJavascriptEngine::RootObject::areTypeEqual(const var& a, const var& b)
 
 void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowConstDeclarations)
 {
-	ExpressionTreeBuilder tb(code, String(), preprocessor);
+	ExpressionTreeBuilder tb(*this, dynamic_cast<Processor*>(hiseSpecialData.processor)->getId(), code, String(), preprocessor);
 
 #if ENABLE_SCRIPTING_BREAKPOINTS
 	tb.breakpoints.swapWith(breakpoints);
@@ -3340,14 +3356,5 @@ void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowCon
 	}
 }
 
-HiseJavascriptEngine::RootObject::FunctionObject::FunctionObject(const FunctionObject& other) :
-	DynamicObject(), 
-	functionCode(other.functionCode), 
-	codeLocation(other.codeLocation)
-{
-	ExpressionTreeBuilder tb(functionCode, String(), nullptr);
-
-	tb.parseFunctionParamsAndBody(*this);
-}
 
 } // namespace hise

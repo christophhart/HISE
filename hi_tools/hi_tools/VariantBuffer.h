@@ -41,7 +41,7 @@ namespace juce { using namespace hise;
 #endif
 
 #define CHECK_CONDITION(condition, errorMessage) if(!(condition)) throw String(errorMessage);
-#define CHECK_CONDITION_WITH_LOCATION(condition, errorMessage) if(!(condition)) location.throwError(errorMessage);
+#define CHECK_CONDITION_WITH_LOCATION(condition, errorMessage) if(!(condition)) throwError(s, errorMessage);
 
 
 

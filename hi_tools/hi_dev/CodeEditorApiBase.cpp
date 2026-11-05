@@ -223,7 +223,7 @@ JavascriptCodeEditor* ApiProviderBase::Holder::getActiveEditor()
 ValueTree ApiProviderBase::Holder::createApiTree()
 { return {}; }
 
-void ApiProviderBase::Holder::jumpToDefinition(const String& token, const String& namespaceId)
+void ApiProviderBase::Holder::jumpToDefinition(const String& token, int lineNumber, const String& namespaceId)
 {
 	ignoreUnused(token, namespaceId);
 }
@@ -362,12 +362,11 @@ void ApiProviderBase::Holder::sendClearMessage()
     }
 }
 
-void DebugableObjectBase::updateLocation(Location& l, var possibleObject)
+void DebugableObjectBase::updateLocation(UriLocation& l, var possibleObject)
 {
 	if (auto obj = dynamic_cast<DebugableObjectBase*>(possibleObject.getObject()))
 	{
-		auto newLocation = obj->getLocation();
-		if (newLocation.charNumber != 0)
+		if (auto newLocation = obj->getLocation())
 			l = newLocation;
 	}
 }
@@ -466,12 +465,12 @@ String DebugInformationBase::getCategory() const
 	return ""; 
 }
 
-DebugableObjectBase::Location DebugInformationBase::getLocation() const
+UriLocation DebugInformationBase::getLocation() const
 {
 	if (auto obj = getObject())
 		return obj->getLocation();
 
-	return DebugableObjectBase::Location();
+	return UriLocation();
 }
 
 String DebugInformationBase::getTextForType() const

@@ -1,3 +1,4 @@
+#include "TextEditor.hpp"
 /** ============================================================================
  *
  * TextEditor.cpp
@@ -212,12 +213,31 @@ void TextEditor::clearWarningsAndErrors()
 	autofixButton = nullptr;
 	currentError = nullptr;
 	warnings.clear();
+	hints.clear();
+	repaint();
+}
+
+void TextEditor::addHint(const UriError& e)
+{
+	hints.add(new Error(document, e, true));
+	repaint();
+}
+
+void TextEditor::addWarning(const UriError& e, bool isWarning)
+{
+	warnings.add(new Error(document, e, isWarning));
 	repaint();
 }
 
 void TextEditor::addWarning(const String& errorMessage, bool isWarning)
 {
 	warnings.add(new Error(document, errorMessage, isWarning));
+	repaint();
+}
+
+void TextEditor::setError(const UriError& e)
+{
+	currentError = new Error(document, e, false);
 	repaint();
 }
 
@@ -273,6 +293,12 @@ TooltipWithArea::Data TextEditor::getTooltip(Point<float> position)
 	for (auto w : warnings)
 	{
 		if (auto d = w->getTooltip(transform, position))
+			return d;
+	}
+
+	for (auto h : hints)
+	{
+		if (auto d = h->getTooltip(transform, position))
 			return d;
 	}
 
@@ -1017,6 +1043,31 @@ TextEditor::Error::Error(TextDocument& doc_, const String& e, bool isWarning_):
 	rebuild();
 }
 
+TextEditor::Error::Error(TextDocument& doc_, const UriError& location, bool isWarning_):
+	document(doc_),
+	isWarning(isWarning_),
+	errorMessage(location.errorMessage)
+{
+	Point<int> s(location.line - 1, location.col);
+	auto e = s;
+
+	document.navigate(s, TextDocument::Target::cppToken, TextDocument::Direction::backwardCol);
+	document.navigate(e, TextDocument::Target::cppToken, TextDocument::Direction::forwardCol);
+
+	if (s == e)
+		e.y += 1;
+
+	start = CodeDocument::Position(document.getCodeDocument(), s.x, s.y);
+	end = CodeDocument::Position(document.getCodeDocument(), e.x, e.y);
+	start.setPositionMaintained(true);
+	end.setPositionMaintained(true);
+
+	isEntireLine = false;
+
+	rebuild();
+}
+
+
 Selection TextEditor::Error::getSelection() const
 {
 	return Selection(start.getLineNumber(), start.getIndexInLine(), end.getLineNumber(), end.getIndexInLine());
@@ -1176,6 +1227,10 @@ hise::MarkdownLink TextEditor::getLink() const
 
 	return MarkdownLink();
 }
+
+
+
+
 
 void TextEditor::updateAutocomplete(bool forceShow /*= false*/)
 {
@@ -1993,14 +2048,19 @@ void mcl::TextEditor::paint (Graphics& g)
     
 	if (currentError != nullptr)
 	{
-		currentError->paintLines(g, transform, Colours::red);
+		currentError->paintLines(g, transform, Colour(HISE_ERROR_COLOUR));
 		g.setColour(Colours::red.withAlpha(0.08f));
 		auto b = currentError->area.transformedBy(transform).withLeft(gutter.getGutterWidth()).withRight(getWidth());;
 		g.fillRect(b);
 	}
     
 	for (auto w : warnings)
-		w->paintLines(g, transform, w->isWarning ? Colours::yellow : Colours::red);
+		w->paintLines(g, transform, w->isWarning ? Colour(HISE_WARNING_COLOUR) : Colour(HISE_ERROR_COLOUR));
+
+	for (auto w : hints)
+		w->paintLines(g, transform, Colours::lightblue);
+
+
 
 	for(auto& h: heatmap)
 	{

@@ -139,7 +139,7 @@ public:
 
 	/** The parser will call this function with every function call and its location so you can use it to track down calls. 
 		Note: this will only work with objects that are defined as const variables. */
-	virtual bool addLocationForFunctionCall(const Identifier& id, const DebugableObjectBase::Location& location);;
+	virtual bool addLocationForFunctionCall(const Identifier& id, const UriLocation& location);;
 
 	/** \internal This method combines the calls to objectDeleted() and objectExists() and creates a nice error message. */
 	bool checkValidObject() const;

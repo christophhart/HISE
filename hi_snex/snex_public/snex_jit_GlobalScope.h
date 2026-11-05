@@ -117,8 +117,8 @@ struct ExternalPreprocessorDefinition
 	String value;
 	String description;
 	Array<Identifier> macroParameters;
-	int charNumber = -1;
-	String fileName;
+
+	UriLocation location;
 };
 
 /** A interface class for anything that needs to print out the logs from the

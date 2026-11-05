@@ -536,7 +536,7 @@ public:
 	bool handleKeyPress(const KeyPress& k, Component* c) override;
 #endif
 
-	void jumpToDefinition(const String& namespaceId, const String& token) override;
+	void jumpToDefinition(const String& token, int lineNumber, const String& namespaceId) override;
 
 	void setActiveEditor(JavascriptCodeEditor* e, CodeDocument::Position pos) override;
 
@@ -559,7 +559,7 @@ public:
 	void compileScript(const ResultFunction& f = ResultFunction());
 
 #if USE_BACKEND
-	using DiagnosticList = Array<HiseJavascriptEngine::RootObject::ApiDiagnostic>;
+	using DiagnosticList = Array<UriError>;
 	using DiagnosticCallback = std::function<void(const DiagnosticList&)>;
 
 	/** Shadow-parse a file in diagnostic mode.
@@ -603,7 +603,7 @@ public:
 	const SnippetDocument *getSnippet(const Identifier& id) const;
 
 	/** Returns the code document for a debug location (handles callbacks and external files). */
-	CodeDocument* getSnippet(const DebugableObjectBase::Location& loc);
+	CodeDocument* getSnippet(const UriLocation& loc);
 
 	void saveScript(ValueTree &v) const;
 	void restoreScript(const ValueTree &v);
@@ -769,8 +769,8 @@ private:
 		static String resolveIncludeStatements(String& x, Array<File>& includedFiles, const JavascriptProcessor* p);
 		static Array<ExternalScript> desolveIncludeStatements(String& x, const File& scriptRoot, MainController* mc);
 
-		static String stripUnusedNamespaces(const String &code, int& counter);
-		static String uglify(const String& prettyCode);
+		
+		
 
 	};
 

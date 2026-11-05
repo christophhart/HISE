@@ -88,7 +88,7 @@ struct HiseJavascriptEngine::RootObject::RegisterVarStatement : public Statement
         }
         catch(String& error)
         {
-            throw Error::fromLocation(location, error);
+            throw s.root->fromLocation(location, error);
         }
 		
 		return ok;
@@ -146,7 +146,7 @@ struct HiseJavascriptEngine::RootObject::RegisterName : public Expression
             
             if(ok.failed())
             {
-                throw Error::fromLocation(location, ok.getErrorMessage());
+                throw s.root->fromLocation(location, ok.getErrorMessage());
             }
         }
 #endif
@@ -188,7 +188,8 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 {
 	struct DynamicCall
 	{
-		DynamicCall(const CodeLocation& l_, ApiClass* apiClass_, int expectedNumArguments_, int functionIndex_):
+		DynamicCall(RootObject& r, const CodeLocation& l_, ApiClass* apiClass_, int expectedNumArguments_, int functionIndex_):
+		  root(r),
 		  l(l_),
 		  apiClass(apiClass_),
 		  numArgs(expectedNumArguments_),
@@ -198,7 +199,7 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 		var operator()(const var::NativeFunctionArgs& args)
 		{
 			if(args.numArguments != numArgs)
-				throw Error::fromLocation(l, "Expected num arguments: " + String(numArgs));
+				throw root.fromLocation(l, "Expected num arguments: " + String(numArgs));
 
 			try
 			{
@@ -206,7 +207,7 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 			}
 			catch (String& error)
 			{
-				throw Error::fromLocation(l, error);
+				throw root.fromLocation(l, error);
 				RETURN_IF_NO_THROW(var());
 			}
 		}
@@ -214,6 +215,7 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 	private:
 
 		CodeLocation l;
+		RootObject& root;
 		ReferenceCountedObjectPtr<ApiClass> apiClass;
 		int functionIndex;
 		int numArgs;
@@ -313,7 +315,7 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 		}
 		catch (String& error)
 		{
-			throw Error::fromLocation(location, error);
+			throw s.root->fromLocation(location, error);
 		}
 	}
 
@@ -577,7 +579,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 			functionDef << ")";
 
-			CodeLocation lo = CodeLocation("", "");
+			CodeLocation lo = CodeLocation("", "", "");
 
 			dynamicFunctionCall = new FunctionCall(lo, this, false);
 		}
@@ -589,7 +591,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			dynamicFunctionCall = nullptr;
 		}
 
-		Location getLocation() const override
+		UriLocation getLocation() const override
 		{
 			return location;
 		}
@@ -713,9 +715,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
             signature << ")";
             
             signature << "|" << VarTypeChecker::getTypeName(returnType);
-            
-            signature << "|" << "Defined at" << (location.fileName.isEmpty() ? "onInit" : location.fileName);
-            
+			signature << "|" << "Defined at" << location.toLocationString(UriLocation::UriFormat::Callback);
             signature << "|" << commentDoc;
             
             return signature;
@@ -906,16 +906,18 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		var performDynamically(const Scope& s, const var* args, int numArgs)
 		{
             LocalScopeCreator::ScopedSetter sls(s.root, this);
-            
+			
 			setFunctionCall(dynamicFunctionCall);
 
-#if ENABLE_SCRIPTING_BREAKPOINTS && 0
+#if ENABLE_SCRIPTING_BREAKPOINTS
+
+			RootObject::ScopedCallstackEntry sc(*s.root, name, &body->location);
+
 			if(numArgs != dynamicFunctionCall->parameterResults.size())
 			{
 				String e;
 				e << "argument amount mismatch: " << String(dynamicFunctionCall->parameterResults.size()) << " (expected: " << String(numArgs) << ")";
-				auto error = RootObject::Error::fromLocation(body->location, e);
-				throw error;
+				body->throwError(s, e);
 			}
 #endif
 
@@ -1017,7 +1019,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		var lastScopeForCycleCheck;
 
-		Location location;
+		UriLocation location;
         
         VarTypeChecker::WrappedType returnType;
 
@@ -1209,19 +1211,17 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
                     if(!ok.wasOk())
                     {
                         f->setFunctionCall(nullptr);
-                        location.throwError("Parameter #" + String(i) + ": " + ok.getErrorMessage());
+                        throwError(s, "Parameter #" + String(i) + ": " + ok.getErrorMessage());
                     }
                 }
 #endif
 			}
 
-			s.root->addToCallStack(f->name, &location);
+			RootObject::ScopedCallstackEntry sc(*s.root, f->name, &location);
 
 			try
 			{
 				ResultCode c = f->body->perform(s, &returnVar);
-
-				s.root->removeFromCallStack(f->name);
 
 				if(f->e.get() == this)
 					f->cleanUpAfterExecution();
@@ -1245,7 +1245,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
                     
                     if(ok.failed())
                     {
-                        location.throwError("Return value: " + ok.getErrorMessage());
+                        throwError(s, "Return value: " + ok.getErrorMessage());
                     }
                 }
 #endif
@@ -1322,7 +1322,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			}
 			else
 			{
-				location.throwError("Accessing parameter reference outside the function call. The parameter is only valid during function execution.");
+				throwError(s, "Accessing parameter reference outside the function call. The parameter is only valid during function execution.");
 				RETURN_IF_NO_THROW({});
 			}
 		}
@@ -1544,9 +1544,9 @@ struct LocationInjector : public HiseJavascriptEngine::RootObject::OptimizationP
 
 				if (auto cso = dynamic_cast<ConstScriptingObject*>(obj.getObject()))
 				{
-					DebugableObjectBase::Location loc;
-					loc.charNumber = dot->location.getCharIndex();
-					loc.fileName = dot->location.externalFile;
+
+					UriLocation loc;
+					dot->location.fillLocation(loc, false);
 
 					try
 					{
@@ -1554,7 +1554,7 @@ struct LocationInjector : public HiseJavascriptEngine::RootObject::OptimizationP
 					}
 					catch (String& e)
 					{
-						dot->location.throwError(e);
+						jassertfalse;
 					}
 					
 				}

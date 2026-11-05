@@ -329,12 +329,13 @@ static var getLafInfoForComponent(ScriptingApi::Content::LafRegistry* registry,
 		{
 			if (auto codeDoc = jp->getSnippet(lafInfo->location))
 			{
-				CodeDocument::Position pos(*codeDoc, lafInfo->location.charNumber);
-				auto lineNumber = pos.getLineNumber() + 1;  // 1-based
-				auto columnNumber = pos.getIndexInLine();
-				
+				lafInfo->location.fillLineAndCol(*codeDoc);
+
+				auto lineNumber = lafInfo->location.line;
+				auto columnNumber = lafInfo->location.col;
+
 				// Build location string directly (same format as error callstacks)
-				auto fileName = lafInfo->location.fileName;
+				auto fileName = lafInfo->location.uri;
 				String filePath;
 				
 				if (fileName.isEmpty() || fileName == "onInit" || fileName.contains("()"))
@@ -353,13 +354,13 @@ static var getLafInfoForComponent(ScriptingApi::Content::LafRegistry* registry,
 			else
 			{
 				// Fallback if document not found
-				locationStr = lafInfo->location.fileName.isNotEmpty() ? lafInfo->location.fileName : "onInit";
+				locationStr = lafInfo->location.toLocationString(UriLocation::UriFormat::CallbackId);
 			}
 		}
 		else
 		{
 			// Fallback if no JavascriptProcessor
-			locationStr = lafInfo->location.fileName.isNotEmpty() ? lafInfo->location.fileName : "onInit";
+			locationStr = lafInfo->location.toLocationString(UriLocation::UriFormat::CallbackId);
 		}
 		
 		laf->setProperty(RestApiIds::location, locationStr);
@@ -1675,9 +1676,9 @@ struct ScriptTreeBuilder
 		auto loc = info->getLocation();
 
 		DynamicObject::Ptr o = new DynamicObject();
-		o->setProperty(RestApiIds::file, loc.fileName.replace("\\", "/"));
-		o->setProperty(RestApiIds::charNumber, loc.charNumber);
-		o->setProperty(RestApiIds::available, loc.fileName.isNotEmpty() || loc.charNumber != 0);
+		o->setProperty(RestApiIds::file, loc.toLocationString(UriLocation::UriFormat::FilePath));
+		o->setProperty(RestApiIds::charNumber, loc.charIndex);
+		o->setProperty(RestApiIds::available, (bool)loc);
 		return o;
 	}
 
@@ -3053,6 +3054,7 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 	var autocompletePosition;
 	int autocompleteLine = -1;
 	int autocompleteCharacter = -1;
+	auto includeNavigationInfo = false;
 
 	if (hasAutocompletePosition)
 	{
@@ -3062,6 +3064,8 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 			|| !autocompletePosition.hasProperty(RestApiIds::line)
 			|| !autocompletePosition.hasProperty(RestApiIds::character))
 			return req->fail(400, "autocompletePosition must contain integer line and character fields");
+
+		includeNavigationInfo = autocompletePosition[RestApiIds::includeDeclaration];
 
 		autocompleteLine = (int)autocompletePosition[RestApiIds::line];
 		autocompleteCharacter = (int)autocompletePosition[RestApiIds::character];
@@ -3201,22 +3205,21 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 		
 		for (const auto& d : diagnostics)
 		{
-			DynamicObject::Ptr dObj = new DynamicObject();
-			dObj->setProperty(RestApiIds::line, d.line);
-			dObj->setProperty(RestApiIds::column, d.col);
-			dObj->setProperty(RestApiIds::severity, ApiClass::DiagnosticResult::getSeverityString(d.severity));
-			dObj->setProperty(RestApiIds::source, ApiClass::DiagnosticResult::getClassificationString(d.classification));
-			dObj->setProperty(RestApiIds::message, d.message);
-			
-			if (!d.suggestions.isEmpty())
+			auto getCleanedJSON = [](const var& full)
 			{
-				Array<var> sugArr;
-				for (const auto& s : d.suggestions)
-					sugArr.add(s);
-				dObj->setProperty(RestApiIds::suggestions, var(sugArr));
-			}
-			
-			diagArray.add(var(dObj.get()));
+				DynamicObject* c = new DynamicObject();
+
+				c->setProperty(RestApiIds::line, full[RestApiIds::line]);
+				c->setProperty(RestApiIds::column, full[RestApiIds::column]);
+				c->setProperty(RestApiIds::severity, full[RestApiIds::severity]);
+				c->setProperty(RestApiIds::source, full[RestApiIds::source]);
+				c->setProperty(RestApiIds::message, full[RestApiIds::message]);
+				c->setProperty(RestApiIds::suggestions, full[RestApiIds::suggestions]);
+
+				return var(c);
+			};
+
+			diagArray.add(getCleanedJSON(d.toJSON()));
 		}
 		
 		return diagArray;
@@ -3234,7 +3237,7 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 	if (hasAutocompletePosition)
 		expressionParser = new AutocompleteExpressionParser(code, autocompleteLine, autocompleteCharacter);
 
-	auto buildResponse = [resolvedModuleId, responsePath, autocompleteLine, jp, expressionParser](const Array<var>& diagArray)
+	auto buildResponse = [resolvedModuleId, responsePath, autocompleteLine, jp, expressionParser, includeNavigationInfo](const Array<var>& diagArray)
 	{
 		DynamicObject::Ptr result = new DynamicObject();
 		result->setProperty(RestApiIds::success, true);
@@ -3250,12 +3253,31 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 
 			auto charIndex = expressionParser->getCharIndex();
 
-			jp->getScriptEngine()->addTokensWithContext(tokens, autocompleteLine, charIndex, prevExpression.first);
+			auto tp = std::make_unique<HiseJavascriptEngine::TokenProvider>(jp);
+
+			tp->addTokens(tokens);
+			tp->addTokensWithContext(tokens, autocompleteLine, charIndex, prevExpression.first);
+
+			tp.reset();
 
 			Array<var> lspList;
 
+			DynamicObject::Ptr occurrences = new DynamicObject();
+			occurrences->setProperty("isIncomplete", true);
+
 			for (auto t : tokens)
 			{
+				if (auto nt = dynamic_cast<LightweightDiagnostics::NavigationToken*>(t))
+				{
+					if (includeNavigationInfo)
+					{
+						occurrences->setProperty("isIncomplete", false);
+						occurrences->setProperty(RestApiIds::items, var(nt->occurrences));
+					}
+					
+					continue;
+				}
+
 				if (!t->matches(prevExpression.second, prevExpression.first, autocompleteLine))
 					continue;
 
@@ -3268,6 +3290,8 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 			completionList->setProperty(RestApiIds::isIncomplete, false);
 			completionList->setProperty(RestApiIds::items, var(lspList));
 			result->setProperty(RestApiIds::completionList, var(completionList.get()));
+
+			result->setProperty(RestApiIds::occurrences, var(occurrences.get()));
 		}
 
 		result->setProperty(RestApiIds::logs, Array<var>());

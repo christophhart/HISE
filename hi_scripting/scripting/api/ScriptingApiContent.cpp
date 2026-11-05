@@ -9303,7 +9303,7 @@ hise::ScriptingApi::Content::LafRegistry::LafInfo::Ptr hise::ScriptingApi::Conte
 	return nullptr;
 }
 
-void hise::ScriptingApi::Content::LafRegistry::registerLaf(DebugableObjectBase* laf, const String& variableName, const DebugableObjectBase::Location& location)
+void hise::ScriptingApi::Content::LafRegistry::registerLaf(DebugableObjectBase* laf, const String& variableName, const UriLocation& location)
 {
 	if (auto typed = dynamic_cast<ScriptingObjects::ScriptedLookAndFeel*>(laf))
 	{

@@ -41,6 +41,8 @@ struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 
 		auto v = s.findSymbolInParentScopes(name); 
 
+		fillLocation(s, v, "", false);
+
 		if (v.isUndefined() && name == this_)
 		{
 			auto v = s.root->getLocalThisObject();
@@ -100,7 +102,7 @@ struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 			if (allowUnqualifiedDefinition)
 				currentScope->root->setProperty(name, newValue);
 			else
-				location.throwError("Unqualified assignments are not supported anymore. Use `var` or `const var` or `reg` for definitions");
+				throwError(s, "Unqualified assignments are not supported anymore. Use `var` or `const var` or `reg` for definitions");
 		}
 	}
 
@@ -126,8 +128,14 @@ struct HiseJavascriptEngine::RootObject::ConstReference : public Expression
 #if HISE_SHADOW_PARSER_ENABLED
 		if (s.isShadowParsing())
 		{
+			var v;
+
 			if (ns != nullptr)
-				return s.getShadowParserRootObject(ns->id)->getProperty(getVariableName());
+				v = s.getShadowParserRootObject(ns->id)->getProperty(getVariableName());
+
+			fillLocation(s, v, "", false);
+
+			return v;
 		}
 #endif
 
@@ -146,9 +154,9 @@ struct HiseJavascriptEngine::RootObject::ConstReference : public Expression
 		return !v.isArray() && !v.isObject();
 	}
 
-	void assign(const Scope& /*s*/, const var& /*newValue*/) const override
+	void assign(const Scope& s, const var& /*newValue*/) const override
 	{
-		location.throwError("Cannot assign to a const variable.");
+		throwError(s, "Cannot assign to a const variable.");
 	}
 
 	Identifier getVariableName() const override { return variableId; }
@@ -170,6 +178,16 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 	{
 		var result = object->getResult(s);
 
+
+		auto returnWithLocation = [&](const var& v)
+		{
+#if HISE_SHADOW_PARSER_ENABLED
+			fillLocation(s, v, "", false);
+#endif
+
+			return v;
+		};
+
 		if (VariantBuffer *b = result.getBuffer())
 		{
 			const int i = index->getResult(s);
@@ -178,10 +196,10 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 		else if (AssignableObject * instance = dynamic_cast<AssignableObject*>(result.getObject()))
 		{
             const int i = index->getResult(s);
-            return instance->getAssignedValue(i);
+            return returnWithLocation(instance->getAssignedValue(i));
 		}
 		else if (const Array<var>* array = result.getArray())
-			return (*array)[static_cast<int> (index->getResult(s))];
+			return returnWithLocation((*array)[static_cast<int> (index->getResult(s))]);
 
         else if (const DynamicObject* obj = result.getDynamicObject())
         {
@@ -197,11 +215,11 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
                 if(hasConstIndex)
                     cachedId = idToUse;
                 
-                return obj->getProperty(idToUse);
+                return returnWithLocation(obj->getProperty(idToUse));
             }
             else
             {
-                return obj->getProperty(cachedId);
+                return returnWithLocation(obj->getProperty(cachedId));
             }
         }
         
@@ -313,6 +331,8 @@ struct HiseJavascriptEngine::RootObject::DotOperator : public Expression
 #if HISE_SHADOW_PARSER_ENABLED
 		if (s.isShadowParsing())
 		{
+			fillLocation(s, p, "", false);
+
 			if (auto ptr = dynamic_cast<LightweightDiagnostics*>(p.getObject()))
 			{
 				logDiagnostics(s, ptr->checkProperty(child));
@@ -355,7 +375,7 @@ struct HiseJavascriptEngine::RootObject::DotOperator : public Expression
             if(auto member = (*lb)[child])
                 return (var)*member;
             else
-                location.throwError("Cannot find property '" + child.toString() + "' on this object.");
+                throwError(s, "Cannot find property '" + child.toString() + "' on this object.");
         }
 
 		if (auto ad = dynamic_cast<AssignableDotObject*>(p.getObject()))
@@ -385,7 +405,7 @@ struct HiseJavascriptEngine::RootObject::DotOperator : public Expression
             if(auto member = (*lb)[child])
                 *member = newValue;
             else
-                location.throwError("Cannot find property '" + child.toString() + "' on this object.");
+                throwError(s, "Cannot find property '" + child.toString() + "' on this object.");
         }
 		else if (auto aObj = dynamic_cast<AssignableDotObject*>(v.getObject()))
 		{
@@ -398,7 +418,7 @@ struct HiseJavascriptEngine::RootObject::DotOperator : public Expression
 #endif
             
 			if (!aObj->assign(child, newValue))
-				location.throwError("Cannot assign to property '" + child + "'. It may be read-only.");
+				throwError(s, "Cannot assign to property '" + child + "'. It may be read-only.");
 		}
         else
 			Expression::assign(s, newValue);
@@ -554,22 +574,8 @@ struct HiseJavascriptEngine::RootObject::NewOperator : public FunctionCall
 
 	var getResult(const Scope& s) const override
 	{
-		location.throwError("The 'new' operator is not supported in HiseScript.");
-
-		var classOrFunc = object->getResult(s);
-
-		const bool isFunc = isFunction(classOrFunc);
-		if (!(isFunc || classOrFunc.getDynamicObject() != nullptr))
-			return var::undefined();
-
-		DynamicObject::Ptr newObject(new DynamicObject());
-
-		if (isFunc)
-			invokeFunction(s, classOrFunc, newObject.get());
-		else
-			newObject->setProperty(getPrototypeIdentifier(), classOrFunc);
-
-		return newObject.get();
+		throwError(s, "The 'new' operator is not supported in HiseScript.");
+		return var();
 	}
 };
 
@@ -672,9 +678,11 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 		codeLocation(l)
 	{}
 
-	FunctionObject(const FunctionObject& other);
-
-	DynamicObject::Ptr clone() const override    { return new FunctionObject(*this); }
+	DynamicObject::Ptr clone() const override    
+	{ 
+		jassertfalse;
+		return new DynamicObject();
+	}
 
 	int getNumArguments() const override { return parameters.size(); }
 
@@ -929,14 +937,14 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 		return DebugableObject::Helpers::getFunctionDoc(commentDoc, parameters);
 	}
 
-	Location getLocation() const override { return location; }
+	UriLocation getLocation() const override { return location; }
 
 	bool enableCycleCheck = false;
 
 	Identifier name;
 
 	CodeLocation codeLocation;
-	Location location;
+	UriLocation location;
 
 	String functionCode;
 	Array<Identifier> parameters;
@@ -1017,13 +1025,14 @@ var HiseJavascriptEngine::RootObject::FunctionCall::invokeFunction(const Scope& 
 
 	const var::NativeFunctionArgs args(thisObject, argVars, thisNumArgs);
 
-
 	if (var::NativeFunction nativeFunction = function.getNativeFunction())
 		return nativeFunction(args);
 
 	if (FunctionObject* fo = dynamic_cast<FunctionObject*> (function.getObject()))
     {
         LocalScopeCreator::ScopedSetter sls(s.root, fo);
+		RootObject::ScopedCallstackEntry se(*s.root, fo->functionDef, &location);
+
 		return fo->invoke(s, args);
     }
 
@@ -1034,7 +1043,7 @@ var HiseJavascriptEngine::RootObject::FunctionCall::invokeFunction(const Scope& 
 
 	auto& locToUse = object != nullptr ? object->location : location;
 
-	locToUse.throwError("This expression is not a function!"); return var();
+	locToUse.throwError(*s.root, "This expression is not a function!"); return var();
 }
 
 

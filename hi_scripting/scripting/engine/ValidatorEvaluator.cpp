@@ -547,20 +547,14 @@ inline void HiseJavascriptEngine::RootObject::ObjectTypeMap::addDeferredDiagnost
 			if (ok.shouldReport())
 			{
 				auto loc = currentLocation;
-
-				addDiagnostic(ok.toItem([loc](ApiDiagnostic& ad)
-				{
-					loc->fillLocation(ad);
-				}));
+				addDiagnostic(ok.createUriError(currentLocation->createUriLocation()));
 			}
 		}
 	}
 	else
 	{
 		DeferredData nd;
-
-		currentLocation->fillColumnAndLines(nd.ad.col, nd.ad.line, nd.ad.charIndex);
-
+		currentLocation->fillLocation(nd.location);
 		nd.evaluationString = validatorString;
 		nd.validator = test;
 
@@ -579,14 +573,7 @@ void HiseJavascriptEngine::RootObject::ObjectTypeMap::checkDeferredDiagnostics(c
 			auto ok = p->evaluate(df.evaluationString);
 
 			if (ok.shouldReport())
-			{
-				auto locationDiagnostic = df.ad;
-
-				addDiagnostic(ok.toItem([locationDiagnostic](ApiDiagnostic& ad)
-				{
-					ad = ad.withLocation(locationDiagnostic);
-				}));
-			}	
+				addDiagnostic(ok.createUriError(df.location));
 		}
 	}
 
@@ -597,12 +584,7 @@ void HiseJavascriptEngine::RootObject::ObjectTypeMap::checkDeferredDiagnostics(c
 			auto dr = fo->shadowParseIfTypedParameters(getCurrentScope());
 
 			if (dr.shouldReport())
-			{
-				addDiagnostic(dr.toItem([fo](ApiDiagnostic& ad)
-				{
-					fo->codeLocation.fillLocation(ad);
-				}));
-			}
+				addDiagnostic(dr.createUriError(fo->codeLocation.createUriLocation()));
 		}
 
 		if (auto ifo = dynamic_cast<InlineFunction::Object*>(f.getObject()))
@@ -610,12 +592,7 @@ void HiseJavascriptEngine::RootObject::ObjectTypeMap::checkDeferredDiagnostics(c
 			auto dr = ifo->shadowParseIfTypedParameters(getCurrentScope());
 
 			if (dr.shouldReport())
-			{
-				addDiagnostic(dr.toItem([ifo](ApiDiagnostic& ad)
-				{
-					ifo->body->location.fillLocation(ad);
-				}));
-			}
+				addDiagnostic(dr.createUriError(ifo->body->location.createUriLocation()));
 		}
 	}
 }

@@ -69,14 +69,14 @@ public:
 	{
 		static AttributedString getFunctionDoc(const String &docBody, const Array<Identifier> &parameters);
 
-		static bool gotoLocation(Component* ed, JavascriptProcessor* sp, const Location& location);
+		static bool gotoLocation(Component* ed, JavascriptProcessor* sp, const UriLocation& location);
 
 		static bool gotoLocation(Processor* processor, DebugInformationBase* info);
 		
 		static bool gotoLocation(ModulatorSynthChain* mainSynthChain, const String& encodedState);
 
 		/** This will try to resolve the location from the provider if the obj has not a valid location. */
-		static Location getLocationFromProvider(Processor* p, DebugableObjectBase* obj);
+		static UriLocation getLocationFromProvider(Processor* p, DebugableObjectBase* obj);
 
 		static Component* showProcessorEditorPopup(Component* table, Processor* p);
 
@@ -159,7 +159,7 @@ public:
 
 	
 
-	//DebugableObject::Location location;
+	//UriLocation location;
 
 protected:
 
@@ -209,9 +209,9 @@ public:
 
 	using ValueFunction = std::function<var()>;
 
-	LambdaValueInformation(const ValueFunction& f, const Identifier &id_, const Identifier& namespaceId_, Type t, DebugableObjectBase::Location location_, const String& comment_=String());
+	LambdaValueInformation(const ValueFunction& f, const Identifier &id_, const Identifier& namespaceId_, Type t, UriLocation location_, const String& comment_=String());
 
-	DebugableObjectBase::Location getLocation() const;
+	UriLocation getLocation() const;
 
 	AttributedString getDescription() const override;
 
@@ -240,7 +240,7 @@ public:
 
 	const Identifier id;
 	const Identifier namespaceId;
-	DebugableObjectBase::Location location;
+	UriLocation location;
 	bool customAutoComplete = false;
 
 private:

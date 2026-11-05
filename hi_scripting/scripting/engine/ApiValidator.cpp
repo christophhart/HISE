@@ -161,16 +161,16 @@ DynamicObject* HiseJavascriptEngine::RootObject::ObjectTypeMap::TypeScope::getCu
 HiseJavascriptEngine::RootObject::ObjectTypeMap::ScopedCallStack::ScopedCallStack(ShadowParserBase* parser, const Statement* s, const String& customStackName) :
 	parent(*dynamic_cast<ObjectTypeMap*>(parser))
 {
-	DiagnosticBase::DiagnosticResult::CallStackItem ci;
+	UriLocation ci;
 
-	s->location.fillColumnAndLines(ci.col, ci.line, ci.charIndex);
-	ci.fileName = s->location.externalFile;
-	ci.methodName = customStackName;
+	s->location.fillLocation(ci);
 
-	if (ci.methodName.isEmpty())
-		ci.methodName = s->getProfileName();
+	auto expression = customStackName;
 
-	parent.currentCallstack.add(ci);
+	if (expression.isEmpty())
+		expression = s->getProfileName();
+
+	parent.currentCallstack.add({ expression, ci });
 }
 
 HiseJavascriptEngine::RootObject::ObjectTypeMap::ScopedCallStack::~ScopedCallStack()
@@ -180,7 +180,7 @@ HiseJavascriptEngine::RootObject::ObjectTypeMap::ScopedCallStack::~ScopedCallSta
 
 
 
-HiseJavascriptEngine::RootObject::ObjectTypeMap::ObjectTypeMap(RootObject& root_, Array<ApiDiagnostic>* target) :
+HiseJavascriptEngine::RootObject::ObjectTypeMap::ObjectTypeMap(RootObject& root_, Array<UriError>* target) :
 	root(root_),
 	pwsc(dynamic_cast<ProcessorWithScriptingContent*>(root_.hiseSpecialData.processor)),
 	scopeStack(new ScopeStack(*this)),
@@ -290,22 +290,23 @@ void HiseJavascriptEngine::RootObject::ObjectTypeMap::shadowParse(Statement* s)
 	auto resultCode = s->perform(getCurrentScope(), &rv);
 }
 
-void HiseJavascriptEngine::RootObject::ObjectTypeMap::addDiagnostic(const ApiDiagnostic& i)
+void HiseJavascriptEngine::RootObject::ObjectTypeMap::addDiagnostic(const UriError& i)
 {
 	auto item = i;
 
-	if (item.ec == DiagnosticBase::DiagnosticResult::ErrorCode::CallScopeMismatch && callscopeAnnotation.isNotEmpty())
-		item.suggestions.add(callscopeAnnotation);
+	item.processorId = dynamic_cast<Processor*>(pwsc)->getId();
 
-	for (int i = currentCallstack.size() - 1; i >= 0; i--)
+	auto ec = DiagnosticBase::DiagnosticResult::getErrorCodeFromMetadata(item.metadata);
+
+	if (ec == DiagnosticBase::DiagnosticResult::ErrorCode::CallScopeMismatch && callscopeAnnotation.isNotEmpty())
+		item.errorMessage << ". " << callscopeAnnotation;
+	
+	for (const auto& cs: currentCallstack)
 	{
-		const auto& cs = currentCallstack.getUnchecked(i);
+		if (cs.second.matches(item))
+			continue;
 
-		if (cs.charIndex != item.charIndex ||
-			cs.fileName != item.fileName)
-		{
-			item.callstack.push_back(cs);
-		}
+		item.callstack.push_back(cs);
 	}
 
 	diagnostics->add(item);
@@ -317,356 +318,6 @@ HiseJavascriptEngine::ScopeTree HiseJavascriptEngine::RootObject::ObjectTypeMap:
 	history.push_back({ Range<int>(0, INT_MAX), scopeStack->getCurrentScopeObject() });
 	return history;
 }
-
-
-
-#if 0
-void ApiValidationAnalyzer::setDiagnosticTarget(Array<ApiDiagnostic>* target, RO::HiseSpecialData* hsd)
-{
-	diagnostics = target;
-	hiseSpecialData = hsd;
-
-	hiseSpecialData->root->objectTypeMap->resetStack(hiseSpecialData->root, this); 
-}
-
-/** Run the QueryFunction for a method (if registered) and return the result.
-Does NOT emit — the caller coalesces with other checks before emitting. */
-ApiClass::DiagnosticResult ApiValidationAnalyzer::getQueryDiagnostic(DiagnosticBase* c, Statement* s, const Identifier& methodName)
-{
-	if (!c->hasDiagnosticCheck(methodName))
-		return DR::ok();
-
-	Array<var> diagnosticArgs;
-
-	if (auto fc = dynamic_cast<RO::FunctionCall*>(s))
-	{
-		for (auto a : fc->arguments)
-			diagnosticArgs.add(evaluateIfNoSideEffect(a));
-	}
-	if (auto ac = dynamic_cast<RO::ApiCall*>(s))
-	{
-		for (int i = 0; i < ac->expectedNumArguments; i++)
-		{
-			auto a = ac->argumentList[i].get();
-			diagnosticArgs.add(evaluateIfNoSideEffect(a));
-		}
-	}
-
-	return c->runTests(this, methodName, diagnosticArgs);
-}
-
-String ApiValidationAnalyzer::getArgIdFromExpression(RO::Expression* e) const
-{
-	if (auto ac = dynamic_cast<RO::ApiCall*>(e))
-	{
-		return evaluateIfNoSideEffect(ac->argumentList[0].get()).toString();
-	}
-	if (auto fc = dynamic_cast<RO::FunctionCall*>(e))
-	{
-		return evaluateIfNoSideEffect(fc->arguments[0]).toString();
-	}
-
-	return {};
-}
-
-void ApiValidationAnalyzer::process(Statement* s)
-{
-	if (diagnostics == nullptr)
-		return;
-
-	lastTouchedStatement = s;
-
-	var rv;
-	auto resultCode = s->perform(getOrCreateObjectTypeMap()->getCurrentScope(), &rv);
-
-	return;
-
-
-
-	if (auto fc = dynamic_cast<RO::FunctionObject*>(s))
-	{
-		jassertfalse;
-		return;
-	}
-
-	else if (auto lit = dynamic_cast<RO::LiteralValue*>(s))
-		processInternal(lit);
-	else if (auto anon = dynamic_cast<RO::AnonymousFunctionWithCapture*>(s))
-		processInternal(anon);
-	else if (auto dot = dynamic_cast<RO::DotOperator*>(s))
-		processInternal(dot);
-	else if (auto ifc = dynamic_cast<RO::InlineFunction::FunctionCall*>(s))
-		processInternal(ifc);
-	else if (auto ac = dynamic_cast<RO::ApiCall*>(s))
-		processInternal(ac);
-	else if (auto cas = dynamic_cast<RO::ConstVarStatement*>(s))
-		processInternal(cas);
-	else if (auto vs = dynamic_cast<RO::VarStatement*>(s))
-		processInternal(vs);
-	else if (auto ra = dynamic_cast<RO::RegisterVarStatement*>(s))
-		processInternal(ra);
-	else if (auto ll = dynamic_cast<RO::LocalVarStatement*>(s))
-		processInternal(ll);
-	else if (auto as = dynamic_cast<RO::Assignment*>(s))
-		processInternal(as);
-	else if (auto funcCall = dynamic_cast<RO::FunctionCall*>(s))
-		processInternal(funcCall);
-	else if (auto rt = dynamic_cast<RO::ReturnStatement*>(s))
-		processInternal(rt);
-
-	int idx = 0;
-
-	auto tv = returnItem;
-
-	while (auto c = s->getChildStatement(idx))
-	{
-		process(c);
-		idx++;
-	}
-
-	// If the returnItem has changed we need to reevaluate the expression
-	// and store the object type in the type map after the function call has been evaluated...
-	if (tv.obj != returnItem.obj)
-	{
-		if (auto cas = dynamic_cast<RO::ConstVarStatement*>(s))
-			processInternal(cas);
-		else if (auto vs = dynamic_cast<RO::VarStatement*>(s))
-			processInternal(vs);
-		else if (auto ra = dynamic_cast<RO::RegisterVarStatement*>(s))
-			processInternal(ra);
-		else if (auto ll = dynamic_cast<RO::LocalVarStatement*>(s))
-			processInternal(ll);
-	}
-}
-
-void ApiValidationAnalyzer::processAssignment(const String& expression, RO::Expression* initialiser)
-{
-	if (returnItem)
-	{
-		getOrCreateObjectTypeMap()->addReference(expression, returnItem);
-		returnItem = {};
-		return;
-	}
-
-	if (auto lit = dynamic_cast<RO::LiteralValue*>(initialiser))
-	{
-		if (auto* fo = dynamic_cast<RO::FunctionObject*>(lit->value.getDynamicObject()))
-		{
-			getOrCreateObjectTypeMap()->addFunctionObject(expression, var(fo));
-
-			if (fo->body != nullptr)
-			{
-				FunctionBody fb;
-				fb.body = fo->body.get();
-
-				for (auto p : fo->parameters)
-					fb.parameterNames.push_back(p.toString());
-
-				functionBodies[expression] = fb;
-				return;
-			}
-		}
-	}
-
-	auto setFromApiCall = [&](const String& expression, RO::Expression* e)
-	{
-		auto rt = e->getObjectTypeInformation(hiseSpecialData->root);
-
-		if (rt.isValid())
-		{
-			getOrCreateObjectTypeMap()->setObjectTypeInTypeMap(expression, rt, getArgIdFromExpression(e));
-			return true;
-		}
-		else
-			return getOrCreateObjectTypeMap()->removeObjectTypeInTypeMap(expression);
-
-		return false;
-	};
-
-	setFromApiCall(expression, initialiser);
-
-	if (auto arc = dynamic_cast<RO::ArrayDeclaration*>(initialiser))
-	{
-		int idx = 0;
-
-		for (auto c : arc->values)
-		{
-			String id;
-			id << expression << "[" + String(idx++) << "]";
-			setFromApiCall(id, c);
-		}
-	}
-}
-
-void ApiValidationAnalyzer::processInternal(RO::DotOperator* dot)
-{
-	auto pName = dot->parent->getProfileName();
-
-	if (auto to = getOrCreateObjectTypeMap()->getObjectTypeFromTypeMap(pName))
-	{
-		if (auto lw = dynamic_cast<LightweightDiagnostics*>(to.obj.get()))
-		{
-			lw->currentShadowParser = this;
-			auto dr = lw->checkProperty(dot->child);
-
-			if (dr.shouldReport())
-				addDiagnostic(dot->location, dr.getErrorMessage(), dr.getSuggestions(), dr.getSeverity(), dr.getClassification());
-		}
-	}
-}
-
-void ApiValidationAnalyzer::processInternal(RO::FunctionCall* funcCall)
-{
-	if (auto* dot = dynamic_cast<RO::DotOperator*>(funcCall->object.get()))
-	{
-		// try the most generic resolution through the variable name
-		if (validateExpression(funcCall, dot, dot->parent->getVariableName().toString()))
-			return;
-
-		auto validateArrayElement = [&](RO::ConstReference* cs, int idx)
-		{
-			String exp;
-
-			if (cs->ns != nullptr && cs->ns != hiseSpecialData)
-				exp << cs->ns->id.toString() << ".";
-
-			exp << cs->getVariableName() << "[" << String(idx) << "]";
-
-			return validateExpression(funcCall, dot, exp);
-		};
-
-		auto methodName = dot->child.toString();
-
-
-
-		if (auto* constRef = dynamic_cast<RO::ConstReference*>(dot->parent.get()))
-		{
-			// --- Tier 2: Exact resolution via ConstReference ---
-			validateTier2(funcCall, dot, constRef);
-		}
-		else if (auto fc = dynamic_cast<RO::FunctionCall*>(dot->parent.get()))
-		{
-			RO::ObjectTypeMap::ObjectTypeItem i;
-			i.expression = "anonymous";
-			i.argId = getArgIdFromExpression(fc);
-			i.typeInfo = fc->getObjectTypeInformation(hiseSpecialData->root);
-			i.obj = getOrCreateObjectTypeMap()->createAnonoymousDiagnosticObject(i.typeInfo, i.argId);
-
-			if(i)
-				validateWithKnownTypeId(funcCall, dot, i);
-		}
-		else if (auto ar = dynamic_cast<RO::ArraySubscript*>(dot->parent.get()))
-		{
-			if (auto cs = dynamic_cast<RO::ConstReference*>(ar->object.get()))
-			{
-				if (ar->index->isConstant())
-				{
-					auto idx = (int)ar->index->getResult(RO::Scope(nullptr, hiseSpecialData->root, new DynamicObject()));
-					validateArrayElement(cs, idx);
-				}
-			}
-		}
-		else if (auto lp = dynamic_cast<RO::LoopStatement::IteratorName*>(dot->parent.get()))
-		{
-			if (auto cs = dynamic_cast<RO::ConstReference*>(lp->loopToUse->currentIterator.get()))
-			{
-				int idx = 0;
-
-				while (validateArrayElement(cs, idx))
-					idx++;
-			}
-		}
-		else
-		{
-			// --- Tier 3: Greedy lookup across all API classes ---
-			validateTier3(funcCall, dot);
-		}
-	}
-
-	auto funcId = funcCall->object->getVariableName().toString();
-
-	if (functionBodies.find(funcId) != functionBodies.end())
-	{
-		const auto& f = functionBodies.at(funcId);
-
-		int idx = 0;
-
-		RO::ObjectTypeMap::TypeScope s(*hiseSpecialData->root);
-
-		for (auto a : funcCall->arguments)
-		{
-			auto id = a->getProfileName();
-			auto pName = f.parameterNames[idx++];
-
-
-			if (s.addReference(id, pName))
-				continue;
-
-			auto value = evaluateIfNoSideEffect(a);
-			s.setConstantScopedValue(pName, value);
-		}
-
-		process(f.body);
-	}
-	
-}
-
-void ApiValidationAnalyzer::processInternal(RO::InlineFunction::FunctionCall* ifc)
-{
-	auto functionName = ifc->f->name;
-	auto pNames = ifc->f->parameterNames;
-	auto& pExpressions = ifc->parameterExpressions;
-
-	RO::ObjectTypeMap::TypeScope s(*hiseSpecialData->root);
-
-	for (int i = 0; i < pExpressions.size(); i++)
-	{
-		auto e = pExpressions[i]->getProfileName();
-
-		if (s.addReference(e, pNames[i].id.toString()))
-			continue;
-
-		auto value = evaluateIfNoSideEffect(pExpressions[i]);
-		s.setConstantScopedValue(pNames[i].id, value);
-		 
-	}
-
-	returnItem = {};
-
-	process(ifc->f->body);
-}
-
-void ApiValidationAnalyzer::processInternal(RO::LiteralValue* lit)
-{
-	// --- Walk into anonymous function bodies ---
-	// LiteralValue and AnonymousFunctionWithCapture wrap FunctionObject in a var,
-	// making getChildStatement() return nullptr and blocking the tree walker.
-	// We extract the FunctionObject and recursively walk its body so that
-	// g.fillRect(...) etc. inside paint routines get validated.
-	if (auto* fo = dynamic_cast<RO::FunctionObject*>(lit->value.getDynamicObject()))
-	{
-		if (fo->body != nullptr)
-		{
-			clearAllPrototypeTouchedState();
-			//process(fo->body.get());
-		}
-	}
-}
-
-void ApiValidationAnalyzer::processInternal(RO::AnonymousFunctionWithCapture* anon)
-{
-	if (auto* fo = dynamic_cast<RO::FunctionObject*>(anon->function.getDynamicObject()))
-	{
-		if (fo->body != nullptr)
-		{
-			clearAllPrototypeTouchedState();
-			process(fo->body);
-		}
-	}
-}
-
-
-#endif
 
 
 

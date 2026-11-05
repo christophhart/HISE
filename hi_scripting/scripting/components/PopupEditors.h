@@ -161,11 +161,7 @@ public:
 
 	File getFile() const;
 	
-    int jumpToFromShortcut(int lineNumber, const String& token)
-    {
-        jp->jumpToDefinition(token, "");
-        return -1;
-    }
+    int jumpToFromShortcut(int lineNumber, const String& token);
     
 	JavascriptProcessor* getScriptProcessor() { return jp; }
 

@@ -185,7 +185,9 @@ namespace RestApiIds
     DECLARE_ID(autocompletePosition); // Optional LSP position for completion {line, character}
     DECLARE_ID(completionList);       // Optional LSP CompletionList response
     DECLARE_ID(character);            // Zero-based LSP character position
+    DECLARE_ID(includeDeclaration);   // Include navigational LSP information to the current expression
     DECLARE_ID(items);                // CompletionItem array
+    DECLARE_ID(occurrences);          // Occurrences array
     DECLARE_ID(isIncomplete);         // LSP CompletionList incompleteness flag
     DECLARE_ID(line);                 // Diagnostic line number
     DECLARE_ID(column);               // Diagnostic column number

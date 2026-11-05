@@ -795,9 +795,9 @@ struct ValueTreeDebugInfo: public hise::DebugInformationBase
         return "";
     }
 
-    virtual DebugableObjectBase::Location getLocation() const
+    virtual UriLocation getLocation() const
     {
-        return DebugableObjectBase::Location();
+        return UriLocation();
     }
 
     virtual String getTextForType() const { return "unknown"; }

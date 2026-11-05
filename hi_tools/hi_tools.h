@@ -272,6 +272,7 @@ will break compatibility with older projects / presets because the tempo indexes
 
 
 #include "hi_dev/JavascriptTokeniser.h"
+#include "hi_dev/UriLocation.h"
 #include "hi_dev/CodeEditorApiBase.h"
 
 #include "hi_dev/TextDiff.h"

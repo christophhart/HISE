@@ -245,7 +245,7 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 
 	void addAsSource(DebugableObjectBase* b, const Identifier& callbackId) override;
 
-	bool addLocationForFunctionCall(const Identifier& id, const DebugableObjectBase::Location& location) override;
+	bool addLocationForFunctionCall(const Identifier& id, const UriLocation& location) override;
 
 	const Metadata& getMetadata() const;
 
@@ -365,7 +365,7 @@ private:
 
 		var obj;
 		bool enabled = true;
-		DebugableObjectBase::Location location;
+		UriLocation location;
 
 		uint64_t pendingTrack = 0;
 
@@ -676,7 +676,7 @@ private:
 	{
 		struct ScriptCallItem;
 
-		ScriptCallListener(ScriptBroadcaster* b, const Identifier& id, DebugableObject::Location location);
+		ScriptCallListener(ScriptBroadcaster* b, const Identifier& id, UriLocation location);
 
 		Array<var> createChildArray() const override;
 

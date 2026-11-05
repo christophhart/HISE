@@ -60,7 +60,7 @@ public:
 
     SparseSet<int> getDeactivatedLinesForFile(const String& fileId);
 
-    DebugableObjectBase::Location getLocationForPreprocessor(const String& id) const;
+    UriLocation getLocationForPreprocessor(const String& id) const;
 
     snex::jit::ExternalPreprocessorDefinition::List definitions;
 
@@ -406,7 +406,7 @@ public:
 
 	struct RootObject;
 	
-	struct Breakpoint
+	struct Breakpoint: public UriLocation
 	{
 	public:
 
@@ -437,17 +437,19 @@ public:
 
 		~Breakpoint();
 
-		bool operator ==(const Breakpoint& other) const;
+		bool operator==(const UriLocation& other) const;
+
+		String getBreakpointMessage() const { return "Breakpoint " + String(index + 1) + " was hit"; }
 
 		void copyLocalScopeToRoot(RootObject* r);
 
-		const Identifier snippetId;
-		const int lineNumber;
-		const int colNumber;
-		const int charIndex;
+		//const Identifier snippetId;
+		//const int lineNumber;
+		//const int colNumber;
+		//const int charIndex;
 
 		const int index;
-		const String externalLocation;
+		//const String externalLocation;
 
 		bool found = false;
 		bool hit = false;
@@ -506,33 +508,44 @@ public:
 		//==============================================================================
 		struct CodeLocation
 		{
-			CodeLocation(const String& code, const String& externalFile_) noexcept;
+			CodeLocation(const String& processorId, const String& code, const String& externalFile_) noexcept;
 			CodeLocation(const CodeLocation& other) noexcept;
 
 			String getCallbackName(bool returnExternalFileName = false) const;
 
 			void fillColumnAndLines(int& col, int& line, int& charIndex) const;
 
-			void fillLocation(DiagnosticBase::DiagnosticResult::Item& i) const
+			void fillLocation(UriLocation& i, bool resolveLineNumbers=true) const
 			{
-				fillColumnAndLines(i.col, i.line, i.charIndex);
-				i.fileName = externalFile;
+				if (resolveLineNumbers)
+					fillColumnAndLines(i.col, i.line, i.charIndex);
+				else
+					i.charIndex = getCharIndex();
+
+				if (processorId.isNotEmpty())
+					i.processorId = processorId;
+
+				i.uri = externalFile;
+			}
+
+			UriLocation createUriLocation() const
+			{
+				UriLocation l;
+				fillLocation(l);
+				return l;
 			}
 
 			String getLocationString() const;
 
 			int getCharIndex() const;
 
-			String getEncodedLocationString(const String& processorId, const File& scriptRoot, int col, int line) const;
-
-			String getEncodedLocationString(const String& processorId, const File& scriptRoot) const;
-
 			using Helpers = mcl::TextEditor::Error::Helpers;
 
 			String getErrorMessage(const String& message) const;
 
-			void throwError(const String& message) const;
+			void throwError(RootObject& r, const String& message) const;
 
+			String processorId;
 			String program;
 			mutable String externalFile;
 			String::CharPointerType location;
@@ -690,32 +703,8 @@ public:
 
 		struct ScriptAudioThreadGuard;
 
-		struct Error
-		{
-			static Error fromBreakpoint(const Breakpoint &bp);
-
-			static Error fromPreprocessorResult(const Result& r, const String& externalFile);
-            
-			static Error fromLocation(const CodeLocation& location, const String& errorMessage);
-
-			/** Creates an encoded location string from components.
-			    Format: "{{Base64(processorId|path|charIndex|line|col)}}" */
-			static String createEncodedLocation(Processor* p, const String& externalLocation,
-			                                     int charIndex, int lineNumber, int columnNumber);
-
-			String getLocationString() const;
-
-			String getEncodedLocation(Processor* p) const;
-
-			String toString(Processor* p) const;
-
-			int charIndex = -1;
-			int lineNumber = -1;
-			int columnNumber = -1;
-
-			String errorMessage;
-			mutable String externalLocation;
-		};
+		
+		UriError fromLocation(const CodeLocation& location, const String& errorMessage) const;
 
 		typedef ScopedPointer<Expression> ExpPtr;
 
@@ -808,11 +797,39 @@ public:
 		static var typeof_internal(Args a);
 		static var exec(Args a);
 		static var eval(Args a);
-                            
+                           
+		struct ScopedCallstackEntry
+		{
+			ScopedCallstackEntry(RootObject& r, const Identifier& id_, const CodeLocation* l):
+				root(r),
+				id(id_)
+			{
+				root.addToCallStack(id, l);
+			}
+
+			~ScopedCallstackEntry()
+			{
+				root.removeFromCallStack(id);
+			}
+
+			RootObject& root;
+			Identifier id;
+			
+			
+		};
+
 		void addToCallStack(const Identifier& id, const CodeLocation* location);
 		void removeFromCallStack(const Identifier& id);
-		String dumpCallStack(const Error& lastError, const Identifier& rootFunctionName);
+		//String dumpCallStack(Error& lastError, const Identifier& rootFunctionName);
+
+		UriError withCallStack(const UriLocation& l, const String& errorMessage) const;
+
 		void setCallStackEnabled(bool shouldeBeEnabled) { enableCallstack = shouldeBeEnabled; }
+
+		void setCallbackId(const Identifier& callbackId)
+		{
+			currentCallback = callbackId;
+		}
 
 		class Callback:  public DynamicObject,
 					     public DebugableObject,
@@ -959,10 +976,10 @@ public:
 
 			NamedValueSet comments;
 
-			Array<DebugableObject::Location> registerLocations;
-			Array<DebugableObject::Location> constLocations;
+			Array<UriLocation> registerLocations;
+			Array<UriLocation> constLocations;
 
-			DebugableObject::Location namespaceLocation;
+			UriLocation namespaceLocation;
 
 			JUCE_DECLARE_WEAK_REFERENCEABLE(JavascriptNamespace);
 		};
@@ -1095,8 +1112,6 @@ public:
 
 #if USE_BACKEND
 
-		using ApiDiagnostic = DiagnosticBase::DiagnosticResult::Item;
-
 		struct ObjectTypeMap;
 
 		
@@ -1121,6 +1136,8 @@ public:
 		bool enableCallstack = false;
 
 		bool shouldUseCycleCheck = false;
+
+		Identifier currentCallback;
 
 		ThreadLocalValue<var> localThreadThisObject;
 	};
@@ -1161,11 +1178,10 @@ public:
 	std::vector<std::pair<WeakReference<DebugableObjectBase>, std::function<void(DebugInformationBase::Ptr)>>> debugInfoListeners;
 
 #if USE_BACKEND
-	static String toConsoleString(const ApiClass::DiagnosticResult::Item& i, Processor* p);
-
+	
 	/** Shadow-parse code in diagnostic mode without executing.
 	    Returns collected diagnostics (API errors, arg mismatches, etc.). */
-	Array<RootObject::ApiDiagnostic> shadowParse(const DiagnosticBase::ShadowParseData& cd);
+	Array<UriError> shadowParse(const DiagnosticBase::ShadowParseData& cd);
 #endif
 
 private:

@@ -81,7 +81,7 @@ struct HiseJavascriptEngine::RootObject::ObjectTypeMap : public ReferenceCounted
 		const CodeLocation* prevValue;
 	};
 
-	ObjectTypeMap(RootObject& parent, Array<ApiDiagnostic>* target);
+	ObjectTypeMap(RootObject& parent, Array<UriError>* target);
 
 	~ObjectTypeMap();
 
@@ -103,7 +103,7 @@ struct HiseJavascriptEngine::RootObject::ObjectTypeMap : public ReferenceCounted
 
 	void shadowParse(Statement* s);
 
-	void addDiagnostic(const ApiDiagnostic& i) override;
+	void addDiagnostic(const UriError& i) override;
 
 
 	ScopeTree getScopeTree() const;
@@ -131,13 +131,15 @@ struct HiseJavascriptEngine::RootObject::ObjectTypeMap : public ReferenceCounted
 
 	String callscopeAnnotation;
 
+	bool allowLocationRecording = true;
+
 private:
 
 	const RootObject::CodeLocation* currentLocation;
 
 	struct DeferredData
 	{
-		ApiDiagnostic ad;
+		UriLocation location;
 		var validator;
 		String evaluationString;
 	};
@@ -147,7 +149,7 @@ private:
 
 	struct ScopeStack;
 
-	Array<DiagnosticBase::DiagnosticResult::CallStackItem> currentCallstack;
+	Array<UriLocation::WithExpression> currentCallstack;
 
 	RootObject& root;
 	ProcessorWithScriptingContent* pwsc;
@@ -160,7 +162,7 @@ private:
 
 	LightweightDiagnostics::Factory lightweightDiagnostics;
 	LightweightDiagnostics::Ptr currentThisObject;
-	Array<ApiDiagnostic>* diagnostics;
+	Array<UriError>* diagnostics;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ObjectTypeMap);
 };

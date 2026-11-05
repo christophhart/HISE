@@ -300,16 +300,18 @@ void CodeEditorPanel::fillIndexList(StringArray& indexList)
 	}
 }
 
-void CodeEditorPanel::gotoLocation(Processor* p, const String& fileName, int charNumber)
+void CodeEditorPanel::gotoLocation(Processor* p, const UriLocation& loc)
 {
-	if (fileName.isEmpty() || fileName == "onInit")
+	auto uriType = loc.getUriType();
+
+	if (uriType == UriLocation::UriType::onInit)
 	{
 		changeContentWithUndo(0);
 	}
-	else if (fileName.contains("()"))
+	else if (uriType == UriLocation::UriType::OtherCallback)
 	{
+		auto snippetId = Identifier(loc.toLocationString(UriLocation::UriFormat::CallbackId));
 		auto jp = dynamic_cast<JavascriptProcessor*>(p);
-		auto snippetId = Identifier(fileName.upToFirstOccurrenceOf("()", false, false));
 
 		for (int i = 0; i < jp->getNumSnippets(); i++)
 		{
@@ -330,8 +332,7 @@ void CodeEditorPanel::gotoLocation(Processor* p, const String& fileName, int cha
 		{
 			auto f = jp->getWatchedFile(i);
 
-			if (f.getFullPathName() == fileName ||
-				f.getFileName() == fileName)
+			if (loc.matchesFile(f))
 			{
 				fileIndex = i;
 				break;
@@ -350,10 +351,11 @@ void CodeEditorPanel::gotoLocation(Processor* p, const String& fileName, int cha
 	{
 		PopupIncludeEditor::EditorType* editor = c->getEditor();
 
-		CodeDocument::Position pos(editor->editor.getDocument(), charNumber);
+		auto copy = loc;
+		copy.fillLineAndCol(editor->editor.getDocument());
 
-		editor->editor.scrollToLine(pos.getLineNumber(), true);
-		mcl::Selection newSelection(pos.getLineNumber(), pos.getIndexInLine(), pos.getLineNumber(), pos.getIndexInLine());
+		editor->editor.scrollToLine(copy.line, true);
+		mcl::Selection newSelection(copy.line, copy.col, copy.line, copy.col);
 		editor->editor.getTextDocument().setSelection(0, newSelection, false);
 	}
 }

@@ -99,7 +99,7 @@ public:
 
 	void fillIndexList(StringArray& indexList) override;
 
-	void gotoLocation(Processor* p, const String& fileName, int charNumber);
+	void gotoLocation(Processor* p, const UriLocation& loc);
 
 	float scaleFactor = -1.0f;
 

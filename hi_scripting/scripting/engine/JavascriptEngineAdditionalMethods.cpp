@@ -1,4 +1,3 @@
-#include "HiseJavascriptEngine.h"
 /*  ===========================================================================
 *
 *   This file is part of HISE.
@@ -93,17 +92,12 @@ SparseSet<int> HiseJavascriptPreprocessor::getDeactivatedLinesForFile(const Stri
 	return deactivatedLines[fileId];
 }
 
-DebugableObjectBase::Location HiseJavascriptPreprocessor::getLocationForPreprocessor(const String& id) const
+UriLocation HiseJavascriptPreprocessor::getLocationForPreprocessor(const String& id) const
 {
 	for (const auto& d: definitions)
 	{
 		if (d.name == id)
-		{
-			DebugableObjectBase::Location l;
-			l.charNumber = d.charNumber;
-			l.fileName = d.fileName;
-			return l;
-		}
+			return d.location;
 	}
         
 	return {};
@@ -432,6 +426,8 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 		{
 			var thisObject(dot->parent->getResult(s));
 
+			
+
 			if (ConstScriptingObject* c = dynamic_cast<ConstScriptingObject*>(thisObject.getObject()))
 			{
 				c->getIndexAndNumArgsForFunction(dot->child, functionIndex, numArgs);
@@ -459,8 +455,8 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
                         if(warn)
                         {
                             String errorMessage = "Warning: undefined parameter " + String(i);
-                            auto e = Error::fromLocation(location, errorMessage);
-                            debugError(p, errorMessage + "\n:\t\t\t" + e.toString(p));
+                            auto e = s.root->fromLocation(location, errorMessage);
+							debugError(p, e.toConsoleMessage());
                         }
                         
                         continue;
@@ -526,7 +522,7 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 	}
 	catch (String& errorMessage)
 	{
-		throw Error::fromLocation(location, errorMessage);
+		throw s.root->fromLocation(location, errorMessage);
 	}
 }
 
@@ -562,7 +558,7 @@ var HiseJavascriptEngine::RootObject::Scope::findFunctionCall(const CodeLocation
 
 	AudioThreadGuard::Suspender ss(true);
 
-	location.throwError("Unknown function '" + functionName.toString() + "'");
+	location.throwError(*root, "Unknown function '" + functionName.toString() + "'");
 	return var();
 }
 
@@ -619,12 +615,12 @@ var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFu
 		jassertfalse;
 		if (result != nullptr) *result = Result::fail(error);
 	}
-	catch (RootObject::Error &e)
+	catch (UriError &e)
 	{
 		static const Identifier func("function");
 
 		if (result != nullptr && root != nullptr)
-            *result = Result::fail(root->dumpCallStack(e, func));
+			*result = Result::fail(e.toFullCallStack()); // dumpCallStack(e, func));
 	}
 	catch (Breakpoint& bp)
 	{
@@ -633,7 +629,7 @@ var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFu
 
 		static const Identifier func("function");
 		if (result != nullptr && root != nullptr)
-            *result = Result::fail(root->dumpCallStack(RootObject::Error::fromBreakpoint(bp), func));
+			*result = Result::fail(root->withCallStack(bp, bp.getBreakpointMessage()).toFullCallStack());
 	}
 
 	return returnVal;
@@ -1150,27 +1146,32 @@ HiseJavascriptEngine::Breakpoint::Listener::~Listener()
 	masterReference.clear();
 }
 
-HiseJavascriptEngine::Breakpoint::Breakpoint(): snippetId(Identifier()), lineNumber(-1), colNumber(-1), index(-1), charIndex(-1)
+HiseJavascriptEngine::Breakpoint::Breakpoint(): index(-1)
 {}
 
 HiseJavascriptEngine::Breakpoint::Breakpoint(const Identifier& snippetId_, const String& externalLocation_,
 	int lineNumber_, int charNumber_, int charIndex_, int index_):
-	snippetId(snippetId_),
-	externalLocation(externalLocation_),
-	lineNumber(lineNumber_), 
-	colNumber(charNumber_), 
-	charIndex(charIndex_), 
 	index(index_)
-{}
+{
+	line = lineNumber_;
+	col = charNumber_;
+	charIndex = charIndex_;
+
+	if (externalLocation_.isNotEmpty())
+		uri = externalLocation_;
+	else
+		uri = snippetId_.toString().removeCharacters("()") + "()";
+	
+}
 
 HiseJavascriptEngine::Breakpoint::~Breakpoint()
 {
 	localScope = nullptr;
 }
 
-bool HiseJavascriptEngine::Breakpoint::operator==(const Breakpoint& other) const
+bool HiseJavascriptEngine::Breakpoint::operator==(const UriLocation& other) const
 {
-	return snippetId == other.snippetId && lineNumber == other.lineNumber;
+	return uri == other.uri && line == other.line;
 }
 
 void HiseJavascriptEngine::Breakpoint::copyLocalScopeToRoot(RootObject* r)
@@ -1338,9 +1339,9 @@ var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* argumen
 		jassertfalse;
 		*result = Result::fail(error);
 	}
-	catch (RootObject::Error &e)
+	catch (UriError &e)
 	{
-		if (result != nullptr) *result = Result::fail(root->dumpCallStack(e, f->name));
+		if (result != nullptr) *result = Result::fail(e.toFullCallStack());
 
 		f->cleanUpAfterExecution();
 	}
@@ -1353,7 +1354,8 @@ var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* argumen
 
 		sendBreakpointMessage(bp.index);
 		
-		if (result != nullptr) *result = Result::fail(root->dumpCallStack(RootObject::Error::fromBreakpoint(bp), f->name));
+		if (result != nullptr) 
+			*result = Result::fail(root->withCallStack(bp, bp.getBreakpointMessage()).toFullCallStack());
 
 		f->cleanUpAfterExecution();
 	}
@@ -1398,12 +1400,13 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 			jassertfalse;
 			if (result != nullptr) *result = Result::fail(error);
 		}
-		catch (RootObject::Error &e)
+		catch (UriError &e)
 		{
 			AudioThreadGuard::Suspender suspender;
 			ignoreUnused(suspender);
 
-			if (result != nullptr) *result = Result::fail(root->dumpCallStack(e, c->getName()));
+			if (result != nullptr)
+				*result = Result::fail(e.toFullCallStack());
 		}
 		catch (Breakpoint& bp)
 		{
@@ -1414,7 +1417,8 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 
 			sendBreakpointMessage(bp.index);
 			
-			if (result != nullptr) *result = Result::fail(root->dumpCallStack(RootObject::Error::fromBreakpoint(bp), c->getName()));
+			if (result != nullptr)
+				*result = Result::fail(root->withCallStack(bp, bp.getBreakpointMessage()).toFullCallStack());
 		}
 	}
 
@@ -1574,15 +1578,10 @@ var HiseJavascriptEngine::RootObject::Callback::perform(RootObject *root)
 #if USE_BACKEND
 	const double pre = Time::getMillisecondCounterHiRes();
 
-
-	root->addToCallStack(callbackName, nullptr);
-
-
+	RootObject::ScopedCallstackEntry sc(*root, callbackName, nullptr);
     LocalScopeCreator::ScopedSetter svs(root, this);
 
 	statements->perform(s, &returnValue);
-
-	root->removeFromCallStack(callbackName);
 
 	const double post = Time::getMillisecondCounterHiRes();
 	lastExecutionTime = post - pre;
@@ -1599,7 +1598,7 @@ AttributedString DynamicObjectDebugInformation::getDescription() const
 }
 
 LambdaValueInformation::LambdaValueInformation(const ValueFunction& f, const Identifier& id_,
-	const Identifier& namespaceId_, Type t, DebugableObjectBase::Location location_, const String& comment_):
+	const Identifier& namespaceId_, Type t, UriLocation location_, const String& comment_):
 	DebugInformation(t),
 	vf(f),
 	namespaceId(namespaceId_),
@@ -1613,7 +1612,7 @@ LambdaValueInformation::LambdaValueInformation(const ValueFunction& f, const Ide
 		comment.append(comment_, GLOBAL_FONT(), Colours::white);;
 }
 
-DebugableObjectBase::Location LambdaValueInformation::getLocation() const
+UriLocation LambdaValueInformation::getLocation() const
 {
 	return location;
 }
@@ -1878,7 +1877,7 @@ bool ConstScriptingObject::objectExists() const
 { return false; }
 
 bool ConstScriptingObject::addLocationForFunctionCall(const Identifier& id,
-	const DebugableObjectBase::Location& location)
+	const UriLocation& location)
 {
 	ignoreUnused(id, location);
 	return false;
@@ -1927,125 +1926,9 @@ void ScriptingObject::reportScriptError(const String &errorMessage) const
 
 
 
-String JavascriptProcessor::Helpers::stripUnusedNamespaces(const String &code, int& counter)
-{
-	jassertfalse;
-
-	HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(code, "", nullptr);
-
-	try
-	{
-		String returnString = it.removeUnneededNamespaces(counter);
-		return returnString;
-	}
-	catch (String &e)
-	{
-		Logger::getCurrentLogger()->writeToLog(e);
-		return code;
-	}
-}
-
-String JavascriptProcessor::Helpers::uglify(const String& prettyCode)
-{
-	jassertfalse;
-
-	HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(prettyCode, "", nullptr);
-
-	try
-	{
-		String returnString = it.uglify();
-		return returnString;
-	}
-	catch (String &e)
-	{
-		Logger::getCurrentLogger()->writeToLog(e);
-		return prettyCode;
-	}
-}
-
 
 
 #if USE_BACKEND
-
-
-// ==============================================================================
-// ScopedDiagnosticParse implementation
-
-#if 0
-using SDP = HiseJavascriptEngine::RootObject::ScopedDiagnosticParse;
-
-void SDP::snapshotNamespace(JavascriptNamespace* ns)
-{
-	NamespaceSnapshot snap;
-	snap.ns = ns;
-
-	// Deep-copy constObjects and constLocations
-	snap.savedConstObjects = ns->constObjects;
-	snap.savedConstLocations = ns->constLocations;
-	snap.savedInlineFunctions.swapWithArray(ns->inlineFunctions);
-
-	nsSnapshots.add(std::move(snap));
-}
-
-void SDP::restoreNamespace(NamespaceSnapshot& snap)
-{
-	// Restore constObjects and constLocations
-	snap.ns->constObjects = snap.savedConstObjects;
-	snap.ns->constLocations = snap.savedConstLocations;
-	snap.ns->inlineFunctions.swapWith(snap.savedInlineFunctions);
-}
-
-SDP::ScopedDiagnosticParse(HiseSpecialData& data) : hsd(data)
-{
-	// Set diagnostic mode flag
-	hsd.diagnosticMode = true;
-
-	// Snapshot globals
-	if (hsd.globals != nullptr)
-		savedGlobalProperties = hsd.globals->getProperties();
-
-	// Remember includedFiles size so we can trim any additions
-	savedIncludedFilesSize = hsd.includedFiles.size();
-
-	// Snapshot root namespace (hiseSpecialData itself inherits JavascriptNamespace)
-	snapshotNamespace(&hsd);
-
-	// Snapshot all sub-namespaces
-	for (auto ns : hsd.namespaces)
-		snapshotNamespace(ns);
-}
-
-SDP::~ScopedDiagnosticParse()
-{
-	// Restore all namespaces (root + sub)
-	for (auto& snap : nsSnapshots)
-		restoreNamespace(snap);
-
-	// Restore globals
-	if (hsd.globals != nullptr)
-	{
-		auto& props = hsd.globals->getProperties();
-
-		// Remove any properties that were added during shadow parse
-		for (int i = props.size() - 1; i >= 0; i--)
-		{
-			if (!savedGlobalProperties.contains(props.getName(i)))
-				hsd.globals->removeProperty(props.getName(i));
-		}
-
-		// Restore original values
-		for (int i = 0; i < savedGlobalProperties.size(); i++)
-			hsd.globals->setProperty(savedGlobalProperties.getName(i), savedGlobalProperties.getValueAt(i));
-	}
-
-	// Trim includedFiles back to pre-shadow-parse size
-	while (hsd.includedFiles.size() > savedIncludedFilesSize)
-		hsd.includedFiles.removeLast();
-
-	// Clear diagnostic mode flag
-	hsd.diagnosticMode = false;
-}
-#endif
 
 // ==============================================================================
 // HiseJavascriptEngine::shadowParse implementation
@@ -2057,14 +1940,12 @@ mcl::TokenCollection::Token* HiseJavascriptEngine::createAutocompleteTokenFromIn
 
 void HiseJavascriptEngine::addTokensWithContext(mcl::TokenCollection::List& tokens, int lineNumber, int charIndex, const String& prevExpression)
 {
-	int x = 5;
+	auto p = dynamic_cast<ProcessorWithScriptingContent*>(root->hiseSpecialData.processor);
 
 	auto expressionToEvaluate = prevExpression;
 
 	if (expressionToEvaluate.endsWithChar('.'))
 		expressionToEvaluate = expressionToEvaluate.substring(0, expressionToEvaluate.length() - 1);
-
-
 
 	if (Identifier::isValidIdentifier(expressionToEvaluate))
 	{
@@ -2074,7 +1955,7 @@ void HiseJavascriptEngine::addTokensWithContext(mcl::TokenCollection::List& toke
 		{
 			LightweightDiagnostics::Factory f;
 
-			auto p = dynamic_cast<ProcessorWithScriptingContent*>(root->hiseSpecialData.processor);
+			;
 
 			if (auto ptr = f.createLightweightPrototype(p, id, ""))
 			{
@@ -2084,10 +1965,10 @@ void HiseJavascriptEngine::addTokensWithContext(mcl::TokenCollection::List& toke
 		}
 	}
 
-	Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> diagnostics;
+	Array<UriError> diagnostics;
 	RootObject::ObjectTypeMap::Ptr analyzer = new RootObject::ObjectTypeMap(*root, &diagnostics);
 
-	RootObject::ExpressionTreeBuilder tb(expressionToEvaluate, "", nullptr);
+	RootObject::ExpressionTreeBuilder tb(*root, dynamic_cast<Processor*>(p)->getId(), expressionToEvaluate, "", nullptr);
 
 	if (!lastShadowParseScope.empty())
 	{
@@ -2139,8 +2020,12 @@ void HiseJavascriptEngine::addTokensWithContext(mcl::TokenCollection::List& toke
 		tb.setupApiData(*hd.get(), "");
 		ScopedPointer<RootObject::BlockStatement> sl = tb.parseStatementList();
 
+		
+
 		if (auto e = dynamic_cast<RootObject::Expression*>(sl->getChildStatement(0)))
 		{
+			ScopedValueSetter<bool> svs(analyzer->allowLocationRecording, false);
+
 			auto v = e->getResult(analyzer->getCurrentScope());
 
             if(auto t = createAutocompleteTokenFromInlineFunction(v))
@@ -2157,44 +2042,24 @@ void HiseJavascriptEngine::addTokensWithContext(mcl::TokenCollection::List& toke
 	{
 		jassertfalse;
 	}
-	catch (RootObject::Error& e)
+	catch (UriError& e)
 	{
 		jassertfalse;
 	}
-
-
-#if 0
-	ExpressionTreeBuilder tb(code, String(), preprocessor);
-	tb.setupApiData(hiseSpecialData, code);
-
-	auto& cp = currentLocalScopeCreator.get();
-
-	DynamicObject::Ptr localScope = cp != nullptr ? cp->createScope(this) : nullptr;
-
-	if (localScope == nullptr)
-		localScope = this;
-	else
-	{
-		for (const auto& x : getProperties())
-			localScope->setProperty(x.name, x.value);
-	}
-
-	return ExpPtr(tb.parseExpression())->getResult(Scope(nullptr, this, localScope.get()));
-#endif
-
-	
 }
 
-Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> HiseJavascriptEngine::shadowParse(const DiagnosticBase::ShadowParseData& sd)
+Array<UriError> HiseJavascriptEngine::shadowParse(const DiagnosticBase::ShadowParseData& sd)
 {
 	
-	Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> diagnostics;
+	Array<UriError> diagnostics;
 
 	RootObject::ObjectTypeMap::Ptr analyzer = new RootObject::ObjectTypeMap(*root, &diagnostics);
 
 	ScopedPointer<RootObject::HiseSpecialData> hd = root->hiseSpecialData.createShadowParseData(analyzer.get());
 
 	using Item = DiagnosticBase::ShadowParseData::Item;
+
+	String pid = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getId();
 
 	Item::List l;
 
@@ -2203,32 +2068,33 @@ Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> HiseJavascriptEngine::sha
 
 	Array<var> functionsToShadowParse;
 
+	using DR = DiagnosticBase::DiagnosticResult;
+
 	for (const auto& sdi: l)
 	{
 		auto copy = sdi->code;
-
-		// Run preprocessor (same as execute())
-		String pid = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getId();
-		pid << "." << sdi->getFileName();
-
-		auto ok = preprocessor->process(copy, pid);
+		auto ok = preprocessor->process(copy, pid + "." + sdi->getFileName());
 
 		if (!ok.wasOk())
 		{
-			RootObject::ApiDiagnostic d;
-			d.line = 1;
-			d.col = 0;
-			d.fileName = sdi->getFileName();
-			d.message = "Preprocessor error: " + ok.getErrorMessage().fromFirstOccurrenceOf(":", false, false);
-			d.severity = ApiClass::DiagnosticResult::Severity::Error;
-			d.classification = ApiClass::DiagnosticResult::Classification::Syntax;
+			
 
-			Array<RootObject::ApiDiagnostic> result;
-			result.add(d);
+			auto dr = DR::fail("Preprocessor error: " + ok.getErrorMessage().fromFirstOccurrenceOf(":", false, false))
+				.withSeverity(DR::Severity::Error)
+				.withClassification(DR::Classification::Syntax);
+
+			UriLocation loc;
+			loc.processorId = pid;
+			loc.uri = sdi->getFileName();
+			loc.line = 1;
+			loc.col = 0;
+			loc.charIndex = 0;
+			Array<UriError> result;
+			result.add(dr.createUriError(loc));
 			return result;
 		}
 
-		RootObject::ExpressionTreeBuilder tb(copy, sdi->getFileName(Item::CallbackFormat::ForceEmpty), preprocessor);
+		RootObject::ExpressionTreeBuilder tb(*root, pid, copy, sdi->getFileName(Item::CallbackFormat::IncludeParenthesis), preprocessor);
 
 		try
 		{
@@ -2243,47 +2109,49 @@ Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> HiseJavascriptEngine::sha
 				functionsToShadowParse.addArray(tb.functionsToShadowParse);
 
 				auto cursorPosition = sdi->getBreakPosition();
-
-				
                                 
 				if (sdi->t == Item::Type::Callback)
 					hd->shadowParseCallback(analyzer.get(), sdi->getFileName(Item::CallbackFormat::PureId));
 			}
 		}
-		catch (RootObject::Error& e)
+		catch (UriError& e)
 		{
-			// Hard parse error at an unrecovered site — add as final diagnostic
-			RootObject::ApiDiagnostic d;
-			d.line = e.lineNumber;
-			d.col = e.columnNumber;
-			d.fileName = e.externalLocation.isNotEmpty() ? e.externalLocation : sdi->getFileName();
-			d.message = e.errorMessage;
-			d.severity = ApiClass::DiagnosticResult::Severity::Error;
-			d.classification = ApiClass::DiagnosticResult::Classification::Syntax;
-			tb.getDiagnostics().add(d);
+			auto dr = DR::fail(e.errorMessage)
+				.withSeverity(ApiClass::DiagnosticResult::Severity::Error)
+				.withClassification(ApiClass::DiagnosticResult::Classification::Syntax);
+
+			e.metadata = dr.createMetadata();
+			e.errorMessage = dr.getEditorString();
+
+			tb.getDiagnostics().add(e);
 		}
 		catch (String& error)
 		{
-			RootObject::ApiDiagnostic d;
-			d.fileName = sdi->getFileName();
-			d.message = error;
-			d.severity = ApiClass::DiagnosticResult::Severity::Error;
-			d.classification = ApiClass::DiagnosticResult::Classification::Syntax;
-			tb.getDiagnostics().add(d);
+			auto dr = DR::fail(error)
+				.withSeverity(ApiClass::DiagnosticResult::Severity::Error)
+				.withClassification(ApiClass::DiagnosticResult::Classification::Syntax);
+
+			UriLocation loc;
+			loc.uri = sdi->getFileName();
+			loc.processorId = pid;
+
+			tb.getDiagnostics().add(dr.createUriError(loc));
 		}
 
 		if (sd.items.contains(sdi))
 		{
 			for (const auto& d : tb.getDiagnostics())
-				diagnostics.add(d);
+			{
+				auto copy = d;
+				copy.processorId = pid;
+				diagnostics.add(copy);
+			}
 		}
 	}
 
 	try
 	{
 		analyzer->checkDeferredDiagnostics(functionsToShadowParse);
-
-		
 
 		lastShadowParseScope = analyzer->getScopeTree();
 
@@ -2304,7 +2172,7 @@ Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> HiseJavascriptEngine::sha
 
 		hd->fillScopeTreeWithInlineFunctions(lastShadowParseScope);
 	}
-	catch (RootObject::Error& e)
+	catch (UriError& e)
 	{
 		jassertfalse;
 		

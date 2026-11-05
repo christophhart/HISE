@@ -8169,9 +8169,8 @@ bool ScriptingObjects::ScriptBackgroundTask::shouldAbort()
 	{
 		String errorMessage;
 		errorMessage << "WARNING: time between abort checks " << String(delta) << " ms) is above timeout (" << String(timeOut) << " ms).";
-		errorMessage << "\ngoto ";
 		auto loc = getCurrentLocationInFunctionCall();
-		errorMessage << loc.fileName << "@" << loc.charNumber;
+		errorMessage << "\n" << loc.toLocationString(UriLocation::UriFormat::GotoString);
 		debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), errorMessage);
 	}
 
@@ -9609,7 +9608,7 @@ struct ScriptingObjects::GlobalCableReference::DataCallback: public scriptnode::
 	}
 	
 
-	DebugableObjectBase::Location funcLocation;
+	UriLocation funcLocation;
 	GlobalCableReference& parent;
 	WeakCallbackHolder callback;
 
@@ -9800,7 +9799,7 @@ struct ScriptingObjects::GlobalCableReference::Callback: public scriptnode::rout
 
 	String id;
 
-	DebugableObject::Location funcLocation;
+	UriLocation funcLocation;
 };
 
 void ScriptingObjects::GlobalCableReference::registerCallback(var callbackFunction, var synchronous)

@@ -139,7 +139,14 @@ public:
 
 	virtual MarkdownLink getLink() const override;
 
+	void addHint(const UriError& e);
+
+	void addWarning(const UriError& e, bool isWarning = true);
+	
+
 	void addWarning(const String& errorMessage, bool isWarning=true);
+
+	void setError(const UriError& e);
 
 	void setError(const String& errorMessage);
 
@@ -349,6 +356,8 @@ public:
 		};
 
 		Error(TextDocument& doc_, const String& e, bool isWarning_);
+
+		Error(TextDocument& doc, const UriError& uri, bool isWarning);
 
 		Selection getSelection() const;
 
@@ -598,6 +607,7 @@ private:
     TextDocument& document;
 	ScopedPointer<Error> currentError;
 
+	OwnedArray<Error> hints;
 	OwnedArray<Error> warnings;
 
 	Array<PopupMenuFunction> popupMenuFunctions;

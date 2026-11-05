@@ -2696,7 +2696,7 @@ void ScriptBroadcaster::DebugableObjectListener::registerSpecialBodyItems(Compon
 		Font f;
 		int w;
 
-		DebugableObject::Location location;
+		UriLocation location;
 	};
 
 	factory.registerFunction(DebugableObjectItem::create);
@@ -2713,10 +2713,10 @@ struct ScriptBroadcaster::ScriptCallListener::ScriptCallItem: public ReferenceCo
 	uint32 lastBangTime = 0;
 	Processor* p;
 	Identifier id;
-	DebugableObject::Location location;
+	UriLocation location;
 };
 
-ScriptBroadcaster::ScriptCallListener::ScriptCallListener(ScriptBroadcaster* b, const Identifier& id, DebugableObjectBase::Location location):
+ScriptBroadcaster::ScriptCallListener::ScriptCallListener(ScriptBroadcaster* b, const Identifier& id, UriLocation location):
 	ListenerBase(var())
 {
     metadata.c = Colour(MIDI_PROCESSOR_COLOUR);
@@ -3430,12 +3430,14 @@ bool ScriptBroadcaster::addListener(var object, var metadata, var function)
     {
         if(auto c = dynamic_cast<WeakCallbackHolder::CallableObject*>(function.getObject()))
         {
+			if (!c->isRealtimeSafe())
+				reportScriptError("You need to use inline functions in order to ensure realtime safe execution");
+
 #if USE_BACKEND
             if(HiseJavascriptEngine::RootObject::RealtimeSafetyInfo::check(c, this, "Broadcaster.addListener"))
                 reportScriptError("Listener callback is not safe for audio-thread execution");
 #else
-            if(!c->isRealtimeSafe())
-                reportScriptError("You need to use inline functions in order to ensure realtime safe execution");
+            
 #endif
         }
     }
@@ -4526,7 +4528,7 @@ void ScriptBroadcaster::addAsSource(DebugableObjectBase* b, const Identifier& ca
 	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
 }
 
-bool ScriptBroadcaster::addLocationForFunctionCall(const Identifier& id, const DebugableObjectBase::Location& location)
+bool ScriptBroadcaster::addLocationForFunctionCall(const Identifier& id, const UriLocation& location)
 {
 	if (!argumentIds.contains(id) && id.toString() != "sendMessage")
 		return false;

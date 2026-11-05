@@ -3293,7 +3293,7 @@
                     "scripting"
                 ],
                 "summary": "Run a diagnostic-only shadow parse on a script file or raw code string",
-                "description": "Returns structured diagnostics (API hallucinations, type mismatches, language rule violations, audio-thread safety warnings) without modifying runtime state - no recompilation, no execution. Two modes: (file) pass moduleId and/or filePath to read a real file from disk and parse it against its owning processor - requires a prior compile, save pending edits first; (code) pass a raw code string to parse it directly against the first interface processor's API context, ideal for unsaved or in-progress code. code is mutually exclusive with filePath.",
+                "description": "Returns structured diagnostics (API hallucinations, type mismatches, language rule violations, audio-thread safety warnings) without modifying runtime state - no recompilation, no execution. Two modes: (file) pass moduleId and/or filePath to read a real file from disk and parse it against its owning processor - requires a prior compile, save pending edits first; (code) pass a raw code string to parse it directly against the first interface processor's API context, ideal for unsaved or in-progress code.",
                 "operationId": "diagnose_script",
                 "requestBody": {
                     "required": true,
@@ -3308,11 +3308,11 @@
                                     },
                                     "filePath": {
                                         "type": "string",
-                                        "description": "Path to the external .js file (file mode, absolute or relative to Scripts folder). Required if moduleId is not provided. When used alone, HISE resolves the owning processor. Mutually exclusive with code."
+                                        "description": "Path to the external .js file (file mode, absolute or relative to Scripts folder). Required if moduleId is not provided. When used alone, HISE resolves the owning processor."
                                     },
                                     "code": {
                                         "type": "string",
-                                        "description": "Raw HISEScript source to parse directly (standalone code mode). When present, the code is shadow-parsed against the first interface processor's API context without reading any file from disk or executing. Use it to validate unsaved or in-progress code. Mutually exclusive with filePath (400 if both are set)."
+                                        "description": "Raw HISEScript source to parse directly (standalone code mode). When present and the filePath is not specified, the code is shadow-parsed against the first interface processor's API context without reading any file from disk or executing. When used in combination with filePath the supplied code string takesprecedent over the file content and can be used to diagnose unsaved changes but keep the include structure from the file."
                                     },
                                     "async": {
                                         "type": "boolean",

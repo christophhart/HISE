@@ -519,8 +519,13 @@ struct LightweightConstantInfoToken : public TokenWithDot
     }
 };
 
+
+
 void LightweightDiagnostics::fillAutocompleteTokens(mcl::TokenCollection::List& list, const String& prevToken)
 {
+	if (!occurrences.empty())
+		list.add(new NavigationToken(this));
+
     for (const auto& fi : functions)
     {
         auto mt = LightweightFunctionInfoToken::getMethodTree(fi);

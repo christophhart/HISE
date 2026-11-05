@@ -822,7 +822,7 @@ void SnexPlayground::recompiled(ui::WorkbenchData::Ptr p)
 
 	if (r.compiledOk())
 	{
-		editor.editor.setError({});
+		editor.editor.setError(String());
 		resized();
 		resultLabel.setText("OK", dontSendNotification);
 	}

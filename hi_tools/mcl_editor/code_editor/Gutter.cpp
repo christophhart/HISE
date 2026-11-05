@@ -417,6 +417,7 @@ void mcl::GutterComponent::paint(Graphics& g)
 		bool isErrorLine = r.rowNumber == errorLine;
 		bool isWarningLine = diagnosticLines.warningLines.contains(r.rowNumber);
 		isErrorLine |= diagnosticLines.errorLines.contains(r.rowNumber);
+		bool isHintLine = !isErrorLine && !isWarningLine && diagnosticLines.hintLines.contains(r.rowNumber);
 
 		auto b = getRowBounds(r);
 		bool showFoldRange = false;
@@ -455,20 +456,24 @@ void mcl::GutterComponent::paint(Graphics& g)
 		}
 
 
-		if ((r.isRowSelected || isErrorLine || isWarningLine) && !showFoldRange)
+		if ((r.isRowSelected || isErrorLine || isWarningLine || isHintLine) && !showFoldRange)
 		{
 			auto b2 = b.withHeight(jmax(b.getHeight(), document.getRowHeight() * scaleFactor));
 
 			Colour c = ln.contrasting(0.1f);
+
+			if (isHintLine)
+			{
+				c = Colours::lightblue;
+				b2 = b2.removeFromRight(2.0f);
+			}
 
 			if (isErrorLine)
 			{
 				c = Colour(HISE_ERROR_COLOUR);
 				b2 = b2.removeFromRight(2.0f);
 			}
-				
-
-
+			
 			if (isWarningLine)
 			{
 				c = Colour(HISE_WARNING_COLOUR);

@@ -410,7 +410,7 @@ public:
 
 	void checkActiveProject();
 
-	
+	UriLocation createScriptUriLocation(const String& uri) const;
 
 	void addListener(Listener* newProjectListener, bool sendWithInitialValue=false);
 

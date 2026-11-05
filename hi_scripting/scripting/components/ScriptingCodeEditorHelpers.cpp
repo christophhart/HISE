@@ -514,6 +514,15 @@ public:
 			return other.doc == this->doc && other.pos.getLineNumber() == this->pos.getLineNumber();
 		}
 
+		UriLocation toLocation() const
+		{
+			UriLocation loc;
+			loc.uri = fileName;
+			loc.charIndex = pos.getPosition();
+			loc.fillLineAndCol(*doc);
+			return loc;
+		}
+
 		String fileName;
 
 		const CodeDocument* doc;
@@ -647,7 +656,7 @@ public:
 
 		auto location = db->getLocation();
         
-		if (location.fileName.isNotEmpty() || location.charNumber != 0)
+		if (location)
 		{
 			auto type = db->getTextForDataType();
 			auto name = db->getTextForName();
@@ -658,7 +667,7 @@ public:
             if (typeFilterMatch && (currentOptions.matches(type, {}) ||
                                     currentOptions.matches(name, {})))
 			{
-				auto j = getFileIndex(location.fileName);
+				auto j = getFileIndex(location.uri);
 
 				if (j == -1)
 				{
@@ -668,7 +677,7 @@ public:
 					e->fileName = "onInit()";
 
 					e->doc = doc;
-					e->pos = CodeDocument::Position(*doc, location.charNumber);
+					e->pos = CodeDocument::Position(*doc, location.charIndex);
 					e->info = db;
 
 					addIfSameLineDoesntExist(listToUse, e);
@@ -681,7 +690,7 @@ public:
 					e->fileName = jp->getWatchedFile(j).getFullPathName();
 
 					e->doc = &doc;
-					e->pos = CodeDocument::Position(doc, location.charNumber);
+					e->pos = CodeDocument::Position(doc, location.charIndex);
 					e->info = db;
 
 					addIfSameLineDoesntExist(listToUse, e);
@@ -943,10 +952,7 @@ public:
 	{
 		if (auto entry = entries[rowIndex])
 		{
-			DebugableObject::Location loc;
-
-			loc.fileName = entry->fileName;
-			loc.charNumber = entry->pos.getPosition();
+			auto loc = entry->toLocation();
 
             editor = CommonEditorFunctions::as(getMainController()->getLastActiveEditor());
 			
@@ -1486,8 +1492,9 @@ bool JavascriptProcessor::performPopupMenuAction(int menuId, Component* c)
 	case JumpToDefinition:
 	{
 		auto token = CommonEditorFunctions::getCurrentToken(c);
-		const String namespaceId = JavascriptCodeEditor::Helpers::findNamespaceForPosition(CommonEditorFunctions::getCaretPos(c));
-		jumpToDefinition(token, namespaceId);
+		auto pos = CommonEditorFunctions::getCaretPos(c);
+		const String namespaceId = JavascriptCodeEditor::Helpers::findNamespaceForPosition(pos);
+		jumpToDefinition(token, pos.getLineNumber(), namespaceId);
 
 		return true;
 	}
