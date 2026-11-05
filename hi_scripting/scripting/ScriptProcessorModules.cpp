@@ -342,10 +342,6 @@ void JavascriptMidiProcessor::runScriptCallbacks()
         return;
     }
     
-#if ENABLE_SCRIPTING_BREAKPOINTS
-	breakpointWasHit(-1);
-#endif
-
 	scriptEngine->maximumExecutionTime = HiseJavascriptEngine::getDefaultTimeOut();
 
 	synthObject->handleNoteCounter(*currentEvent);

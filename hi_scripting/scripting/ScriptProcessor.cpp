@@ -338,14 +338,9 @@ void ProcessorWithScriptingContent::defaultControlCallbackIdle(ScriptingApi::Con
 
 		scriptEngine->maximumExecutionTime = HiseJavascriptEngine::getDefaultTimeOut();
 
-#if ENABLE_SCRIPTING_BREAKPOINTS
-		thisAsJavascriptProcessor->breakpointWasHit(-1);
-#endif
-
 		scriptEngine->setCallbackParameter(callbackIndex, 0, component);
 		scriptEngine->setCallbackParameter(callbackIndex, 1, controllerValue);
 		scriptEngine->executeCallback(callbackIndex, &r);
-
 	}
 
 	BACKEND_ONLY(if (!r.wasOk()) debugError(dynamic_cast<Processor*>(this), r.getErrorMessage()));
@@ -372,11 +367,6 @@ void ProcessorWithScriptingContent::customControlCallbackIdle(ScriptingApi::Cont
 		LockHelpers::SafeLock sl(getMainController_(), LockHelpers::Type::ScriptLock);
 
 		scriptEngine->maximumExecutionTime = HiseJavascriptEngine::getDefaultTimeOut();
-
-#if ENABLE_SCRIPTING_BREAKPOINTS
-		thisAsJavascriptProcessor->breakpointWasHit(-1);
-#endif
-
 		scriptEngine->executeInlineFunction(fVar, args, &r);
 
 #if USE_BACKEND
@@ -940,70 +930,6 @@ WeakCallbackHolder::CallableObject::StrictnessLevel JavascriptProcessor::getStri
 }
 #endif
 
-void JavascriptProcessor::toggleBreakpoint(const Identifier& snippetId, int lineNumber, int charNumber)
-{
-	HiseJavascriptEngine::Breakpoint bp(snippetId, "", lineNumber, charNumber, charNumber, breakpoints.size());
-
-	int index = breakpoints.indexOf(bp);
-
-	if (index != -1)
-	{
-		breakpoints.remove(index);
-	}
-	else
-	{
-		breakpoints.add(bp);
-	}
-
-	compileScript();
-}
-
-HiseJavascriptEngine::Breakpoint JavascriptProcessor::getBreakpointForLine(const Identifier& id, int lineIndex)
-{
-	for (int i = 0; i < breakpoints.size(); i++)
-	{
-		if (breakpoints[i].uri == id.toString() && breakpoints[i].line == lineIndex)
-			return breakpoints[i];
-	}
-
-	return HiseJavascriptEngine::Breakpoint();
-}
-
-void JavascriptProcessor::getBreakPointsForDisplayedRange(const Identifier& snippetId, Range<int> displayedLineNumbers,
-	Array<int>& lineNumbers)
-{
-	for (int i = 0; i < breakpoints.size(); i++)
-	{
-		if (breakpoints[i].uri != snippetId.toString())
-			continue;
-
-		if (displayedLineNumbers.contains(breakpoints[i].line))
-		{
-			lineNumbers.add(breakpoints[i].line);
-		}
-	}
-}
-
-bool JavascriptProcessor::anyBreakpointsActive() const
-{ return breakpoints.size() != 0; }
-
-void JavascriptProcessor::removeAllBreakpoints()
-{
-	breakpoints.clear();
-
-	compileScript();
-}
-
-void JavascriptProcessor::addBreakpointListener(HiseJavascriptEngine::Breakpoint::Listener* newListener)
-{
-	breakpointListeners.addIfNotAlreadyThere(newListener);
-}
-
-void JavascriptProcessor::removeBreakpointListener(HiseJavascriptEngine::Breakpoint::Listener* listenerToRemove)
-{
-	breakpointListeners.removeAllInstancesOf(listenerToRemove);
-}
-
 void JavascriptProcessor::clearPreprocessorFunctions()
 {
 	preprocessorFunctions.clear();
@@ -1080,9 +1006,6 @@ void JavascriptProcessor::addPopupMenuItems(PopupMenu &menu, Component* c, const
 #if USE_BACKEND
 	String s = CommonEditorFunctions::getCurrentSelection(c);
 
-	menu.addItem(ClearAllBreakpoints, "Clear all breakpoints", anyBreakpointsActive());
-	menu.addSeparator();
-
 	const String selection = CommonEditorFunctions::getCurrentSelection(c).trimEnd().trimStart();
 	const bool isUIDefinitionSelected = selection.startsWith("const var");
 	
@@ -1109,69 +1032,6 @@ void JavascriptProcessor::addPopupMenuItems(PopupMenu &menu, Component* c, const
 
 	menu.addItemWithShortcut(ScriptContextActions::AddAutocompleteTemplate, "Add autocomplete template", KeyPress(KeyPress::F8Key), s.isNotEmpty());
 	menu.addItemWithShortcut(ScriptContextActions::ClearAutocompleteTemplates, "Clear autocomplete templates", KeyPress(KeyPress::F8Key, ModifierKeys::commandModifier, 0));
-#endif
-}
-
-
-void JavascriptProcessor::handleBreakpoints(const Identifier& codefile, Graphics& g, Component* c)
-{
-#if ENABLE_SCRIPTING_BREAKPOINTS
-	if (anyBreakpointsActive())
-	{
-		auto ed = dynamic_cast<CodeEditorComponent*>(c);
-
-		int startLine = ed->getFirstLineOnScreen();
-
-		int endLine = startLine + ed->getNumLinesOnScreen();
-
-		for (int i = startLine; i < endLine; i++)
-		{
-			HiseJavascriptEngine::Breakpoint bp = getBreakpointForLine(codefile, i);
-
-			if (bp.line != -1)
-			{
-				const float x = 5.0f;
-				const float y = (float)((bp.line - ed->getFirstLineOnScreen()) * ed->getLineHeight() + 1);
-
-				const float w = (float)(ed->getLineHeight() - 2);
-				const float h = w;
-
-				g.setColour(Colours::darkred.withAlpha(bp.hit ? 1.0f : 0.3f));
-				g.fillEllipse(x, y, w, h);
-				g.setColour(Colours::white.withAlpha(bp.hit ? 1.0f : 0.5f));
-				g.drawEllipse(x, y, w, h, 1.0f);
-				g.setFont(GLOBAL_MONOSPACE_FONT().withHeight((float)(ed->getLineHeight() - 3)));
-				g.drawText(String(bp.index + 1), (int)x, (int)y, (int)w, (int)h, Justification::centred);
-			}
-		}
-	}
-#endif
-}
-
-void JavascriptProcessor::handleBreakpointClick(const Identifier& codeFile, CodeEditorComponent& ed, const MouseEvent& e)
-{
-#if ENABLE_SCRIPTING_BREAKPOINTS
-	if (e.mods.isShiftDown())
-	{
-		removeAllBreakpoints();
-		ed.repaint();
-	}
-	else if (e.mods.isCommandDown())
-	{
-		int lineNumber = e.y / ed.getLineHeight() + ed.getFirstLineOnScreen();
-		CodeDocument::Position start(ed.getDocument(), lineNumber, 0);
-
-		int charNumber = start.getPosition();
-
-		const String content = ed.getDocument().getAllContent().substring(charNumber);
-
-		const int offsetToFirstToken = JavascriptCodeEditor::Helpers::getOffsetToFirstToken(content);
-
-		CodeDocument::Position tokenStart(ed.getDocument(), charNumber + offsetToFirstToken);
-
-		toggleBreakpoint(codeFile, tokenStart.getLineNumber(), tokenStart.getPosition());
-		ed.repaint();
-	}
 #endif
 }
 
@@ -1284,25 +1144,6 @@ hise::JavascriptCodeEditor* JavascriptProcessor::getActiveEditor()
 #else
 	return nullptr;
 #endif
-}
-
-void JavascriptProcessor::breakpointWasHit(int index)
-{
-	for (int i = 0; i < breakpoints.size(); i++)
-	{
-		breakpoints.getReference(i).hit = (i == index);
-	}
-
-	for (int i = 0; i < breakpointListeners.size(); i++)
-	{
-		if (breakpointListeners[i].get() != nullptr)
-		{
-			breakpointListeners[i]->breakpointWasHit(index);
-		}
-	}
-
-	if (index != -1)
-		repaintUpdater.triggerAsyncUpdate();
 }
 
 void JavascriptProcessor::addInplaceDebugValue(const Identifier& callback, int lineNumber, const String& value, DebugInformationBase::Ptr info)
@@ -1471,21 +1312,6 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 		if (!getSnippet(i)->isSnippetEmpty() || !preprocessorFunctions.isEmpty())
 		{
 			const Identifier callbackId = getSnippet(i)->getCallbackName();
-
-#if ENABLE_SCRIPTING_BREAKPOINTS
-			Array<HiseJavascriptEngine::Breakpoint> breakpointsForCallback;
-
-			for (int k = 0; k < breakpoints.size(); k++)
-			{
-				if (breakpoints[k].uri == callbackId.toString())
-					breakpointsForCallback.add(breakpoints[k]);
-			}
-
-			if (!breakpointsForCallback.isEmpty())
-				scriptEngine->setBreakpoints(breakpointsForCallback);
-
-
-#endif
 
 			auto codeToCompile = getSnippet(i)->getSnippetAsFunction();
 
@@ -1931,10 +1757,7 @@ void JavascriptProcessor::setupApi()
 	PROFILE_ONLY(mc->getDebugSession().sendClearMessage());
 	scriptEngine = new HiseJavascriptEngine(this, mc);
 
-	scriptEngine->addBreakpointListener(this);
-
 	scriptEngine->setCallStackEnabled(callStackEnabled);
-
 	scriptEngine->maximumExecutionTime = RelativeTime(mainController->getCompileTimeOut());
 
 	registerApiClasses();

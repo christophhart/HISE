@@ -1363,12 +1363,6 @@ bool JavascriptProcessor::performPopupMenuAction(int menuId, Component* c)
 
 		return true;
 	}
-	case ClearAllBreakpoints:
-	{
-		removeAllBreakpoints();
-		c->repaint();
-		return true;
-	}
 	case SaveScriptFile:
 	{
 		FileChooser scriptSaver("Save script as",

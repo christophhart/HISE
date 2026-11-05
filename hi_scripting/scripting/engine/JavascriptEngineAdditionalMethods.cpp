@@ -622,15 +622,6 @@ var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFu
 		if (result != nullptr && root != nullptr)
 			*result = Result::fail(e.toFullCallStack()); // dumpCallStack(e, func));
 	}
-	catch (Breakpoint& bp)
-	{
-		bp.copyLocalScopeToRoot(root.get());
-		sendBreakpointMessage(bp.index);
-
-		static const Identifier func("function");
-		if (result != nullptr && root != nullptr)
-			*result = Result::fail(root->withCallStack(bp, bp.getBreakpointMessage()).toFullCallStack());
-	}
 
 	return returnVal;
 }
@@ -1141,61 +1132,6 @@ String HiseJavascriptEngine::RootObject::HiseSpecialData::throwExistingDefinitio
 	return msg;
 }
 
-HiseJavascriptEngine::Breakpoint::Listener::~Listener()
-{
-	masterReference.clear();
-}
-
-HiseJavascriptEngine::Breakpoint::Breakpoint(): index(-1)
-{}
-
-HiseJavascriptEngine::Breakpoint::Breakpoint(const Identifier& snippetId_, const String& externalLocation_,
-	int lineNumber_, int charNumber_, int charIndex_, int index_):
-	index(index_)
-{
-	line = lineNumber_;
-	col = charNumber_;
-	charIndex = charIndex_;
-
-	if (externalLocation_.isNotEmpty())
-		uri = externalLocation_;
-	else
-		uri = snippetId_.toString().removeCharacters("()") + "()";
-	
-}
-
-HiseJavascriptEngine::Breakpoint::~Breakpoint()
-{
-	localScope = nullptr;
-}
-
-bool HiseJavascriptEngine::Breakpoint::operator==(const UriLocation& other) const
-{
-	return uri == other.uri && line == other.line;
-}
-
-void HiseJavascriptEngine::Breakpoint::copyLocalScopeToRoot(RootObject* r)
-{
-	if (localScope != nullptr)
-	{
-		static const Identifier thisIdentifier("this");
-
-		auto properties = localScope->getProperties();
-
-		for (int i = 0; i < properties.size(); i++)
-		{
-			if (properties.getName(i) == thisIdentifier)
-				continue;
-
-			r->setProperty(properties.getName(i), properties.getValueAt(i));
-		}
-	}
-
-	localScope = nullptr;
-
-	r->hiseSpecialData.clearDebugInformation();
-	r->hiseSpecialData.createDebugInformation(r);
-}
 
 String HiseJavascriptEngine::RootObject::HiseSpecialData::checkIfExistsInOtherStorage(VariableStorageType thisType, const Identifier &name)
 {
@@ -1345,20 +1281,6 @@ var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* argumen
 
 		f->cleanUpAfterExecution();
 	}
-	catch (Breakpoint& bp)
-	{
-		if(bp.localScope == nullptr)
-			bp.localScope = f->createDynamicObjectForBreakpoint().getDynamicObject();
-
-		bp.copyLocalScopeToRoot(root.get());
-
-		sendBreakpointMessage(bp.index);
-		
-		if (result != nullptr) 
-			*result = Result::fail(root->withCallStack(bp, bp.getBreakpointMessage()).toFullCallStack());
-
-		f->cleanUpAfterExecution();
-	}
 
 	return var();
 }
@@ -1407,18 +1329,6 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 
 			if (result != nullptr)
 				*result = Result::fail(e.toFullCallStack());
-		}
-		catch (Breakpoint& bp)
-		{
-			if(bp.localScope == nullptr)
-				bp.localScope = c->createDynamicObjectForBreakpoint().getDynamicObject();
-
-			bp.copyLocalScopeToRoot(root.get());
-
-			sendBreakpointMessage(bp.index);
-			
-			if (result != nullptr)
-				*result = Result::fail(root->withCallStack(bp, bp.getBreakpointMessage()).toFullCallStack());
 		}
 	}
 

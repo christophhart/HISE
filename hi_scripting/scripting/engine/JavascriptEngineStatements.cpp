@@ -762,10 +762,6 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 			{
 				reportLocation(sbs, r.getErrorMessage());
 			}
-			catch(const Breakpoint&)
-			{
-				reportLocation(sbs, "BREAKPOINT");
-			}
 			catch(const UriError& e)
 			{
 				reportLocation(sbs, e.errorMessage);
@@ -856,28 +852,6 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 
 		for (int i = 0; i < statements.size(); ++i)
 		{
-#if ENABLE_SCRIPTING_BREAKPOINTS
-
-			ScriptAudioThreadGuard guard(statements[i]->location);
-
-			if (statements.getUnchecked(i)->breakpointReference.index != -1)
-			{
-				Statement* st = statements.getUnchecked(i);
-				const auto& loc = st->location;
-				int col, line, charIndex;
-
-				loc.fillColumnAndLines(col, line, charIndex);
-				Breakpoint bp = Breakpoint(st->breakpointReference.localScopeId, loc.externalFile, line, col, charIndex, st->breakpointReference.index);
-
-				const bool hasRootScope = s.root.get() == s.scope.get();
-
-				if(!hasRootScope)
-					bp.localScope = s.scope.get();
-
-				throw bp;
-			}
-#endif
-
 #if HISE_INCLUDE_PROFILING_TOOLKIT
 			if(currentProfileRoot != nullptr)
 			{
@@ -898,13 +872,8 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 	ResultCode perform(const Scope& s, var* returnedValue) const override
 	{
 #if HISE_SHADOW_PARSER_ENABLED
-
 		if (s.isShadowParsing())
 		{
-			//auto n = new DynamicObject();
-
-			//s.scope->setProperty(namespaceId, n);
-
 			if (namespaceId.isValid())
 			{
 				if (auto sp = s.getShadowParser())
@@ -940,7 +909,6 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 
 			return ResultCode::ok;
 		}
-
 #endif
 
 		if(scopedBlockStatements.isEmpty())
@@ -983,11 +951,6 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 		{
 			cleanup(s);
 			throw r;
-		}
-		catch(const Breakpoint& bp)
-		{
-			cleanup(s);
-			throw bp;
 		}
 		catch(const UriError& e)
 		{

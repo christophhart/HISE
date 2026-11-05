@@ -1219,48 +1219,32 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 			RootObject::ScopedCallstackEntry sc(*s.root, f->name, &location);
 
-			try
-			{
-				ResultCode c = f->body->perform(s, &returnVar);
+			ResultCode c = f->body->perform(s, &returnVar);
 
-				if(f->e.get() == this)
-					f->cleanUpAfterExecution();
+			if(f->e.get() == this)
+				f->cleanUpAfterExecution();
 				 
-				f->lastReturnValue = returnVar;
+			f->lastReturnValue = returnVar;
 
-				for (int i = 0; i < numArgs; i++)
-				{
-					parameterResults.setUnchecked(i, var());
-				}
+			for (int i = 0; i < numArgs; i++)
+				parameterResults.setUnchecked(i, var());
 
-                var rv;
+            var rv;
                 
-				if (c == Statement::returnWasHit)
-                    rv = returnVar;
+			if (c == Statement::returnWasHit)
+                rv = returnVar;
 				
 #if ENABLE_SCRIPTING_SAFE_CHECKS
-                if(f->returnType)
-                {
-                    auto ok = VarTypeChecker::checkType(rv, f->returnType);
+            if(f->returnType)
+            {
+                auto ok = VarTypeChecker::checkType(rv, f->returnType);
                     
-                    if(ok.failed())
-                    {
-                        throwError(s, "Return value: " + ok.getErrorMessage());
-                    }
-                }
+                if(ok.failed())
+                    throwError(s, "Return value: " + ok.getErrorMessage());
+            }
 #endif
                 
-                return rv;
-			}
-			catch (Breakpoint& bp)
-			{
-				if(bp.localScope == nullptr)
-					bp.localScope = f->createDynamicObjectForBreakpoint().getDynamicObject();
-
-				throw bp;
-			}
-			
-			
+            return rv;
 		}
 
 		Statement* getChildStatement(int index) override 

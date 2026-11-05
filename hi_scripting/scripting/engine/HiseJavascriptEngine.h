@@ -414,58 +414,6 @@ public:
 
 	struct RootObject;
 	
-	struct Breakpoint: public UriLocation
-	{
-	public:
-
-		struct Reference
-		{
-			Identifier localScopeId;
-			int index = -1;
-		};
-
-		class Listener
-		{
-		public:
-			virtual void breakpointWasHit(int breakpointIndex) = 0;
-
-			virtual ~Listener();
-
-		private:
-
-			friend class WeakReference<Listener>;
-
-			WeakReference<Listener>::Master masterReference;
-		};
-
-		Breakpoint();
-
-		Breakpoint(const Identifier& snippetId_, const String& externalLocation_, int lineNumber_, int charNumber_, int charIndex_, int index_);
-		;
-
-		~Breakpoint();
-
-		bool operator==(const UriLocation& other) const;
-
-		String getBreakpointMessage() const { return "Breakpoint " + String(index + 1) + " was hit"; }
-
-		void copyLocalScopeToRoot(RootObject* r);
-
-		//const Identifier snippetId;
-		//const int lineNumber;
-		//const int colNumber;
-		//const int charIndex;
-
-		const int index;
-		//const String externalLocation;
-
-		bool found = false;
-		bool hit = false;
-
-		DynamicObject::Ptr localScope;
-
-	};
-
 	//==============================================================================
 	struct RootObject : public DynamicObject,
 						public CyclicReferenceCheckBase
@@ -475,8 +423,6 @@ public:
 		RootObject();
 
 		Time timeout;
-
-		Array<Breakpoint> breakpoints;
 
 		typedef const var::NativeFunctionArgs& Args;
 		typedef const char* TokenType;
@@ -1150,28 +1096,10 @@ public:
 		ThreadLocalValue<var> localThreadThisObject;
 	};
 
-	
-
-	
-
 	void getColourAndLetterForType(int type, Colour& colour, char& letter) override
 	{
 		return ValueTreeApiHelpers::getColourAndCharForType(type, letter, colour);
 	}
-
-	void setBreakpoints(Array<Breakpoint> &breakpoints);
-
-	void addBreakpointListener(Breakpoint::Listener* listener)
-	{
-		breakpointListeners.add(listener);
-	}
-
-	void removeBreakpointListener(Breakpoint::Listener* listener)
-	{
-		breakpointListeners.removeAllInstancesOf(listener);
-	}
-
-	void sendBreakpointMessage(int breakpointIndex);
 
 	void setUseCycleReferenceCheckForNextCompilation()
 	{
@@ -1179,8 +1107,6 @@ public:
 	}
 
 	static String checkValidParameter(int index, const var& valueToTest, VarTypeChecker::WrappedType expectedType);
-
-	
 
     LambdaBroadcaster<bool> preCompileListeners;
 	std::vector<std::pair<WeakReference<DebugableObjectBase>, std::function<void(DebugInformationBase::Ptr)>>> debugInfoListeners;
@@ -1202,13 +1128,7 @@ private:
 	ReferenceCountedObjectPtr<RootObject> root;
 	void prepareTimeout() const noexcept;
 	
-	Array<WeakReference<Breakpoint::Listener>> breakpointListeners;
-
-	
-
 	DynamicObject::Ptr unneededScope;
-
-	
 
 	ScopeTree lastShadowParseScope;
 

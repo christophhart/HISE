@@ -354,7 +354,6 @@ using namespace snex;
 *	
 */
 class JavascriptProcessor :	public FileChangeListener,
-							public HiseJavascriptEngine::Breakpoint::Listener,
 							public Dispatchable,
 							public DiagnosticBase::ShadowParseData::DependencyResolver,
 							public ProcessorWithDynamicExternalData,
@@ -474,8 +473,6 @@ public:
 		LoadScriptFile,
 		SaveScriptClipboard,
 		LoadScriptClipboard,
-
-		ClearAllBreakpoints,
 		CreateUiFactoryMethod,
 		MoveToExternalFile,
 		ExportAsCompressedScript,
@@ -528,9 +525,6 @@ public:
 
 	SET_PROCESSOR_CONNECTOR_TYPE_ID("ScriptProcessor");
 
-	void handleBreakpoints(const Identifier& codefile, Graphics& g, Component* c);
-
-	void handleBreakpointClick(const Identifier& codeFile, CodeEditorComponent& ed, const MouseEvent& e);
 
 #if USE_BACKEND
 	bool handleKeyPress(const KeyPress& k, Component* c) override;
@@ -544,8 +538,6 @@ public:
 
 
 	JavascriptCodeEditor* getActiveEditor() override;
-
-	void breakpointWasHit(int index) override;
 
 	void addInplaceDebugValue(const Identifier& callback, int lineNumber, const String& value, DebugInformationBase::Ptr info);
 
@@ -647,23 +639,9 @@ public:
 
 	void showPopupForCallback(const Identifier& callback, int charNumber, int lineNumber);
 
-	void toggleBreakpoint(const Identifier& snippetId, int lineNumber, int charNumber);
-
-	HiseJavascriptEngine::Breakpoint getBreakpointForLine(const Identifier &id, int lineIndex);
-
-	void getBreakPointsForDisplayedRange(const Identifier& snippetId, Range<int> displayedLineNumbers, Array<int> &lineNumbers);
-
-	bool anyBreakpointsActive() const;
-
-	void removeAllBreakpoints();
-
 	void cleanupEngine();
 
 	void setCallStackEnabled(bool shouldBeEnabled);
-
-	void addBreakpointListener(HiseJavascriptEngine::Breakpoint::Listener* newListener);
-
-	void removeBreakpointListener(HiseJavascriptEngine::Breakpoint::Listener* listenerToRemove);
 
 	void clearPreprocessorFunctions();
 
@@ -672,7 +650,6 @@ public:
 	ScriptingApi::Content* getContent();
 
 	const ScriptingApi::Content* getContent() const;
-
 
 	void clearContentPropertiesDoc();
 
@@ -774,23 +751,13 @@ private:
 
 	};
 
-	
-
 	UpdateDispatcher repaintDispatcher;
-
-	
-
-	Array<HiseJavascriptEngine::Breakpoint> breakpoints;
-
-	Array<WeakReference<HiseJavascriptEngine::Breakpoint::Listener>> breakpointListeners;
 
 	Array<Component::SafePointer<DocumentWindow>> callbackPopups;
 
 	bool callStackEnabled = false;
 
 	bool cycleReferenceCheckEnabled = false;
-
-	
 
 	ScopedPointer<CodeDocument> contentPropertyDocument;
 

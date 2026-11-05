@@ -359,10 +359,6 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 
 		while (currentType != TokenTypes::closeBrace && currentType != TokenTypes::eof)
 		{
-#if ENABLE_SCRIPTING_BREAKPOINTS
-            
-			const int64 charactersBeforeToken = (location.location - location.program.getCharPointer());
-                        
             ScopedPointer<Statement> s;
             
             try
@@ -394,51 +390,6 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
                     throw s;
                 }
             }
-            
-			const int64 charactersAfterToken = (location.location - location.program.getCharPointer());
-			Range<int64> r(charactersBeforeToken, charactersAfterToken);
-
-			for (int i = 0; i < breakpoints.size(); i++)
-			{
-				auto b = breakpoints[i].toLocationString(UriLocation::UriFormat::CallbackId);
-				auto br = baseLocation.toLocationString(UriLocation::UriFormat::CallbackId);
-
-				if (br != b)
-					continue;
-
-				if (breakpoints[i].found)
-					continue;
-
-				if (r.contains(breakpoints[i].charIndex))
-				{
-					if (currentInlineFunction != nullptr)
-					{
-						if (getCurrentNamespace() != hiseSpecialData)
-						{
-							const String combination = currentNamespace->id.toString() + "." + dynamic_cast<InlineFunction::Object*>(currentInlineFunction)->name.toString();
-
-							s->breakpointReference.localScopeId = Identifier(combination);
-
-						}
-						else
-						{
-							s->breakpointReference.localScopeId = dynamic_cast<InlineFunction::Object*>(currentInlineFunction)->name;
-						}
-					}
-						
-					else if (currentlyParsedCallback.isValid())
-					{
-						s->breakpointReference.localScopeId = currentlyParsedCallback;
-					}
-					
-					s->breakpointReference.index = breakpoints[i].index;
-					breakpoints.getReference(i).found = true;
-					break;
-				}
-			}
-#else
-			ScopedPointer<Statement> s = parseStatement();
-#endif
 
 			if (auto sbs = dynamic_cast<ScopedBlockStatement*>(s.get()))
 			{
@@ -634,8 +585,6 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 
 		return lhs.release();
 	}
-
-	Array<Breakpoint> breakpoints;
 
 #if USE_BACKEND
 	/** Returns the diagnostics collected during a diagnostic-mode parse. */
@@ -1210,17 +1159,9 @@ private:
                 
 				ExpressionTreeBuilder ftb(root, location.processorId, fileContent, refFileName, preprocessor);
 
-#if ENABLE_SCRIPTING_BREAKPOINTS
-				ftb.breakpoints.addArray(breakpoints);
-#endif
-
 				ftb.hiseSpecialData = hiseSpecialData;
 				ftb.currentNamespace = hiseSpecialData;
 
-				//ftb.setupApiData(*hiseSpecialData, fileContent);
-
-                
-                
 				ScopedPointer<BlockStatement> s = ftb.parseStatementList();
 
 				match(TokenTypes::literal);
@@ -3300,10 +3241,6 @@ bool HiseJavascriptEngine::RootObject::areTypeEqual(const var& a, const var& b)
 void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowConstDeclarations)
 {
 	ExpressionTreeBuilder tb(*this, dynamic_cast<Processor*>(hiseSpecialData.processor)->getId(), code, String(), preprocessor);
-
-#if ENABLE_SCRIPTING_BREAKPOINTS
-	tb.breakpoints.swapWith(breakpoints);
-#endif
 
 	tb.setupApiData(hiseSpecialData, allowConstDeclarations ? code : String());
 

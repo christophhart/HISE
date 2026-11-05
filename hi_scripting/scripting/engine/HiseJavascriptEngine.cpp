@@ -117,7 +117,6 @@ HiseJavascriptEngine::~HiseJavascriptEngine()
 
 	root->hiseSpecialData.clear();
 	root = nullptr;
-	breakpointListeners.clear();
 }
 
 HiseJavascriptEngine::TimeoutExtender::TimeoutExtender(HiseJavascriptEngine* e):
@@ -135,13 +134,6 @@ HiseJavascriptEngine::TimeoutExtender::~TimeoutExtender()
 		engine->extendTimeout(delta);
 	}
 #endif
-}
-
-
-void HiseJavascriptEngine::setBreakpoints(Array<Breakpoint> &breakpoints)
-{
-	root->breakpoints.clear();
-	root->breakpoints.addArray(breakpoints);
 }
 
 
@@ -747,8 +739,6 @@ struct HiseJavascriptEngine::RootObject::Statement
 
 	virtual bool replaceChildStatement(Ptr& newChild, Statement* oldChild) { return false; };
 
-	Breakpoint::Reference breakpointReference;
-    
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Statement)
 };
 
@@ -912,15 +902,6 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
 
 		return Result::fail(e.toFullCallStack());
 	}
-	catch (Breakpoint& bp)
-	{
-		if (bp.localScope != nullptr)
-			bp.copyLocalScopeToRoot(root.get());
-
-		sendBreakpointMessage(bp.index);
-
-		return Result::fail(root->withCallStack(bp, bp.getBreakpointMessage()).toFullCallStack());
-	}
 
 	return Result::ok();
 }
@@ -948,10 +929,6 @@ var HiseJavascriptEngine::evaluate(const String& code, Result* result)
 	catch (UriError& e)
 	{
 		if (result != nullptr) *result = Result::fail(e.toFullCallStack());
-	}
-	catch (Breakpoint& bp)
-	{
-		if (result != nullptr) *result = Result::fail(root->withCallStack(bp, bp.getBreakpointMessage()).toFullCallStack());
 	}
 
 	return var::undefined();
@@ -1009,10 +986,6 @@ var HiseJavascriptEngine::callFunction(const Identifier& function, const var::Na
 	catch (UriError &e)
 	{
 		if (result != nullptr) *result = Result::fail(e.toFullCallStack());
-	}
-	catch (Breakpoint& bp)
-	{
-		if (result != nullptr) *result = Result::fail(root->withCallStack(bp, bp.getBreakpointMessage()).toFullCallStack());
 	}
 
 	return returnVal;
@@ -1176,17 +1149,6 @@ var HiseJavascriptEngine::executeWithoutAllocation(const Identifier &function, c
 	}
 
 	return returnVal;
-}
-
-void HiseJavascriptEngine::sendBreakpointMessage(int breakpointIndex)
-{
-	for (int i = 0; i < breakpointListeners.size(); i++)
-	{
-		if (breakpointListeners[i].get() != nullptr)
-		{
-			breakpointListeners[i]->breakpointWasHit(breakpointIndex);
-		}
-	}
 }
 
 String HiseJavascriptEngine::checkValidParameter(int index, const var& valueToTest, VarTypeChecker::WrappedType expectedType)
