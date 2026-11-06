@@ -6688,8 +6688,8 @@ void ScriptingApi::Console::print(var x)
 		auto sp = consoleProfile.profile(0);
 
 		auto ni = new DebugSession::DataItem();
-		ni->id = id;
-		ni->lineNumber = lineNumber;
+		ni->id = debugLocation.toLocationString(UriLocation::UriFormat::ConnectionId);
+		ni->lineNumber = debugLocation.line;
 		ni->label = "print";
 		ni->data = x.clone();
 
@@ -6698,7 +6698,7 @@ void ScriptingApi::Console::print(var x)
 #endif
 
     auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
-    jp->addInplaceDebugValue(id, lineNumber, x.toString(), nullptr);
+    jp->addInplaceDebugValue(debugLocation, x.toString(), nullptr);
     
 	debugToConsole(getProcessor(), x);
 #else
@@ -6733,60 +6733,16 @@ void ScriptingApi::Console::stop(bool condition)
 	if (!condition)
 		return;
 
-	auto c = getScriptProcessor()->getMainController_()->getKillStateHandler().getCurrentThread();
+	auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
 
-	if (c == MainController::KillStateHandler::TargetThread::ScriptingThread ||
-		c == MainController::KillStateHandler::TargetThread::SampleLoadingThread ||
-		c == MainController::KillStateHandler::TargetThread::AudioThread)
-	{
-		auto n = Time::getMillisecondCounter();
+	jp->stopAtBreakpoint(debugLocation);
 
-		auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
-		
-		MessageManager::callAsync([jp]()
-		{
-			ScopedReadLock sl(jp->getDebugLock());
-			jp->getScriptEngine()->rebuildDebugInformation();
-			jp->rebuild();
-		});
-
-		auto& jtp = getScriptProcessor()->getMainController_()->getJavascriptThreadPool();
-
-		JavascriptThreadPool::ScopedSleeper ss(jtp, id, lineNumber);
-
-		n = Time::getMillisecondCounter() - n;
-		jp->getScriptEngine()->extendTimeout(n);
-	}
-	else
-	{
-		String message;
-		message << "Breakpoint in UI Thread";// at " << id << "(Line " << lineNumber << ")";
-
-		reportScriptError(message);
-	}
 }
-
-
-
-
 
 void ScriptingApi::Console::blink()
 {
-#if USE_BACKEND && HISE_USE_NEW_CODE_EDITOR
-	if (auto e = getProcessor()->getMainController()->getLastActiveEditor())
-	{
-        auto i = id;
-        auto l = lineNumber;
-
-		MessageManager::callAsync([e, i, l]()
-		{
-			if (PopupIncludeEditor::matchesId(e, i))
-			{
-				CommonEditorFunctions::as(e)->sendBlinkMessage(l);
-			}
-		});
-	}
-#endif
+	auto mc = getProcessor()->getMainController();
+	PopupIncludeEditor::blink(mc, debugLocation);
 }
 
 void ScriptingApi::Console::clear()
@@ -6907,7 +6863,7 @@ void ScriptingApi::Console::startSampling(const String& sessionId)
     
 	if(auto s = dh.startSession(dynamic_cast<JavascriptProcessor*>(getScriptProcessor()), sessionId))
 	{
-		dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->addInplaceDebugValue(id, lineNumber, s->getTextForName(), s);
+		dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->addInplaceDebugValue(debugLocation, s->getTextForName(), s);
 	}
 #endif
 }
@@ -6975,13 +6931,13 @@ void ScriptingApi::Console::sample(const String& label, var dataToSample)
 
 		ni->data = dataToSample.clone();
 		ni->p = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
-		ni->id = id;
+		ni->id = debugLocation.toLocationString(UriLocation::UriFormat::ConnectionId);
 		ni->label = label;
-		ni->lineNumber = lineNumber;
+		ni->lineNumber = debugLocation;
 
 		if(dh.addDataItem(ni))
 		{
-			dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->addInplaceDebugValue(id, lineNumber, ni->getTextForName(), ni);
+			dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->addInplaceDebugValue(debugLocation, ni->getTextForName(), ni);
 			return;
 		}
 	}

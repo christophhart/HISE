@@ -1443,10 +1443,9 @@ public:
 
 		struct Wrapper;
 
-		void setDebugLocation(const Identifier& id_, int lineNumber_)
+		void setDebugLocation(const UriLocation& newLoc)
 		{
-			id = id_;
-			lineNumber = lineNumber_;
+			debugLocation = newLoc;
 		}
 
 private:
@@ -1456,8 +1455,7 @@ private:
 		ProfileCollection consoleProfile;
 		ProfileCollection::ID pLog;
 
-		Identifier id;
-		int lineNumber;
+		UriLocation debugLocation;
 
 		double startTime;
 

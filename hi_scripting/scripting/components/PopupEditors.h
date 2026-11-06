@@ -159,6 +159,8 @@ public:
 
 	static void initKeyPresses(Component* root);
 
+	static void blink(MainController* mc, const UriLocation& location);
+
 	File getFile() const;
 	
     int jumpToFromShortcut(int lineNumber, const String& token);
@@ -172,7 +174,9 @@ public:
 
 	using EditorType = CommonEditorFunctions::EditorType;
 
-	void sleepStateChanged(const Identifier& id, int lineNumber, bool on) override;
+	bool matchesLocation(const UriLocation& loc) const;
+
+	bool sleepStateChanged(const UriLocation& location, bool on) override;
 
 	void addEditor(CodeDocument& d, bool isJavascript);
 

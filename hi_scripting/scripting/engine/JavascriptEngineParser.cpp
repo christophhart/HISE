@@ -325,6 +325,7 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 
     HiseJavascriptPreprocessor::Ptr preprocessor;
 	Array<var> functionsToShadowParse;
+	Array<var> functionsForBreakpoints;
 
 	void setupApiData(HiseSpecialData &data, const String& codeToPreprocess)
 	{
@@ -1881,6 +1882,7 @@ private:
 				matchIf(TokenTypes::semicolon);
 
 				functionsToShadowParse.add(var(o.get()));
+				functionsForBreakpoints.add(var(o.get()));
 
 				return new Statement(location);
 			}
@@ -2214,6 +2216,8 @@ private:
 
 		if (isDiagnosticMode())
 			functionsToShadowParse.add(rv);
+
+		functionsForBreakpoints.add(rv);
 
 		return rv;
 	}
@@ -3263,6 +3267,15 @@ void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowCon
 		PROFILE_ONLY(DebugSession::ProfileDataSource::ScopedProfiler sp(onInitProfileSource, hiseSpecialData.processor));
 		PROFILE_ONLY(sl->currentProfileRoot = onInitProfileSource);
 
+		if (allowConstDeclarations)
+		{
+			jassert(breakpointFunctions.isEmpty());
+			breakpointFunctions.addArray(tb.functionsForBreakpoints);
+
+			for (const auto& bp : initBreakpoints)
+				addRuntimeBreakpoint(bp);
+		}
+		
 		sl->perform(Scope(nullptr, this, this), nullptr);
 	}
 

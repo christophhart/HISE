@@ -300,6 +300,14 @@ public:
 
 	void setCallStackEnabled(bool shouldBeEnabled);
 
+	void stopAtNextStatement(bool value);
+
+	void clearRuntimeBreakpoints();
+
+	bool addRuntimeBreakpoint(const UriBreakpoint& loc);
+
+	void setOnInitBreakpoints(const Array<UriBreakpoint>& breakpoints);
+
 	void registerApiClass(ApiClass *apiClass);
 
     void setIsInitialising(bool shouldBeInitialising)
@@ -418,11 +426,26 @@ public:
 	struct RootObject : public DynamicObject,
 						public CyclicReferenceCheckBase
 	{
-		
-
 		RootObject();
 
 		Time timeout;
+		bool stopAtNextStatement = false;
+		Array<UriBreakpoint> initBreakpoints;
+		Array<var> breakpointFunctions;
+
+		struct ScopedWaker
+		{
+			ScopedWaker(RootObject& ro) :
+				root(ro)
+			{};
+
+			~ScopedWaker()
+			{
+				root.stopAtNextStatement = false;
+			}
+
+			RootObject& root;
+		};
 
 		typedef const var::NativeFunctionArgs& Args;
 		typedef const char* TokenType;
@@ -546,6 +569,8 @@ public:
 		struct Scope;
 
         HiseJavascriptPreprocessor::Ptr preprocessor;
+
+		bool addRuntimeBreakpoint(const UriBreakpoint& r);
 
 		void setEnableOnInitProfiling(bool shouldBeEnabled)
 		{
@@ -785,6 +810,8 @@ public:
 			currentCallback = callbackId;
 		}
 
+		bool forEachRuntimeBlockStatement(const std::function<bool(BlockStatement*)> & f);
+
 		class Callback:  public DynamicObject,
 					     public DebugableObject,
                          public LocalScopeCreator
@@ -919,6 +946,8 @@ public:
 			virtual OptimizationPass::OptimizationResult runOptimisation(OptimizationPass* p);
 
 			bool optimiseFunction(OptimizationPass::OptimizationResult& r, var function, OptimizationPass* p);
+
+			Array<var> collectAllFunctions() const;
 
 			DebugInformation* createDebugInformation(int index);
 
@@ -1088,8 +1117,8 @@ public:
 		Array<CallStackEntry, SpinLock, 1024> callStack;
 
 		bool enableCallstack = false;
-
 		bool shouldUseCycleCheck = false;
+		
 
 		Identifier currentCallback;
 

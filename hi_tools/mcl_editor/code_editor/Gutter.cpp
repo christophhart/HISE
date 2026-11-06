@@ -120,6 +120,28 @@ void GutterComponent::addBreakpointListener(BreakpointListener* l)
 	listeners.addIfNotAlreadyThere(l);
 }
 
+Array<UriBreakpoint> GutterComponent::getBreakpointLocations(const String& processorId, const String& uri) const
+{
+	Array<UriBreakpoint> locations;
+
+	for (const auto& bp : breakpoints)
+	{
+		UriBreakpoint loc;
+		loc.fillLocation(bp->pos);
+		loc.processorId = processorId;
+		loc.uri = uri;
+
+		loc.enabled = bp->enabled.getValue();
+		loc.expression = bp->condition.getValue().toString();
+		loc.blinkOnHit = bp->blinkIfHit.getValue();
+		loc.breakOnHit = bp->breakIfHit.getValue();
+
+		locations.add(loc);
+	}
+
+	return locations;
+}
+
 void GutterComponent::removeBreakpointListener(BreakpointListener* l)
 {
 	listeners.removeAllInstancesOf(l);
@@ -584,15 +606,7 @@ void mcl::GutterComponent::paint(Graphics& g)
 	}
 
 	
-	if (currentBreakLine != CodeDocument::Position())
-	{
-		if (auto r = getRowData(currentBreakLine.getLineNumber()-1))
-		{
-			auto b = getRowBounds(*r).withHeight(document.getRowHeight() * scaleFactor);
-			g.setColour(Colours::red.withAlpha(0.05f));
-			g.fillRect(b.withWidth(getWidth()));
-		}
-	}
+	
 
 	for (auto bp : breakpoints)
 	{
@@ -630,18 +644,25 @@ void mcl::GutterComponent::paint(Graphics& g)
 
 			g.setColour(Colours::white.withAlpha(0.4f));
 			g.strokePath(bPath, PathStrokeType(1.0f));
+		}
+	}
+
+	if (currentBreakLine != CodeDocument::Position())
+	{
+		if (auto r = getRowData(currentBreakLine.getLineNumber() - 1))
+		{
+			auto b = getRowBounds(*r).withHeight(document.getRowHeight() * scaleFactor);
+			g.setColour(Colour(HISE_WARNING_COLOUR).withAlpha(0.05f));
+			g.fillRect(b.withWidth(getWidth()));
 
 			g.setColour(Colours::white);
 
-			
-			if (*bp == currentBreakLine.getLineNumber() - 1 && !bp->profiling)
-			{
-				
+			Path arrow = createArrow();
 
-				Path arrow = createArrow();
-				PathFactory::scalePath(arrow, b.reduced(2.0f * scaleFactor));
-				g.fillPath(arrow);
-			}
+			b = b.withWidth(b.getHeight()).reduced(JUCE_LIVE_CONSTANT(6.0f) * scaleFactor);
+
+			PathFactory::scalePath(arrow, b);
+			g.fillPath(arrow);
 		}
 	}
 	
@@ -728,6 +749,10 @@ void mcl::GutterComponent::mouseDown(const MouseEvent& e)
 			m.addItem(3, "Delete all breakpoints", !breakpoints.isEmpty());
 			m.addItem(4, "Recompile when breakpoints change", true, recompileOnBreakpointChange);
 			m.addItem(6, "Create profiling breakpoints", true, createProfilingBreakpoints);
+
+			m.addSeparator();
+			m.addItem(7, "Export breakpoints as JSON", !breakpoints.isEmpty(), false);
+			m.addItem(8, "Import breakpoints from JSON", true, false);
 
 			auto r = m.show();
 
@@ -896,6 +921,20 @@ void mcl::GutterComponent::mouseDown(const MouseEvent& e)
                 auto root = TopLevelWindowWithOptionalOpenGL::findRoot(this);
                 CallOutBox::launchAsynchronously(std::unique_ptr<Component>(t), root->getLocalArea(this, calloutBounds), root);
 			}
+			else if (r == 7)
+			{
+				SystemClipboard::copyTextToClipboard(JSON::toString(getBreakpointsAsJSON("", "")));
+			}
+			else if (r == 8)
+			{
+				auto t = SystemClipboard::getTextFromClipboard();
+				var obj;
+
+				auto ok = JSON::parse(t, obj);
+
+				if (ok.wasOk())
+					setBreakpointsFromJSON(obj, "", "");
+			}
 		}
 		else
 		{
@@ -942,6 +981,60 @@ void mcl::GutterComponent::mouseDown(const MouseEvent& e)
 void mcl::GutterComponent::sendBlinkMessage(int n)
 {
 	blinkHandler.addBlinkState(n);
+}
+
+void GutterComponent::setActiveBreakpoints(const Array<int> activeBreakpoints)
+{
+	for (int i = 0; i < breakpoints.size(); i++)
+	{
+		auto isActive = activeBreakpoints.contains(i);
+		breakpoints[i]->enabled = isActive;
+	}
+
+	repaint();
+}
+
+void GutterComponent::setBreakpointsFromJSON(const var& breakpointData, const String& processorId, const String& uri)
+{
+	if (auto ar = breakpointData.getArray())
+	{
+		breakpoints.clear();
+
+		for (const auto& v : *ar)
+		{
+			auto b = UriBreakpoint::fromJSON(v);
+
+			if (b.processorId.isEmpty() && processorId.isNotEmpty())
+				b.processorId = processorId;
+
+			if (b.uri.isEmpty() && uri.isNotEmpty())
+				b.uri = uri;
+
+			auto bp = new Breakpoint(this, b.line, false, document.getCodeDocument());
+			bp->condition = b.expression;
+			bp->enabled = b.enabled;
+			bp->blinkIfHit = b.blinkOnHit;
+			bp->breakIfHit = b.breakOnHit;
+			bp->useCondition = b.expression != "true";
+
+			breakpoints.add(bp);
+		}
+
+		sendBreakpointChangeMessage();
+		repaint();
+	}
+}
+
+var GutterComponent::getBreakpointsAsJSON(const String& processorId, const String& uri) const
+{
+	Array<var> list;
+
+	auto uriList = getBreakpointLocations(processorId, uri);
+
+	for (const auto& u : uriList)
+		list.add(u.toJSON());
+
+	return var(list);
 }
 
 }

@@ -1,3 +1,4 @@
+#include "HiseJavascriptEngine.h"
 /*  ===========================================================================
 *
 *   This file is part of HISE.
@@ -488,6 +489,43 @@ void HiseJavascriptEngine::RootObject::prepareCycleReferenceCheck()
 
 	hiseSpecialData.prepareCycleReferenceCheck();
 #endif
+}
+
+bool HiseJavascriptEngine::RootObject::addRuntimeBreakpoint(const UriBreakpoint& bp)
+{
+	auto locId = bp.toLocationString(UriLocation::UriFormat::ConnectionId);
+
+	auto check = [&](BlockStatement* bl)
+	{
+		UriLocation simple;
+		bl->location.fillLocation(simple, false);
+
+		auto thisId = simple.toLocationString(UriLocation::UriFormat::ConnectionId);
+
+		if (thisId == locId)
+		{
+			auto range = bl->getBlockLineRangeFromStatements();
+
+			if (range.contains(bp.line))
+			{
+				for (auto s : bl->statements)
+				{
+					auto sLoc = s->location.createUriLocation();
+					auto sIndex = sLoc.line;
+
+					if (sIndex == bp.line)
+					{
+						s->breakpoint = bp;
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
+	};
+
+	return forEachRuntimeBlockStatement(check);
 }
 
 HiseJavascriptEngine::RootObject::ScopedLocalThisObject::ScopedLocalThisObject(RootObject& r_,  var newObject):

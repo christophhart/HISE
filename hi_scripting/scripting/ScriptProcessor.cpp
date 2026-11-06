@@ -1,3 +1,4 @@
+#include "ScriptProcessor.h"
 /*  ===========================================================================
 *
 *   This file is part of HISE.
@@ -1146,9 +1147,12 @@ hise::JavascriptCodeEditor* JavascriptProcessor::getActiveEditor()
 #endif
 }
 
-void JavascriptProcessor::addInplaceDebugValue(const Identifier& callback, int lineNumber, const String& value, DebugInformationBase::Ptr info)
+void JavascriptProcessor::addInplaceDebugValue(const UriLocation& loc, const String& value, DebugInformationBase::Ptr info)
 {
 	bool initialised = false;
+
+	auto lineNumber = loc.line;
+	auto callback = loc.toLocationString(UriLocation::UriFormat::ConnectionId);
 
 	auto docToUse = getSnippetOrExternalFile(callback);
 	
@@ -1160,13 +1164,13 @@ void JavascriptProcessor::addInplaceDebugValue(const Identifier& callback, int l
 		{
 			for(int i = 0; i < scriptEngine->getNumIncludedFiles(); i++)
 			{
-				if(scriptEngine->getIncludedFile(i).getFileName() == callback.toString())
+				if(scriptEngine->getIncludedFile(i).getFileName() == callback)
 				{
 					std::pair<String, mcl::LanguageManager::InplaceDebugValue::Ptr> d;
 
 					d.second = new mcl::LanguageManager::InplaceDebugValue();
 
-					d.first = callback.toString();
+					d.first = callback;
 					d.second->initialised = false;
 					d.second->info = info;
 					d.second->originalLineNumber = lineNumber;
@@ -1738,6 +1742,39 @@ void JavascriptProcessor::resolveDependencies(DPItem::Ptr item, DPItem::List& pr
 		preDependencies.add(new Item(Item::Type::onInit, "", getSnippet("onInit")->getAllContent()));
 	}
 }
+
+void JavascriptProcessor::stopAtBreakpoint(const UriLocation& location)
+{
+	auto mc = dynamic_cast<Processor*>(this)->getMainController();
+	auto c = mc->getKillStateHandler().getCurrentThread();
+
+	if (c == MainController::KillStateHandler::TargetThread::ScriptingThread ||
+		c == MainController::KillStateHandler::TargetThread::SampleLoadingThread ||
+		c == MainController::KillStateHandler::TargetThread::AudioThread)
+	{
+		auto n = Time::getMillisecondCounter();
+
+		MessageManager::callAsync([this]()
+			{
+				ScopedReadLock sl(getDebugLock());
+				getScriptEngine()->rebuildDebugInformation();
+				rebuild();
+			});
+
+		auto& jtp = mc->getJavascriptThreadPool();
+
+		JavascriptThreadPool::ScopedSleeper ss(jtp, this, location);
+
+		n = Time::getMillisecondCounter() - n;
+		getScriptEngine()->extendTimeout(n);
+	}
+	else
+	{
+		String message;
+		message << "Breakpoint in UI Thread";// at " << id << "(Line " << lineNumber << ")";
+		throw message;
+	}
+}
 #endif
 
 void JavascriptProcessor::setupApi()
@@ -1759,6 +1796,8 @@ void JavascriptProcessor::setupApi()
 
 	scriptEngine->setCallStackEnabled(callStackEnabled);
 	scriptEngine->maximumExecutionTime = RelativeTime(mainController->getCompileTimeOut());
+
+	scriptEngine->setOnInitBreakpoints(currentBreakpoints);
 
 	registerApiClasses();
 	
@@ -2610,8 +2649,11 @@ SimpleReadWriteLock& JavascriptThreadPool::getLookAndFeelRenderLock()
 GlobalServer* JavascriptThreadPool::getGlobalServer()
 { return globalServer.get(); }
 
-void JavascriptThreadPool::resume()
+void JavascriptThreadPool::resume(bool stepToNext)
 {
+	if (auto jp = currentSleeper.get())
+		jp->getScriptEngine()->stopAtNextStatement(stepToNext);
+
 	shouldWakeUp = true;
 }
 
@@ -2620,12 +2662,14 @@ void JavascriptThreadPool::deactivateSleepUntilCompilation()
 	allowSleep = false;
 }
 
-JavascriptThreadPool::ScopedSleeper::ScopedSleeper(JavascriptThreadPool& p_, const Identifier& id, int lineNumber_):
+JavascriptThreadPool::ScopedSleeper::ScopedSleeper(JavascriptThreadPool& p_, JavascriptProcessor* jp, const UriLocation& loc):
 	p(p_),
 	wasSleeping(p.isSleeping),
-	cid(id),
-	lineNumber(lineNumber_)
+	location(loc),
+	prevJp(p.currentSleeper)
 {
+	p.currentSleeper = jp;
+
 	if (!p.allowSleep)
 		return;
 
@@ -2655,6 +2699,8 @@ JavascriptThreadPool::ScopedSleeper::ScopedSleeper(JavascriptThreadPool& p_, con
 	if (!shouldExit)
 		shouldExit = []() { return true; };
 
+	SimpleReadWriteLock::ScopedDisabler sd(p.getLookAndFeelRenderLock());
+
 	while (p.allowSleep && !p.shouldWakeUp && !shouldExit())
 	{
 		PendingCompilationList l;
@@ -2669,15 +2715,18 @@ JavascriptThreadPool::ScopedSleeper::ScopedSleeper(JavascriptThreadPool& p_, con
 void JavascriptThreadPool::ScopedSleeper::sendMessage(bool on)
 {
 	JavascriptThreadPool* p_ = &p;
-	auto cid_ = cid;
-	auto ln = lineNumber;
+	auto l = location;
 
-	auto f = [p_, cid_, ln, on]()
+	auto f = [p_, l, on]()
 	{
 		for (const auto& s : p_->sleepListeners)
 		{
 			if (s != nullptr)
-				s.get()->sleepStateChanged(cid_, ln, on);
+			{
+				if (s.get()->sleepStateChanged(l, on))
+					break;
+			}
+				
 		}
 	};
 
@@ -2687,7 +2736,7 @@ void JavascriptThreadPool::ScopedSleeper::sendMessage(bool on)
 JavascriptThreadPool::ScopedSleeper::~ScopedSleeper()
 {
 	p.isSleeping = wasSleeping;
-
+	p.currentSleeper = prevJp;
 	p.lowPriorityQueue.clear();
 	p.highPriorityQueue.clear();
 			

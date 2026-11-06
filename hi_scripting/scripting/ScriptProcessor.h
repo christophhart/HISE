@@ -358,6 +358,7 @@ class JavascriptProcessor :	public FileChangeListener,
 							public DiagnosticBase::ShadowParseData::DependencyResolver,
 							public ProcessorWithDynamicExternalData,
 							public ApiProviderBase::Holder,
+							public UriLocation::Owner,
 							public WeakCallbackHolder::CallableObjectManager,
 							public scriptnode::DspNetwork::Holder
 {
@@ -536,10 +537,11 @@ public:
 
 	int getCodeFontSize() const override;
 
+	String getUriProcessorId() const override { return dynamic_cast<Processor*>(this)->getId(); }
 
 	JavascriptCodeEditor* getActiveEditor() override;
 
-	void addInplaceDebugValue(const Identifier& callback, int lineNumber, const String& value, DebugInformationBase::Ptr info);
+	void addInplaceDebugValue(const UriLocation& loc, const String& value, DebugInformationBase::Ptr info);
 
 	Array<std::pair<String, mcl::LanguageManager::InplaceDebugValue::Ptr>> deferredValues;
     mcl::LanguageManager::InplaceDebugValue::List inplaceValues;
@@ -565,6 +567,8 @@ public:
 	using DPItem = DiagnosticBase::ShadowParseData::Item;
 
 	void resolveDependencies(DPItem::Ptr item, DPItem::List& preDependencies, DPItem::List& postDependencies) override;
+
+	void stopAtBreakpoint(const UriLocation& loc);
 
 #endif
 
@@ -684,6 +688,8 @@ public:
 	WeakCallbackHolder::CallableObject::StrictnessLevel getStrictnessLevel() const;
 #endif
 
+	Array<UriBreakpoint> currentBreakpoints;
+
 protected:
 
 	String lastOptimisationReport;
@@ -727,6 +733,8 @@ protected:
 	bool useStoredContentData = false;
 	ProfileCollection compileProfile;
 	ProfileCollection::ID pCompileScript, pCreateDebugInfo, pControlCallback;
+
+	
 
 private:
 
@@ -772,7 +780,7 @@ public:
 struct JavascriptSleepListener
 {
 	virtual ~JavascriptSleepListener() {};
-	virtual void sleepStateChanged(const Identifier& callback, int lineNumber, bool isSleeping) = 0;
+	virtual bool sleepStateChanged(const UriLocation& location, bool isSleeping) = 0;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(JavascriptSleepListener);
 };
@@ -852,21 +860,21 @@ public:
 
 	GlobalServer* getGlobalServer();
 
-	void resume();
+	void resume(bool stepToNext);
 
 	void deactivateSleepUntilCompilation();
 
 	struct ScopedSleeper
 	{
-		ScopedSleeper(JavascriptThreadPool& p_, const Identifier& id, int lineNumber_);
+		ScopedSleeper(JavascriptThreadPool& p_, JavascriptProcessor* jp, const UriLocation& loc);
 
 		void sendMessage(bool on);
 
 		~ScopedSleeper();
 
-		const Identifier cid;
-		const int lineNumber;
+		const UriLocation location;
 		JavascriptThreadPool& p;
+		JavascriptProcessor* prevJp;
 		const bool wasSleeping;
 	};
 
@@ -897,6 +905,8 @@ private:
 	bool isSleeping = false;
 	bool shouldWakeUp = false;
 	bool allowSleep = true;
+
+	WeakReference<JavascriptProcessor> currentSleeper;
 
 	ScopedPointer<GlobalServer> globalServer;
 

@@ -42,10 +42,7 @@ struct HiseJavascriptEngine::RootObject::ScopedBlockStatement: public Statement
 
 	void addInplaceDebugValue(JavascriptProcessor* jp, DebugInformationBase::Ptr info) const
 	{
-		int col, line, charIndex;
-		
-		location.fillColumnAndLines(col, line, charIndex);
-		jp->addInplaceDebugValue(callback, line, info->getTextForName(), info);
+		jp->addInplaceDebugValue(location.createUriLocation(), info->getTextForName(), info);
 	}
 
 	bool checkCondition(const Scope& s, bool before)
@@ -558,27 +555,21 @@ struct HiseJavascriptEngine::RootObject::ScopedProfiler: public HiseJavascriptEn
 	  profiler(dataSource)
 	{
 #if HISE_INCLUDE_PROFILING_TOOLKIT
+		auto uri = location.createUriLocation();
+
 		dataSource->name = name_;
-		dataSource->locationString = location.createUriLocation().toLocationString(UriLocation::UriFormat::Base64);
+		dataSource->locationString = uri.toLocationString(UriLocation::UriFormat::Base64);
 		dataSource->sourceType = DebugSession::ProfileDataSource::SourceType::Script;
-
-		int col = 0;
-		int line = 0;
-		int charIndex = 0;
-
-		location.fillColumnAndLines(col, line, charIndex);
 
 		auto id = callback;
 
-		dataSource->onMessageFlush = [id, line](ApiProviderBase::Holder* h, DebugInformationBase::Ptr info)
+		dataSource->onMessageFlush = [uri](ApiProviderBase::Holder* h, DebugInformationBase::Ptr info)
 		{
 			if(auto jp = dynamic_cast<JavascriptProcessor*>(h))
-				jp->addInplaceDebugValue(id, line, info->getTextForName(), info);
+				jp->addInplaceDebugValue(uri, info->getTextForName(), info);
 		};
 #endif
 	}
-
-	
 
 	SN_NODE_ID("profile");
 
@@ -587,10 +578,6 @@ struct HiseJavascriptEngine::RootObject::ScopedProfiler: public HiseJavascriptEn
 	ResultCode perform(const Scope& s, var*) const override
 	{
 		profiler.startProfiling(s.root->hiseSpecialData.processor);
-
-		
-
-
 		PROFILE_ONLY(currentProfileRoot = dataSource);
 
 		return ResultCode::ok;
@@ -861,6 +848,38 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 
 			ScopedBlockProfiler sp2(statementData[i], s.root->hiseSpecialData.processor);
 #endif
+			
+			if (statements[i]->breakpoint)
+			{
+				const auto& bp = statements[i]->breakpoint;
+
+				auto use = bp.enabled;
+
+				if (use && bp.expression.isNotEmpty() && bp.expression != "true")
+					use = (bool)s.root->evaluate(bp.expression);
+
+				if(use)
+				{
+					s.root->stopAtNextStatement = false;
+
+					if (bp.blinkOnHit)
+					{
+						auto p = dynamic_cast<Processor*>(s.root->hiseSpecialData.processor);
+						PopupIncludeEditor::blink(p->getMainController(), bp);
+					}
+
+					if (bp.breakOnHit)
+						s.root->hiseSpecialData.processor->stopAtBreakpoint(bp);
+				}
+			}
+
+			if (s.root->stopAtNextStatement)
+			{
+				s.root->stopAtNextStatement = false;
+				auto jp = dynamic_cast<JavascriptProcessor*>(s.root->hiseSpecialData.processor);
+				auto loc = statements[i]->location.createUriLocation();
+				jp->stopAtBreakpoint(loc);
+			}
 
 			if (ResultCode r = statements.getUnchecked(i)->perform(s, returnedValue))
 				return r;
@@ -883,7 +902,6 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 
 					ObjectTypeMap::TypeScope ns(*sp, getBlockCharIndexRange(), strictness, scopeType);
 					s.scope->setProperty(namespaceId, ns.getCurrentScopeObject());
-
 					s.currentShadowParser->currentNamespace = namespaceId;
 
 					for (auto st : statements)
@@ -986,6 +1004,37 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 
 		return nullptr;
 	};
+
+	static Statement* getLastStatement(Statement* s)
+	{
+		if (s->getChildStatement(0) == nullptr)
+			return s;
+
+		int idx = 0;
+		auto r = s->getChildStatement(idx);
+		
+		while (auto c = s->getChildStatement(++idx))
+		{
+			r = c;
+		}
+
+		return getLastStatement(r);
+	}
+
+	Range<int> getBlockLineRangeFromStatements() const
+	{
+		if (statements.isEmpty())
+			return {};
+
+		auto start = statements.getFirst()->location.createUriLocation().line;
+		start = jmin(start, location.createUriLocation().line);
+
+		CodeLocation endLocation(location);
+		endLocation.location = closeLocation;
+		auto end = endLocation.createUriLocation();
+
+		return { start, end.line + 1 };
+	}
 
 	Range<int> getBlockCharIndexRange() const
 	{

@@ -47,17 +47,19 @@ struct VoiceCpuBpmComponent::InternalSleepListener : public ControlledObject,
 		getMainController()->getJavascriptThreadPool().removeSleepListener(this);
 	}
 
-	void sleepStateChanged(const Identifier& callback, int lineNumber, bool isSleeping) override
+	bool sleepStateChanged(const UriLocation& loc, bool isSleeping) override
 	{
 		if (isSleeping)
 		{
-			sleepText = callback + "(" + String(lineNumber) + ")";
+			sleepText = loc.toLocationString(UriLocation::UriFormat::LineAndCol);
 		}
 		else
 			sleepText = "";
 
 		for (int i = 0; i < parent.getNumChildComponents(); i++)
 			parent.getChildComponent(i)->setVisible(!isSleeping);
+
+		return false;
 	}
 
 	VoiceCpuBpmComponent& parent;
@@ -75,11 +77,8 @@ VoiceCpuBpmComponent::VoiceCpuBpmComponent(MainController *mc_) :
 		mainControllers.add(mc_);
 
 		preloadActive = mc_->getSampleManager().isPreloading();
-
 		getMainController()->getDebugLogger().addListener(this);
-
 	}
-
 
 	addAndMakeVisible(cpuSlider = new VuMeter());
 
@@ -362,7 +361,7 @@ void VoiceCpuBpmComponent::mouseDown(const MouseEvent& e)
 {
 	if (il->sleepText.isNotEmpty())
 	{
-		getMainController()->getJavascriptThreadPool().resume();
+		getMainController()->getJavascriptThreadPool().resume(false);
 	}
 }
 

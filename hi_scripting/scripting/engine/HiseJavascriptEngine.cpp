@@ -584,6 +584,27 @@ struct HiseJavascriptEngine::RootObject::Statement
 
 	virtual bool isConstant() const { return false; }
 
+	template <typename SubType=Statement> bool callRecursive(const std::function<bool(SubType*)>& f)
+	{
+		if (auto typed = dynamic_cast<SubType*>(this))
+		{
+			if (f(typed))
+				return true;
+		}
+
+		int i = 0;
+
+		while (auto c = getChildStatement(i))
+		{
+			if (c->callRecursive<SubType>(f))
+				return true;
+
+			i++;
+		}
+
+		return false;
+	}
+
 #if HISE_INCLUDE_PROFILING_TOOLKIT
 	mutable DebugSession::ProfileDataSource::Ptr currentProfileRoot;
 
@@ -739,6 +760,10 @@ struct HiseJavascriptEngine::RootObject::Statement
 
 	virtual bool replaceChildStatement(Ptr& newChild, Statement* oldChild) { return false; };
 
+#if ENABLE_SCRIPTING_BREAKPOINTS
+	UriBreakpoint breakpoint;
+#endif
+
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Statement)
 };
 
@@ -801,6 +826,9 @@ UriError HiseJavascriptEngine::RootObject::withCallStack(const UriLocation& l, c
 
 	return e;
 }
+
+
+
 
 var HiseJavascriptEngine::RootObject::typeof_internal(Args a)
 {
@@ -886,6 +914,8 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
 
 		root->setEnableOnInitProfiling(enableOnInitProfiling);
 
+		RootObject::ScopedWaker sw(*root);
+		root->stopAtNextStatement = false;
 		root->execute(copy, allowConstDeclarations);
 	}
 	catch (String &error)
@@ -949,6 +979,13 @@ void HiseJavascriptEngine::setCallStackEnabled(bool shouldBeEnabled)
 {
 	root->setCallStackEnabled(shouldBeEnabled);
 }
+
+void HiseJavascriptEngine::stopAtNextStatement(bool value)
+{
+	root->stopAtNextStatement = value;
+}
+
+
 
 void HiseJavascriptEngine::registerApiClass(ApiClass *apiClass)
 {

@@ -559,8 +559,33 @@ void PopupIncludeEditor::gotoChar(int character, int lineNumber/*=-1*/)
 
 void PopupIncludeEditor::breakpointsChanged(mcl::GutterComponent& g)
 {
+	auto pid = dynamic_cast<Processor*>(jp.get())->getId();
+	auto uri = externalFile != nullptr ? externalFile->getFile().getFullPathName() : callback.toString();
+
 	jp->clearPreprocessorFunctions();
 
+	jp->getScriptEngine()->clearRuntimeBreakpoints();
+
+	jp->currentBreakpoints = g.getBreakpointLocations(pid, uri);
+
+	int idx = 0;
+
+	Array<int> resolvedBreakpoints;
+
+	for (const auto& bp : jp->currentBreakpoints)
+	{
+		if (jp->getScriptEngine()->addRuntimeBreakpoint(bp))
+			resolvedBreakpoints.add(idx);
+
+		idx++;
+	}
+
+	g.setActiveBreakpoints(resolvedBreakpoints);
+
+
+
+	return;
+	
 	auto cb = callback;
 
 	WeakReference<mcl::GutterComponent> safeGutter(&g);
@@ -598,6 +623,7 @@ void PopupIncludeEditor::initKeyPresses(Component* root)
 	TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::show_search_replace, "Search & Replace", KeyPress('g', ModifierKeys::commandModifier, 'g'));
 
 	TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::breakpoint_resume, "Resume breakpoint", KeyPress(KeyPress::F10Key));
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::breakpoint_next, "Step to next statement", KeyPress(KeyPress::F11Key));
 
 	TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::goto_file, "Goto file", KeyPress('t', ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 't'));
     
@@ -608,6 +634,23 @@ void PopupIncludeEditor::initKeyPresses(Component* root)
 #if USE_BACKEND
 	TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::shadow_parse, "Shadow Parse", KeyPress(KeyPress::F7Key));
 #endif
+}
+
+void PopupIncludeEditor::blink(MainController* mc, const UriLocation& location)
+{
+	if (auto e = mc->getLastActiveEditor())
+	{
+		auto i = location.toLocationString(UriLocation::UriFormat::ConnectionId);
+		auto l = location.line;
+
+		MessageManager::callAsync([e, i, l]()
+		{
+			if (PopupIncludeEditor::matchesId(e, i))
+			{
+				CommonEditorFunctions::as(e)->sendBlinkMessage(l);
+			}
+		});
+	}
 }
 
 File PopupIncludeEditor::getFile() const
@@ -904,14 +947,24 @@ float PopupIncludeEditor::getGlobalCodeFontSize(Component* c)
 	return ft->getMainController()->getGlobalCodeFontSize();
 }
 
-void PopupIncludeEditor::sleepStateChanged(const Identifier& id, int lineNumber, bool on)
+bool PopupIncludeEditor::matchesLocation(const UriLocation& loc) const
 {
-	if (callback == id)
-	{
-		getEditor()->setCurrentBreakline(on ? lineNumber : -1);
+	if (externalFile != nullptr)
+		return loc.matchesFile(externalFile->getFile());
+	else
+		return loc.toLocationString(UriLocation::UriFormat::CallbackId) == callback.toString();
+}
 
-		bottomBar->setShowResume(on, lineNumber);
+bool PopupIncludeEditor::sleepStateChanged(const UriLocation& location, bool on)
+{
+	if (matchesLocation(location))
+	{
+		getEditor()->setCurrentBreakline(on ? location.line : -1);
+		bottomBar->setShowResume(on, location.line);
+		return true;
 	}
+
+	return false;
 }
 
 void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
@@ -1017,9 +1070,14 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 			bottomBar->resultLabel->gotoText();
 			return true;
 		}
+		if (TopLevelWindowWithKeyMappings::matches(getEditor(), k, TextEditorShortcuts::breakpoint_next))
+		{
+			dynamic_cast<Processor*>(jp.get())->getMainController()->getJavascriptThreadPool().resume(true);
+			return true;
+		}
 		if (TopLevelWindowWithKeyMappings::matches(getEditor(), k, TextEditorShortcuts::breakpoint_resume))
 		{
-			dynamic_cast<Processor*>(jp.get())->getMainController()->getJavascriptThreadPool().resume();
+			dynamic_cast<Processor*>(jp.get())->getMainController()->getJavascriptThreadPool().resume(false);
 			return true;
 		}
 		if (TopLevelWindowWithKeyMappings::matches(getEditor(), k, TextEditorShortcuts::show_full_search))
@@ -1103,11 +1161,11 @@ void EditorBottomBar::buttonClicked(Button* b)
 {
 	if (b == resumeButton)
 	{
-		getMainController()->getJavascriptThreadPool().resume();
+		getMainController()->getJavascriptThreadPool().resume(false);
 	}
 	if (b == compileButton)
 	{
-		getMainController()->getJavascriptThreadPool().resume();
+		getMainController()->getJavascriptThreadPool().resume(false);
 		recompile();
 	}
 	if (b == errorButton)

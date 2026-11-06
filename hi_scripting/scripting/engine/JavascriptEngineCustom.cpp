@@ -307,7 +307,7 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 			{
 				if (auto console = dynamic_cast<ScriptingApi::Console*>(apiClass.get()))
 				{
-					console->setDebugLocation(callbackName, lineNumber);
+					console->setDebugLocation(location.createUriLocation());
 				}
 			}
 #endif

@@ -1,3 +1,4 @@
+#include "HiseJavascriptEngine.h"
 /*  ===========================================================================
 *
 *   This file is part of HISE.
@@ -163,6 +164,64 @@ HiseJavascriptEngine::HiseJavascriptEngine(JavascriptProcessor *p, MainControlle
 	registerNativeObject(RootObject::IntegerClass::getClassName(), new RootObject::IntegerClass());
 }
 
+bool HiseJavascriptEngine::RootObject::forEachRuntimeBlockStatement(const std::function<bool(BlockStatement*)>& f)
+{
+	for (auto c : hiseSpecialData.callbackNEW)
+	{
+		if (auto bl = c->statements.get())
+		{
+			if (bl->callRecursive<BlockStatement>(f))
+				return true;
+		}
+	}
+
+	
+	
+	//for (auto ns : hiseSpecialData.namespaces)
+		//list.addArray(ns->collectAllFunctions());
+
+	for (const auto& v : breakpointFunctions)
+	{
+		if (auto ifo = dynamic_cast<InlineFunction::Object*>(v.getObject()))
+		{
+			if (ifo->body->callRecursive<BlockStatement>(f))
+				return true;
+		}
+
+		if (auto fo = dynamic_cast<FunctionObject*>(v.getObject()))
+		{
+			if (auto bl = dynamic_cast<BlockStatement*>(fo->body.get()))
+			{
+				if (bl->callRecursive<BlockStatement>(f))
+					return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+Array<var> HiseJavascriptEngine::RootObject::JavascriptNamespace::collectAllFunctions() const
+{
+	Array<var> allFunctions;
+
+	for (auto f : inlineFunctions)
+		allFunctions.add(f);
+
+	for (auto& co : constObjects)
+	{
+		if (auto cso = dynamic_cast<ApiClass*>(co.value.getObject()))
+		{
+			auto fList = cso->getListOfOptimizableFunctions();
+
+			if (fList.isArray())
+				allFunctions.addArray(*fList.getArray());
+		}
+	}
+
+	return allFunctions;
+}
+
 bool HiseJavascriptEngine::RootObject::JavascriptNamespace::optimiseFunction(OptimizationPass::OptimizationResult& r, var function, OptimizationPass* p)
 {
 	if (auto fo = dynamic_cast<InlineFunction::Object*>(function.getObject()))
@@ -186,6 +245,8 @@ bool HiseJavascriptEngine::RootObject::JavascriptNamespace::optimiseFunction(Opt
 
 	return false;
 }
+
+
 
 hise::HiseJavascriptEngine::RootObject::OptimizationPass::OptimizationResult HiseJavascriptEngine::RootObject::JavascriptNamespace::runOptimisation(OptimizationPass* p)
 {
@@ -1235,6 +1296,8 @@ juce::StringArray HiseJavascriptEngine::getInlineFunctionNames(int numArgs /*= -
 
 var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* arguments, Result* result, int numArgs)
 {
+	RootObject::ScopedWaker sw(*root);
+	
 #if JUCE_DEBUG
 	auto mc = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getMainController();
 	LockHelpers::noMessageThreadBeyondInitialisation(mc);
@@ -1292,6 +1355,8 @@ juce::String::CharPointerType HiseJavascriptEngine::RootObject::Callback::getPro
 
 var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 {
+	RootObject::ScopedWaker sw(*root);
+
 #if JUCE_DEBUG
 	auto mc = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getMainController();
 	LockHelpers::noMessageThreadBeyondInitialisation(mc);
@@ -1834,9 +1899,28 @@ void ScriptingObject::reportScriptError(const String &errorMessage) const
 }
 
 
+void HiseJavascriptEngine::clearRuntimeBreakpoints()
+{
+	root->forEachRuntimeBlockStatement([](RootObject::BlockStatement* bl)
+	{
+		bl->breakpoint = {};
 
+		for (auto s : bl->statements)
+			s->breakpoint = {};
 
+		return false;
+	});
+}
 
+bool HiseJavascriptEngine::addRuntimeBreakpoint(const UriBreakpoint& bp)
+{
+	return root->addRuntimeBreakpoint(bp);
+}
+
+void HiseJavascriptEngine::setOnInitBreakpoints(const Array<UriBreakpoint>& breakpoints)
+{
+	root->initBreakpoints = breakpoints;
+}
 
 #if USE_BACKEND
 
@@ -2017,7 +2101,7 @@ Array<UriError> HiseJavascriptEngine::shadowParse(const DiagnosticBase::ShadowPa
 				analyzer->shadowParse(sl);
 
 				functionsToShadowParse.addArray(tb.functionsToShadowParse);
-
+				
 				auto cursorPosition = sdi->getBreakPosition();
                                 
 				if (sdi->t == Item::Type::Callback)

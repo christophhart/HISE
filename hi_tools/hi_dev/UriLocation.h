@@ -47,6 +47,12 @@ TODO: - remove RealtimeSafetyInfo
 */
 struct UriLocation
 {
+	struct Owner
+	{
+		virtual ~Owner() {};
+		virtual String getUriProcessorId() const = 0;
+	};
+
 	using WithExpression = std::pair<String, UriLocation>;
 
 	enum class UriType
@@ -70,90 +76,53 @@ struct UriLocation
 
 	virtual ~UriLocation() {};
 
+	operator bool() const { return line != -1 || col != -1 || charIndex != -1 || uri.isNotEmpty(); }
+
 	virtual var toJSON() const;
 
 	bool fillLineAndCol(const juce::CodeDocument& doc);
-
-	bool hasResolvedLineAndColNumbers() const
-	{
-		return line != -1 && col != -1;
-	}
+	bool hasResolvedLineAndColNumbers() const;
 
 	File getFile(const File& rootDir) const;
-
 	UriType getUriType() const;
-
-	bool matchesFile(const File& f) const;
-
-	bool matches(const UriLocation& other) const
-	{
-		return other.charIndex == charIndex && 
-			   other.uri == uri &&
-			   other.processorId == processorId;
-	}
-
 	Range<int> getLineRange() const { return { line, line + 1 }; }
-
 	String toLocationString(UriFormat f) const;
 
-	void fillLocation(const UriLocation& other);
+	bool matchesFile(const File& f) const;
+	bool matches(const UriLocation& other) const;
 
-	operator bool() const { return line != -1 || col != -1 || charIndex != -1 || uri.isNotEmpty(); }
+	void fillLocation(const UriLocation& other);
+	void fillLocation(const CodeDocument::Position& pos);
+	void fillLocation(const var& uriObj);
 
 	int line = -1;
 	int col = -1;
 	int charIndex = -1;
 	String uri;
 	String processorId;
+
+	std::function<bool(Owner*, Component*)> gotoCallback;
+};
+
+struct UriBreakpoint: public UriLocation
+{
+	static UriBreakpoint fromJSON(const var& obj);
+
+	var toJSON() const override;
+
+	String expression = "true";
+	bool enabled      = true;
+	bool breakOnHit   = true;
+	bool blinkOnHit   = false;
 };
 
 struct UriError : public UriLocation
 {
-	String toConsoleMessage() const
-	{
-		String msg;
+	String toConsoleMessage() const;
 
-		msg << toLocationString(UriFormat::LineAndCol) << ": ";
-		msg << errorMessage << " " << toLocationString(UriFormat::Base64);
+	String toFullCallStack() const;
 
-		return msg;
-	}
-
-	String toFullCallStack() const
-	{
-		const String nl = "\n";
-		
-		auto s = toConsoleMessage();
-
-		if (!callstack.empty())
-		{
-			s << nl;
-
-			for (int i = callstack.size() - 1; i >= 0; i--)
-			{
-				auto entry = callstack[i];
-				entry.second.processorId = this->processorId;
-
-				s << ":\t\t\t" << entry.first.upToFirstOccurrenceOf("(", false, false) << "() - ";
-				s << entry.second.toLocationString(UriLocation::UriFormat::Base64) << nl;
-			}
-		}
-
-		return s;
-	}
-
-	var toJSON() const override
-	{
-		auto obj = UriLocation::toJSON();
-
-		if (auto m = metadata.getDynamicObject())
-		{
-			for (const auto& nv : m->getProperties())
-				obj.getDynamicObject()->setProperty(nv.name, nv.value);
-		}
-
-		return obj;
-	}
+	var toJSON() const override;
 
 	String errorMessage;
 	var metadata;

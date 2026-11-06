@@ -12,6 +12,19 @@
 
 #pragma once
 
+/**
+
+TODO:
+
+- add jump to location (also between files)
+- check server callback & others - maybe collect at parsing instead of relying on callback holders?
+- check double click on if statements
+- check correct clear
+- add paint routine / script property updates when sleeping?
+- show callstack somehow?
+
+*/
+
 namespace mcl
 {
 using namespace juce;
@@ -56,6 +69,12 @@ public:
 
 	void sendBlinkMessage(int n);
 
+	void setActiveBreakpoints(const Array<int> activeBreakpoints);
+
+	void setBreakpointsFromJSON(const var& breakpointData, const String& processorId, const String& uri);
+
+	var getBreakpointsAsJSON(const String& processorId, const String& uri) const;
+
 	void setBreakpointsEnabled(bool shouldBeEnabled);
 
 	void sendBreakpointChangeMessage();
@@ -76,6 +95,8 @@ public:
 	}
 
 	void addBreakpointListener(BreakpointListener* l);
+
+	Array<UriBreakpoint> getBreakpointLocations(const String& processorId, const String& uri) const;
 
 	void removeBreakpointListener(BreakpointListener* l);
 

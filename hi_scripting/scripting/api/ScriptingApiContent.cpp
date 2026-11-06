@@ -4506,10 +4506,11 @@ ScriptComponent(base, panelName, 1),
 PreloadListener(base->getMainController_()->getSampleManager()),
 graphics(new ScriptingObjects::GraphicsObject(base, this)),
 isChildPanel(true),
-loadRoutine(base, nullptr, var(), 1),
-timerRoutine(base, nullptr, var(), 0),
-mouseRoutine(base, nullptr, var(), 1),
-fileDropRoutine(base, nullptr, var(), 1),
+loadRoutine(base, this, var(), 1),
+timerRoutine(base, this, var(), 0),
+mouseRoutine(base, this, var(), 1),
+fileDropRoutine(base, this, var(), 1),
+
 mouseCursorPath(MouseCursor::NormalCursor)
 {
 	init();
@@ -4520,10 +4521,10 @@ ScriptingApi::Content::ScriptPanel::ScriptPanel(ScriptPanel* parent) :
 	PreloadListener(parent->getScriptProcessor()->getMainController_()->getSampleManager()),
 	graphics(new ScriptingObjects::GraphicsObject(parent->getScriptProcessor(), this)),
 	parentPanel(parent),
-	loadRoutine		(parent->getScriptProcessor(), nullptr, var(), 1),
-	mouseRoutine	(parent->getScriptProcessor(), nullptr, var(), 1),
-	timerRoutine	(parent->getScriptProcessor(), nullptr, var(), 0),
-	fileDropRoutine	(parent->getScriptProcessor(), nullptr, var(), 1),
+	loadRoutine		(parent->getScriptProcessor(), this, var(), 1),
+	mouseRoutine	(parent->getScriptProcessor(), this, var(), 1),
+	timerRoutine	(parent->getScriptProcessor(), this, var(), 0),
+	fileDropRoutine	(parent->getScriptProcessor(), this, var(), 1),
 	mouseCursorPath(MouseCursor::NormalCursor)
 {
 	init();
@@ -4693,6 +4694,8 @@ void ScriptingApi::Content::ScriptPanel::repaintImmediately()
 void ScriptingApi::Content::ScriptPanel::setPaintRoutine(var paintFunction)
 {
 	paintRoutine = paintFunction;
+
+	addOptimizableFunction(paintFunction);
 
 	if (HiseJavascriptEngine::isJavascriptFunction(paintFunction) && !parent->allowGuiCreation)
 	{

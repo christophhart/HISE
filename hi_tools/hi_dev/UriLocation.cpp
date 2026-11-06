@@ -1,4 +1,3 @@
-#include "UriLocation.h"
 /*  ===========================================================================
 *
 *   This file is part of HISE.
@@ -42,7 +41,17 @@ var hise::UriLocation::toJSON() const
 	no->setProperty("column", col);
 	no->setProperty("charIndex", charIndex);
 	no->setProperty("filePath", uri);
+	no->setProperty("processorId", processorId);
 	return var(no);
+}
+
+void UriLocation::fillLocation(const var& uriObj)
+{
+	line = (int)uriObj["line"];
+	col = (int)uriObj["column"];
+	charIndex = (int)uriObj["charIndex"];
+	uri = uriObj["filePath"].toString();
+	processorId = uriObj["processorId"].toString();
 }
 
 bool UriLocation::fillLineAndCol(const juce::CodeDocument& doc)
@@ -50,12 +59,16 @@ bool UriLocation::fillLineAndCol(const juce::CodeDocument& doc)
 	if (!hasResolvedLineAndColNumbers() && charIndex != -1)
 	{
 		juce::CodeDocument::Position p(doc, charIndex);
-		line = p.getLineNumber();
-		col = p.getIndexInLine();
+		fillLocation(p);
 		return true;
 	}
 
 	return false;
+}
+
+bool UriLocation::hasResolvedLineAndColNumbers() const
+{
+	return line != -1 && col != -1;
 }
 
 File UriLocation::getFile(const File& rootDir) const
@@ -88,6 +101,13 @@ bool UriLocation::matchesFile(const File& f) const
 		return false;
 
 	return f.getFullPathName() == uri || f.getFileName() == uri;
+}
+
+bool UriLocation::matches(const UriLocation& other) const
+{
+	return other.charIndex == charIndex &&
+		other.uri == uri &&
+		other.processorId == processorId;
 }
 
 String UriLocation::toLocationString(UriFormat f) const
@@ -173,6 +193,88 @@ void UriLocation::fillLocation(const UriLocation& other)
 	charIndex = other.charIndex;
 	uri = other.uri;
 	processorId = other.processorId;
+}
+
+void UriLocation::fillLocation(const CodeDocument::Position& pos)
+{
+	line = pos.getLineNumber() + 1;
+	col = pos.getIndexInLine() + 1;
+	charIndex = pos.getPosition();
+}
+
+
+
+UriBreakpoint UriBreakpoint::fromJSON(const var& obj)
+{
+	UriBreakpoint bp;
+	bp.fillLocation(obj);
+
+	bp.expression = obj["condition"].toString();
+	bp.enabled = obj["enabled"];
+	bp.breakOnHit = obj["breakOnHit"];
+	bp.blinkOnHit = obj["blinkOnHit"];
+
+	return bp;
+}
+
+var UriBreakpoint::toJSON() const
+{
+	auto obj = UriLocation::toJSON();
+
+	auto o = obj.getDynamicObject();
+
+	o->setProperty("condition", expression);
+	o->setProperty("enabled", enabled);
+	o->setProperty("breakOnHit", breakOnHit);
+	o->setProperty("blinkOnHit", blinkOnHit);
+
+	return obj;
+}
+
+String UriError::toConsoleMessage() const
+{
+	String msg;
+
+	msg << toLocationString(UriFormat::LineAndCol) << ": ";
+	msg << errorMessage << " " << toLocationString(UriFormat::Base64);
+
+	return msg;
+}
+
+String UriError::toFullCallStack() const
+{
+	const String nl = "\n";
+
+	auto s = toConsoleMessage();
+
+	if (!callstack.empty())
+	{
+		s << nl;
+
+		for (int i = callstack.size() - 1; i >= 0; i--)
+		{
+			auto entry = callstack[i];
+			entry.second.processorId = this->processorId;
+
+			s << ":\t\t\t" << entry.first.upToFirstOccurrenceOf("(", false, false) << "() - ";
+			s << entry.second.toLocationString(UriLocation::UriFormat::Base64) << nl;
+		}
+	}
+
+	return s;
+}
+
+var UriError::toJSON() const
+{
+	auto obj = UriLocation::toJSON();
+
+	if (auto m = metadata.getDynamicObject())
+	{
+		for (const auto& nv : m->getProperties())
+			obj.getDynamicObject()->setProperty(nv.name, nv.value);
+	}
+
+	return obj;
 }
 
 }
