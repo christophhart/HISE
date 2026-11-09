@@ -120,6 +120,7 @@ public:
 		HardDisks,
 		Back,
 		Forward,
+		HideEmptyFolders,
 		numFileBrowserCommands
 	};
 
@@ -307,6 +308,12 @@ private:
 				}
 			}
 
+			return isListedFile(file);
+		}
+
+		/** The file types the browser shows, without the search and the changed files filter. */
+		static bool isListedFile(const File& file)
+		{
 #if JUCE_WINDOWS
 			if (file.getFileName().startsWith(".")) return false; // skip OSX hidden files on windows
 #endif
@@ -325,49 +332,49 @@ private:
                 isScriptFile(file) || isUserPresetFile(file) || isMidiFile(file) || isCSSFile(file) || isShaderFile(file);
         }
         
-		bool isImageFile(const File& file) const
+		static bool isImageFile(const File& file)
 		{
 			return ImageFileFormat::findImageFormatForFileExtension(file) != nullptr;
 		}
 
-		bool isAudioFile(const File& file) const
+		static bool isAudioFile(const File& file)
 		{
 			return MultiChannelAudioBufferDisplay::isAudioFile(file.getFullPathName());
 		}
         
-        bool isMidiFile(const File& file) const
+        static bool isMidiFile(const File& file)
         {
             return file.hasFileExtension("mid");
         }
 
-		bool isCSSFile(const File& file) const
+		static bool isCSSFile(const File& file)
         {
 	        return file.hasFileExtension("css");
         }
 
-		bool isXmlFile(const File& file) const
+		static bool isXmlFile(const File& file)
 		{
 			return file.hasFileExtension("xml");
 		}
 
-		bool isUserPresetFile(const File& file) const
+		static bool isUserPresetFile(const File& file)
 		{
 			return file.hasFileExtension("preset");
 		}
 
         bool isDirectorySuitable(const File& directory) const override;
 
-		bool isScriptFile(const File &f) const
+		static bool isScriptFile(const File &f)
 		{
 			return f.hasFileExtension("js");
 		}
 
-		bool isShaderFile(const File& f) const
+		static bool isShaderFile(const File& f)
 		{
 			return f.hasFileExtension("glsl");
 		}
 
-		bool isCodeEditorFile(const File& f) const
+		static bool isCodeEditorFile(const File& f)
 		{
 			return isScriptFile(f) || isCSSFile(f) || isShaderFile(f);
 		}
@@ -382,7 +389,12 @@ private:
 
 		bool isChangedOnly() const;
 
+		/** True if the folder contains no files in any subfolder (hidden files like .gitkeep don't count). */
+		static bool isEmptyFolder(const File& directory);
+
 		String additionalWildcard;
+
+		std::atomic<bool> hideEmptyFolders { false };
 
 	private:
 
@@ -400,6 +412,9 @@ private:
     {
         ValueTree v("Favorites");
         
+		if (auto ff = dynamic_cast<HiseFileBrowserFilter*>(fileFilter.get()))
+			v.setProperty("HideEmptyFolders", ff->hideEmptyFolders.load(), nullptr);
+
         for(int i = 0; i < favorites.size(); i++)
         {
             v.addChild(favorites[i]->exportAsValueTree(), -1, nullptr);
@@ -420,6 +435,9 @@ private:
         
         ValueTree v = ValueTree::fromXml(*xml);
         
+		// applied to the filter in the constructor, the filter doesn't exist yet
+		savedHideEmptyFolders = v.getProperty("HideEmptyFolders", false);
+
         for(int i = 0; i < v.getNumChildren(); i++)
         {
             favorites.add(new Favorite("", File()));
@@ -498,6 +516,8 @@ private:
 	int numRevealAttempts = 0;
 
 	int64 lastFileSetHash = 0;
+
+	bool savedHideEmptyFolders = false;
 
 	File lastChangedRoot;
 	std::map<String, int64> lastChangedFiles;

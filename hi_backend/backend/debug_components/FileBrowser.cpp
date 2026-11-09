@@ -36,9 +36,7 @@ void FileBrowserToolbarFactory::getAllToolbarItemIds(Array<int> &ids)
 {
 	ids.clear();
 
-    ids.add(FileBrowser::ShowFavoritePopup);
-	ids.add(FileBrowser::Back);
-	ids.add(FileBrowser::Forward);
+	ids.add(FileBrowser::HideEmptyFolders);
 }
 
 ToolbarItemComponent * FileBrowserToolbarFactory::createItem(int itemId)
@@ -167,6 +165,25 @@ std::unique_ptr<Drawable> FileBrowserToolbarFactory::FileBrowserToolbarPaths::cr
 		path.loadPathFromData(pathData, sizeof(pathData));
 		break;
 	}
+	case FileBrowser::HideEmptyFolders:
+	{
+		// a folder: outlined when empty folders are shown, filled when they are hidden
+		Path folder;
+		folder.startNewSubPath(0.0f, 2.0f);
+		folder.lineTo(7.0f, 2.0f);
+		folder.lineTo(9.0f, 4.0f);
+		folder.lineTo(20.0f, 4.0f);
+		folder.lineTo(20.0f, 16.0f);
+		folder.lineTo(0.0f, 16.0f);
+		folder.closeSubPath();
+
+		if (isOn)
+			path = folder;
+		else
+			PathStrokeType(1.5f, PathStrokeType::curved).createStrokedPath(path, folder);
+
+		break;
+	}
 	default: jassertfalse;
 	}
 
@@ -193,7 +210,9 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
     if(!rootWindow_->getBackendProcessor()->isFlakyThreadingAllowed())
 		ThreadStarters::startLow(&directorySearcher);
 
-	fileFilter = new HiseFileBrowserFilter();
+	auto hiseFilter = new HiseFileBrowserFilter();
+	hiseFilter->hideEmptyFolders = savedHideEmptyFolders;
+	fileFilter = hiseFilter;
 
 	browserCommandManager = new ApplicationCommandManager(); // dynamic_cast<MainController*>(editor->getAudioProcessor())->getCommandManager();
 
@@ -314,7 +333,8 @@ void FileBrowser::getAllCommands(Array<CommandID>& commands)
 		RemoveFavorite,
 		HardDisks,
 		Back,
-		Forward
+		Forward,
+		HideEmptyFolders
 	};
 
 	commands.addArray(id, numElementsInArray(id));
@@ -351,6 +371,10 @@ void FileBrowser::getCommandInfo(CommandID commandID, ApplicationCommandInfo &re
 	case Forward:
 		result.setInfo("Browse Forward", "Browse forward", "View", 0);
 		result.setActive(browseUndoManager->canRedo());
+		break;
+	case HideEmptyFolders:
+		result.setInfo("Hide empty folders", "Hide folders that contain no files", "View", 0);
+		result.setTicked(dynamic_cast<HiseFileBrowserFilter*>(fileFilter.get())->hideEmptyFolders);
 		break;
 	default:
 		jassertfalse;
@@ -389,6 +413,15 @@ bool FileBrowser::perform(const InvocationInfo &info)
 	case Forward:
 		browseUndoManager->redo();
 		return true;
+	case HideEmptyFolders:
+	{
+		auto ff = dynamic_cast<HiseFileBrowserFilter*>(fileFilter.get());
+		ff->hideEmptyFolders = !ff->hideEmptyFolders;
+		saveFavoriteFile();
+		browserCommandManager->commandStatusChanged();
+		refresh();
+		return true;
+	}
 	}
 
 	return false;
@@ -831,7 +864,7 @@ void FileBrowser::resized()
 
 	browserToolbar->setBounds(topBar.reduced(2));
 
-	topBar.removeFromLeft(3 * 20 + 4);
+	topBar.removeFromLeft(20 + 4);
 
 	searchIcon = topBar.removeFromLeft(topBar.getHeight()).reduced(4).toFloat();
 
@@ -1741,6 +1774,9 @@ bool FileBrowser::HiseFileBrowserFilter::isDirectorySuitable(const File& directo
 	if (isHiddenByChangedFilter(directory, true))
 		return false;
 
+	if (hideEmptyFolders && isEmptyFolder(directory))
+		return false;
+
 	if (additionalWildcard.isNotEmpty())
 	{
 		auto cf = directory.findChildFiles(File::findFiles, true);
@@ -1775,6 +1811,33 @@ void FileBrowser::HiseFileBrowserFilter::setChangedFiles(const std::map<String, 
 		for (auto p = File(c.first).getParentDirectory(); p != p.getParentDirectory(); p = p.getParentDirectory())
 			changedFolders[GitChangeTracker::getKey(p)] = true;
 	}
+}
+
+bool FileBrowser::HiseFileBrowserFilter::isEmptyFolder(const File& directory)
+{
+	for (const auto& entry : RangedDirectoryIterator(directory, false, "*", File::findFilesAndDirectories))
+	{
+		auto f = entry.getFile();
+		auto name = f.getFileName();
+
+		// only files the browser lists count, e.g. a folder with only .dll or .txt files is empty
+		if (!entry.isDirectory())
+		{
+			if (isListedFile(f))
+				return false;
+
+			continue;
+		}
+
+		if (name.startsWith(".") || name == "Binaries" || name == "PooledResources")
+			continue;
+
+		// stops at the first listed file, so this only walks the whole tree of folders that are empty
+		if (!isEmptyFolder(f))
+			return false;
+	}
+
+	return true;
 }
 
 bool FileBrowser::HiseFileBrowserFilter::isChangedOnly() const
