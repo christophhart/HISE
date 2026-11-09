@@ -75,7 +75,10 @@ class FileBrowser : public Component,
 					public ApplicationCommandTarget,
 					public TextEditor::Listener,
 					public ProjectHandler::Listener,
-					public ExpansionHandler::Listener
+					public ExpansionHandler::Listener,
+					public FileBrowserListener,
+					public ChangeListener,
+					public Timer
 {
 public:
 
@@ -117,6 +120,7 @@ public:
 		HardDisks,
 		Back,
 		Forward,
+		HideEmptyFolders,
 		numFileBrowserCommands
 	};
 
@@ -159,6 +163,9 @@ public:
 
 	void textEditorTextChanged(TextEditor& editor) override;
 
+	/** Rescans the current directory (eg. after the Asset Manager wrote files) and keeps the open folders. */
+	void refresh();
+
 	~FileBrowser();
 
 	bool keyPressed(const KeyPress& key) override;;
@@ -167,9 +174,51 @@ public:
 
 	void mouseDown(const MouseEvent& event) override;
 
-	void mouseDoubleClick(const MouseEvent& event) override;
+	void selectionChanged() override {}
+
+	void fileClicked(const File& file, const MouseEvent& e) override;
+
+	void fileDoubleClicked(const File& file) override;
+
+	void browserRootChanged(const File&) override {}
+
+	void timerCallback() override;
+
+	void changeListenerCallback(ChangeBroadcaster*) override;
+
+	/** Opens a script, stylesheet or shader in a code editor tab. Files that are not included by any
+		script processor are opened as detached file. */
+	void openInCodeEditor(const File& f);
 
 private:
+
+	FloatingTabComponent* getScriptEditorTabs();
+
+	JavascriptProcessor* findProcessorThatIncludes(const File& f);
+
+	JavascriptProcessor* findProcessorForCallbackFile(const File& f);
+
+	File getActiveEditorFile();
+
+	void revealActiveEditorFile();
+
+	/** Opens one folder level per call. Returns true once the item exists. */
+	bool revealFileInTree(const File& f, bool select = true);
+
+	void showContextMenu();
+
+	void setShowChangedOnly(bool shouldShowChangedOnly);
+
+	/** Returns nullptr if the tree has an item without a name (getOpennessState() asserts on that). */
+	std::unique_ptr<XmlElement> getSafeOpennessState();
+
+	/** The open folders are stored per project root in the app data folder. */
+	void saveOpennessState();
+
+	void restoreSavedOpennessState();
+
+	/** 1.0 right after the file changed on disk, fading to 0.0. */
+	float getHighlightAlpha(const File& f) const;
 
 	class UndoableBrowseAction : public UndoableAction
 	{
@@ -236,6 +285,9 @@ private:
         
         bool isFileSuitable(const File &file) const override
         {
+			if (isHiddenByChangedFilter(file, false))
+				return false;
+
 			if (additionalWildcard.isNotEmpty())
 			{
 				if (file.isDirectory())
@@ -256,6 +308,12 @@ private:
 				}
 			}
 
+			return isListedFile(file);
+		}
+
+		/** The file types the browser shows, without the search and the changed files filter. */
+		static bool isListedFile(const File& file)
+		{
 #if JUCE_WINDOWS
 			if (file.getFileName().startsWith(".")) return false; // skip OSX hidden files on windows
 #endif
@@ -271,44 +329,54 @@ private:
 				file.getFileName() == "LinkOSX" ||
 #endif
 				isAudioFile(file) || isImageFile(file) || isXmlFile(file) ||
-                isScriptFile(file) || isUserPresetFile(file) || isMidiFile(file) || isCSSFile(file);
+                isScriptFile(file) || isUserPresetFile(file) || isMidiFile(file) || isCSSFile(file) || isShaderFile(file);
         }
         
-		bool isImageFile(const File& file) const
+		static bool isImageFile(const File& file)
 		{
 			return ImageFileFormat::findImageFormatForFileExtension(file) != nullptr;
 		}
 
-		bool isAudioFile(const File& file) const
+		static bool isAudioFile(const File& file)
 		{
 			return MultiChannelAudioBufferDisplay::isAudioFile(file.getFullPathName());
 		}
         
-        bool isMidiFile(const File& file) const
+        static bool isMidiFile(const File& file)
         {
             return file.hasFileExtension("mid");
         }
 
-		bool isCSSFile(const File& file) const
+		static bool isCSSFile(const File& file)
         {
 	        return file.hasFileExtension("css");
         }
 
-		bool isXmlFile(const File& file) const
+		static bool isXmlFile(const File& file)
 		{
 			return file.hasFileExtension("xml");
 		}
 
-		bool isUserPresetFile(const File& file) const
+		static bool isUserPresetFile(const File& file)
 		{
 			return file.hasFileExtension("preset");
 		}
 
         bool isDirectorySuitable(const File& directory) const override;
 
-		bool isScriptFile(const File &f) const
+		static bool isScriptFile(const File &f)
 		{
 			return f.hasFileExtension("js");
+		}
+
+		static bool isShaderFile(const File& f)
+		{
+			return f.hasFileExtension("glsl");
+		}
+
+		static bool isCodeEditorFile(const File& f)
+		{
+			return isScriptFile(f) || isCSSFile(f) || isShaderFile(f);
 		}
 
 		void setWildcard(const String& wc)
@@ -316,7 +384,27 @@ private:
 			additionalWildcard = wc;
 		}
 
+		/** Shows only the given files and their parent folders. nullptr shows everything. */
+		void setChangedFiles(const std::map<String, int64>* files);
+
+		bool isChangedOnly() const;
+
+		/** True if the folder contains no files in any subfolder (hidden files like .gitkeep don't count). */
+		static bool isEmptyFolder(const File& directory);
+
 		String additionalWildcard;
+
+		std::atomic<bool> hideEmptyFolders { false };
+
+	private:
+
+		// called from the directory scanner thread
+		bool isHiddenByChangedFilter(const File& f, bool isFolder) const;
+
+		CriticalSection changedLock;
+		bool changedOnly = false;
+		std::map<String, bool> changedFiles;
+		std::map<String, bool> changedFolders;
     };
     
     
@@ -324,6 +412,9 @@ private:
     {
         ValueTree v("Favorites");
         
+		if (auto ff = dynamic_cast<HiseFileBrowserFilter*>(fileFilter.get()))
+			v.setProperty("HideEmptyFolders", ff->hideEmptyFolders.load(), nullptr);
+
         for(int i = 0; i < favorites.size(); i++)
         {
             v.addChild(favorites[i]->exportAsValueTree(), -1, nullptr);
@@ -344,6 +435,9 @@ private:
         
         ValueTree v = ValueTree::fromXml(*xml);
         
+		// applied to the filter in the constructor, the filter doesn't exist yet
+		savedHideEmptyFolders = v.getProperty("HideEmptyFolders", false);
+
         for(int i = 0; i < v.getNumChildren(); i++)
         {
             favorites.add(new Favorite("", File()));
@@ -352,7 +446,18 @@ private:
         }
     }
 
-    FileBrowserLookAndFeel laf;
+	/** Colours the rows with the git state and highlights files that just changed. */
+	struct GitAwareLookAndFeel : public FileBrowserLookAndFeel
+	{
+		void drawFileBrowserRow(Graphics& g, int width, int height, const File& file, const String& filename, Image* icon,
+								const String& fileSizeDescription, const String& fileTimeDescription, bool isDirectory,
+								bool isItemSelected, int itemIndex, DirectoryContentsDisplayComponent& dcc) override;
+
+		Component::SafePointer<BackendRootWindow> rootWindow;
+		FileBrowser* browser = nullptr;
+	};
+
+    GitAwareLookAndFeel laf;
     PopupLookAndFeel plaf;
     
     TimeSliceThread directorySearcher;
@@ -401,6 +506,26 @@ private:
 
 
 	std::unique_ptr<XmlElement> prevState;
+
+	int numOpennessRestoreTicks = 0;
+
+	File lastActiveEditorFile;
+
+	File pendingRevealFile;
+
+	int numRevealAttempts = 0;
+
+	int64 lastFileSetHash = 0;
+
+	bool savedHideEmptyFolders = false;
+
+	File lastChangedRoot;
+	std::map<String, int64> lastChangedFiles;
+	std::map<String, uint32> highlightStart;
+	Array<File> pendingExpandFiles;
+	int numExpandAttempts = 0;
+
+	Component::SafePointer<FloatingTabComponent> scriptEditorTabs;
 
     JUCE_DECLARE_WEAK_REFERENCEABLE(FileBrowser);
 };

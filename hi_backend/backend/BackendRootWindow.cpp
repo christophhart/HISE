@@ -210,6 +210,7 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 	if (!owner->isSnippetBrowser())
 	{
 		owner->getRestServer().addListener(this);
+		gitChangeTracker = std::make_unique<GitChangeTracker>(this);
 		Desktop::getInstance().setDefaultLookAndFeel(&globalLookAndFeel);
 	}
 
@@ -407,6 +408,10 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 		setEditor(this);
 	}
 
+	// The layout is usually restored from JSON, so the callbacks of createCodeEditorPanel() must be added here
+	if (auto codeTabs = FloatingTileHelpers::findTileWithId<FloatingTabComponent>(floatingRoot, Identifier("ScriptEditorTabs")))
+		FloatingPanelTemplates::addCodeEditorTabMenu(codeTabs);
+
 	var windowList = editorState.getProperty("FloatingWindows", var());
 
 	if (windowList.isArray())
@@ -543,6 +548,8 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 
 BackendRootWindow::~BackendRootWindow()
 {
+	gitChangeTracker = nullptr;
+
 	if(owner->currentRootWindow == this)
 		owner->currentRootWindow = nullptr;
 
