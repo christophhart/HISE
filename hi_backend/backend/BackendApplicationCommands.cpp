@@ -2133,6 +2133,9 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow* bpe, const 
 
 		scriptDirectory.revealToUser();
 	}
+
+	if (auto tracker = bpe->getGitChangeTracker())
+		tracker->requestStatusUpdate();
 }
 
 void BackendCommandTarget::Actions::openFileFromXml(BackendRootWindow * bpe, const File &fileToLoad)

@@ -194,6 +194,9 @@ public:
 	BackendProcessor* getBackendProcessor() { return owner; }
 	const BackendProcessor* getBackendProcessor() const { return owner; }
 
+	/** Returns the git state tracker of the project folder. This is nullptr for snippet browser windows. */
+	GitChangeTracker* getGitChangeTracker() { return gitChangeTracker.get(); }
+
 	BackendRootWindow* getBackendRootWindow() override { return this; }
 
 	const BackendRootWindow* getBackendRootWindow() const override { return this; }
@@ -387,6 +390,8 @@ private:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(BackendRootWindow);
 
 	ScopedPointer<SuspendedOverlay> suspendedOverlay;
+
+	std::unique_ptr<GitChangeTracker> gitChangeTracker;
 };
 
 struct BackendPanelHelpers
