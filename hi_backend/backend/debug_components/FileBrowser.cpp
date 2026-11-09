@@ -241,6 +241,7 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
     fileTreeComponent->setColour(FileTreeComponent::textColourId, Colours::white);
 
 	fileTreeComponent->addMouseListener(this, true);
+	fileTreeComponent->addListener(this);
 
     auto vp = fileTreeComponent->getViewport();
     
@@ -252,14 +253,19 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
 #else
 
 	resetToRoot();
+	restoreSavedOpennessState();
 #endif
 
 	browseUndoManager->clearUndoHistory();
+
+	startTimer(250);
 }
 
 void FileBrowser::projectChanged(const File& newRootDirectory)
 {
+	saveOpennessState();
 	goToDirectory(newRootDirectory, false);
+	restoreSavedOpennessState();
 
 	browseUndoManager->clearUndoHistory();
 }
@@ -783,7 +789,11 @@ FileBrowser::~FileBrowser()
 	rootWindow->getMainController()->getExpansionHandler().removeListener(this);
 
     saveFavoriteFile();
-    
+	saveOpennessState();
+
+	stopTimer();
+	fileTreeComponent->removeListener(this);
+
     fileTreeComponent = nullptr;
     fileFilter = nullptr;
     
@@ -828,54 +838,51 @@ void FileBrowser::mouseDown(const MouseEvent& e)
 
 		fileTreeComponent->setDragAndDropDescription(sa.joinIntoString(";"));
 	}
-    else
-    {
-        PopupMenu m;
-        
-        m.setLookAndFeel(&plaf);
-        
-#if JUCE_WINDOWS
-		m.addItem(1, "Show in Explorer"); // Wow, cross platform overload...
-#else
-        m.addItem(1, "Show in Finder");
-#endif
-        m.addItem(2, "Copy as reference");
-        
-        const int result = m.show();
-        
-        if(result == 1)
-        {
-            if(fileTreeComponent->getNumSelectedFiles() > 0)
-            {
-                fileTreeComponent->getSelectedFile(0).revealToUser();
-            }
-        }
-        else if (result == 2)
-        {
-            
-        }
-        
-    }
-	
+	else
+	{
+		showContextMenu();
+	}
 }
 
-void FileBrowser::mouseDoubleClick(const MouseEvent& )
+void FileBrowser::fileClicked(const File& file, const MouseEvent& e)
 {
-	File newRoot = fileTreeComponent->getSelectedFile();
+	if (!e.mods.isLeftButtonDown() || e.mods.isShiftDown() || e.mods.isCommandDown() || e.getNumberOfClicks() > 1)
+		return;
 
-    auto *rw = GET_BACKEND_ROOT_WINDOW(this);
-    
-	if (newRoot.isDirectory())
+	if (file.isDirectory())
 	{
-		goToDirectory(newRoot);
+		for (int i = 0; i < fileTreeComponent->getNumSelectedItems(); i++)
+		{
+			if (fileTreeComponent->getSelectedFile(i) == file)
+			{
+				auto item = fileTreeComponent->getSelectedItem(i);
+				item->setOpen(!item->isOpen());
+				break;
+			}
+		}
 	}
-	else if (newRoot.getFileName() == "LinkWindows" || newRoot.getFileName() == "LinkOSX")
+	else if (dynamic_cast<HiseFileBrowserFilter*>(fileFilter.get())->isCodeEditorFile(file))
 	{
-		auto target = newRoot.loadFileAsString();
+		openInCodeEditor(file);
+	}
+}
+
+void FileBrowser::fileDoubleClicked(const File& file)
+{
+	auto ff = dynamic_cast<HiseFileBrowserFilter*>(fileFilter.get());
+	auto fileName = file.getFileName();
+
+	// folders and code files are handled with a single click
+	if (file.isDirectory() || ff->isCodeEditorFile(file))
+		return;
+
+	if (fileName == "LinkWindows" || fileName == "LinkOSX" || fileName == "LinkLinux")
+	{
+		auto target = file.loadFileAsString();
 
 		if (target.contains("{GLOBAL_SAMPLE_FOLDER}"))
 		{
-			auto path = dynamic_cast<GlobalSettingManager*>(rw->getMainController())->getSettingsObject().getSetting(HiseSettings::Other::GlobalSamplePath).toString();
+			auto path = dynamic_cast<GlobalSettingManager*>(rootWindow->getMainController())->getSettingsObject().getSetting(HiseSettings::Other::GlobalSamplePath).toString();
 
 			File gsd(path);
 
@@ -884,72 +891,551 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
 
 		goToDirectory(File(target));
 	}
-	else if (newRoot.getFileExtension() == ".hip")
+	else if (file.hasFileExtension("hip"))
 	{
-		rw->getMainPanel()->loadNewContainer(newRoot);
+		rootWindow->getMainPanel()->loadNewContainer(file);
 	}
-    else if (newRoot.getFileExtension() == ".xml")
-    {
-        previewFile(newRoot);
-    }
-	else if (newRoot.getFileExtension() == ".css")
-    {
-        previewFile(newRoot);
-    }
-    else if (newRoot.getFileExtension() == ".js")
-    {
-        if(auto jsp = dynamic_cast<JavascriptProcessor*>(currentWorkspaceProcessor.get()))
-        {
-            for (int i = 0; i < jsp->getNumWatchedFiles(); i++)
-            {
-				auto idx = jsp->getNumSnippets() + i;
+	else if (ff->isXmlFile(file) || ff->isUserPresetFile(file) || ff->isAudioFile(file) || ff->isMidiFile(file))
+	{
+		previewFile(file);
+	}
+	else if (ff->isImageFile(file) || file.hasFileExtension("ttf"))
+	{
+		const String reference = GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).getFileReference(file.getFullPathName(), ProjectHandler::SubDirectories::Images);
 
-                if (jsp->getWatchedFile(i) == newRoot)
-                {
-					auto root = findParentComponentOfClass<FloatingTile>()->getRootFloatingTile();
-					
-					if (auto mws = FloatingTileHelpers::findTileWithId<FloatingTabComponent>(root, Identifier("ScriptEditorTabs")))
-					{
-						CodeEditorPanel::showOrCreateTab(mws, jsp, idx);
-					}
-					else
-					{
-						PresetHandler::showMessageWindow("Can't open file", "Tab floating tile not found. Reset the workspace", PresetHandler::IconType::Error);
-					}
+		rootWindow->getMainSynthChain()->getMainController()->insertStringAtLastActiveEditor("\"" + reference + "\"", false);
+	}
+}
 
+FloatingTabComponent* FileBrowser::getScriptEditorTabs()
+{
+	if (scriptEditorTabs == nullptr)
+		scriptEditorTabs = FloatingTileHelpers::findTileWithId<FloatingTabComponent>(rootWindow->getRootFloatingTile(), Identifier("ScriptEditorTabs"));
 
-					return;
-                }
-            }
+	return scriptEditorTabs.getComponent();
+}
 
-			if (PresetHandler::showYesNoWindow("Not included", "The file is not included in the current script processor. Do you want to create a include line and copy it to the clipboard?"))
+JavascriptProcessor* FileBrowser::findProcessorThatIncludes(const File& f)
+{
+	auto includes = [&f](JavascriptProcessor* jp)
+	{
+		for (int i = 0; i < jp->getNumWatchedFiles(); i++)
+		{
+			if (jp->getWatchedFile(i) == f)
+				return true;
+		}
+
+		return false;
+	};
+
+	if (auto wp = dynamic_cast<JavascriptProcessor*>(currentWorkspaceProcessor.get()))
+	{
+		if (includes(wp))
+			return wp;
+	}
+
+	Processor::Iterator<JavascriptProcessor> iter(rootWindow->getMainSynthChain(), false);
+
+	while (auto jp = iter.getNextProcessor())
+	{
+		if (includes(jp))
+			return jp;
+	}
+
+	return nullptr;
+}
+
+JavascriptProcessor* FileBrowser::findProcessorForCallbackFile(const File& f)
+{
+	auto chain = rootWindow->getMainSynthChain();
+
+	Processor::Iterator<JavascriptProcessor> iter(chain, false);
+
+	JavascriptProcessor* idMatch = nullptr;
+
+	auto backupRoot = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::Scripts).getChildFile("ScriptProcessors");
+
+	while (auto jp = iter.getNextProcessor())
+	{
+		if (GitChangeTracker::getCallbackFile(chain, jp) == f)
+			return jp;
+
+		// same as the private XmlBackupFunctions::getSanitiziedName()
+		auto id = dynamic_cast<Processor*>(jp)->getId().removeCharacters(" .()");
+
+		if (idMatch == nullptr && !jp->isConnectedToExternalFile() && f.isAChildOf(backupRoot) && f.getFileNameWithoutExtension() == id)
+			idMatch = jp;
+	}
+
+	// A folder of another root ID is a leftover of an older XML save: still open the callbacks, but tell the user
+	if (idMatch != nullptr)
+	{
+		auto currentFolder = XmlBackupFunctions::getScriptDirectoryFor(chain).getFileName();
+
+		debugToConsole(chain, f.getParentDirectory().getFileName() + "/" + f.getFileName() + " is not the script file of the current root container (" +
+			currentFolder + "). Showing the callbacks of " + dynamic_cast<Processor*>(idMatch)->getId());
+	}
+
+	return idMatch;
+}
+
+void FileBrowser::openInCodeEditor(const File& f)
+{
+	auto tabs = getScriptEditorTabs();
+
+	if (tabs == nullptr)
+	{
+		PresetHandler::showMessageWindow("Can't open file", "Tab floating tile not found. Reset the workspace", PresetHandler::IconType::Error);
+		return;
+	}
+
+	// PopupIncludeEditor only creates the external file object for scripts and stylesheets
+	if (dynamic_cast<HiseFileBrowserFilter*>(fileFilter.get())->isShaderFile(f) &&
+		rootWindow->getBackendProcessor()->getExternalScriptFile(f, false) == nullptr)
+	{
+		PresetHandler::showMessageWindow("Shader not loaded", "Load the shader with a ScriptShader before editing it here", PresetHandler::IconType::Info);
+		return;
+	}
+
+	// The callback file of a processor (eg. Scripts/ScriptProcessors/MyProject/Interface.js) always
+	// opens the onInit tab of that processor, never a detached file
+	if (auto jp = findProcessorForCallbackFile(f))
+	{
+		auto p = dynamic_cast<Processor*>(jp);
+
+		auto getEditorPanel = [tabs](int tabIndex) -> CodeEditorPanel*
+		{
+			if (auto ft = dynamic_cast<FloatingTile*>(tabs->getTabContentComponent(tabIndex)))
+				return dynamic_cast<CodeEditorPanel*>(ft->getCurrentFloatingPanel());
+
+			return nullptr;
+		};
+
+		// remove detached tabs of this file (eg. restored from an older workspace)
+		for (int i = tabs->getNumTabs() - 1; i >= 0; i--)
+		{
+			if (auto cep = getEditorPanel(i))
 			{
-				String s;
+				auto pe = cep->getContent<PopupIncludeEditor>();
 
-				auto scriptRoot = GET_PROJECT_HANDLER(currentWorkspaceProcessor.get()).getSubDirectory(FileHandlerBase::Scripts);
+				if (pe != nullptr && pe->getFile() == f)
+					tabs->removeFloatingTile(tabs->getComponent(i));
+			}
+		}
 
-				auto path = newRoot.getRelativePathFrom(scriptRoot).replaceCharacter('\\', '/');
+		// switch to the existing onInit tab
+		for (int i = 0; i < tabs->getNumTabs(); i++)
+		{
+			if (auto cep = getEditorPanel(i))
+			{
+				auto sameProcessor = cep->getConnectedProcessor() == p || cep->getProcessor() == p;
 
-				s << "include(\"" << path << "\");\n";
+				if (sameProcessor && cep->getCurrentIndex() == 0)
+				{
+					tabs->setCurrentTabIndex(i);
+					return;
+				}
+			}
+		}
 
-				SystemClipboard::copyTextToClipboard(s);
+		CodeEditorPanel::showOrCreateTab(tabs, jp, 0);
+		return;
+	}
 
-				String message;
-				message << "> `" << s << "`  \nwas copied to the clipboard. Paste it and recompile the script to include that file.";
+	auto owner = findProcessorThatIncludes(f);
 
-				PresetHandler::showMessageWindow("Copied included statement", message);
+	if (owner == nullptr)
+		owner = dynamic_cast<JavascriptProcessor*>(currentWorkspaceProcessor.get());
+
+	if (owner == nullptr)
+	{
+		Processor::Iterator<JavascriptProcessor> iter(rootWindow->getMainSynthChain(), false);
+
+		while (auto jp = iter.getNextProcessor())
+		{
+			if (!jp->isConnectedToExternalFile())
+			{
+				owner = jp;
+				break;
+			}
+		}
+	}
+
+	if (owner == nullptr)
+	{
+		PresetHandler::showMessageWindow("Can't open file", "Add a script processor to edit script files", PresetHandler::IconType::Error);
+		return;
+	}
+
+	CodeEditorPanel::showOrCreateTab(tabs, owner, f);
+}
+
+File FileBrowser::getActiveEditorFile()
+{
+	if (auto tabs = getScriptEditorTabs())
+	{
+		if (auto tc = dynamic_cast<FloatingTile*>(tabs->getCurrentContentComponent()))
+		{
+			if (auto cep = dynamic_cast<CodeEditorPanel*>(tc->getCurrentFloatingPanel()))
+			{
+				if (auto pe = cep->getContent<PopupIncludeEditor>())
+				{
+					if (pe->getFile() != File())
+						return pe->getFile();
+
+					if (auto jp = dynamic_cast<JavascriptProcessor*>(cep->getConnectedProcessor()))
+					{
+						// onInit usually only includes the real script (e.g. Interface.js), so reveal that one
+						if (pe->callback == Identifier("onInit") && jp->getNumWatchedFiles() > 0)
+							return jp->getWatchedFile(0);
+
+						// other callback tabs reveal the callback file of their processor
+						return GitChangeTracker::getCallbackFile(rootWindow->getMainSynthChain(), jp);
+					}
+				}
+			}
+		}
+	}
+
+	return {};
+}
+
+void FileBrowser::revealActiveEditorFile()
+{
+	if (!isShowing())
+		return;
+
+	auto f = getActiveEditorFile();
+
+	if (f != lastActiveEditorFile)
+	{
+		lastActiveEditorFile = f;
+		pendingRevealFile = f;
+		numRevealAttempts = 0;
+	}
+
+	if (pendingRevealFile == File())
+		return;
+
+	if (textEditor->getText().isNotEmpty() || !pendingRevealFile.isAChildOf(directoryList->getDirectory()))
+	{
+		pendingRevealFile = File();
+		return;
+	}
+
+	// FileTreeComponent::setSelectedFile() blocks the message thread until the subfolders are scanned,
+	// so this opens one folder level per tick and retries until the item exists
+	if (fileTreeComponent->getSelectedFile(0) == pendingRevealFile || revealFileInTree(pendingRevealFile) || ++numRevealAttempts > 20)
+		pendingRevealFile = File();
+}
+
+bool FileBrowser::revealFileInTree(const File& f)
+{
+	auto item = fileTreeComponent->getRootItem();
+
+	while (item != nullptr)
+	{
+		TreeViewItem* next = nullptr;
+
+		for (int i = 0; i < item->getNumSubItems(); i++)
+		{
+			auto sub = item->getSubItem(i);
+
+			// FileTreeComponent items use the full path as unique name
+			File subFile(sub->getUniqueName());
+
+			if (subFile == f)
+			{
+				sub->setSelected(true, true);
+				fileTreeComponent->scrollToKeepItemVisible(sub);
+				return true;
 			}
 
+			if (f.isAChildOf(subFile))
+			{
+				next = sub;
+				break;
+			}
+		}
+
+		if (next == nullptr)
+			return false;
+
+		if (!next->isOpen())
+		{
+			next->setOpen(true);
+			return false;
+		}
+
+		item = next;
+	}
+
+	return false;
+}
+
+void FileBrowser::refresh()
+{
+	// keep the previous state if this one can't be saved, the next refresh will catch up
+	if (auto state = getSafeOpennessState())
+		prevState = std::move(state);
+
+	directoryList->refresh();
+
+	// Subfolders are rescanned asynchronously, so each restore can only reopen the levels that are loaded
+	numOpennessRestoreTicks = 8;
+}
+
+std::unique_ptr<XmlElement> FileBrowser::getSafeOpennessState()
+{
+	// FileListTreeItem can get an empty file while its folder is rescanned, which getOpennessState() asserts on
+	std::function<bool(TreeViewItem*)> hasUnnamedItem = [&](TreeViewItem* item)
+	{
+		if (item->getUniqueName().isEmpty())
+			return true;
+
+		if (item->isOpen())
+		{
+			for (int i = 0; i < item->getNumSubItems(); i++)
+			{
+				if (hasUnnamedItem(item->getSubItem(i)))
+					return true;
+			}
+		}
+
+		return false;
+	};
+
+	auto root = fileTreeComponent->getRootItem();
+
+	if (root == nullptr || hasUnnamedItem(root))
+		return nullptr;
+
+	return fileTreeComponent->getOpennessState(true);
+}
+
+static File getOpennessStateFile()
+{
+	return NativeFileHandler::getAppDataDirectory(nullptr).getChildFile("ProjectDirectoryState.xml");
+}
+
+void FileBrowser::saveOpennessState()
+{
+	auto root = directoryList->getDirectory();
+
+	// while a restore is still running the tree isn't fully open yet, so the pending state is the right one
+	std::unique_ptr<XmlElement> state;
+
+	if (numOpennessRestoreTicks > 0 && prevState != nullptr)
+		state = std::make_unique<XmlElement>(*prevState);
+	else
+		state = getSafeOpennessState();
+
+	if (root == File() || state == nullptr)
+		return;
+
+	auto file = getOpennessStateFile();
+	auto xml = XmlDocument::parse(file);
+
+	if (xml == nullptr)
+		xml = std::make_unique<XmlElement>("ProjectDirectoryStates");
+
+	if (auto existing = xml->getChildByAttribute("root", root.getFullPathName()))
+		xml->removeChildElement(existing, true);
+
+	auto e = xml->createNewChildElement("State");
+	e->setAttribute("root", root.getFullPathName());
+	e->addChildElement(state.release());
+	xml->writeTo(file);
+}
+
+void FileBrowser::restoreSavedOpennessState()
+{
+	auto xml = XmlDocument::parse(getOpennessStateFile());
+
+	if (xml == nullptr)
+		return;
+
+	if (auto e = xml->getChildByAttribute("root", directoryList->getDirectory().getFullPathName()))
+	{
+		if (auto s = e->getFirstChildElement())
+		{
+			prevState = std::make_unique<XmlElement>(*s);
+			numOpennessRestoreTicks = 8;
+		}
+	}
+}
+
+void FileBrowser::timerCallback()
+{
+	if (numOpennessRestoreTicks > 0)
+	{
+		if (prevState != nullptr)
+			fileTreeComponent->restoreOpennessState(*prevState, true);
+
+		if (--numOpennessRestoreTicks == 0)
+			prevState = nullptr;
+
+		return;
+	}
+
+	revealActiveEditorFile();
+}
+
+void FileBrowser::showContextMenu()
+{
+	enum MenuItems
+	{
+		OpenInEditor = 1,
+		Reveal,
+		CopyRelativePath,
+		CopyInclude,
+		CopyReference,
+		NewFile,
+		NewFolder,
+		Rename,
+		MoveToTrash,
+		Refresh
+	};
+
+	auto ff = dynamic_cast<HiseFileBrowserFilter*>(fileFilter.get());
+	auto& handler = GET_PROJECT_HANDLER(rootWindow->getMainSynthChain());
+	auto root = directoryList->getDirectory();
+	auto f = fileTreeComponent->getNumSelectedFiles() > 0 ? fileTreeComponent->getSelectedFile(0) : File();
+	auto hasFile = f.exists() && f != root;
+	auto targetDirectory = f.isDirectory() ? f : (hasFile ? f.getParentDirectory() : root);
+
+	auto referenceDirectory = FileHandlerBase::numSubDirectories;
+
+	if (f.existsAsFile())
+	{
+		if (ff->isImageFile(f) || f.hasFileExtension("ttf"))
+			referenceDirectory = FileHandlerBase::Images;
+		else if (ff->isAudioFile(f))
+			referenceDirectory = FileHandlerBase::AudioFiles;
+		else if (ff->isMidiFile(f))
+			referenceDirectory = FileHandlerBase::MidiFiles;
+	}
+
+	PopupMenu m;
+	m.setLookAndFeel(&plaf);
+
+	if (ff->isCodeEditorFile(f))
+	{
+		m.addItem(OpenInEditor, "Open in Code Editor");
+		m.addSeparator();
+	}
+
+#if JUCE_WINDOWS
+	m.addItem(Reveal, "Show in Explorer", hasFile);
+#else
+	m.addItem(Reveal, "Show in Finder", hasFile);
+#endif
+	m.addItem(CopyRelativePath, "Copy relative path", hasFile);
+
+	if (ff->isScriptFile(f))
+		m.addItem(CopyInclude, "Copy include() statement");
+
+	if (referenceDirectory != FileHandlerBase::numSubDirectories)
+		m.addItem(CopyReference, "Copy as reference");
+
+	m.addSeparator();
+	m.addItem(NewFile, "New File...");
+	m.addItem(NewFolder, "New Folder...");
+	m.addItem(Rename, "Rename...", hasFile);
+	m.addItem(MoveToTrash, "Move to Trash", hasFile);
+	m.addSeparator();
+	m.addItem(Refresh, "Refresh");
+
+	auto result = m.show();
+
+	if (result == OpenInEditor)
+	{
+		openInCodeEditor(f);
+	}
+	else if (result == Reveal)
+	{
+		f.revealToUser();
+	}
+	else if (result == CopyRelativePath)
+	{
+		SystemClipboard::copyTextToClipboard(f.getRelativePathFrom(handler.getWorkDirectory()).replaceCharacter('\\', '/'));
+	}
+	else if (result == CopyInclude)
+	{
+		auto path = f.getRelativePathFrom(handler.getSubDirectory(FileHandlerBase::Scripts)).replaceCharacter('\\', '/');
+		SystemClipboard::copyTextToClipboard("include(\"" + path + "\");");
+	}
+	else if (result == CopyReference)
+	{
+		SystemClipboard::copyTextToClipboard("\"" + handler.getFileReference(f.getFullPathName(), referenceDirectory) + "\"");
+	}
+	else if (result == NewFile || result == NewFolder)
+	{
+		auto isFolder = result == NewFolder;
+		auto name = PresetHandler::getCustomName(isFolder ? "NewFolder" : "NewScript.js", isFolder ? "Enter the folder name" : "Enter the file name including the extension");
+
+		if (name.isEmpty())
 			return;
-        }
-        
-    }
-    else if ((ImageFileFormat::findImageFormatForFileExtension(newRoot) != nullptr) || (newRoot.getFileExtension() == ".ttf"))
-    {
-        const String reference = GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).getFileReference(newRoot.getFullPathName(), ProjectHandler::SubDirectories::Images);
-        
-        rootWindow->getMainSynthChain()->getMainController()->insertStringAtLastActiveEditor("\"" + reference + "\"", false);
-    }
+
+		auto newFile = targetDirectory.getChildFile(name);
+
+		if (newFile.exists())
+		{
+			PresetHandler::showMessageWindow("Can't create file", "`" + name + "` already exists", PresetHandler::IconType::Error);
+			return;
+		}
+
+		auto ok = isFolder ? newFile.createDirectory() : newFile.create();
+
+		if (ok.failed())
+		{
+			PresetHandler::showMessageWindow("Can't create file", ok.getErrorMessage(), PresetHandler::IconType::Error);
+			return;
+		}
+
+		refresh();
+
+		if (!isFolder && ff->isCodeEditorFile(newFile))
+			openInCodeEditor(newFile);
+	}
+	else if (result == Rename)
+	{
+		if (findProcessorThatIncludes(f) != nullptr &&
+			!PresetHandler::showYesNoWindow("File is included", "A script includes this file. Renaming it will break the include() statement. Continue?"))
+			return;
+
+		auto name = PresetHandler::getCustomName(f.getFileName(), "Enter the new name");
+
+		if (name.isEmpty() || name == f.getFileName())
+			return;
+
+		auto target = f.getSiblingFile(name);
+
+		if (target.exists())
+		{
+			PresetHandler::showMessageWindow("Can't rename file", "`" + name + "` already exists", PresetHandler::IconType::Error);
+			return;
+		}
+
+		if (!f.moveFileTo(target))
+			PresetHandler::showMessageWindow("Can't rename file", "The file could not be renamed", PresetHandler::IconType::Error);
+
+		refresh();
+	}
+	else if (result == MoveToTrash)
+	{
+		if (!PresetHandler::showYesNoWindow("Move to Trash", "Do you want to move `" + f.getFileName() + "` to the trash?"))
+			return;
+
+		if (!f.moveToTrash())
+			PresetHandler::showMessageWindow("Can't delete file", "The file could not be moved to the trash", PresetHandler::IconType::Error);
+
+		refresh();
+	}
+	else if (result == Refresh)
+	{
+		refresh();
+	}
 }
 
 void FileBrowser::textEditorTextChanged(TextEditor& editor)
@@ -982,20 +1468,28 @@ bool FileBrowser::keyPressed(const KeyPress& key)
 		}
 		return true;
 	}
-	else if (key.isKeyCode(KeyPress::rightKey) && fileTreeComponent->getSelectedFile(0).isDirectory())
+	else if ((key.isKeyCode(KeyPress::rightKey) || key.isKeyCode(KeyPress::leftKey)) && fileTreeComponent->getSelectedFile(0).isDirectory())
 	{
 		if (fileTreeComponent->getNumSelectedItems() == 1)
 		{
-			fileTreeComponent->getSelectedItem(0)->setOpen(true);
+			fileTreeComponent->getSelectedItem(0)->setOpen(key.isKeyCode(KeyPress::rightKey));
 		}
 		return true;
 	}
-	else if (key.isKeyCode(KeyPress::returnKey) && fileTreeComponent->getSelectedFile(0).isDirectory())
+	else if (key.isKeyCode(KeyPress::returnKey) && fileTreeComponent->getNumSelectedItems() == 1)
 	{
-		if (fileTreeComponent->getNumSelectedItems() == 1)
+		auto f = fileTreeComponent->getSelectedFile(0);
+
+		if (f.isDirectory())
 		{
-			goToDirectory(fileTreeComponent->getSelectedFile(), true);
+			auto item = fileTreeComponent->getSelectedItem(0);
+			item->setOpen(!item->isOpen());
 		}
+		else if (dynamic_cast<HiseFileBrowserFilter*>(fileFilter.get())->isCodeEditorFile(f))
+			openInCodeEditor(f);
+		else
+			fileDoubleClicked(f);
+
 		return true;
 	}
 	else if (key.isKeyCode(65) && key.getModifiers().isCommandDown())

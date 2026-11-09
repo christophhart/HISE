@@ -75,7 +75,9 @@ class FileBrowser : public Component,
 					public ApplicationCommandTarget,
 					public TextEditor::Listener,
 					public ProjectHandler::Listener,
-					public ExpansionHandler::Listener
+					public ExpansionHandler::Listener,
+					public FileBrowserListener,
+					public Timer
 {
 public:
 
@@ -159,6 +161,9 @@ public:
 
 	void textEditorTextChanged(TextEditor& editor) override;
 
+	/** Rescans the current directory (eg. after the Asset Manager wrote files) and keeps the open folders. */
+	void refresh();
+
 	~FileBrowser();
 
 	bool keyPressed(const KeyPress& key) override;;
@@ -167,9 +172,44 @@ public:
 
 	void mouseDown(const MouseEvent& event) override;
 
-	void mouseDoubleClick(const MouseEvent& event) override;
+	void selectionChanged() override {}
+
+	void fileClicked(const File& file, const MouseEvent& e) override;
+
+	void fileDoubleClicked(const File& file) override;
+
+	void browserRootChanged(const File&) override {}
+
+	void timerCallback() override;
+
+	/** Opens a script, stylesheet or shader in a code editor tab. Files that are not included by any
+		script processor are opened as detached file. */
+	void openInCodeEditor(const File& f);
 
 private:
+
+	FloatingTabComponent* getScriptEditorTabs();
+
+	JavascriptProcessor* findProcessorThatIncludes(const File& f);
+
+	JavascriptProcessor* findProcessorForCallbackFile(const File& f);
+
+	File getActiveEditorFile();
+
+	void revealActiveEditorFile();
+
+	/** Opens one folder level per call. Returns true once the item exists. */
+	bool revealFileInTree(const File& f);
+
+	void showContextMenu();
+
+	/** Returns nullptr if the tree has an item without a name (getOpennessState() asserts on that). */
+	std::unique_ptr<XmlElement> getSafeOpennessState();
+
+	/** The open folders are stored per project root in the app data folder. */
+	void saveOpennessState();
+
+	void restoreSavedOpennessState();
 
 	class UndoableBrowseAction : public UndoableAction
 	{
@@ -271,7 +311,7 @@ private:
 				file.getFileName() == "LinkOSX" ||
 #endif
 				isAudioFile(file) || isImageFile(file) || isXmlFile(file) ||
-                isScriptFile(file) || isUserPresetFile(file) || isMidiFile(file) || isCSSFile(file);
+                isScriptFile(file) || isUserPresetFile(file) || isMidiFile(file) || isCSSFile(file) || isShaderFile(file);
         }
         
 		bool isImageFile(const File& file) const
@@ -309,6 +349,16 @@ private:
 		bool isScriptFile(const File &f) const
 		{
 			return f.hasFileExtension("js");
+		}
+
+		bool isShaderFile(const File& f) const
+		{
+			return f.hasFileExtension("glsl");
+		}
+
+		bool isCodeEditorFile(const File& f) const
+		{
+			return isScriptFile(f) || isCSSFile(f) || isShaderFile(f);
 		}
 
 		void setWildcard(const String& wc)
@@ -401,6 +451,16 @@ private:
 
 
 	std::unique_ptr<XmlElement> prevState;
+
+	int numOpennessRestoreTicks = 0;
+
+	File lastActiveEditorFile;
+
+	File pendingRevealFile;
+
+	int numRevealAttempts = 0;
+
+	Component::SafePointer<FloatingTabComponent> scriptEditorTabs;
 
     JUCE_DECLARE_WEAK_REFERENCEABLE(FileBrowser);
 };
