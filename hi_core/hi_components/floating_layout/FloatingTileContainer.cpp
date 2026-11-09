@@ -251,7 +251,10 @@ void FloatingTabComponent::CloseButton::buttonClicked(Button* )
 
 	auto cToRemove = tab->getComponent(button->getIndex());
 
-	if (cToRemove->isEmpty() || PresetHandler::showYesNoWindow("Delete tab", "Do you want to delete the tab " + cToRemove->getCurrentFloatingPanel()->getTitle()))
+	// Only ask for tabs that contain a nested layout, single panels (eg. code editors) are recreated easily
+	auto isLayout = dynamic_cast<FloatingTileContainer*>(cToRemove->getCurrentFloatingPanel()) != nullptr;
+
+	if (cToRemove->isEmpty() || !isLayout || PresetHandler::showYesNoWindow("Delete tab", "Do you want to delete the tab " + cToRemove->getCurrentFloatingPanel()->getTitle()))
 		tab->removeFloatingTile(cToRemove);
 }
 
@@ -403,18 +406,11 @@ void FloatingTabComponent::popupMenuClickOnTab(int tabIndex, const String& /*tab
 	}
 	else if (result == 4)
 	{
-		while (getNumTabs() > 0)
-		{
-			removeFloatingTile(getComponent(0));
-		}
+		closeAllTabs();
 	}
 	else if (result == 7)
 	{
-		moveTab(tabIndex, 0, false);
-		moveContent(tabIndex, 0);
-
-		while (getNumTabs() > 1)
-			removeFloatingTile(getComponent(1));
+		closeOtherTabs(tabIndex);
 	}
 	else if (result == 5)
 	{
@@ -665,6 +661,50 @@ void FloatingTabComponent::resized()
 		addButton->setBounds(b->getRight() + intend + 4, 2, 16, 16);
 	else
 		addButton->setBounds(intend + 2, 2, 16, 16);
+
+	if (menuButton != nullptr)
+	{
+		auto& bar = getTabbedButtonBar();
+		bar.setSize(jmax(0, getWidth() - bar.getX() - 24), bar.getHeight());
+		menuButton->setBounds(getWidth() - 20, 2, 16, 16);
+	}
+}
+
+void FloatingTabComponent::setMenuButtonCallback(const std::function<void()>& f)
+{
+	if (menuButton == nullptr)
+	{
+		addAndMakeVisible(menuButton = new ShapeButton("More", Colours::white.withAlpha(0.7f), Colours::white, Colours::white));
+
+		Path p;
+
+		for (int i = 0; i < 3; i++)
+			p.addEllipse((float)i * 4.0f, 0.0f, 2.0f, 2.0f);
+
+		menuButton->setWantsKeyboardFocus(false);
+		menuButton->setShape(p, false, true, false);
+		menuButton->setBorderSize(BorderSize<int>(2));
+		menuButton->setTooltip("More actions");
+
+		resized();
+	}
+
+	menuButton->onClick = f;
+}
+
+void FloatingTabComponent::closeAllTabs()
+{
+	while (getNumTabs() > 0)
+		removeFloatingTile(getComponent(0));
+}
+
+void FloatingTabComponent::closeOtherTabs(int tabIndexToKeep)
+{
+	moveTab(tabIndexToKeep, 0, false);
+	moveContent(tabIndexToKeep, 0);
+
+	while (getNumTabs() > 1)
+		removeFloatingTile(getComponent(1));
 }
 
 void FloatingTabComponent::addButtonClicked()

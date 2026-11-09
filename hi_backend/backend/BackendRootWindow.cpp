@@ -407,6 +407,10 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 		setEditor(this);
 	}
 
+	// The layout is usually restored from JSON, so the callbacks of createCodeEditorPanel() must be added here
+	if (auto codeTabs = FloatingTileHelpers::findTileWithId<FloatingTabComponent>(floatingRoot, Identifier("ScriptEditorTabs")))
+		FloatingPanelTemplates::addCodeEditorTabMenu(codeTabs);
+
 	var windowList = editorState.getProperty("FloatingWindows", var());
 
 	if (windowList.isArray())
