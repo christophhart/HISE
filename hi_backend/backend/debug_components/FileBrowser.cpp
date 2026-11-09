@@ -233,7 +233,12 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
 
 	fileTreeComponent->setMultiSelectEnabled(true);
 
+	laf.rootWindow = rootWindow;
+	laf.browser = this;
 	fileTreeComponent->setLookAndFeel(&laf);
+
+	if (auto tracker = rootWindow->getGitChangeTracker())
+		tracker->addChangeListener(this);
 
 	fileTreeComponent->setColour(FileTreeComponent::backgroundColourId, Colours::transparentBlack);
 	fileTreeComponent->setColour(FileTreeComponent::linesColourId, Colours::white);
@@ -414,7 +419,17 @@ void FileBrowser::paint(Graphics &g)
 	g.setColour(Colours::white.withAlpha(0.5f));
 	g.setFont(GLOBAL_BOLD_FONT());
 
-	g.drawText(directoryList->getDirectory().getFullPathName(), pathArea, Justification::centredLeft);
+	auto pathText = directoryList->getDirectory().getFullPathName();
+
+	if (auto tracker = rootWindow->getGitChangeTracker())
+	{
+		if (tracker->isRepository())
+			pathText << "  -  changes since " << tracker->getBaseDescription();
+		else
+			pathText << "  -  no git repository";
+	}
+
+	g.drawText(pathText, pathArea, Justification::centredLeft);
 
 	
 
@@ -794,6 +809,12 @@ FileBrowser::~FileBrowser()
 	stopTimer();
 	fileTreeComponent->removeListener(this);
 
+	if (rootWindow != nullptr)
+	{
+		if (auto tracker = rootWindow->getGitChangeTracker())
+			tracker->removeChangeListener(this);
+	}
+
     fileTreeComponent = nullptr;
     fileFilter = nullptr;
     
@@ -1129,7 +1150,7 @@ void FileBrowser::revealActiveEditorFile()
 		pendingRevealFile = File();
 }
 
-bool FileBrowser::revealFileInTree(const File& f)
+bool FileBrowser::revealFileInTree(const File& f, bool select)
 {
 	auto item = fileTreeComponent->getRootItem();
 
@@ -1146,8 +1167,12 @@ bool FileBrowser::revealFileInTree(const File& f)
 
 			if (subFile == f)
 			{
-				sub->setSelected(true, true);
-				fileTreeComponent->scrollToKeepItemVisible(sub);
+				if (select)
+				{
+					sub->setSelected(true, true);
+					fileTreeComponent->scrollToKeepItemVisible(sub);
+				}
+
 				return true;
 			}
 
@@ -1173,8 +1198,127 @@ bool FileBrowser::revealFileInTree(const File& f)
 	return false;
 }
 
+void FileBrowser::changeListenerCallback(ChangeBroadcaster*)
+{
+	if (auto tracker = rootWindow->getGitChangeTracker())
+	{
+		auto root = directoryList->getDirectory();
+		auto changed = tracker->getChangedFiles();
+
+		// the first snapshot of a project only sets the baseline, so opening a project doesn't flash every changed file
+		if (root == lastChangedRoot)
+		{
+			auto now = Time::getMillisecondCounter();
+
+			for (const auto& c : changed)
+			{
+				auto prev = lastChangedFiles.find(c.first);
+
+				if (prev != lastChangedFiles.end() && prev->second == c.second)
+					continue;
+
+				File f(c.first);
+
+				if (!f.isAChildOf(root))
+					continue;
+
+				highlightStart[c.first] = now;
+				pendingExpandFiles.addIfNotAlreadyThere(f);
+				numExpandAttempts = 0;
+			}
+		}
+
+		auto ff = dynamic_cast<HiseFileBrowserFilter*>(fileFilter.get());
+
+		auto keysChanged = changed.size() != lastChangedFiles.size() ||
+			!std::equal(changed.begin(), changed.end(), lastChangedFiles.begin(),
+						[](const auto& a, const auto& b) { return a.first == b.first; });
+
+		// a new or deleted file only shows up after the directory list is rescanned
+		auto hash = tracker->getFileSetHash();
+		auto needsRescan = hash != lastFileSetHash;
+
+		if (ff->isChangedOnly() && keysChanged)
+		{
+			ff->setChangedFiles(&changed);
+			needsRescan = true;
+		}
+
+		lastFileSetHash = hash;
+		lastChangedRoot = root;
+		lastChangedFiles = std::move(changed);
+
+		if (needsRescan)
+			refresh();
+	}
+
+	fileTreeComponent->repaint();
+	repaint();
+}
+
+void FileBrowser::GitAwareLookAndFeel::drawFileBrowserRow(Graphics& g, int width, int height, const File& file,
+	const String& filename, Image* icon, const String&, const String&, bool isDirectory, bool isItemSelected, int,
+	DirectoryContentsDisplayComponent& dcc)
+{
+	using Status = GitChangeTracker::Status;
+
+	auto tracker = rootWindow != nullptr ? rootWindow->getGitChangeTracker() : nullptr;
+	auto status = tracker != nullptr ? tracker->getStatus(file) : Status::Clean;
+
+	if (isItemSelected)
+	{
+		g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.1f), 0.0f, 0.0f,
+										 Colours::black.withAlpha(0.05f), 0.0f, (float)height, false));
+		g.fillRoundedRectangle(0.0f, 0.0f, (float)width - 1.0f, (float)height - 1.0f, 2.0f);
+	}
+
+	if (auto alpha = browser != nullptr ? browser->getHighlightAlpha(file) : 0.0f)
+	{
+		auto c = status != Status::Clean ? GitChangeTracker::getColour(status) : Colour(SIGNAL_COLOUR);
+		g.setColour(c.withAlpha(0.25f * alpha));
+		g.fillRoundedRectangle(0.0f, 0.0f, (float)width - 1.0f, (float)height - 1.0f, 2.0f);
+	}
+
+	const int x = 32;
+
+	if (icon != nullptr && icon->isValid())
+	{
+		g.drawImageWithin(*icon, 2, 2, x - 4, height - 4,
+						  RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize, false);
+	}
+	else if (auto d = isDirectory ? getDefaultFolderImage() : getDefaultDocumentFileImage())
+	{
+		d->drawWithin(g, Rectangle<float>(2.0f, 2.0f, x - 4.0f, height - 4.0f),
+					  RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize, 1.0f);
+	}
+
+	auto textColour = dynamic_cast<Component*>(&dcc)->findColour(DirectoryContentsDisplayComponent::textColourId);
+
+	if (status != Status::Clean)
+		textColour = GitChangeTracker::getColour(status);
+
+	Rectangle<int> b(x, 0, jmax(0, width - x - 4), height);
+
+	g.setColour(textColour);
+	g.setFont(GLOBAL_BOLD_FONT());
+
+	auto letter = GitChangeTracker::getLetter(status);
+
+	if (!isDirectory && letter.isNotEmpty())
+		g.drawText(letter, b.removeFromRight(14), Justification::centred);
+	else if (isDirectory && (int)status > (int)Status::Ignored)
+		g.fillEllipse(b.removeFromRight(14).toFloat().withSizeKeepingCentre(5.0f, 5.0f));
+
+	g.setColour(textColour);
+	g.setFont(!isDirectory ? GLOBAL_BOLD_FONT() : GLOBAL_FONT());
+	g.drawFittedText(filename, b, Justification::centredLeft, 1);
+}
+
 void FileBrowser::refresh()
 {
+	if (auto tracker = rootWindow->getGitChangeTracker())
+		tracker->requestStatusUpdate();
+
 	// keep the previous state if this one can't be saved, the next refresh will catch up
 	if (auto state = getSafeOpennessState())
 		prevState = std::move(state);
@@ -1265,8 +1409,33 @@ void FileBrowser::restoreSavedOpennessState()
 	}
 }
 
+float FileBrowser::getHighlightAlpha(const File& f) const
+{
+	auto it = highlightStart.find(GitChangeTracker::getKey(f));
+
+	if (it == highlightStart.end())
+		return 0.0f;
+
+	const float fadeTimeMs = 3000.0f;
+	auto elapsed = (float)(Time::getMillisecondCounter() - it->second);
+	return jmax(0.0f, 1.0f - elapsed / fadeTimeMs);
+}
+
 void FileBrowser::timerCallback()
 {
+	if (!highlightStart.empty())
+	{
+		for (auto it = highlightStart.begin(); it != highlightStart.end();)
+		{
+			if (getHighlightAlpha(File(it->first)) <= 0.0f)
+				it = highlightStart.erase(it);
+			else
+				++it;
+		}
+
+		fileTreeComponent->repaint();
+	}
+
 	if (numOpennessRestoreTicks > 0)
 	{
 		if (prevState != nullptr)
@@ -1276,6 +1445,18 @@ void FileBrowser::timerCallback()
 			prevState = nullptr;
 
 		return;
+	}
+
+	if (!pendingExpandFiles.isEmpty())
+	{
+		if (textEditor->getText().isNotEmpty() || ++numExpandAttempts > 20)
+			pendingExpandFiles.clear();
+
+		for (int i = pendingExpandFiles.size() - 1; i >= 0; i--)
+		{
+			if (revealFileInTree(pendingExpandFiles[i], false))
+				pendingExpandFiles.remove(i);
+		}
 	}
 
 	revealActiveEditorFile();
@@ -1294,7 +1475,8 @@ void FileBrowser::showContextMenu()
 		NewFolder,
 		Rename,
 		MoveToTrash,
-		Refresh
+		Refresh,
+		ShowChangedOnly
 	};
 
 	auto ff = dynamic_cast<HiseFileBrowserFilter*>(fileFilter.get());
@@ -1346,9 +1528,24 @@ void FileBrowser::showContextMenu()
 	m.addSeparator();
 	m.addItem(Refresh, "Refresh");
 
+	// the git items use IDs above all items of this menu
+	const int gitMenuOffset = 1000;
+	auto tracker = rootWindow->getGitChangeTracker();
+
+	if (tracker != nullptr && tracker->isRepository())
+	{
+		m.addSeparator();
+		m.addItem(ShowChangedOnly, "Show only changed files", true, ff->isChangedOnly());
+		tracker->addBaseMenuItems(m, gitMenuOffset);
+	}
+
 	auto result = m.show();
 
-	if (result == OpenInEditor)
+	if (tracker != nullptr && tracker->performBaseMenuItem(result, gitMenuOffset))
+	{
+		repaint();
+	}
+	else if (result == OpenInEditor)
 	{
 		openInCodeEditor(f);
 	}
@@ -1436,6 +1633,29 @@ void FileBrowser::showContextMenu()
 	{
 		refresh();
 	}
+	else if (result == ShowChangedOnly)
+	{
+		setShowChangedOnly(!ff->isChangedOnly());
+	}
+}
+
+void FileBrowser::setShowChangedOnly(bool shouldShowChangedOnly)
+{
+	auto ff = dynamic_cast<HiseFileBrowserFilter*>(fileFilter.get());
+	auto tracker = rootWindow->getGitChangeTracker();
+
+	if (shouldShowChangedOnly && tracker != nullptr)
+	{
+		auto changed = tracker->getChangedFiles();
+		ff->setChangedFiles(&changed);
+	}
+	else
+	{
+		ff->setChangedFiles(nullptr);
+	}
+
+	fileTreeComponent->setDefaultOpenness(ff->isChangedOnly() || textEditor->getText().isNotEmpty());
+	directoryList->refresh();
 }
 
 void FileBrowser::textEditorTextChanged(TextEditor& editor)
@@ -1444,7 +1664,7 @@ void FileBrowser::textEditorTextChanged(TextEditor& editor)
 	{
 		if (auto filter = dynamic_cast<HiseFileBrowserFilter*>(fileFilter.get()))
 		{
-			fileTreeComponent->setDefaultOpenness(!editor.getText().isEmpty());
+			fileTreeComponent->setDefaultOpenness(!editor.getText().isEmpty() || filter->isChangedOnly());
 
 			filter->setWildcard(editor.getText());
 			directoryList->refresh();
@@ -1518,6 +1738,9 @@ bool FileBrowser::HiseFileBrowserFilter::isDirectorySuitable(const File& directo
 	if (directory.getFileName() == "PooledResources")
 		return false;
 
+	if (isHiddenByChangedFilter(directory, true))
+		return false;
+
 	if (additionalWildcard.isNotEmpty())
 	{
 		auto cf = directory.findChildFiles(File::findFiles, true);
@@ -1532,6 +1755,43 @@ bool FileBrowser::HiseFileBrowserFilter::isDirectorySuitable(const File& directo
 	}
 
 	return true;
+}
+
+void FileBrowser::HiseFileBrowserFilter::setChangedFiles(const std::map<String, int64>* files)
+{
+	ScopedLock sl(changedLock);
+
+	changedOnly = files != nullptr;
+	changedFiles.clear();
+	changedFolders.clear();
+
+	if (files == nullptr)
+		return;
+
+	for (const auto& c : *files)
+	{
+		changedFiles[c.first] = true;
+
+		for (auto p = File(c.first).getParentDirectory(); p != p.getParentDirectory(); p = p.getParentDirectory())
+			changedFolders[GitChangeTracker::getKey(p)] = true;
+	}
+}
+
+bool FileBrowser::HiseFileBrowserFilter::isChangedOnly() const
+{
+	ScopedLock sl(changedLock);
+	return changedOnly;
+}
+
+bool FileBrowser::HiseFileBrowserFilter::isHiddenByChangedFilter(const File& f, bool isFolder) const
+{
+	ScopedLock sl(changedLock);
+
+	if (!changedOnly)
+		return false;
+
+	auto key = GitChangeTracker::getKey(f);
+	return isFolder ? changedFolders.count(key) == 0 : changedFiles.count(key) == 0;
 }
 
 

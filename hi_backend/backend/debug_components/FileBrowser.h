@@ -77,6 +77,7 @@ class FileBrowser : public Component,
 					public ProjectHandler::Listener,
 					public ExpansionHandler::Listener,
 					public FileBrowserListener,
+					public ChangeListener,
 					public Timer
 {
 public:
@@ -182,6 +183,8 @@ public:
 
 	void timerCallback() override;
 
+	void changeListenerCallback(ChangeBroadcaster*) override;
+
 	/** Opens a script, stylesheet or shader in a code editor tab. Files that are not included by any
 		script processor are opened as detached file. */
 	void openInCodeEditor(const File& f);
@@ -199,9 +202,11 @@ private:
 	void revealActiveEditorFile();
 
 	/** Opens one folder level per call. Returns true once the item exists. */
-	bool revealFileInTree(const File& f);
+	bool revealFileInTree(const File& f, bool select = true);
 
 	void showContextMenu();
+
+	void setShowChangedOnly(bool shouldShowChangedOnly);
 
 	/** Returns nullptr if the tree has an item without a name (getOpennessState() asserts on that). */
 	std::unique_ptr<XmlElement> getSafeOpennessState();
@@ -210,6 +215,9 @@ private:
 	void saveOpennessState();
 
 	void restoreSavedOpennessState();
+
+	/** 1.0 right after the file changed on disk, fading to 0.0. */
+	float getHighlightAlpha(const File& f) const;
 
 	class UndoableBrowseAction : public UndoableAction
 	{
@@ -276,6 +284,9 @@ private:
         
         bool isFileSuitable(const File &file) const override
         {
+			if (isHiddenByChangedFilter(file, false))
+				return false;
+
 			if (additionalWildcard.isNotEmpty())
 			{
 				if (file.isDirectory())
@@ -366,7 +377,22 @@ private:
 			additionalWildcard = wc;
 		}
 
+		/** Shows only the given files and their parent folders. nullptr shows everything. */
+		void setChangedFiles(const std::map<String, int64>* files);
+
+		bool isChangedOnly() const;
+
 		String additionalWildcard;
+
+	private:
+
+		// called from the directory scanner thread
+		bool isHiddenByChangedFilter(const File& f, bool isFolder) const;
+
+		CriticalSection changedLock;
+		bool changedOnly = false;
+		std::map<String, bool> changedFiles;
+		std::map<String, bool> changedFolders;
     };
     
     
@@ -402,7 +428,18 @@ private:
         }
     }
 
-    FileBrowserLookAndFeel laf;
+	/** Colours the rows with the git state and highlights files that just changed. */
+	struct GitAwareLookAndFeel : public FileBrowserLookAndFeel
+	{
+		void drawFileBrowserRow(Graphics& g, int width, int height, const File& file, const String& filename, Image* icon,
+								const String& fileSizeDescription, const String& fileTimeDescription, bool isDirectory,
+								bool isItemSelected, int itemIndex, DirectoryContentsDisplayComponent& dcc) override;
+
+		Component::SafePointer<BackendRootWindow> rootWindow;
+		FileBrowser* browser = nullptr;
+	};
+
+    GitAwareLookAndFeel laf;
     PopupLookAndFeel plaf;
     
     TimeSliceThread directorySearcher;
@@ -459,6 +496,14 @@ private:
 	File pendingRevealFile;
 
 	int numRevealAttempts = 0;
+
+	int64 lastFileSetHash = 0;
+
+	File lastChangedRoot;
+	std::map<String, int64> lastChangedFiles;
+	std::map<String, uint32> highlightStart;
+	Array<File> pendingExpandFiles;
+	int numExpandAttempts = 0;
 
 	Component::SafePointer<FloatingTabComponent> scriptEditorTabs;
 
