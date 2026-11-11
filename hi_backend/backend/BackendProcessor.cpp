@@ -1069,14 +1069,43 @@ void BackendProcessor::handleLatencyCheck(AudioSampleBuffer& buffer)
 		{
 			killCounter = 0;
 			latencyCheckState = LatencyCheckState::WaitingForProcessBlock;
+
+			// A noise burst survives filters and pitch shifters where a single impulse does not.
+			burstSamplesRemaining = roundToInt(getMainSynthChain()->getSampleRate() * 0.02);
+			burstNoise.setSeed(0x4C415445); // fixed seed so runs are repeatable
+			burstStarted = false;
 		}
 	}
 
 	if(latencyCheckState == LatencyCheckState::WaitingForProcessBlock)
-	{
 		reportedLatency = 0.0;
-		buffer.setSample(0, 0, 1.0f);
-		buffer.setSample(0, 1, 1.0f);
+
+	if(latencyCheckState == LatencyCheckState::WaitingForProcessBlock ||
+	   latencyCheckState == LatencyCheckState::WaitingForImpulse)
+	{
+		// Mute the live input so it cannot trigger a false onset.
+		buffer.clear();
+
+		if(burstSamplesRemaining > 0)
+		{
+			int numThisTime = jmin(burstSamplesRemaining, buffer.getNumSamples());
+
+			for(int i = 0; i < numThisTime; i++)
+			{
+				auto value = burstNoise.nextFloat() * 2.0f - 1.0f;
+
+				// Full-scale first sample so a zero-latency chain reports exactly 0.
+				if(!burstStarted)
+				{
+					value = 1.0f;
+					burstStarted = true;
+				}
+
+				buffer.setSample(0, i, value);
+			}
+
+			burstSamplesRemaining -= numThisTime;
+		}
 	}
 }
 
@@ -1090,22 +1119,21 @@ void BackendProcessor::handlePostLatencyCheck(AudioSampleBuffer& buffer)
 
 	if(latencyCheckState == LatencyCheckState::WaitingForImpulse)
 	{
-		if(buffer.getMagnitude(0, 0, buffer.getNumSamples()) > 0.01f)
+		// Latency is the onset of the burst, not its peak.
+		int onsetIndex = -1;
+
+		for(int i = 0; i < buffer.getNumSamples(); i++)
 		{
-			float maxPeak = 0.0f;
-			float indexOfPeak = 0.0f;
-
-			for(int i = 0; i < buffer.getNumSamples(); i++)
+			if(std::abs(buffer.getSample(0, i)) > 0.01f)
 			{
-				auto value = buffer.getSample(0, i);
-				if(value > maxPeak)
-				{
-					maxPeak = value;
-					indexOfPeak = i;
-				}
+				onsetIndex = i;
+				break;
 			}
+		}
 
-			reportedLatency += (double)indexOfPeak;
+		if(onsetIndex != -1)
+		{
+			reportedLatency += (double)onsetIndex;
 
 			latencyCheckState = LatencyCheckState::Done;
 
@@ -1119,6 +1147,18 @@ void BackendProcessor::handlePostLatencyCheck(AudioSampleBuffer& buffer)
 		else
 		{
 			reportedLatency += buffer.getNumSamples();
+
+			if(reportedLatency > 2.0 * getMainSynthChain()->getSampleRate())
+			{
+				latencyCheckState = LatencyCheckState::Done;
+
+				MessageManager::callAsync([this]()
+				{
+					PresetHandler::showMessageWindow("No signal detected", "The test signal was not detected at the output within 2 seconds. The signal chain might be muting or heavily attenuating the input signal.", PresetHandler::IconType::Error);
+					latencyCheckState = LatencyCheckState::Idle;
+					reportedLatency = 0;
+				});
+			}
 		}
 
 		buffer.clear();
