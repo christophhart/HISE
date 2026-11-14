@@ -264,7 +264,7 @@ template <typename FunctionType, typename TicketType> struct Suspended
 		jassert(other.ticket.mc == nullptr);
 	}
 
-	Result call()
+	UriError call()
 	{
 		if (pf.isValid())
 		{
@@ -276,7 +276,7 @@ template <typename FunctionType, typename TicketType> struct Suspended
 			return result;
 		}
 
-		return Result::fail("Invalid function call");
+		return UriError::fail("Invalid function call");
 	}
 
 	const FunctionType& getFunction() const noexcept { return pf; };

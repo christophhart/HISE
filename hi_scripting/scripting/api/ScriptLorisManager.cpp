@@ -123,7 +123,7 @@ void ScriptLorisManager::processCustom(var file, var processCallback)
             auto ok = processFunction.callSync(&obj, 1);
             
             if(!ok.wasOk())
-                reportScriptError(ok.getErrorMessage());
+                reportScriptError(ok.toConsoleMessage());
             
             data.writeJSON(obj);
             

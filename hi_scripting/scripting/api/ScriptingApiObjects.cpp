@@ -7887,7 +7887,7 @@ int ScriptingObjects::ScriptUnorderedStack::getIndexForEvent(var value) const
 				auto r = cf->callSync(args, 2, &rv);
 
 				if (!r.wasOk())
-					reportScriptError(r.getErrorMessage());
+					reportScriptError(r.toConsoleMessage());
 
 				if ((bool)rv)
 					return i;
@@ -8251,7 +8251,7 @@ bool ScriptingObjects::ScriptBackgroundTask::killVoicesAndCall(var loadingFuncti
 				safeThis->currentTask.clear();
 
 				if (!r.wasOk())
-					debugError(p, r.getErrorMessage());
+					debugError(p, r.toConsoleMessage());
 			}
 				
 			return SafeFunctionCall::OK;
@@ -8360,7 +8360,7 @@ void ScriptingObjects::ScriptBackgroundTask::ChildProcessData::callLog(var* a)
 		auto ok = processLogFunction.callSync(a, 3);
 
 		if (!ok.wasOk())
-			debugError(dynamic_cast<Processor*>(parent.getScriptProcessor()), ok.getErrorMessage());
+			debugError(dynamic_cast<Processor*>(parent.getScriptProcessor()), ok.toConsoleMessage());
 	}
 }
 
@@ -8440,7 +8440,7 @@ void ScriptingObjects::ScriptBackgroundTask::run()
 
 #if USE_BACKEND
 			if (!r.wasOk())
-				getScriptProcessor()->getMainController_()->writeToConsole(r.getErrorMessage(), 1, dynamic_cast<Processor*>(getScriptProcessor()));
+				getScriptProcessor()->getMainController_()->writeToConsole(r.toConsoleMessage(), 1, dynamic_cast<Processor*>(getScriptProcessor()));
 #endif
 		}
 
@@ -8791,7 +8791,7 @@ var ScriptingObjects::ScriptFFT::process(var dataToProcess)
 				auto r = magnitudeFunction.callSync(args, 2);
 
 				if (!r.wasOk())
-					reportScriptError(r.getErrorMessage());
+					reportScriptError(r.toConsoleMessage());
 			}
 
 			if (phaseFunction)
@@ -8801,7 +8801,7 @@ var ScriptingObjects::ScriptFFT::process(var dataToProcess)
 				auto r = phaseFunction.callSync(args, 2);
 
 				if (!r.wasOk())
-					reportScriptError(r.getErrorMessage());
+					reportScriptError(r.toConsoleMessage());
 			}
 
 			applyInverseFFT(numChannels);
@@ -10214,7 +10214,7 @@ void ScriptingObjects::ScriptedMacroHandler::sendUpdateMessage(NotificationType 
 			auto r = updateCallback.callSync(&obj, 1);
 
 			if (!r.wasOk())
-				reportScriptError(r.getErrorMessage());
+				reportScriptError(r.toConsoleMessage());
 		}
 		else
 		{
@@ -10475,7 +10475,7 @@ void ScriptingObjects::ScriptedMidiAutomationHandler::setUpdateCallback(var call
 		auto r = updateCallback.callSync(&obj, 1);
 
 		if (!r.wasOk())
-			reportScriptError(r.getErrorMessage());
+			reportScriptError(r.toConsoleMessage());
 	}
 }
 

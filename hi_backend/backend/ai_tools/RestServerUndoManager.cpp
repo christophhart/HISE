@@ -250,7 +250,7 @@ bool RestServerUndoManager::Instance::killVoicesAndPerform(AsyncRequest::Ptr req
 							auto jp = dynamic_cast<JavascriptProcessor*>(p);
 							auto c = dynamic_cast<ProcessorWithScriptingContent*>(jp)->getScriptingContent();
 
-							jp->compileScript([c](const JavascriptProcessor::SnippetResult&)
+							jp->compileScript([c](const UriError&)
 							{
 								c->setIsRebuilding(false);
 							});

@@ -51,12 +51,8 @@ CodeEditorPanel::~CodeEditorPanel()
 
 Component* CodeEditorPanel::createContentComponent(int index)
 {
-#if HISE_USE_NEW_CODE_EDITOR
 	if (auto pe = getContent<PopupIncludeEditor>())
-	{
 		scaleFactor = pe->getEditor()->editor.transform.getScaleFactor();
-	}
-#endif
 
 	auto p = dynamic_cast<JavascriptProcessor*>(getProcessor());
 
@@ -70,10 +66,8 @@ Component* CodeEditorPanel::createContentComponent(int index)
 	{
 		auto pe = new PopupIncludeEditor(p, p->getSnippet(index)->getCallbackName());
 
-#if HISE_USE_NEW_CODE_EDITOR
 		if(scaleFactor != -1.0f)
 			pe->getEditor()->editor.setScaleFactor(scaleFactor);
-#endif
 
 		pe->getEditor()->editor.tokenCollection = BackendRootWindow::getJavascriptTokenCollection(this);
 

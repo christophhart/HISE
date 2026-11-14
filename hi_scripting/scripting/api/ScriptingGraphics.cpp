@@ -242,7 +242,7 @@ struct ScriptingObjects::ScriptShader::PreviewComponent: public Component,
 			if (obj->dirty)
 			{
 				auto r = obj->shader->checkCompilation(g.getInternalContext());
-				obj->setCompileResult(r);
+				obj->setCompileResult(UriError::fromResult(r, dynamic_cast<JavascriptProcessor*>(obj->getScriptProcessor())));
 				obj->makeStatistics();
 				obj->dirty = false;
 			}
@@ -473,7 +473,7 @@ struct ScriptingObjects::ScriptShader::Wrapper
 
 ScriptingObjects::ScriptShader::ScriptShader(ProcessorWithScriptingContent* sp) :
 	ConstScriptingObject(sp, (int)BlendMode::numBlendModes),
-	r(Result::fail("uncompiled"))
+	lastResult(UriError::fail("not compiled"))
 {
 	using namespace juce::gl;
 
@@ -508,14 +508,15 @@ void ScriptingObjects::ScriptShader::setEnableLineNumbers(bool shouldUseLineNumb
 }
 
 bool ScriptingObjects::ScriptShader::compiledOk() const
-{ return r.wasOk(); }
+{ return lastResult.wasOk(); }
 
-void ScriptingObjects::ScriptShader::setCompileResult(Result compileResult)
+void ScriptingObjects::ScriptShader::setCompileResult(const UriError& compileResult)
 {
-	r = processErrorMessage(compileResult);
+	lastResult = compileResult;
+	lastResult.processorId = shaderLocation.processorId;
+	lastResult.uri = shaderLocation.uri;
 
-	for (auto f : includedFiles)
-		f->setRuntimeErrors(r);
+	LOG_RUNTIME_ERROR(lastResult, dynamic_cast<JavascriptProcessor*>(getScriptProcessor()));
 }
 
 void ScriptingObjects::ScriptShader::setGlobalBounds(Rectangle<int> b, float sf)
@@ -603,9 +604,12 @@ void ScriptingObjects::ScriptShader::setFragmentShader(String shaderFile)
 
 	FileParser p(getScriptProcessor(), useLineNumbers, shaderFile, includedFiles);
 
-	compileRawCode(p.getLines().joinIntoString("\n"));
+#if USE_BACKEND
+	shaderLocation.processorId = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getUriProcessorId();
+	shaderLocation.uri = p.getMatchingFile().getFullPathName();
+#endif
 
-	
+	compileRawCode(p.getLines().joinIntoString("\n"));
 }
 
 void ScriptingObjects::ScriptShader::setUniformData(const String& id, var data)
@@ -775,23 +779,9 @@ Component* ScriptingObjects::ScriptShader::createPopupComponent(const MouseEvent
 String ScriptingObjects::ScriptShader::getErrorMessage(bool verbose) const
 {
 	if (verbose)
-	{
-		String s;
-
-		auto lines = StringArray::fromLines(r.getErrorMessage());
-		lines.removeEmptyStrings();
-
-		for (const auto& l : lines)
-		{
-			s << l;
-			s << "{GLSL::";
-			s << dynamic_cast<const Processor*>(getScriptProcessor())->getId() << "::" << shaderName << "}\n";
-		}
-		
-		return s;
-	}
+		return lastResult.toFullCallStack();
 	else
-	return r.getErrorMessage();
+		return lastResult.toConsoleMessage();
 }
 
 void ScriptingObjects::ScriptShader::compileRawCode(const String& code)
@@ -874,10 +864,7 @@ void ScriptingObjects::ScriptShader::compileRawCode(const String& code)
 	dirty = true;
 }
 
-Result ScriptingObjects::ScriptShader::processErrorMessage(const Result& r)
-{
-	return r;
-}
+
 
 ScriptingObjects::SVGObject::SVGObject(ProcessorWithScriptingContent* p, const String& b64):
   ConstScriptingObject(p, 0)
@@ -2519,7 +2506,7 @@ ScriptingObjects::ScriptedLookAndFeel::ScriptedLookAndFeel(ProcessorWithScriptin
 	ControlledObject(sp->getMainController_()),
 	functions(new DynamicObject()),
 	wasGlobal(isGlobal),
-	lastResult(Result::ok())
+	lastResult(UriError::ok())
 {
 	ADD_API_METHOD_2(registerFunction);
 	ADD_API_METHOD_2(setGlobalFont);
@@ -2920,7 +2907,8 @@ var ScriptingObjects::ScriptedLookAndFeel::callDefinedFunction(const Identifier&
 
 			var thisObject(this);
 			var::NativeFunctionArgs arg(thisObject, args, numArgs);
-			auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
+			auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
+			auto engine = jp->getScriptEngine();
 			Result r = Result::ok();
 
 			try
@@ -2929,11 +2917,12 @@ var ScriptingObjects::ScriptedLookAndFeel::callDefinedFunction(const Identifier&
 			}
 			catch (String& errorMessage)
 			{
-				debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), errorMessage);
+				debugError(dynamic_cast<Processor*>(getScriptProcessor()), errorMessage);
 			}
-			catch (UriError&)
+			catch (UriError& e)
 			{
-
+				lastResult = e;
+				LOG_RUNTIME_ERROR(lastResult, jp);
 			}
 		}
 	}

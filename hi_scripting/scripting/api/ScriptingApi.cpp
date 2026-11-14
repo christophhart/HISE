@@ -2107,7 +2107,7 @@ struct ScriptUndoableAction : public UndoableAction,
 			auto ok = callback.callSync(args);
 
 			if(!ok.wasOk())
-				throw ok.getErrorMessage();
+				throw ok.toConsoleMessage();
 
 			break;
 		}
@@ -6913,7 +6913,7 @@ void ScriptingApi::Console::testCallback(var obj, String callbackId, var argList
 		auto ok = sc->testCallback(callbackId, args);
 
 		if (!ok.wasOk())
-			reportScriptError(ok.getErrorMessage());
+			reportScriptError(ok.toConsoleMessage());
 
 		debugToConsole(p, "END_CALLBACK_TEST");
 		debugToConsole(p, "CALLBACK_ARGS: >" + TestHelpers::stringify(argList));
@@ -7904,7 +7904,7 @@ bool ScriptingApi::Threads::killVoicesAndCall(const var& functionToExecute)
 
 			if(!ok.wasOk())
 			{
-				debugError(p, ok.getErrorMessage());
+				debugError(p, ok.toConsoleMessage());
 			}
 
 			return SafeFunctionCall::OK;
@@ -8242,7 +8242,7 @@ void ScriptingApi::TransportHandler::Callback::callSync()
 
 #if USE_BACKEND
 	if(!ok.wasOk())
-		debugError(dynamic_cast<Processor*>(jp), ok.getErrorMessage());
+		debugError(dynamic_cast<Processor*>(jp), ok.toConsoleMessage());
 #endif
 }
 

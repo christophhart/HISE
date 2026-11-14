@@ -257,11 +257,11 @@ struct WeakCallbackHolder : private ScriptingObject
 	struct CallableObject
 	{
 		CallableObject() :
-			lastResult(Result::ok())
+			lastResult(UriError::ok())
 		{};
 
 		virtual ~CallableObject() {};
-		virtual Result call(HiseJavascriptEngine* engine, const var::NativeFunctionArgs& args, var* returnValue);
+		virtual UriError call(HiseJavascriptEngine* engine, const var::NativeFunctionArgs& args, var* returnValue);
 
         virtual bool isRealtimeSafe() const = 0;
 
@@ -321,7 +321,7 @@ struct WeakCallbackHolder : private ScriptingObject
 
 	protected:
 
-		Result lastResult;
+		UriError lastResult;
 		ReferenceCountedObject* thisAsRef = nullptr;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(CallableObject);
@@ -410,20 +410,6 @@ struct WeakCallbackHolder : private ScriptingObject
 
 	};
 
-#if 0
-	template <int E, int FIndex=0> static ApiClass::DiagnosticResult checkCallbackNumArgs(DiagnosticBase*, const Identifier&, const Array<var>& args)
-	{
-		if (auto f = dynamic_cast<CallableObject*>(args[FIndex].getObject()))
-		{
-			auto numActual = f->getNumArguments();
-
-			if (numActual != E)
-				return ApiClass::DiagnosticResult::fail("wrong argument count for callback").withExpectation(String(numActual) + " params", String(E) + " params");
-		}
-
-		return ApiClass::DiagnosticResult::unknown();
-	}
-#endif
 
 #endif
 	struct CallableObjectManager
@@ -489,10 +475,10 @@ struct WeakCallbackHolder : private ScriptingObject
 
 	void call(const var::NativeFunctionArgs& args);
 	
-	Result callSync(const var::NativeFunctionArgs& args, var* returnValue = nullptr);
+	UriError callSync(const var::NativeFunctionArgs& args, var* returnValue = nullptr);
 
 	/** Call the functions synchronously. */
-	Result callSync(var* arguments, int numArgs, var* returnValue=nullptr);
+	UriError callSync(var* arguments, int numArgs, var* returnValue=nullptr);
 
 	/** Call the function with one argument that can be converted to a var. */
 	template <typename T> void call1(const T& arg1)
@@ -514,7 +500,7 @@ struct WeakCallbackHolder : private ScriptingObject
 	}
 
 	/** @internal: used by the scripting thread. */
-	Result operator()(JavascriptProcessor* p);
+	UriError operator()(JavascriptProcessor* p);
 
 	void setHighPriority()
 	{
@@ -550,7 +536,7 @@ struct WeakCallbackHolder : private ScriptingObject
 
 	bool matches(const var& f) const;
 
-	void reportError(const Result& r);
+	void reportError(const UriError& r);
 
 	void setTrackIndex(uint64_t trackIndexToUse)
 	{
@@ -586,7 +572,7 @@ private:
 
 	bool highPriority = false;
 	int numExpectedArgs;
-	Result r;
+	UriError r;
 	Array<var> args;
 	var anonymousFunctionRef;
 	NamedValueSet capturedLocals;

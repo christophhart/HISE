@@ -1294,7 +1294,7 @@ juce::StringArray HiseJavascriptEngine::getInlineFunctionNames(int numArgs /*= -
 
 
 
-var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* arguments, Result* result, int numArgs)
+var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* arguments, UriError* result, int numArgs)
 {
 	RootObject::ScopedWaker sw(*root);
 	
@@ -1308,7 +1308,7 @@ var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* argumen
 	if (f == nullptr)
 	{
 		if (result != nullptr)
-			*result = Result::fail("No valid function");
+			*result = UriError::fail("No valid function");
 
 		return {};
 	};
@@ -1319,7 +1319,7 @@ var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* argumen
 	if (f->parameterNames.size() != numArgs)
 	{
 		if(result != nullptr)
-			*result = Result::fail("Argument amount mismatch.");
+			*result = UriError::fail("Argument amount mismatch.");
 
 		return {};
 	}
@@ -1330,17 +1330,25 @@ var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* argumen
 	try
 	{
 		prepareTimeout();
-		if (result != nullptr) *result = Result::ok();
+
+		if (result != nullptr) 
+			*result = UriError::ok();
+
 		return f->performDynamically(s, arguments, numArgs);
 	}
 	catch (String &error)
 	{
 		jassertfalse;
-		*result = Result::fail(error);
+		if (result != nullptr)
+		{
+			*result = UriError::fail(error);
+			root->attachCallstack(*result);
+		}
 	}
 	catch (UriError &e)
 	{
-		if (result != nullptr) *result = Result::fail(e.toFullCallStack());
+		if (result != nullptr)
+			*result = e;
 
 		f->cleanUpAfterExecution();
 	}
@@ -1353,7 +1361,7 @@ juce::String::CharPointerType HiseJavascriptEngine::RootObject::Callback::getPro
 	return statements->location.program.getCharPointer();
 }
 
-var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
+var HiseJavascriptEngine::executeCallback(int callbackIndex, UriError *result)
 {
 	RootObject::ScopedWaker sw(*root);
 
@@ -1376,7 +1384,7 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 
 			var returnVal = c->perform(root.get());
 
-			if (result != nullptr) *result = Result::ok();
+			if (result != nullptr) *result = UriError::ok();
 
 			c->cleanLocalProperties();
 
@@ -1385,7 +1393,12 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 		catch (String &error)
 		{
 			jassertfalse;
-			if (result != nullptr) *result = Result::fail(error);
+			if (result != nullptr)
+			{
+				*result = UriError::fail(error);
+				root->attachCallstack(*result);
+			}
+				
 		}
 		catch (UriError &e)
 		{
@@ -1393,7 +1406,7 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 			ignoreUnused(suspender);
 
 			if (result != nullptr)
-				*result = Result::fail(e.toFullCallStack());
+				*result = e.withProcessorId(root->hiseSpecialData.processor);
 		}
 	}
 

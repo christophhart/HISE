@@ -167,7 +167,7 @@ public:
 
 		void addTokens(mcl::TokenCollection::List& tokens) override;
 
-		void addTokensWithContext(mcl::TokenCollection::List& tokens, int lineNumber, int charIndex, const String& prevExpression) override;
+		void addTokensWithContext(mcl::TokenCollection::List& tokens, const UriLocation& location, const String& prevExpression) override;
 
         static void precompileCallback(TokenProvider& p, bool unused);
 
@@ -186,7 +186,7 @@ public:
 	You can specify a maximum time for which the program is allowed to run, and
 	it'll return with an error message if this time is exceeded.
 	*/
-	Result execute(const String& javascriptCode, bool allowConstDeclarations = true, const Identifier& callbackId = {});
+	UriError execute(const String& javascriptCode, bool allowConstDeclarations = true, const Identifier& callbackId = {});
 
 	/** Attempts to parse and run a javascript expression, and returns the result.
 	If there's a syntax error, or the expression can't be evaluated, the return value
@@ -204,18 +204,18 @@ public:
 	*/
 	var callFunction(const Identifier& function,
 		const var::NativeFunctionArgs& args,
-		Result* errorMessage = nullptr);
+		UriError* errorMessage = nullptr);
     
     var callExternalFunction(var function,
                              const var::NativeFunctionArgs& args,
-                             Result* errorMessage = nullptr, bool allowMessageThread=false);
+                             UriError* errorMessage = nullptr, bool allowMessageThread=false);
 
     
 	var callExternalFunctionRaw(var function, const var::NativeFunctionArgs& args);
 
 	var executeWithoutAllocation(const Identifier &function,
 		const var::NativeFunctionArgs& args,
-		Result* errorMessage = nullptr, DynamicObject *scopeToUse=nullptr);
+		UriError* errorMessage = nullptr, DynamicObject *scopeToUse=nullptr);
 
 	/** Adds a native object to the root namespace.
 	The object passed-in is reference-counted, and will be retained by the
@@ -245,17 +245,17 @@ public:
 	*/
 	int registerCallbackName(const Identifier &callbackName, int numArgs, double bufferTime);
 
-	var executeInlineFunction(var inlineFunction, var* arguments, Result* result, int numArgs=-1);
+	var executeInlineFunction(var inlineFunction, var* arguments, UriError* result, int numArgs=-1);
 
 	var getInlineFunction(const Identifier& id);
 
 	StringArray getInlineFunctionNames(int numArgs = -1);
 
-	var executeCallback(int callbackIndex, Result *result);
+	var executeCallback(int callbackIndex, UriError *result);
 
 	void setCallbackParameter(int callbackIndex, int parameterIndex, const var& newValue);
 
-	void addTokensWithContext(mcl::TokenCollection::List& tokens, int lineNumber, int charIndex, const String& prevExpression);
+	void addTokensWithContext(mcl::TokenCollection::List& tokens, const UriLocation& tokenLocation, const String& prevExpression);
 
     static mcl::TokenCollection::Token* createAutocompleteTokenFromInlineFunction(const var& v);
     
@@ -874,8 +874,6 @@ public:
 			var parameterValues[4];
 
 			NamedValueSet localProperties;
-
-		
 
 			ScopedPointer<BlockStatement> statements;
 

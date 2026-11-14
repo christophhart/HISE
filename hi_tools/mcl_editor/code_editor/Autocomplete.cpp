@@ -106,9 +106,9 @@ Autocomplete::Autocomplete(TokenCollection::Ptr tokenCollection_, const String& 
 	shadow(DropShadow(Colours::black.withAlpha(0.7f), 5, Point<int>())),
 	editor(editor_)
 {
-	currentList = tokenCollection->getTokens(lineNumber, charIndex, previousToken);
+	auto loc = editor->getLanguageManager()->createUriLocation(CodeDocument::Position(editor->getDocument(), charIndex));
 
-	
+	currentList = tokenCollection->getTokens(loc, previousToken);
 
 	SimpleDocumentTokenProvider::addTokensStatic(currentList, editor->docRef);
 

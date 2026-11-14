@@ -716,11 +716,11 @@ namespace ScriptedDrawActions
 				{
 					{
 						obj->makeStatistics();
-
 					}
 
 					auto r = obj->shader->checkCompilation(g.getInternalContext());
-					obj->setCompileResult(r);
+
+					obj->setCompileResult(UriError::fromResult(r, dynamic_cast<JavascriptProcessor*>(obj->getScriptProcessor())));
 					obj->dirty = false;
 
 #if USE_BACKEND

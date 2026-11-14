@@ -323,7 +323,7 @@ namespace ScriptingObjects
 
 		String getErrorMessage(bool verbose) const;
 
-		void setCompileResult(Result compileResult);
+		void setCompileResult(const UriError& compileResult);
 
 		void setGlobalBounds(Rectangle<int> b, float sf);
 
@@ -378,13 +378,12 @@ namespace ScriptingObjects
 
 		String shaderName;
 
+		UriLocation shaderLocation;
+		UriError lastResult;
+
 		String getHeader();
 
 		void compileRawCode(const String& code);
-
-		Result processErrorMessage(const Result& r);
-
-		Result r;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptShader);
 	};
@@ -1506,7 +1505,7 @@ namespace ScriptingObjects
 		const bool wasGlobal;
 		Array<NamedImage> loadedImages;
 
-		Result lastResult;
+		UriError lastResult;
 
 		ValueTree additionalProperties;
 

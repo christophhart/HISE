@@ -76,7 +76,7 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 
 		String getErrorMessage() const;
 
-		Result r;
+		UriError r;
 		String comment;
 		Identifier id;
 		int64 hash = 0;
@@ -95,7 +95,7 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 
 	Component* createPopupComponent(const MouseEvent& e, Component* parent) override;
 
-	Result call(HiseJavascriptEngine* engine, const var::NativeFunctionArgs& args, var* returnValue) override;
+	UriError call(HiseJavascriptEngine* engine, const var::NativeFunctionArgs& args, var* returnValue) override;
 
 	int getNumChildElements() const override;
 
@@ -255,6 +255,17 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 
 private:
 
+	void logIfError(const UriError& e)
+	{
+#if USE_BACKEND
+		if (!e.wasOk())
+		{
+			auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
+			LOG_RUNTIME_ERROR(e, jp);
+		}
+#endif
+	}
+
 	ProfileCollection broadcasterProfile;
 
 	void sendMessageInternal(var args, bool isSync);
@@ -307,7 +318,7 @@ private:
 	bool triggerBreakpoint = false;
 
 	struct Display;
-	Result sendInternal(const Array<var>& args);
+	UriError sendInternal(const Array<var>& args);
 
 	bool cancelIfSame = true;
 
@@ -341,7 +352,7 @@ private:
 		Metadata metadata;
 	};
 
-	void sendErrorMessage(ItemBase* i, const String& message, bool throwError=true);
+	void sendErrorMessage(ItemBase* i, const UriError& e, bool throwError=true);
 
 	LambdaBroadcaster<ItemBase*, String> errorBroadcaster;
 
@@ -351,9 +362,9 @@ private:
 
 		virtual ~TargetBase();;
 
-		virtual Result callSync(const Array<var>& args) = 0;
+		virtual UriError callSync(const Array<var>& args) = 0;
 
-		Result callSyncWithProfile(ScriptBroadcaster& sb, const Array<var>& args)
+		UriError callSyncWithProfile(ScriptBroadcaster& sb, const Array<var>& args)
 		{
 			auto p = sb.broadcasterProfile.profile(profileIndex);
 			return callSync(args);
@@ -382,14 +393,14 @@ private:
 
 		Array<var> createChildArray() const override;
 
-		Result callSync(const Array<var>& args) override;
+		UriError callSync(const Array<var>& args) override;
 		WeakCallbackHolder callback;
 	};
 
 	struct DelayedItem: public TargetBase
 	{
 		DelayedItem(ScriptBroadcaster* bc, const var& obj_, const var& f, int milliseconds, const var& metadata);
-		Result callSync(const Array<var>& args) override;
+		UriError callSync(const Array<var>& args) override;
 
 		Identifier getItemId() const override;
 
@@ -412,7 +423,7 @@ private:
 
 		Array<var> createChildArray() const override;
 
-		Result callSync(const Array<var>& args) override;
+		UriError callSync(const Array<var>& args) override;
 
 		Array<Identifier> properties;
 		ScopedPointer<WeakCallbackHolder> optionalCallback;
@@ -439,7 +450,7 @@ private:
 
 		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;;
 
-		Result callSync(const Array<var>& args) override;
+		UriError callSync(const Array<var>& args) override;
 
 		struct RefCountedTime : public ReferenceCountedObject
 		{
@@ -465,7 +476,7 @@ private:
 		
 		Array<var> createChildArray() const override;
 
-		Result callSync(const Array<var>& args) override;
+		UriError callSync(const Array<var>& args) override;
 
 		ScopedPointer<WeakCallbackHolder> optionalCallback;
 	};
@@ -484,7 +495,7 @@ private:
 
 		Array<var> createChildArray() const override { return {}; }
 
-		Result callSync(const Array<var>& args) override;
+		UriError callSync(const Array<var>& args) override;
 
 		WeakReference<Processor> target;
 		int parameterIndex;
@@ -494,7 +505,7 @@ private:
 	{
 		OtherBroadcasterTarget(ScriptBroadcaster* parent_, ScriptBroadcaster* target_, const var& transformFunction, bool async, const var& metadata);
 
-		Result callSync(const Array<var>& args) override;
+		UriError callSync(const Array<var>& args) override;
 		
 		Identifier getItemId() const override;
 
@@ -518,13 +529,13 @@ private:
 
         virtual ~ListenerBase();;
 
-		Result callItemWithProfile(ScriptBroadcaster& b, TargetBase* n)
+		UriError callItemWithProfile(ScriptBroadcaster& b, TargetBase* n)
 		{
 			auto p = b.broadcasterProfile.profile(profileIndex);
 			return callItem(n);
 		}
 
-		virtual Result callItem(TargetBase* n) = 0;
+		virtual UriError callItem(TargetBase* n) = 0;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ListenerBase);
     };
@@ -546,7 +557,7 @@ private:
 		Identifier callbackId;
 
 		/** Just a dummy for debugging. */
-		virtual Result callItem(TargetBase* n) override;
+		virtual UriError callItem(TargetBase* n) override;
 
 		WeakReference<ScriptBroadcaster> parent;
 	};
@@ -567,7 +578,7 @@ private:
 
 		Array<var> createChildArray() const override;
 
-		Result callItem(TargetBase* n) override;
+		UriError callItem(TargetBase* n) override;
 
 		OwnedArray<ProcessorListener> listeners;
 	};
@@ -583,7 +594,7 @@ private:
 		Array<var> getInitialArgs(int callIndex) const override;
 		Array<var> createChildArray() const override;
 
-		Result callItem(TargetBase* b) override;
+		UriError callItem(TargetBase* b) override;
 
 		OwnedArray<InternalListener> listeners;
 	};
@@ -603,7 +614,7 @@ private:
 
 		Array<var> createChildArray() const override;
 
-		Result callItem(TargetBase* b) override;
+		UriError callItem(TargetBase* b) override;
 
 		OwnedArray<MatrixListener> listeners;
 	};
@@ -660,7 +671,7 @@ private:
 
 		Array<var> createChildArray() const override;
 
-		Result callItem(TargetBase* n) override;
+		UriError callItem(TargetBase* n) override;
 
 		int getNumInitialCalls() const override;
 		Array<var> getInitialArgs(int callIndex) const override;
@@ -680,7 +691,7 @@ private:
 
 		Array<var> createChildArray() const override;
 
-		Result callItem(TargetBase* n) override;
+		UriError callItem(TargetBase* n) override;
 
 		// Don't need to initialise function calls
 		int getNumInitialCalls() const override;
@@ -707,7 +718,7 @@ private:
 							const String& typeString,
 							const var& metadata);
             
-        Result callItem(TargetBase* n) override;
+        UriError callItem(TargetBase* n) override;
 
 		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
 
@@ -741,7 +752,7 @@ private:
 
 		Array<var> createChildArray() const override;;
 
-		Result callItem(TargetBase* n) override;
+		UriError callItem(TargetBase* n) override;
 		
 		WeakReference<ScriptBroadcaster> parent;
 
@@ -763,7 +774,7 @@ private:
 
 		Array<var> createChildArray() const override;;
 
-		Result callItem(TargetBase* n) override;
+		UriError callItem(TargetBase* n) override;
 
 		static void prepareCalled(ProcessingSpecSource& p, double sampleRate, int blockSize);
 
@@ -787,7 +798,7 @@ private:
 		int getNumInitialCalls() const override;
 		Array<var> getInitialArgs(int callIndex) const override;
 
-		Result callItem(TargetBase* n) override;
+		UriError callItem(TargetBase* n) override;
 
 		Array<var> createChildArray() const override;
 
@@ -832,7 +843,7 @@ private:
 			return size;
 		}
 
-		Result callItem(TargetBase* n) override
+		UriError callItem(TargetBase* n) override
 		{
 			return n->callSync(sizeArray);
 		}
@@ -859,7 +870,7 @@ private:
 		int getNumInitialCalls() const override;
 		Array<var> getInitialArgs(int callIndex) const override;
 
-		Result callItem(TargetBase* n) override;
+		UriError callItem(TargetBase* n) override;
 
 		Array<var> createChildArray() const override;
 
@@ -876,7 +887,7 @@ private:
 		Identifier getItemId() const override;
 
 		// We don't need to call this to update it with the current value because the mouse events are non persistent. */
-		Result callItem(TargetBase*) override;
+		UriError callItem(TargetBase*) override;
 
 		int getNumInitialCalls() const override;
 		Array<var> getInitialArgs(int callIndex) const override;
@@ -902,7 +913,7 @@ private:
 		int getNumInitialCalls() const override;
 		Array<var> getInitialArgs(int callIndex) const override;
 
-		Result callItem(TargetBase* n) override;
+		UriError callItem(TargetBase* n) override;
 
 		Array<var> createChildArray() const override;
 
@@ -926,7 +937,7 @@ private:
 
 		void setButtonValueFromIndex(int newIndex);
 
-		Result callItem(TargetBase* n) override;
+		UriError callItem(TargetBase* n) override;
 
 		Array<var> createChildArray() const override;
 
@@ -941,7 +952,7 @@ private:
 	{
 		OtherBroadcasterListener(const Array<WeakReference<ScriptBroadcaster>>& list, const var& metadata);;
 
-		Result callItem(TargetBase* n) override;
+		UriError callItem(TargetBase* n) override;
 		
 		Identifier getItemId() const override;
 
@@ -966,7 +977,7 @@ private:
 
 	OwnedArray<TargetBase> items;
 
-	Result lastResult;
+	UriError lastResult;
 
 	void throwIfAlreadyConnected();
 

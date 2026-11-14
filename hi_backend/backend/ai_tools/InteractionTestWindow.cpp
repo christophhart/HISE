@@ -1658,7 +1658,7 @@ void InteractionTestWindow::RealExecutor::executeRepl(const String& id,
             entry->setProperty(RestApiIds::success, false);
             entry->setProperty(RestApiIds::value, "no script engine present");
             completion(var(entry.get()));
-            return Result::ok();
+            return UriError::ok();
         }
 
         auto evaluationResult = Result::ok();
@@ -1702,7 +1702,7 @@ void InteractionTestWindow::RealExecutor::executeRepl(const String& id,
         }
 
         completion(var(entry.get()));
-        return Result::ok();
+        return UriError::fromResult(evaluationResult, processor);
     });
 }
 

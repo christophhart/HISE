@@ -722,7 +722,7 @@ void ScriptBroadcaster::ComponentPropertyListener::registerSpecialBodyItems(Comp
 
 
 
-juce::Result ScriptBroadcaster::ComponentPropertyListener::callItem(TargetBase* n)
+UriError ScriptBroadcaster::ComponentPropertyListener::callItem(TargetBase* n)
 {
 	Array<var> args;
 	args.add(0);
@@ -749,7 +749,7 @@ juce::Result ScriptBroadcaster::ComponentPropertyListener::callItem(TargetBase* 
 		}
 	}
 	
-	return Result::ok();
+	return UriError::ok();
 }
 
 
@@ -823,7 +823,7 @@ void ScriptBroadcaster::ComponentVisibilityListener::registerSpecialBodyItems(Co
 
 
 
-juce::Result ScriptBroadcaster::ComponentVisibilityListener::callItem(TargetBase* n)
+UriError ScriptBroadcaster::ComponentVisibilityListener::callItem(TargetBase* n)
 {
 	for (auto item : items)
 	{
@@ -833,7 +833,7 @@ juce::Result ScriptBroadcaster::ComponentVisibilityListener::callItem(TargetBase
 			return ok;
 	}
 
-	return Result::ok();
+	return UriError::ok();
 }
 
 Array<juce::var> ScriptBroadcaster::ComponentVisibilityListener::createChildArray() const
@@ -878,11 +878,11 @@ Array<juce::var> ScriptBroadcaster::ScriptTarget::createChildArray() const
 	return list;
 }
 
-Result ScriptBroadcaster::ScriptTarget::callSync(const Array<var>& args)
+UriError ScriptBroadcaster::ScriptTarget::callSync(const Array<var>& args)
 {
 #if USE_BACKEND
 	if (!enabled)
-		return Result::ok();
+		return UriError::ok();
 #endif
 
 #if JUCE_DEBUG
@@ -908,16 +908,16 @@ ScriptBroadcaster::DelayedItem::DelayedItem(ScriptBroadcaster* bc, const var& ob
 	metadata.attachCommentFromCallableObject(f_);
 }
 
-Result ScriptBroadcaster::DelayedItem::callSync(const Array<var>& args)
+UriError ScriptBroadcaster::DelayedItem::callSync(const Array<var>& args)
 {
 	CONTINUE_BROADCASTER_TRACK("");
 
 	delayedFunction = new DelayedFunction(parent, f, parent->lastValues, ms, obj);
 	delayedFunction->trackIndex = pendingTrack;
-	return Result::ok();
+	return UriError::ok();
 }
 
-Result ScriptBroadcaster::ModuleParameterSyncer::callSync(const Array<var>& args)
+UriError ScriptBroadcaster::ModuleParameterSyncer::callSync(const Array<var>& args)
 {
 	auto v = (float)args.getLast();
 	FloatSanitizers::sanitizeFloatNumber(v);
@@ -927,7 +927,7 @@ Result ScriptBroadcaster::ModuleParameterSyncer::callSync(const Array<var>& args
 		target->setAttribute(parameterIndex, v, sendNotificationAsync);
 	}
 
-	return Result::ok();
+	return UriError::ok();
 }
 
 ScriptBroadcaster::OtherBroadcasterTarget::OtherBroadcasterTarget(ScriptBroadcaster* parent_, ScriptBroadcaster* target_, const var& transformFunction, bool async_, const var& metadata_):
@@ -942,10 +942,10 @@ ScriptBroadcaster::OtherBroadcasterTarget::OtherBroadcasterTarget(ScriptBroadcas
 	
 }
 
-juce::Result ScriptBroadcaster::OtherBroadcasterTarget::callSync(const Array<var>& args)
+UriError ScriptBroadcaster::OtherBroadcasterTarget::callSync(const Array<var>& args)
 {
 	if (target == nullptr)
-		return Result::fail("no broadcaster");
+		return UriError::fail("no broadcaster");
 
 	if (argTransformFunction)
 	{
@@ -970,7 +970,7 @@ juce::Result ScriptBroadcaster::OtherBroadcasterTarget::callSync(const Array<var
 		return target->lastResult;
 	}
     
-  return Result::ok();
+  return UriError::ok();
 }
 
 struct ScriptBroadcaster::EqListener::InternalListener
@@ -1032,9 +1032,9 @@ ScriptBroadcaster::EqListener::EqListener(ScriptBroadcaster* b, const ReferenceC
 	}
 }
 
-juce::Result ScriptBroadcaster::EqListener::callItem(TargetBase* b)
+UriError ScriptBroadcaster::EqListener::callItem(TargetBase* b)
 {
-	return Result::ok();
+	return UriError::ok();
 }
 
 
@@ -1430,7 +1430,7 @@ Array<juce::var> ScriptBroadcaster::ModuleParameterListener::createChildArray() 
 	return list;
 }
 
-Result ScriptBroadcaster::ModuleParameterListener::callItem(TargetBase* n)
+UriError ScriptBroadcaster::ModuleParameterListener::callItem(TargetBase* n)
 {
 	Array<var> args;
 	args.add("");
@@ -1491,7 +1491,7 @@ Result ScriptBroadcaster::ModuleParameterListener::callItem(TargetBase* n)
 		}
 	}
 
-	return Result::ok();
+	return UriError::ok();
 }
 
 Array<ScriptBroadcaster::SamplemapListener::Event> ScriptBroadcaster::SamplemapListener::getEventTypes(
@@ -1670,7 +1670,7 @@ Array<var> ScriptBroadcaster::SamplemapListener::createChildArray() const
 	return list;
 }
 
-Result ScriptBroadcaster::SamplemapListener::callItem(TargetBase* n)
+UriError ScriptBroadcaster::SamplemapListener::callItem(TargetBase* n)
 {
 	Array<var> args;
 	args.add("");
@@ -1704,7 +1704,7 @@ Result ScriptBroadcaster::SamplemapListener::callItem(TargetBase* n)
 		}
 	}
 
-	return Result::ok();
+	return UriError::ok();
 }
 
 int ScriptBroadcaster::SamplemapListener::getNumInitialCalls() const
@@ -1851,7 +1851,7 @@ void ScriptBroadcaster::RoutingMatrixListener::registerSpecialBodyItems(Componen
 #endif
 }
 
-juce::Result ScriptBroadcaster::RoutingMatrixListener::callItem(TargetBase* n)
+UriError ScriptBroadcaster::RoutingMatrixListener::callItem(TargetBase* n)
 {
 	Array<var> args;
 	args.add("");
@@ -1868,7 +1868,7 @@ juce::Result ScriptBroadcaster::RoutingMatrixListener::callItem(TargetBase* n)
 			return r;
 	}
 
-	return Result::ok();
+	return UriError::ok();
 }
 
 
@@ -2007,7 +2007,7 @@ Array<juce::var> ScriptBroadcaster::ComplexDataListener::createChildArray() cons
 	return list;
 }
 
-Result ScriptBroadcaster::ComplexDataListener::callItem(TargetBase* n)
+UriError ScriptBroadcaster::ComplexDataListener::callItem(TargetBase* n)
 {
 	Array<var> args;
 	args.add("");
@@ -2030,7 +2030,7 @@ Result ScriptBroadcaster::ComplexDataListener::callItem(TargetBase* n)
 			return r;
 	}
 
-	return Result::ok();
+	return UriError::ok();
 }
 
 
@@ -2089,7 +2089,7 @@ ScriptBroadcaster::NonRealtimeSource::~NonRealtimeSource()
 void ScriptBroadcaster::NonRealtimeSource::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
 {}
 
-juce::Result ScriptBroadcaster::NonRealtimeSource::callItem(TargetBase* n)
+UriError ScriptBroadcaster::NonRealtimeSource::callItem(TargetBase* n)
 {
 	auto rt = parent->getScriptProcessor()->getMainController_()->getSampleManager().isNonRealtime();
 	return n->callSyncWithProfile(*parent, var(rt));
@@ -2142,7 +2142,7 @@ void ScriptBroadcaster::ProcessingSpecSource::registerSpecialBodyItems(Component
 	factory.registerWithCreate<SpecViewer>();
 }
 
-juce::Result ScriptBroadcaster::ProcessingSpecSource::callItem(TargetBase* n)
+UriError ScriptBroadcaster::ProcessingSpecSource::callItem(TargetBase* n)
 {
 	return n->callSyncWithProfile(*parent, processArgs);
 }
@@ -2249,7 +2249,7 @@ struct ScriptBroadcaster::ContextMenuListener : public ListenerBase
 	int getNumInitialCalls() const override { return 0; }
 	Array<var> getInitialArgs(int callIndex) const override { return {}; }
 
-	Result callItem(TargetBase*) override { return Result::ok(); }
+	UriError callItem(TargetBase*) override { return UriError::ok(); }
 
 	Array<var> createChildArray() const override { return {}; }
 
@@ -2372,7 +2372,7 @@ Array<juce::var> ScriptBroadcaster::ComponentValueListener::getInitialArgs(int c
 	return args;
 }
 
-juce::Result ScriptBroadcaster::ComponentValueListener::callItem(TargetBase* n)
+UriError ScriptBroadcaster::ComponentValueListener::callItem(TargetBase* n)
 {
 	Array<var> args;
 	args.add(0);
@@ -2388,7 +2388,7 @@ juce::Result ScriptBroadcaster::ComponentValueListener::callItem(TargetBase* n)
 			return ok;
 	}
 
-	return Result::ok();
+	return UriError::ok();
 }
 
 Array<juce::var> ScriptBroadcaster::ComponentValueListener::createChildArray() const
@@ -2538,7 +2538,7 @@ void ScriptBroadcaster::RadioGroupListener::setButtonValueFromIndex(int newIndex
 	}
 }
 
-juce::Result ScriptBroadcaster::RadioGroupListener::callItem(TargetBase* n)
+UriError ScriptBroadcaster::RadioGroupListener::callItem(TargetBase* n)
 {
 	int index = 0;
 	currentIndex = -1;
@@ -2564,7 +2564,7 @@ juce::Result ScriptBroadcaster::RadioGroupListener::callItem(TargetBase* n)
 			return ok;
 	}
 
-	return Result::ok();
+	return UriError::ok();
 }
 
 
@@ -2580,9 +2580,9 @@ Array<juce::var> ScriptBroadcaster::OtherBroadcasterListener::createChildArray()
 	return list;
 }
 
-juce::Result ScriptBroadcaster::OtherBroadcasterListener::callItem(TargetBase* n)
+UriError ScriptBroadcaster::OtherBroadcasterListener::callItem(TargetBase* n)
 {
-	return Result::ok();
+	return UriError::ok();
 }
 
 ScriptBroadcaster::DebugableObjectListener::DebugableObjectListener(ScriptBroadcaster* parent_, const var& metadata, DebugableObjectBase* obj_, const Identifier& callbackId_) :
@@ -2594,12 +2594,12 @@ ScriptBroadcaster::DebugableObjectListener::DebugableObjectListener(ScriptBroadc
 
 }
 
-juce::Result ScriptBroadcaster::DebugableObjectListener::callItem(TargetBase* n)
+UriError ScriptBroadcaster::DebugableObjectListener::callItem(TargetBase* n)
 {
 	for (const auto&v : parent->lastValues)
 	{
 		if (v.isUndefined() || v.isVoid())
-			return Result::ok();
+			return UriError::ok();
 	}
 
 	return n->callSyncWithProfile(*parent, parent->lastValues);
@@ -2737,9 +2737,9 @@ Array<juce::var> ScriptBroadcaster::ScriptCallListener::createChildArray() const
 	return list;
 }
 
-juce::Result ScriptBroadcaster::ScriptCallListener::callItem(TargetBase* n)
+UriError ScriptBroadcaster::ScriptCallListener::callItem(TargetBase* n)
 {
-	return Result::ok();
+	return UriError::ok();
 }
 
 void ScriptBroadcaster::ScriptCallListener::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
@@ -2886,11 +2886,11 @@ Array<var> ScriptBroadcaster::ComponentPropertyItem::createChildArray() const
 	return list;
 }
 
-juce::Result ScriptBroadcaster::ComponentPropertyItem::callSync(const Array<var>& args)
+UriError ScriptBroadcaster::ComponentPropertyItem::callSync(const Array<var>& args)
 {
 	TERMINATE_BROADCASTER_TRACK("");
 
-	auto r = Result::ok();
+	auto r = UriError::ok();
 	
 	if (!enabled)
 		return r;
@@ -2913,7 +2913,7 @@ juce::Result ScriptBroadcaster::ComponentPropertyItem::callSync(const Array<var>
 				{
 					if (!sc->hasProperty(prop))
 					{
-						r = Result::fail("illegal property " + prop.toString());
+						r = UriError::fail("illegal property " + prop.toString());
 						break;
 					}
 
@@ -2940,7 +2940,7 @@ juce::Result ScriptBroadcaster::ComponentPropertyItem::callSync(const Array<var>
 			r = optionalCallback->callSync(a, &rv);
 
 			if (rv.isUndefined() || rv.isVoid())
-				r = Result::fail("You need to return a value");
+				r = UriError::fail("You need to return a value");
 
 			if (r.wasOk())
 			{
@@ -2950,7 +2950,7 @@ juce::Result ScriptBroadcaster::ComponentPropertyItem::callSync(const Array<var>
 					{
 						if (!sc->hasProperty(prop))
 						{
-							r = Result::fail("illegal property " + properties[0].toString());
+							r = UriError::fail("illegal property " + properties[0].toString());
 							break;
 						}
 
@@ -3063,7 +3063,7 @@ void ScriptBroadcaster::ComponentRefreshItem::registerSpecialBodyItems(Component
 	factory.registerFunction(RefreshBlinkComponent::create);
 }
 
-juce::Result ScriptBroadcaster::ComponentRefreshItem::callSync(const Array<var>& )
+UriError ScriptBroadcaster::ComponentRefreshItem::callSync(const Array<var>& )
 {
 	jassert(obj.isArray());
 
@@ -3091,7 +3091,7 @@ juce::Result ScriptBroadcaster::ComponentRefreshItem::callSync(const Array<var>&
 			sc->resetValueToDefault();
 	}
 
-	return Result::ok();
+	return UriError::ok();
 }
 
 ScriptBroadcaster::ComponentValueItem::ComponentValueItem(ScriptBroadcaster* sb, const var& obj, const var& f, const var& metadata):
@@ -3127,9 +3127,9 @@ Array<juce::var> ScriptBroadcaster::ComponentValueItem::createChildArray() const
 	return list;
 }
 
-juce::Result ScriptBroadcaster::ComponentValueItem::callSync(const Array<var>& args)
+UriError ScriptBroadcaster::ComponentValueItem::callSync(const Array<var>& args)
 {
-	auto ok = Result::ok();
+	auto ok = UriError::ok();
 
 	if (optionalCallback == nullptr)
 	{
@@ -3160,7 +3160,7 @@ juce::Result ScriptBroadcaster::ComponentValueItem::callSync(const Array<var>& a
 			ok = optionalCallback->callSync(args_, &rv);
 
 			if (rv.isUndefined() || rv.isVoid())
-				ok = Result::fail("You need to return a value");
+				ok = UriError::fail("You need to return a value");
 
 			if (!ok.wasOk())
 				return false;
@@ -3221,7 +3221,7 @@ struct ScriptBroadcaster::Wrapper
 
 ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var& md):
 	ConstScriptingObject(p, 0),
-	lastResult(Result::ok())
+	lastResult(UriError::ok())
 {
 	dynamic_cast<JavascriptProcessor*>(p)->registerCallableObject(this);
 
@@ -3340,7 +3340,7 @@ Component* ScriptBroadcaster::createPopupComponent(const MouseEvent& e, Componen
 	return new Display(this);
 }
 
-Result ScriptBroadcaster::call(HiseJavascriptEngine* engine, const var::NativeFunctionArgs& args, var* returnValue)
+UriError ScriptBroadcaster::call(HiseJavascriptEngine* engine, const var::NativeFunctionArgs& args, var* returnValue)
 {
 	for (auto attachedListener : attachedListeners)
 	{
@@ -3384,7 +3384,7 @@ Result ScriptBroadcaster::call(HiseJavascriptEngine* engine, const var::NativeFu
 		}
 		catch (String& s)
 		{
-			return Result::fail(s);
+			return UriError::fail(s);
 		}
 	}
 
@@ -3394,7 +3394,7 @@ Result ScriptBroadcaster::call(HiseJavascriptEngine* engine, const var::NativeFu
 
 	
 
-	return Result::fail(e);
+	return UriError::fail(e);
 }
 
 hise::DebugInformationBase* ScriptBroadcaster::getChildElement(int index)
@@ -3689,9 +3689,8 @@ void ScriptBroadcaster::sendMessageInternal(var args, bool isSync)
         
         lastResult = sendInternal(lastValues);
         
-        if (!lastResult.wasOk())
-            reportScriptError(lastResult.getErrorMessage());
-        
+		logIfError(lastResult);
+
         return;
     }
     
@@ -3722,9 +3721,7 @@ void ScriptBroadcaster::sendMessageInternal(var args, bool isSync)
 		if (isSync)
 		{
 			lastResult = sendInternal(lastValues);
-
-			if (!lastResult.wasOk())
-				reportScriptError(lastResult.getErrorMessage());
+			logIfError(lastResult);
 		}
 		else
 		{
@@ -3753,12 +3750,10 @@ void ScriptBroadcaster::sendMessageInternal(var args, bool isSync)
 				auto f = [safeThis, queuedValue](JavascriptProcessor* jp)
 				{
 					if (safeThis == nullptr)
-						return Result::fail("dangling listener");
+						return UriError::fromResult(Result::fail("dangling listener"), jp);
 
 					auto& arrayToUse = safeThis->enableQueue ? queuedValue : safeThis->lastValues;
-
 					auto r = safeThis->sendInternal(arrayToUse);
-
 					safeThis->asyncPending.store(false);
 					return r;
 				};
@@ -3853,8 +3848,7 @@ void ScriptBroadcaster::reset()
 {
 	auto ok = sendInternal(defaultValues);
 
-	if (!ok.wasOk())
-		reportScriptError(ok.getErrorMessage());
+	logIfError(ok);
 }
 
 void ScriptBroadcaster::resendLastMessage(var sync)
@@ -4498,9 +4492,7 @@ bool ScriptBroadcaster::assign(const Identifier& id, const var& newValue)
 		lastValues.set(idx, newValue);
 
 		lastResult = sendInternal(lastValues);
-
-		if (!lastResult.wasOk())
-			reportScriptError(lastResult.getErrorMessage());
+		logIfError(lastResult);
 	}
 
 	return true;
@@ -4619,7 +4611,7 @@ void ScriptBroadcaster::handleDebugStuff()
 #endif
 }
 
-Result ScriptBroadcaster::sendInternal(const Array<var>& args)
+UriError ScriptBroadcaster::sendInternal(const Array<var>& args)
 {
 	TRACE_EVENT("dispatch", "Broadcaster.callListeners");
 	auto sp = broadcasterProfile.profile(1);
@@ -4632,7 +4624,7 @@ Result ScriptBroadcaster::sendInternal(const Array<var>& args)
 		{
 			auto v = args[i];
 			if (v.isUndefined() || v.isVoid())
-				return Result::ok();
+				return UriError::ok();
 		}
 	}
 	
@@ -4644,7 +4636,7 @@ Result ScriptBroadcaster::sendInternal(const Array<var>& args)
             
 			if (!r.wasOk())
 			{
-				sendErrorMessage(i, r.getErrorMessage(), false);
+				sendErrorMessage(i, r, false);
 				return r;
 			}
         }
@@ -4664,8 +4656,7 @@ Result ScriptBroadcaster::sendInternal(const Array<var>& args)
             auto r = i->callSyncWithProfile(*this, thisValues);
             if (!r.wasOk())
             {
-
-				sendErrorMessage(i, this->getMetadata().id + ": " + r.getErrorMessage(), false);
+				sendErrorMessage(i, r, false);
                 return r;
             }
         }
@@ -4683,20 +4674,31 @@ Result ScriptBroadcaster::sendInternal(const Array<var>& args)
 		}
     }
     
-	return Result::ok();
+	return UriError::ok();
 }
 
-void ScriptBroadcaster::sendErrorMessage(ItemBase* i, const String& message, bool throwError/*=true*/)
+void ScriptBroadcaster::sendErrorMessage(ItemBase* i, const UriError& e, bool throwError/*=true*/)
 {
 	if (throwError)
-		reportScriptError(message);
+		throw e;
     else
     {
-        debugError(dynamic_cast<Processor*>(getScriptProcessor()), message);
+		auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
+
+		String path;
+
+		path << metadata.id;
+
+		if (i != nullptr)
+			path << "." << i->metadata.id;
+
+		auto c = e.withBaseCallstack({ path,  getLocation() });
+
+		LOG_RUNTIME_ERROR(c, jp);
     }
 
 	if (i != nullptr)
-		errorBroadcaster.sendMessage(sendNotificationAsync, i, message);
+		errorBroadcaster.sendMessage(sendNotificationAsync, i, e.toConsoleMessage());
 }
 
 
@@ -4712,7 +4714,7 @@ void ScriptBroadcaster::initItem(TargetBase* ni)
 			auto r = attachedListener->callItemWithProfile(*this, ni);
 
 			if (!r.wasOk())
-				sendErrorMessage(ni, r.getErrorMessage());
+				sendErrorMessage(ni, r);
 		}
 	}
 	else
@@ -4727,7 +4729,7 @@ void ScriptBroadcaster::initItem(TargetBase* ni)
 			auto r = ni->callSyncWithProfile(*this, lastValues);
 
 			if (!r.wasOk())
-				sendErrorMessage(ni, r.getErrorMessage());
+				sendErrorMessage(ni, r);
 		}
 	}
 }
@@ -4735,7 +4737,7 @@ void ScriptBroadcaster::initItem(TargetBase* ni)
 void ScriptBroadcaster::checkMetadataAndCallWithInitValues(ItemBase* i)
 {
 	if (!i->metadata.r.wasOk())
-		sendErrorMessage(i, i->metadata.r.getErrorMessage(), true);
+		sendErrorMessage(i, i->metadata.r, true);
 
 	i->profileIndex = broadcasterProfile.add(i->metadata.id.toString());
 
@@ -4797,7 +4799,7 @@ void ScriptBroadcaster::addBroadcasterAsListener(ScriptBroadcaster* targetBroadc
 
 
 ScriptBroadcaster::Metadata::Metadata(const var& obj, bool mustBeValid) :
-	r(Result::ok())
+	r(UriError::ok())
 {
 	if (obj.isString())
 	{
@@ -4806,7 +4808,7 @@ ScriptBroadcaster::Metadata::Metadata(const var& obj, bool mustBeValid) :
 		if (obj.toString().isEmpty())
 		{
 			if (mustBeValid)
-				r = Result::fail("metadata string must not be empty");
+				r = UriError::fail("metadata string must not be empty");
 		}
 		else
 			id = Identifier(obj.toString());
@@ -4817,9 +4819,9 @@ ScriptBroadcaster::Metadata::Metadata(const var& obj, bool mustBeValid) :
 	if (mustBeValid)
 	{
 		if (obj.getDynamicObject() == nullptr)
-			r = Result::fail("metadata must be a JSON object with `id`, [`commment` and `colour`]");
+			r = UriError::fail("metadata must be a JSON object with `id`, [`commment` and `colour`]");
 		else if (obj["id"].toString().isEmpty())
-			r = Result::fail("metadata must have at least a id property");
+			r = UriError::fail("metadata must have at least a id property");
 	}
 
 	priority = (int)obj["priority"];
@@ -4868,7 +4870,7 @@ bool ScriptBroadcaster::Metadata::operator==(const var& other) const
 { return Metadata(other, true) == *this; }
 
 String ScriptBroadcaster::Metadata::getErrorMessage() const
-{ return r.getErrorMessage(); }
+{ return r.toConsoleMessage(); }
 
 Identifier ScriptBroadcaster::getObjectName() const
 {
@@ -5041,8 +5043,8 @@ int ScriptBroadcaster::ComponentVisibilityListener::getNumInitialCalls() const
 Identifier ScriptBroadcaster::MouseEventListener::getItemId() const
 { RETURN_STATIC_IDENTIFIER("MouseEvents"); }
 
-Result ScriptBroadcaster::MouseEventListener::callItem(TargetBase*)
-{ return Result::ok(); }
+UriError ScriptBroadcaster::MouseEventListener::callItem(TargetBase*)
+{ return UriError::ok(); }
 
 int ScriptBroadcaster::MouseEventListener::getNumInitialCalls() const
 { return 0; }
@@ -5089,7 +5091,7 @@ Array<var> ScriptBroadcaster::OtherBroadcasterListener::getInitialArgs(int callI
 }
 
 ScriptBroadcaster::Metadata::Metadata() :
-	r(Result::ok()),
+	r(UriError::ok()),
 	hash(0)
 {
 

@@ -273,7 +273,7 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 		{
 			auto f = [component, controllerValue](JavascriptProcessor* p)
 			{
-				Result& r = p->lastResult;
+				auto& r = p->lastResult;
 				dynamic_cast<ProcessorWithScriptingContent*>(p)->customControlCallbackIdle(component, controllerValue, r);
 				return r;
 			};
@@ -306,7 +306,7 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 			{
 				auto f = [component, controllerValue](JavascriptProcessor* p)
 				{
-					Result& r = p->lastResult;
+					auto& r = p->lastResult;
 					dynamic_cast<ProcessorWithScriptingContent*>(p)->defaultControlCallbackIdle(component, controllerValue, r);
 					return r;
 				};
@@ -325,7 +325,7 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 	thisAsProcessor->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Attribute, MessageManager::getInstance()->isThisTheMessageThread() ? dispatch::sendNotificationSync : dispatch::sendNotificationAsync);
 }
 
-void ProcessorWithScriptingContent::defaultControlCallbackIdle(ScriptingApi::Content::ScriptComponent *component, const var& controllerValue, Result& r)
+void ProcessorWithScriptingContent::defaultControlCallbackIdle(ScriptingApi::Content::ScriptComponent *component, const var& controllerValue, UriError& r)
 {
 	getScriptingContent()->contentProfile.profile(component->pControlCallback);
 	getScriptingContent()->contentProfile.closeTrack(component->pControlCallback);
@@ -344,12 +344,12 @@ void ProcessorWithScriptingContent::defaultControlCallbackIdle(ScriptingApi::Con
 		scriptEngine->executeCallback(callbackIndex, &r);
 	}
 
-	BACKEND_ONLY(if (!r.wasOk()) debugError(dynamic_cast<Processor*>(this), r.getErrorMessage()));
+	LOG_RUNTIME_ERROR(r, thisAsJavascriptProcessor);
 }
 
 
 
-void ProcessorWithScriptingContent::customControlCallbackIdle(ScriptingApi::Content::ScriptComponent *component, const var& controllerValue, Result& r)
+void ProcessorWithScriptingContent::customControlCallbackIdle(ScriptingApi::Content::ScriptComponent *component, const var& controllerValue, UriError& r)
 {
 	ScopedValueSetter<bool> objectConstructorSetter(allowObjectConstructors, true);
 
@@ -370,28 +370,8 @@ void ProcessorWithScriptingContent::customControlCallbackIdle(ScriptingApi::Cont
 		scriptEngine->maximumExecutionTime = HiseJavascriptEngine::getDefaultTimeOut();
 		scriptEngine->executeInlineFunction(fVar, args, &r);
 
-#if USE_BACKEND
-		if (!r.wasOk())
-		{
-			thisAsJavascriptProcessor->runtimeErrorBroadcaster.sendMessage(sendNotificationAsync, r.getErrorMessage());
-			dynamic_cast<Processor*>(this)->getMainController()->writeToConsole(r.getErrorMessage(), 1, dynamic_cast<Processor*>(this));
-		}
-#endif
+		LOG_RUNTIME_ERROR(r, thisAsJavascriptProcessor);
 	}
-
-#if 0
-#if USE_BACKEND
-	if (!r.wasOk())
-	{
-		auto inlineF = dynamic_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(fVar.getObject());
-
-		if (inlineF != nullptr)
-		{
-			debugError(dynamic_cast<Processor*>(this), r.getErrorMessage());
-		}
-	}
-#endif
-#endif
 }
 
 ScriptBaseMidiProcessor::ScriptBaseMidiProcessor(MainController* mc, const String& id): 
@@ -890,7 +870,7 @@ const String& JavascriptProcessor::getConnectedFileReference() const
 bool JavascriptProcessor::wasLastCompileOK() const
 { return lastCompileWasOK; }
 
-Result JavascriptProcessor::getLastErrorMessage() const
+const UriError& JavascriptProcessor::getLastErrorMessage() const
 { return lastResult; }
 
 ApiProviderBase* JavascriptProcessor::getProviderBase()
@@ -969,7 +949,7 @@ JavascriptProcessor::JavascriptProcessor(MainController *mc) :
 	mainController(mc),
 	scriptEngine(new HiseJavascriptEngine(this, mc)),
 	lastCompileWasOK(false),
-	lastResult(Result::ok()),
+	lastResult(UriError::ok()),
 	callStackEnabled(mc->isCallStackEnabled()),
 	repaintDispatcher(mc)
 {
@@ -1152,9 +1132,8 @@ void JavascriptProcessor::addInplaceDebugValue(const UriLocation& loc, const Str
 	bool initialised = false;
 
 	auto lineNumber = loc.line;
-	auto callback = loc.toLocationString(UriLocation::UriFormat::ConnectionId);
-
-	auto docToUse = getSnippetOrExternalFile(callback);
+	auto callback = loc.toLocationString(UriLocation::UriFormat::CallbackId);
+	auto docToUse = getSnippetOrExternalFile(loc);
 	
 	lineNumber--;
 
@@ -1239,7 +1218,7 @@ void JavascriptProcessor::clearExternalWindows()
 	}
 }
 
-JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
+UriError JavascriptProcessor::compileInternal()
 {
 	compileProfile.setPrefix(dynamic_cast<Processor*>(this)->getId() + ".");
 
@@ -1250,8 +1229,6 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 	auto sp1 = compileProfile.profile(0);
 
 	ProcessorWithScriptingContent* thisAsScriptBaseProcessor = dynamic_cast<ProcessorWithScriptingContent*>(this);
-
-
 
 	ScriptingApi::Content* content = thisAsScriptBaseProcessor->getScriptingContent();
 
@@ -1348,8 +1325,7 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 				lastCompileWasOK = false;
 
 				scriptEngine->rebuildDebugInformation();
-				return SnippetResult(lastResult, i);
-
+				return lastResult;
 			}
 		}
 	}
@@ -1481,7 +1457,7 @@ void JavascriptProcessor::shadowParse(const DiagnosticBase::ShadowParseData& cd,
 	}
 
 	// prevent the last compilation from spamming the console.
-	lastResult = Result::ok();
+	lastResult = UriError::ok();
 
 	// Async path (IDE F7): defer to scripting thread, callback on message thread.
 	auto f = [cd, callback](Processor* p)
@@ -1869,47 +1845,6 @@ CodeDocument* JavascriptProcessor::getSnippet(const UriLocation& loc)
 		return nullptr;
 	}
 }
-
-#if 0
-void JavascriptProcessor::DelayedPositionUpdater::scriptComponentChanged(ReferenceCountedObject *componentThatWasChanged, Identifier idThatWasChanged)
-{
-	if (currentScriptComponent != nullptr)
-	{
-		JavascriptCodeEditor::Helpers::changePositionOfComponent(currentScriptComponent, newPosition.x, newPosition.y);
-	}
-
-	auto sc = dynamic_cast<ScriptComponent*>(componentThatWasChanged);
-
-	if (sc != nullptr)
-	{
-		JavascriptCodeEditor::Helpers::gotoAndReturnDocumentWithDefinition(dynamic_cast<Processor*>(p), sc);
-	}
-
-	currentScriptComponent = sc;
-}
-
-void JavascriptProcessor::DelayedPositionUpdater::scriptComponentUpdated(Identifier idThatWasChanged, var newValue)
-{
-	if (currentScriptComponent != nullptr)
-	{
-		static Identifier xId("x");
-		static const Identifier yId("y");
-
-		if (idThatWasChanged == xId)
-		{
-			int y = currentScriptComponent->getScriptObjectProperty(ScriptComponent::Properties::y);
-			newPosition = Point<int>((int)newValue, y);
-		}
-		else if (idThatWasChanged == yId)
-		{
-			int x = currentScriptComponent->getScriptObjectProperty(ScriptComponent::Properties::x);
-			newPosition = Point<int>(x, (int)newValue);
-		}
-	}
-}
-#endif
-
-
 
 void JavascriptProcessor::saveScript(ValueTree &v) const
 {
@@ -2412,10 +2347,8 @@ void JavascriptProcessor::compileScriptWithCycleReferenceCheckEnabled()
 	compileScript();
 }
 
-void JavascriptProcessor::stuffAfterCompilation(const SnippetResult& result)
+void JavascriptProcessor::stuffAfterCompilation(const UriError& result)
 {
-	
-
 	mainController->getScriptComponentEditBroadcaster()->clearSelection(sendNotification);
 
 	if (lastCompileWasOK && lastOptimisationReport.isNotEmpty())
@@ -3131,21 +3064,21 @@ void JavascriptThreadPool::pushToQueue(const Task::Type& t, JavascriptProcessor*
 	notify();
 }
 
-Result JavascriptThreadPool::executeNow(const Task::Type& t, JavascriptProcessor* p, const Task::Function& f)
+UriError JavascriptThreadPool::executeNow(const Task::Type& t, JavascriptProcessor* p, const Task::Function& f)
 {
 	return Task(t, p, f).callWithResult();
 }
 
 
-Result JavascriptThreadPool::Task::callWithResult()
+UriError JavascriptThreadPool::Task::callWithResult()
 {
 	if (getProcessor() == nullptr)
-		return Result::fail("Processor deleted");
+		return UriError::fail("Processor deleted");
 
 	auto& parent = dynamic_cast<Processor*>(getProcessor())->getMainController()->getJavascriptThreadPool();
 
 	if (parent.threadShouldExit())
-		return Result::fail("Aborted");
+		return UriError::fail("Aborted");
 
 	if (jp != nullptr && f)
 	{
@@ -3161,21 +3094,25 @@ Result JavascriptThreadPool::Task::callWithResult()
 
 		try
 		{
-			return jp->returnResult(f(jp.get()));
+			return f(jp.get());
 		}
 		catch (Result& r)
 		{
 			jassertfalse;
-			return jp->returnResult(r);;
+			return UriError::fail(r.getErrorMessage());
+		}
+		catch (UriError& r)
+		{
+			return r;
 		}
 		catch (String& errorMessage)
 		{
 			jassertfalse;
-			return jp->returnResult(Result::fail(errorMessage));
+			return UriError::fail(errorMessage);
 		}
 	};
 
-	return jp->returnResult(Result::fail("invalid function"));
+	return UriError::fail("invalid function");
 }
 
 void JavascriptProcessor::EditorHelpers::applyChangesFromActiveEditor(JavascriptProcessor* p)

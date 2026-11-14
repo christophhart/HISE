@@ -635,8 +635,9 @@ private:
 			.withClassification(source)
 			.withSuggestions(suggestions);
 
-		auto e = root.withCallStack(loc.createUriLocation(), dr.getEditorString());
-		e.metadata = dr.createMetadata();
+		auto e = dr.createUriError(loc.createUriLocation());
+
+		root.attachCallstack(e);
 		diagnostics.add(e);
 	}
 

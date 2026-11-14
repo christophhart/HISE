@@ -613,7 +613,7 @@ bool ValueTreeConverters::isLikelyVarArray(const ValueTree& v)
 
 WeakCallbackHolder::WeakCallbackHolder(ProcessorWithScriptingContent* p, ApiClass* parentObject, const var& callback, int numExpectedArgs_) :
 	ScriptingObject(p),
-	r(Result::ok()),
+	r(UriError::ok()),
 	numExpectedArgs(numExpectedArgs_),
 	trackIndex(0)
 {
@@ -643,7 +643,7 @@ WeakCallbackHolder::WeakCallbackHolder(ProcessorWithScriptingContent* p, ApiClas
 
 WeakCallbackHolder::WeakCallbackHolder(const WeakCallbackHolder& copy) :
 	ScriptingObject(const_cast<ProcessorWithScriptingContent*>(copy.getScriptProcessor())),
-	r(Result::ok()),
+	r(UriError::ok()),
 	weakCallback(copy.weakCallback),
 	numExpectedArgs(copy.numExpectedArgs),
 	highPriority(copy.highPriority),
@@ -783,10 +783,10 @@ bool WeakCallbackHolder::matches(const var& f) const
 	return weakCallback == dynamic_cast<CallableObject*>(f.getObject());
 }
 
-void WeakCallbackHolder::reportError(const Result& r)
+void WeakCallbackHolder::reportError(const UriError& r)
 {
 	if(!r.wasOk())
-		debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
+		debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), r.toConsoleMessage());
 }
 
 juce::var WeakCallbackHolder::getThisObject()
@@ -851,14 +851,14 @@ void WeakCallbackHolder::call(const var::NativeFunctionArgs& args)
 	}
 }
 
-Result WeakCallbackHolder::callSync(var* arguments, int numArgs, var* returnValue)
+UriError WeakCallbackHolder::callSync(var* arguments, int numArgs, var* returnValue)
 {
     auto to = getThisObject();
 	auto a = var::NativeFunctionArgs(to, arguments, numArgs);
 	return callSync(a, returnValue);
 }
 
-Result WeakCallbackHolder::callSync(const var::NativeFunctionArgs& a, var* returnValue /*= nullptr*/)
+UriError WeakCallbackHolder::callSync(const var::NativeFunctionArgs& a, var* returnValue /*= nullptr*/)
 {
 	TRACE_EVENT("dispatch", "callback", perfetto::TerminatingFlow::ProcessScoped(trackIndex));
 	auto sp = getScriptProcessor()->callbackProfile.profile(pCall);
@@ -867,7 +867,7 @@ Result WeakCallbackHolder::callSync(const var::NativeFunctionArgs& a, var* retur
 	if (engineToUse.get() == nullptr || engineToUse->getRootObject() == nullptr)
 	{
 		clear();
-        return Result::ok();
+        return UriError::ok();
 	}
 
 	if (weakCallback.get() != nullptr)
@@ -883,7 +883,7 @@ Result WeakCallbackHolder::callSync(const var::NativeFunctionArgs& a, var* retur
 	return r;
 }
 
-juce::Result WeakCallbackHolder::operator()(JavascriptProcessor* p)
+UriError WeakCallbackHolder::operator()(JavascriptProcessor* p)
 {
 	jassert_locked_script_thread(getScriptProcessor()->getMainController_());
 
@@ -895,7 +895,7 @@ juce::Result WeakCallbackHolder::operator()(JavascriptProcessor* p)
 	auto r = callSync(args.getRawDataPointer(), args.size(), nullptr);
 
 	if (!r.wasOk())
-		debugError(dynamic_cast<Processor*>(p), r.getErrorMessage());
+		debugError(dynamic_cast<Processor*>(p), r.toConsoleMessage());
 
 	return r;
 }
@@ -935,7 +935,7 @@ String JSONConversionHelpers::convertDataToBase64(const var& d, const ValueTree&
 }
 
 
-Result WeakCallbackHolder::CallableObject::call(HiseJavascriptEngine* engine, const var::NativeFunctionArgs& args, var* returnValue)
+UriError WeakCallbackHolder::CallableObject::call(HiseJavascriptEngine* engine, const var::NativeFunctionArgs& args, var* returnValue)
 {
 	if (thisAsRef == nullptr)
 	{

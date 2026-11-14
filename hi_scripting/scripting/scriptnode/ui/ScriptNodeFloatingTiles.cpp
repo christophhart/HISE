@@ -610,19 +610,20 @@ struct FaustEditorWrapper: public Component,
 
 					auto sa = StringArray::fromTokens(e, ":", "");
 
-					String errorMessage;
+					UriError error;
 
-					errorMessage << "Line " << sa[1] << "(0): " << sa[3];
+					error.line = sa[1].getIntValue();
+					error.errorMessage = sa[3];
+					
 
 					if (sa.size() > 4)
-						errorMessage << ": " << sa[4];
+						error.errorMessage << ": " << sa[4];
 
-					editor->editor.setError(errorMessage);
-
-					bottomBar->setError(errorMessage);
+					editor->editor.addUriError(error);
+					bottomBar->setError(error);
 				}
 				else
-					bottomBar->setError("");
+					bottomBar->setError(UriError::ok());
             }
         }
     }

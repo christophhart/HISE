@@ -156,7 +156,7 @@ void ScriptUserPresetHandler::loadCustomUserPreset(const var& dataObject)
 		auto ok = customLoadCallback.callSync(&args, 1, nullptr);
 
 		if (!ok.wasOk())
-			debugError(getMainController()->getMainSynthChain(), ok.getErrorMessage());
+			debugError(getMainController()->getMainSynthChain(), ok.toConsoleMessage());
 	}
 }
 
@@ -179,7 +179,7 @@ void ScriptUserPresetHandler::onParameterGesture(bool startGesture, int paramete
 			auto ok = parameterGestureCallback.callSync(a, nullptr);
 
 			if(!ok.wasOk())
-				reportScriptError(ok.getErrorMessage());
+				reportScriptError(ok.toConsoleMessage());
 		}
 	}
 }
@@ -195,7 +195,7 @@ var ScriptUserPresetHandler::saveCustomUserPreset(const String& presetName)
 		auto ok = customSaveCallback.callSync(&args, 1, &rv);
 
 		if (!ok.wasOk())
-			debugError(getMainController()->getMainSynthChain(), ok.getErrorMessage());
+			debugError(getMainController()->getMainSynthChain(), ok.toConsoleMessage());
 
 		return rv;
 	}

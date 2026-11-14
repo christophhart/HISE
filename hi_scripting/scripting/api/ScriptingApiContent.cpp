@@ -1800,7 +1800,7 @@ void ScriptingApi::Content::ScriptComponent::handleFocusChange(bool isFocused)
 			auto ok = keyboardCallback.callSync(&args, 1);
 
 			if (!ok.wasOk())
-				reportScriptError(ok.getErrorMessage());
+				reportScriptError(ok.toConsoleMessage());
 		}
 		catch (String& s)
 		{
@@ -4719,16 +4719,14 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint(bool forceRepaint/*=fal
 
 		auto safeThis = WeakReference<ScriptPanel>(this);
 
-		auto f = [safeThis, forceRepaint](JavascriptProcessor*)
+		auto f = [safeThis, forceRepaint](JavascriptProcessor* jp)
 		{
-			if (safeThis != nullptr)
-			{
-				Result r = Result::ok();
-				safeThis.get()->internalRepaintIdle(forceRepaint, r);
-				return r;
-			}
+			auto r = UriError::ok();
 
-			return Result::ok();
+			if (safeThis != nullptr)
+				safeThis.get()->internalRepaintIdle(forceRepaint, r);
+
+			return r;
 		};
 
 		mc->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::LowPriorityCallbackExecution, jp, f);
@@ -4736,9 +4734,10 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint(bool forceRepaint/*=fal
 }
 
 
-bool ScriptingApi::Content::ScriptPanel::internalRepaintIdle(bool forceRepaint, Result& r)
+bool ScriptingApi::Content::ScriptPanel::internalRepaintIdle(bool forceRepaint, UriError& r)
 {
-	jassert_locked_script_thread(dynamic_cast<Processor*>(getScriptProcessor())->getMainController());
+	auto p = dynamic_cast<Processor*>(getScriptProcessor());
+	jassert_locked_script_thread(p->getMainController());
 
 	auto sp = profile(pPaintRoutine);
 
@@ -4777,8 +4776,6 @@ bool ScriptingApi::Content::ScriptPanel::internalRepaintIdle(bool forceRepaint, 
 	var::NativeFunctionArgs args(thisObject, &arguments, 1);
 
 
-	Result::ok();
-
 	if (!engine->isInitialising())
 	{
 		engine->maximumExecutionTime = HiseJavascriptEngine::getDefaultTimeOut();
@@ -4788,7 +4785,7 @@ bool ScriptingApi::Content::ScriptPanel::internalRepaintIdle(bool forceRepaint, 
 
 	if (r.failed())
 	{
-		debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
+		debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.toConsoleMessage());
 	}
 
 	auto idx = getScriptProcessor()->getScriptingContent()->contentProfile.openTrack(pPaintRoutine);
@@ -5247,8 +5244,7 @@ void ScriptingApi::Content::ScriptPanel::repaintWrapped()
 		auto f = [this](JavascriptProcessor* )
 		{
 			repaint();
-
-			return Result::ok();
+			return UriError::ok();
 		};
 
 		mc->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::LowPriorityCallbackExecution, jp, f);
@@ -5259,14 +5255,14 @@ void ScriptingApi::Content::ScriptPanel::repaintWrapped()
 	}
 }
 
-Result ScriptingApi::Content::ScriptPanel::testCallback(const String& callbackId, const Array<var>& args)
+UriError ScriptingApi::Content::ScriptPanel::testCallback(const String& callbackId, const Array<var>& args)
 {
 	if (callbackId == "setMouseCallback")
 	{
 		auto ok = MouseCallbackComponent::validateEventObject(args[0], getScriptObjectProperty(ScriptPanel::allowCallbacks).toString());
 
 		if (!ok.wasOk())
-			return ok;
+			return UriError::fromResult(ok, dynamic_cast<JavascriptProcessor*>(getScriptProcessor()));
 
 		return testWithThis(mouseRoutine, args);
 	}
@@ -6890,12 +6886,10 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::onRefresh(Ch
 			auto s = dynamic_cast<ChildReference*>(t.getObject());
 
 			var args(var(s->graphics.get()));
-
 			auto ok = s->paintRoutine.callSync(&args, 1);
-
 			s->graphics->getDrawHandler().flush(0, 0);
 
-			return Result::ok();
+			return UriError::ok();
 		});
 	}
 
@@ -8414,19 +8408,6 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const ValueTree &preset
 	{
 		if (!components[i]->getScriptObjectProperty(ScriptComponent::Properties::saveInPreset)) continue;
 
-
-#if ENABLE_SCRIPTING_BREAKPOINTS
-		if (auto jsp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
-		{
-			if (jsp->getLastErrorMessage().getErrorMessage().startsWith("Breakpoint"))
-			{
-				break;
-			}
-		}
-#endif
-
-		
-
 		static const Identifier id_("id");
 
 		auto presetChild = preset.getChildWithProperty(id_, components[i]->getName().toString());
@@ -9163,7 +9144,7 @@ void ScriptingApi::Content::recompileAndThrowAtDefinition(ScriptComponent* sc)
 
 	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
 	{
-		auto rf = [this, jp](const JavascriptProcessor::SnippetResult& r)
+		auto rf = [this, jp](const UriError& r)
 		{
 			componentToThrowAtDefinition = nullptr;
 			jp->compileScript({});

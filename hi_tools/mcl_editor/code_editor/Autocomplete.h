@@ -152,7 +152,9 @@ public:
 		String label;
 		String markdownDescription;
 		String tokenContent;
-		
+	
+		UriLocation location;
+
 		/** The base colour for displaying the entry. */
 		Colour c = Colours::white;
 
@@ -171,12 +173,12 @@ public:
 	using List = ReferenceCountedArray<Token>;
 	using TokenPtr = ReferenceCountedObjectPtr<Token>;
 
-	TokenCollection::List getTokens(int lineNumber, int charIndex, const String& previousTokens) const
+	TokenCollection::List getTokens(const UriLocation& location, const String& previousTokens) const
 	{
 		List l;
 
 		for (auto p : tokenProviders)
-			p->addTokensWithContext(l, lineNumber, charIndex, previousTokens);
+			p->addTokensWithContext(l, location, previousTokens);
 
 		if(!tokens.isEmpty())
 		{
@@ -218,7 +220,7 @@ public:
 		/** This is called synchronously just before the autocomplete opens and lets the editor add context based items
 			using the line number and token start. 
 		*/
-		virtual void addTokensWithContext(List& tokens, int lineNumber, int charIndex, const String& previousExpression) {};
+		virtual void addTokensWithContext(List& tokens, const UriLocation& location, const String& previousExpression) {};
 
 		WeakReference<TokenCollection> assignedCollection;
 	};

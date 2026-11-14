@@ -514,10 +514,11 @@ public:
 			return other.doc == this->doc && other.pos.getLineNumber() == this->pos.getLineNumber();
 		}
 
-		UriLocation toLocation() const
+		UriLocation toLocation(JavascriptProcessor* jp) const
 		{
 			UriLocation loc;
 			loc.uri = fileName;
+			loc.processorId = jp->getUriProcessorId();
 			loc.charIndex = pos.getPosition();
 			loc.fillLineAndCol(*doc);
 			return loc;
@@ -952,8 +953,7 @@ public:
 	{
 		if (auto entry = entries[rowIndex])
 		{
-			auto loc = entry->toLocation();
-
+			auto loc = entry->toLocation(jp);
             editor = CommonEditorFunctions::as(getMainController()->getLastActiveEditor());
 			
 			if (editor != nullptr)

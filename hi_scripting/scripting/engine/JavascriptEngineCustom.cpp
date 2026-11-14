@@ -46,6 +46,8 @@ std::pair<var, DiagnosticBase::DiagnosticResult> HiseJavascriptEngine::RootObjec
 						auto actual = LightweightDiagnostics::Helpers::getTypeForObjectTypeCheck(args.arguments[i]);
 						auto expected = VarTypeChecker::getTypeName(parameterTypes[i]).toString();
 
+						
+
 						auto dr = DiagnosticBase::DiagnosticResult::fail("wrong type for parameter " + String(i + 1))
 							.withExpectation(expected, actual);
 
@@ -897,7 +899,6 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 				}
 
 				body.get()->perform(*ts.getCurrentScope(), &rv.first);
-				
 			}
 
 			return rv;

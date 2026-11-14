@@ -1286,7 +1286,7 @@ void ScriptContentComponent::ComponentDragInfo::callRepaint()
 				if(safeThis != nullptr)
 					safeThis->callRepaint();
 
-				return Result::ok();
+				return UriError::ok();
 			};
 
 			getMainController()->getJavascriptThreadPool().addJob(t, const_cast<JavascriptProcessor*>(jp), f);

@@ -469,18 +469,18 @@ RestServer::Response RestHelpers::handleRecompile(MainController* mc, RestServer
 
 		mc->getKillStateHandler().killVoicesAndCall(dynamic_cast<Processor*>(jp), [req, forceSync, mc](Processor* p)
 		{
-			JavascriptProcessor::ResultFunction rf = [req, forceSync, mc, p](const JavascriptProcessor::SnippetResult& result)
+			JavascriptProcessor::ResultFunction rf = [req, forceSync, mc, p](const UriError& result)
 			{
 				DynamicObject::Ptr r = new DynamicObject();
-				r->setProperty(RestApiIds::success, result.r.wasOk());
-				r->setProperty(RestApiIds::result, result.r.wasOk() ? "Recompiled OK" : "Compilation / Runtime Error");
+				r->setProperty(RestApiIds::success, result.wasOk());
+				r->setProperty(RestApiIds::result, result.wasOk() ? "Recompiled OK" : "Compilation / Runtime Error");
 				r->setProperty(RestApiIds::forceSynchronousExecution, forceSync);
 				
 				if (forceSync)
 					r->setProperty(RestApiIds::warning, "Executed in unsafe synchronous mode - threading checks bypassed");
 				
 				// Check for LAF render warnings on successful compilation
-				if (result.r.wasOk())
+				if (result.wasOk())
 				{
 					if (auto ps = dynamic_cast<ProcessorWithScriptingContent*>(p))
 					{
@@ -2053,20 +2053,20 @@ RestServer::Response RestHelpers::handleSetScript(MainController* mc, RestServer
 			[req, forceSync, updatedCallbackNames, moduleId, mc](Processor* p)
 		{
 			JavascriptProcessor::ResultFunction rf = 
-				[req, forceSync, updatedCallbackNames, moduleId, mc, p](const JavascriptProcessor::SnippetResult& result)
+				[req, forceSync, updatedCallbackNames, moduleId, mc, p](const UriError& result)
 			{
 				DynamicObject::Ptr r = new DynamicObject();
-				r->setProperty(RestApiIds::success, result.r.wasOk());
+				r->setProperty(RestApiIds::success, result.wasOk());
 				r->setProperty(RestApiIds::moduleId, moduleId);
 				r->setProperty(RestApiIds::updatedCallbacks, var(updatedCallbackNames));
-				r->setProperty(RestApiIds::result, result.r.wasOk() ? "Compiled OK" : "Compilation / Runtime Error");
+				r->setProperty(RestApiIds::result, result.wasOk() ? "Compiled OK" : "Compilation / Runtime Error");
 				r->setProperty(RestApiIds::forceSynchronousExecution, forceSync);
 				
 				if (forceSync)
 					r->setProperty(RestApiIds::warning, "Executed in unsafe synchronous mode - threading checks bypassed");
 				
 				// Check for LAF render warnings on successful compilation
-				if (result.r.wasOk())
+				if (result.wasOk())
 				{
 					if (auto ps = dynamic_cast<ProcessorWithScriptingContent*>(p))
 					{

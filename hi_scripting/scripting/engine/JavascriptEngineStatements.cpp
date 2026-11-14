@@ -173,8 +173,8 @@ struct HiseJavascriptEngine::RootObject::ScopedCall: public HiseJavascriptEngine
             for(int i = 0; i < argValues.size(); i++)
                 argValues.set(i, var());
             
-            if(!ok)
-                throwError(s, ok.getErrorMessage());
+			if (!ok.wasOk())
+				throw ok;
         }
         else
         {
@@ -199,8 +199,8 @@ struct HiseJavascriptEngine::RootObject::ScopedCall: public HiseJavascriptEngine
             for(int i = 0; i < argValues.size(); i++)
                 argValues.set(i, var());
             
-            if(!ok)
-                throwError(s, ok.getErrorMessage());
+			if (!ok.wasOk())
+				throw ok;
         }
     }
 

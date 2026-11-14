@@ -235,8 +235,7 @@ struct HiseJavascriptEngine::RootObject::ScriptAudioThreadGuard
 
 UriError HiseJavascriptEngine::RootObject::fromLocation(const CodeLocation& location, const String& errorMessage) const
 {
-	UriError e;
-	e.errorMessage = errorMessage;
+	auto e = UriError::fail(errorMessage);
 
 	for (const auto& s : callStack)
 	{
@@ -517,8 +516,6 @@ struct HiseJavascriptEngine::RootObject::Scope
 			: var::undefined();
 	}
 
-	
-
 	DynamicObject* getShadowParserRootObject(const Identifier& namespaceId = {}) const
 	{
 		jassert(isShadowParsing());
@@ -655,15 +652,8 @@ struct HiseJavascriptEngine::RootObject::Statement
 
 		if (dr.shouldReport() && s.isShadowParsing())
 		{
-			UriError d;
-
 			auto& toUse = locationToUse != nullptr ? *locationToUse : location;
-
-			toUse.fillLocation(d);
-
-			d.errorMessage = dr.getEditorString();
-			d.metadata = dr.createMetadata();
-			
+			auto d = dr.createUriError(toUse.createUriLocation());
 			s.currentShadowParser->addDiagnostic(d);
 		}
 	}
@@ -921,19 +911,23 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
 	catch (String &error)
 	{
 		jassertfalse;
-		return Result::fail(error);
+
+		UriError e;
+		e.errorMessage = error;
+		return e;
 	}
 	catch (UriError &e)
 	{
 #if USE_FRONTEND
 		DBG(e.errorMessage);
-		return Result::fail(e.errorMessage);
+		return e;
 #endif
 
-		return Result::fail(e.toFullCallStack());
+		return e;
+
 	}
 
-	return Result::ok();
+	return UriError::ok();
 }
 
 var HiseJavascriptEngine::evaluate(const String& code, Result* result)
@@ -1012,17 +1006,22 @@ var HiseJavascriptEngine::callFunction(const Identifier& function, const var::Na
 	try
 	{
 		prepareTimeout();
-		if (result != nullptr) *result = Result::ok();
+
+		if (result != nullptr)
+			*result = UriError::ok();
+
 		RootObject::Scope(nullptr, root.get(), root.get()).findAndInvokeMethod(function, args, returnVal);
 	}
 	catch (String &error)
 	{
 		jassertfalse;
-		if (result != nullptr) *result = Result::fail(error);
+		if (result != nullptr) 
+			*result = UriError::fail(error);
 	}
 	catch (UriError &e)
 	{
-		if (result != nullptr) *result = Result::fail(e.toFullCallStack());
+		if (result != nullptr)
+			*result = e;
 	}
 
 	return returnVal;
@@ -1165,7 +1164,7 @@ void HiseJavascriptEngine::rebuildDebugInformation()
 	}
 }
 
-var HiseJavascriptEngine::executeWithoutAllocation(const Identifier &function, const var::NativeFunctionArgs& args, Result* result /*= nullptr*/, DynamicObject *scopeToUse)
+var HiseJavascriptEngine::executeWithoutAllocation(const Identifier &function, const var::NativeFunctionArgs& args, UriError* result /*= nullptr*/, DynamicObject *scopeToUse)
 {
 #if JUCE_DEBUG
 	auto mc = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getMainController();
@@ -1177,12 +1176,20 @@ var HiseJavascriptEngine::executeWithoutAllocation(const Identifier &function, c
 	try
 	{
 		prepareTimeout();
-		if (result != nullptr) *result = Result::ok();
+		if (result != nullptr) 
+			*result = UriError::ok();
+
 		RootObject::Scope(nullptr, root.get(), root.get()).invokeMidiCallback(function, args, returnVal, (scopeToUse != nullptr ? scopeToUse : unneededScope.get()));
+	}
+	catch (UriError& e)
+	{
+		if (result != nullptr)
+			*result = e;
 	}
 	catch (String& error)
 	{
-		if (result != nullptr) *result = Result::fail(error);
+		if (result != nullptr) 
+			*result = UriError::fail(error);
 	}
 
 	return returnVal;
@@ -2002,11 +2009,6 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 	addApiClasses(jp, tokens);
     addRootProperties(jp, tokens);
 
-
-
-
-
-
 #endif
 
 
@@ -2190,9 +2192,9 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 #endif
 }
 
-void HiseJavascriptEngine::TokenProvider::addTokensWithContext(mcl::TokenCollection::List& tokens, int lineNumber, int charIndex, const String& prevExpression)
+void HiseJavascriptEngine::TokenProvider::addTokensWithContext(mcl::TokenCollection::List& tokens, const UriLocation& location, const String& prevExpression)
 {
-	jp->getScriptEngine()->addTokensWithContext(tokens, lineNumber, charIndex, prevExpression);
+	jp->getScriptEngine()->addTokensWithContext(tokens, location, prevExpression);
 }
 
 void HiseJavascriptEngine::TokenProvider::precompileCallback(TokenProvider& p, bool unused)

@@ -1108,7 +1108,7 @@ juce::String ScriptCreatedComponentWrappers::SliderWrapper::getTextForValuePopup
 			{
 				var data = slider->getValue();
 				var::NativeFunctionArgs args(sl, &data, 1);
-				Result r = Result::ok();
+				auto r = UriError::ok();
 	
 				auto text = jp->getScriptEngine()->callExternalFunction(sl->sliderValueFunction, args, &r, true);
 	
@@ -1655,14 +1655,12 @@ juce::String ScriptCreatedComponentWrappers::TableWrapper::getTextForTablePopup(
 		{
 			var data[2] = { var(x), var(y) };
 			var::NativeFunctionArgs args(st, data, 2);
-			Result r = Result::ok();
+			auto r = UriError::ok();
 
 			auto text = jp->getScriptEngine()->callExternalFunction(st->tableValueFunction, args, &r, true);
 
 			if (r.wasOk())
-			{
 				return text;
-			}
 		}
 	}
 

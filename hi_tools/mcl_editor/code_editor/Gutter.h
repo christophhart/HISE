@@ -12,18 +12,6 @@
 
 #pragma once
 
-/**
-
-TODO:
-
-- add jump to location (also between files)
-- check server callback & others - maybe collect at parsing instead of relying on callback holders?
-- check double click on if statements
-- check correct clear
-- add paint routine / script property updates when sleeping?
-- show callstack somehow?
-
-*/
 
 namespace mcl
 {

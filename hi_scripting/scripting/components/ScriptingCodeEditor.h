@@ -73,7 +73,7 @@ public:
 
 private:
 
-    String fullErrorMessage;
+    UriError lastError;
     
 	bool pending = false;
 

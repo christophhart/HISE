@@ -204,9 +204,9 @@ private:
 
 	std::map<int, ModulationDisplayValue::QueryFunction::Ptr> assignedFunctions;
 
-	void defaultControlCallbackIdle(ScriptingApi::Content::ScriptComponent *component, const var& controllerValue, Result& r);
+	void defaultControlCallbackIdle(ScriptingApi::Content::ScriptComponent *component, const var& controllerValue, UriError& r);
 
-	void customControlCallbackIdle(ScriptingApi::Content::ScriptComponent *component, const var& controllerValue, Result& r);
+	void customControlCallbackIdle(ScriptingApi::Content::ScriptComponent *component, const var& controllerValue, UriError& r);
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ProcessorWithScriptingContent);
 };
@@ -273,9 +273,7 @@ public:
 
 	ExternalScriptFile::Ptr addFileWatcher(const File &file);
 
-	void setFileResult(const File &file, Result r);
-
-	Result getWatchedResult(int index);
+	void setFileResult(const UriError& e);
 
 	CodeDocument::Position getLastPosition(CodeDocument& docToLookFor) const;
 
@@ -343,10 +341,11 @@ private:
 
 using namespace snex;
 
-
-
-
-
+#if USE_BACKEND
+#define LOG_RUNTIME_ERROR(r, jp) if (!r.wasOk()) { jp->logRuntimeError(r); }
+#else
+#define LOG_RUNTIME_ERROR(r, jp)
+#endif
 
 
 /** The base class for modules that can be scripted. 
@@ -454,19 +453,7 @@ public:
 	
 	// ================================================================================================================
 
-	/** A Result object that contains the snippet. */
-	struct SnippetResult
-	{
-		SnippetResult(Result r_, int c_);;
-
-		/** the result */
-		Result r;
-
-		/** the callback */
-		int c;
-	};
-
-	using ResultFunction = std::function<void(const SnippetResult& result)>;
+	using ResultFunction = std::function<void(const UriError& result)>;
 
 	enum ScriptContextActions
 	{
@@ -531,13 +518,17 @@ public:
 	bool handleKeyPress(const KeyPress& k, Component* c) override;
 #endif
 
-	void jumpToDefinition(const String& token, int lineNumber, const String& namespaceId) override;
+	bool jumpToDefinition(const UriLocation::WithExpression& locationAndToken) override;
 
 	void setActiveEditor(JavascriptCodeEditor* e, CodeDocument::Position pos) override;
 
+	
+
 	int getCodeFontSize() const override;
 
-	String getUriProcessorId() const override { return dynamic_cast<Processor*>(this)->getId(); }
+	String getUriProcessorId() const override { return dynamic_cast<const Processor*>(this)->getId(); }
+
+	std::pair<bool, String> getUriContent(const String& uri) const override;
 
 	JavascriptCodeEditor* getActiveEditor() override;
 
@@ -626,7 +617,7 @@ public:
 
 	bool wasLastCompileOK() const;
 
-	Result getLastErrorMessage() const;
+	const UriError& getLastErrorMessage() const;
 
 	ApiProviderBase* getProviderBase() override;
 
@@ -639,7 +630,7 @@ public:
 
 	void compileScriptWithCycleReferenceCheckEnabled();
 
-	void stuffAfterCompilation(const SnippetResult& r);
+	void stuffAfterCompilation(const UriError& r);
 
 	void showPopupForCallback(const Identifier& callback, int charNumber, int lineNumber);
 
@@ -711,7 +702,7 @@ protected:
 
 		void run();
 
-		JavascriptProcessor::SnippetResult result;
+		UriError result;
 
 	private:
 
@@ -721,9 +712,9 @@ protected:
 
 	// ================================================================================================================
 
-	Result lastResult;
+	UriError lastResult;
 
-	virtual SnippetResult compileInternal();
+	virtual UriError compileInternal();
 
 	String connectedFileReference;
 
@@ -780,7 +771,7 @@ public:
 struct JavascriptSleepListener
 {
 	virtual ~JavascriptSleepListener() {};
-	virtual bool sleepStateChanged(const UriLocation& location, bool isSleeping) = 0;
+	virtual bool sleepStateChanged(const UriError& location, bool isSleeping) = 0;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(JavascriptSleepListener);
 };
@@ -819,7 +810,7 @@ public:
 			numTypes
 		};
 
-		using Function = std::function < Result(JavascriptProcessor*)>;
+		using Function = std::function<UriError(JavascriptProcessor*)>;
 
 		Task() noexcept;;
 
@@ -829,7 +820,7 @@ public:
 		
 		Type getType() const noexcept;
 
-		Result callWithResult();
+		UriError callWithResult();
 
 		bool isValid() const noexcept;
 
@@ -866,13 +857,13 @@ public:
 
 	struct ScopedSleeper
 	{
-		ScopedSleeper(JavascriptThreadPool& p_, JavascriptProcessor* jp, const UriLocation& loc);
+		ScopedSleeper(JavascriptThreadPool& p_, JavascriptProcessor* jp, const UriError& loc);
 
 		void sendMessage(bool on);
 
 		~ScopedSleeper();
 
-		const UriLocation location;
+		const UriError location;
 		JavascriptThreadPool& p;
 		JavascriptProcessor* prevJp;
 		const bool wasSleeping;
@@ -914,9 +905,9 @@ private:
 
 	void pushToQueue(const Task::Type& t, JavascriptProcessor* p, const Task::Function& f);
 
-	Result executeNow(const Task::Type& t, JavascriptProcessor* p, const Task::Function& f);
+	UriError executeNow(const Task::Type& t, JavascriptProcessor* p, const Task::Function& f);
 
-	Result executeQueue(const Task::Type& t, PendingCompilationList& pendingCompilations);
+	UriError executeQueue(const Task::Type& t, PendingCompilationList& pendingCompilations);
 
 	std::atomic<bool> pending;
 	
