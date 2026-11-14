@@ -223,9 +223,10 @@ JavascriptCodeEditor* ApiProviderBase::Holder::getActiveEditor()
 ValueTree ApiProviderBase::Holder::createApiTree()
 { return {}; }
 
-void ApiProviderBase::Holder::jumpToDefinition(const String& token, int lineNumber, const String& namespaceId)
+bool ApiProviderBase::Holder::jumpToDefinition(const UriLocation::WithExpression& locationAndToken)
 {
-	ignoreUnused(token, namespaceId);
+	ignoreUnused(locationAndToken);
+	return false;
 }
 
 bool ApiProviderBase::Holder::handleKeyPress(const KeyPress& k, Component* c)

@@ -369,7 +369,8 @@ bool CSSRootComponent::CSSDebugger::keyPressed(const KeyPress& key)
 		}
 		else
 		{
-			editor.setError(ok.getErrorMessage());
+			jassertfalse; // TODO_DELETE replace with UriError;
+			//editor.setError(ok.getErrorMessage());
 		}
 	}
 

@@ -2865,6 +2865,9 @@ static JavascriptProcessor* findProcessorForFile(MainController* mc, const File&
 
 RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestServer::AsyncRequest::Ptr req)
 {
+	return req->fail(400, "redesign this API when the internal parser is done");
+
+#if 0
 	auto obj = req->getRequest().getJsonBody();
 	
 	auto codeStr = obj.getProperty(RestApiIds::code, "").toString();
@@ -2905,9 +2908,12 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 	String responsePath;
 	JavascriptProcessor* jp = nullptr;
 	
-	using ItemType = DiagnosticBase::ShadowParseData::Item::Type;
+	DiagnosticBase::ShadowParseData sd;
 
-	ItemType t = ItemType::onInit;
+	UriLocation parseLocation;
+	parseLocation.processorId = moduleId;
+
+
 
 	auto getFileFromString = [mc](const String& fileString)
 	{
@@ -3077,29 +3083,22 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 
 			auto tp = std::make_unique<HiseJavascriptEngine::TokenProvider>(jp);
 
+			UriLocation loc;
+			loc.processorId = resolvedModuleId;
+			loc.uri = responsePath;
+			loc.line = autocompleteLine;
+			loc.col = 0;
+			loc.charIndex = charIndex;
+
 			tp->addTokens(tokens);
-			tp->addTokensWithContext(tokens, autocompleteLine, charIndex, prevExpression.first);
+			tp->addTokensWithContext(tokens, loc, prevExpression.first);
 
 			tp.reset();
 
 			Array<var> lspList;
 
-			DynamicObject::Ptr occurrences = new DynamicObject();
-			occurrences->setProperty("isIncomplete", true);
-
 			for (auto t : tokens)
 			{
-				if (auto nt = dynamic_cast<LightweightDiagnostics::NavigationToken*>(t))
-				{
-					if (includeNavigationInfo)
-					{
-						occurrences->setProperty("isIncomplete", false);
-						occurrences->setProperty(RestApiIds::items, var(nt->occurrences));
-					}
-					
-					continue;
-				}
-
 				if (!t->matches(prevExpression.second, prevExpression.first, autocompleteLine))
 					continue;
 
@@ -3112,8 +3111,6 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 			completionList->setProperty(RestApiIds::isIncomplete, false);
 			completionList->setProperty(RestApiIds::items, var(lspList));
 			result->setProperty(RestApiIds::completionList, var(completionList.get()));
-
-			result->setProperty(RestApiIds::occurrences, var(occurrences.get()));
 		}
 
 		result->setProperty(RestApiIds::logs, Array<var>());
@@ -3143,6 +3140,7 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 	}, sendNotificationSync);
 	
 	return buildResponse(diagArray);
+#endif
 }
 
 RestServer::Response RestHelpers::handleGetIncludedFiles(MainController* mc, RestServer::AsyncRequest::Ptr req)

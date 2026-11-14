@@ -126,7 +126,15 @@ Component* DebugInformation::createPopupComponent(const MouseEvent& e, Component
 
 void DebugInformation::doubleClickCallback(const MouseEvent &e, Component* componentToNotify)
 {
+	PopupIncludeEditor::gotoUriLocation(nullptr, componentToNotify, getLocation());
+
+#if 0
 	auto obj = getObject();
+
+	auto location = getLocation();
+
+	
+	
 
 	if (auto pc = componentToNotify->findParentComponentOfClass<PanelWithProcessorConnection>())
 	{
@@ -149,6 +157,7 @@ void DebugInformation::doubleClickCallback(const MouseEvent &e, Component* compo
 
 		DebugableObject::Helpers::gotoLocation(jp, this);
 	}
+#endif
 }
 
 String DebugInformation::getTextForRow(Row r)
@@ -178,47 +187,6 @@ String DebugInformation::toString()
 }
 
 #if USE_BACKEND
-CodeEditorPanel* findOrCreateEditorPanel(CodeEditorPanel* panel, Processor* processor, UriLocation location)
-{
-	auto sanitized = location.toLocationString(UriLocation::UriFormat::ConnectionId);
-
-	auto matches = [&](CodeEditorPanel* p)
-	{
-		if (p->getConnectedProcessor() == processor)
-		{
-			StringArray indexList;
-			p->fillIndexList(indexList);
-			auto idx = p->getCurrentIndex();
-			auto id = indexList[idx];
-
-			auto expId = sanitized;
-
-			if (expId == id)
-				return true;
-		}
-
-		return false;
-	};
-	
-	if (matches(panel))
-		return panel;
-
-	if (auto tabs = panel->getParentShell()->findParentComponentOfClass<FloatingTabComponent>())
-	{
-		int idx = 0;
-		
-		StringArray indexList;
-		panel->fillIndexList(indexList);
-
-		auto expId = sanitized;
-		idx = indexList.indexOf(expId);
-
-		return CodeEditorPanel::showOrCreateTab(tabs, dynamic_cast<JavascriptProcessor*>(processor), idx);
-	}
-
-	return panel;
-}
-
 
 struct UndoableLocationSwitch: public UndoableAction
 {

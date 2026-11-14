@@ -369,7 +369,7 @@ public:
 		/** Override this method and return a ValueTree containing the API documentation. */
 		virtual ValueTree createApiTree();;
 
-		virtual void jumpToDefinition(const String& token, int lineNumber, const String& namespaceId);
+		virtual bool jumpToDefinition(const UriLocation::WithExpression& locationAndToken);
 
 		virtual void rebuild();;
 

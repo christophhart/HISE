@@ -121,12 +121,18 @@ void Editor::compile()
 	auto tf = File::getSpecialLocation(File::SpecialLocationType::userDesktopDirectory).getChildFile("current.css");
 	tf.replaceWithText(jdoc.getAllContent());
 	editor.editor.clearWarningsAndErrors();
+
+
+	jassertfalse; // TODO_DELETE: replace with UriError
+#if 0
+
 	editor.editor.setError(ok.getErrorMessage());
 
 	for(const auto& w: p.getWarnings())
 	{
 		editor.editor.addWarning(w);
 	}
+#endif
 
 	auto css = p.getCSSValues();
 

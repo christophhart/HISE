@@ -661,10 +661,8 @@ bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
 	}
 	else if (k.isKeyCode(KeyPress::F12Key))
 	{
-		auto token = getCurrentToken();
-		auto pos = getCaretPos();
-		const String namespaceId = Helpers::findNamespaceForPosition(pos);
-		holder->jumpToDefinition(token, pos.getLineNumber(), namespaceId);
+		jassertfalse;
+		return false;
 	}
 
 	if (k != KeyPress::escapeKey) startTimer(800);

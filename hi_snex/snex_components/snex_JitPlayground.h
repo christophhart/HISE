@@ -507,8 +507,7 @@ private:
 class SnexPlayground : public ui::WorkbenchComponent,
 	public CodeDocument::Listener,
 	public ButtonListener,
-	public BreakpointHandler::Listener,
-	public mcl::GutterComponent::BreakpointListener
+	public BreakpointHandler::Listener
 {
 public:
 
@@ -590,14 +589,6 @@ public:
 	{
 
 	}
-
-	void breakpointsChanged(mcl::GutterComponent& g) override
-	{
-		
-		getWorkbench()->triggerRecompile();
-	}
-
-	
 
 	SnexPlayground(ui::WorkbenchData* data, bool addDebugComponents=false);
 
@@ -721,6 +712,8 @@ private:
 
 	void eventHappened(BreakpointHandler* handler, BreakpointHandler::EventType type) override
 	{
+		jassertfalse;
+#if 0
 		currentBreakpointLine = (int)*handler->getLineNumber();
 
 		if (type == BreakpointHandler::Resume)
@@ -729,6 +722,7 @@ private:
 		editor.setCurrentBreakline(currentBreakpointLine);
 
 		bpProvider.rebuild();
+#endif
 	}
 
 	void preCompile() override
@@ -746,7 +740,7 @@ private:
 			assemblyDoc.replaceAllContent({});
 			consoleContent.replaceAllContent({});
 			consoleContent.clearUndoHistory();
-			editor.setCurrentBreakline(-1);
+			editor.setCurrentBreakline({});
 		}
 	}
 

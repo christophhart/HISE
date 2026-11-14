@@ -66,8 +66,6 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 	
 	watchTable.setHolder(getWorkbench());
 
-	editor.addBreakpointListener(this);
-
 	stateViewer = new ui::OptimizationProperties(getWorkbench());
 
 	auto& ed = editor.editor;
@@ -81,6 +79,9 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 	ed.addPopupMenuFunction([this](mcl::TextEditor& te, PopupMenu& m, const MouseEvent& e) { addPopupMenuItems(te, m, e); }, BIND_MEMBER_FUNCTION_2(SnexPlayground::performPopupMenu));
 
 	auto& d = doc;
+
+	jassertfalse; // TODO_DELETE replace with new goto function
+#if 0
 	ed.setGotoFunction([&d](int lineNumber, const String& token)
 	{
 		mcl::Selection selection;
@@ -106,6 +107,7 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 
 		return -1;
 	});
+#endif
 
 	addAndMakeVisible(editor);
 	addAndMakeVisible(console);
@@ -549,6 +551,9 @@ void SnexPlayground::recalculateInternal()
 
 void SnexPlayground::logMessage(ui::WorkbenchData::Ptr p, int level, const juce::String& s)
 {
+	jassertfalse; //TODO_DELETE replace with UriError
+
+#if 0
 	if (level == jit::BaseCompiler::Error)
 		editor.editor.setError(s);
 
@@ -572,6 +577,7 @@ void SnexPlayground::logMessage(ui::WorkbenchData::Ptr p, int level, const juce:
 	{
 		editor.editor.addWarning(s);
 	}
+#endif
 }
 
 static void addToSubMenu(File currentFile, Array<File>& addedFiles, PopupMenu& m, const File& f)
@@ -822,13 +828,13 @@ void SnexPlayground::recompiled(ui::WorkbenchData::Ptr p)
 
 	if (r.compiledOk())
 	{
-		editor.editor.setError(String());
+		editor.editor.clearWarningsAndErrors(UriError::SourceType::Compilation);
 		resized();
 		resultLabel.setText("OK", dontSendNotification);
 	}
 	else
 	{
-		editor.editor.setError(r.compileResult.getErrorMessage());
+		editor.editor.addUriError(UriError::fromResult(r.compileResult, nullptr));
 		resultLabel.setText(r.compileResult.getErrorMessage(), dontSendNotification);
 	}
 }
@@ -839,10 +845,9 @@ void SnexPlayground::postPostCompile(ui::WorkbenchData::Ptr wb)
 
     if(!wb->getLastResult().compiledOk())
     {
-        auto m = wb->getLastResult().compileResult.getErrorMessage();
-        resultLabel.setText(m, dontSendNotification);
-        
-        editor.editor.setError(m);
+        auto m = wb->getLastResult().compileResult;
+        resultLabel.setText(m.getErrorMessage(), dontSendNotification);
+        editor.editor.addUriError(UriError::fromResult(m, nullptr));
         
     }
 	else if (!result.testWasOk())
@@ -1180,17 +1185,24 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 
 			c.compileJitObject(parent.doc.getAllContent());
 			ed.tokenCollection->signalRebuild();
+
+			jassertfalse; //TODO_DELETE replace with UriError
+#if 0
 			auto r = c.getCompileResult();
 
 			if (!r.wasOk())
 				ed.setError(r.getErrorMessage());
+#endif
 		}
 	}
 
 	void SnexPlayground::PreprocessorUpdater::logMessage(int level, const juce::String& s)
 	{
+		jassertfalse;
+#if 0
 		if (level == (int)snex::BaseCompiler::Warning)
 			parent.editor.editor.addWarning(s);
+#endif
 	}
 
 	snex::ui::WorkbenchData::CompileResult TestCompileThread::compile(const String& s)
