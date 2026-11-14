@@ -143,6 +143,8 @@ public:
 		ErrorCode c;
 	};
 
+	static bool waitUntil(const MainController* mc, const std::function<bool()>& condition);
+
 	static bool freeToGo(const MainController* mc);
 
 	static bool noMessageThreadBeyondInitialisation(const MainController* mc);

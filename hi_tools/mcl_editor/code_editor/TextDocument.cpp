@@ -1927,6 +1927,12 @@ Array<Selection> TextDocument::getSearchResults() const
 	return searchResults;
 }
 
+bool TextDocument::matchesLocation(const UriLocation& l) const
+{
+	jassert(baseLocation.processorId.isNotEmpty());
+	return baseLocation.sameUriAndProcessorId(l);
+}
+
 mcl::Bookmark FoldableLineRange::getBookmark() const
 {
 	Bookmark b;

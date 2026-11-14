@@ -34,6 +34,31 @@ namespace hise {
 using namespace juce;
 
 
+bool LockHelpers::waitUntil(const MainController* mc, const std::function<bool()>& condition)
+{
+	auto mm = MessageManager::getInstanceWithoutCreating();
+
+	if (mm->isThisTheMessageThread())
+	{
+		auto resume = condition();
+
+		while (!resume)
+		{
+			mm->runDispatchLoopUntil(10);
+			resume = condition();
+		}
+
+		return true;
+	}
+	else
+	{
+		// add more threads as we go...
+		jassertfalse;
+	}
+
+	return false;
+}
+
 bool LockHelpers::freeToGo(const MainController* mc)
 {
 	if (mc->isBeingDeleted())

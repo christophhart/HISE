@@ -1037,6 +1037,17 @@ void DrawActions::Handler::flush(uint64_t perfettoTrackId, uint32 profileTrackId
 	triggerAsyncUpdate();
 }
 
+void DrawActions::Handler::flushWithoutClear()
+{
+	{
+		SpinLock::ScopedLockType sl(lock);
+		nextActions.clear();
+		nextActions.addArray(currentActions);
+	}
+
+	triggerAsyncUpdate();
+}
+
 void DrawActions::Handler::logError(const String& message)
 {
 	if (errorLogger)

@@ -513,6 +513,14 @@ private:
 #define HISE_ERROR_COLOUR 0xFFBB3434
 #endif
 
+#ifndef HISE_BREAKPOINT_COLOUR
+#define HISE_BREAKPOINT_COLOUR 0xFF9F4FD0
+#endif
+
+#ifndef HISE_HINT_COLOUR
+#define HISE_HINT_COLOUR 0xffadd8e6
+#endif
+
 #define FLOAT_RECTANGLE(r) r.toFloat();
 #define INT_RECTANGLE(r) r.toInt();
 

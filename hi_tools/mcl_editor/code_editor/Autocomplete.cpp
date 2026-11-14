@@ -275,6 +275,173 @@ float Autocomplete::getScaleFactor() const
 	return editor->transform.getScaleFactor();
 }
 
+TokenCollection::ExpressionParser::ExpressionParser(CodeDocument::Position& pos_) :
+	docToUse(pos_.getOwner()),
+	pos(pos_),
+	lineStart(*docToUse, pos.getLineNumber(), 0)
+{}
+
+TokenCollection::ExpressionParser::ExpressionParser(const String & code, int line, int col) :
+	docToUse(&doc)
+{
+	doc.replaceAllContent(code);
+	pos = CodeDocument::Position(doc, line, col);
+	lineStart = CodeDocument::Position(doc, line, 0);
+}
+
+int TokenCollection::ExpressionParser::getCharIndex() const
+{
+	return pos.getPosition();
+}
+
+void TokenCollection::ExpressionParser::addLspLocation(DynamicObject::Ptr lspObject, const String& editRange) const
+{
+	auto fullContent = docToUse->getTextBetween(lineStart, pos);
+
+	auto col = fullContent.indexOf(editRange);
+
+	auto insertText = lspObject->getProperty("insertText");
+
+	auto createRange = [](int line, int col)
+		{
+			auto obj = new DynamicObject();
+			obj->setProperty("line", line);
+			obj->setProperty("character", col);
+			return var(obj);
+		};
+
+	DynamicObject::Ptr r = new DynamicObject();
+	r->setProperty("start", createRange(lineStart.getLineNumber(), col));
+	r->setProperty("end", createRange(lineStart.getLineNumber(), pos.getIndexInLine()));
+
+	DynamicObject::Ptr te = new DynamicObject();
+
+	te->setProperty("range", r.get());
+	te->setProperty("newText", insertText);
+
+	lspObject->setProperty("textEdit", te.get());
+}
+
+std::pair<String, String> TokenCollection::ExpressionParser::getExpression() const
+{
+	auto tokenStart = pos;
+
+	while (tokenStart != lineStart)
+	{
+		auto thisChar = tokenStart.getCharacter();
+
+		if (!isValidChar(thisChar))
+			break;
+
+		if (closeChars.containsChar(thisChar))
+		{
+			auto stopChar = openChars[closeChars.indexOfChar(thisChar)];
+			skipUntil(tokenStart, stopChar, thisChar);
+			continue;
+		}
+
+		if (isSkipCharWithoutQuote(tokenStart))
+		{
+			auto stopChar = thisChar;
+			skipChar(tokenStart);
+			skipUntil(tokenStart, stopChar, thisChar);
+		}
+
+		skipChar(tokenStart);
+	}
+
+	auto rtValue = docToUse->getTextBetween(tokenStart, pos);
+
+	auto end = rtValue.end();
+	auto ptr = end - 1;
+	auto start = rtValue.begin();
+
+	while (ptr != start)
+	{
+		auto c = *ptr;
+
+		if (CharacterFunctions::isLetterOrDigit(c))
+			--ptr;
+		else
+			break;
+	}
+
+	++ptr;
+
+	String pre(start, ptr);
+	String post(ptr, end);
+
+	return { pre, post };
+}
+
+bool TokenCollection::ExpressionParser::isValidChar(juce_wchar c) const
+{
+	if (CharacterFunctions::isLetterOrDigit(c))
+		return true;
+
+	if (CharacterFunctions::isWhitespace(c))
+		return true;
+
+	if (validChars.containsChar(c))
+		return true;
+
+	if (closeChars.containsChar(c))
+		return true;
+
+	if (skipChars.containsChar(c))
+		return true;
+
+	return false;
+}
+
+void TokenCollection::ExpressionParser::skipChar(CodeDocument::Position& p) const
+{
+	if (p != lineStart)
+		p.moveBy(-1);
+}
+
+void TokenCollection::ExpressionParser::skipUntil(CodeDocument::Position& p, juce_wchar stopChar, juce_wchar startChar) const
+{
+	int numStartChars = 1;
+	auto isSkippingString = skipChars.containsChar(stopChar);
+
+	while (p != lineStart)
+	{
+		skipChar(p);
+
+		auto c = p.getCharacter();
+
+		if (isSkipCharWithoutQuote(p) && !isSkippingString)
+			skipUntil(p, c, c);
+
+		if (c == startChar)
+			numStartChars++;
+
+		if (c == stopChar)
+		{
+			// stop chars are not valid, skip again...
+			skipChar(p);
+
+			numStartChars--;
+
+			if (numStartChars <= 0)
+				break;
+		}
+	}
+}
+
+bool TokenCollection::ExpressionParser::isSkipCharWithoutQuote(const CodeDocument::Position& p) const
+{
+	auto c = p.getCharacter();
+
+	if (skipChars.containsChar(c))
+	{
+		return p.movedBy(-1).getCharacter() != '\\';
+	}
+
+	return false;
+}
+
 TokenCollection::Token::Token(const String& text):
 	tokenContent(text)
 {}

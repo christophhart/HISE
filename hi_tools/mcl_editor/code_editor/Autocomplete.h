@@ -36,6 +36,43 @@ public:
 
 	static Array<Range<int>> getSelectionFromFunctionArgs(const String& input);
 
+	struct ExpressionParser : public ReferenceCountedObject
+	{
+		using Ptr = ReferenceCountedObjectPtr<ExpressionParser>;
+
+		ExpressionParser(CodeDocument::Position& pos_);
+
+		ExpressionParser(const String& code, int line, int col);
+
+		int getCharIndex() const;
+
+		void addLspLocation(DynamicObject::Ptr lspObject, const String& editRange) const;
+
+		std::pair<String, String> getExpression() const;
+
+	private:
+
+		bool isValidChar(juce_wchar c) const;
+
+		void skipChar(CodeDocument::Position& p) const;
+
+		void skipUntil(CodeDocument::Position& p, juce_wchar stopChar, juce_wchar startChar) const;
+
+		bool isSkipCharWithoutQuote(const CodeDocument::Position& p) const;
+
+		const String openChars = "([{";
+		const String skipChars = "\"'";
+		const String closeChars = ")]}";
+		const String validChars = "._";
+
+		CodeDocument doc;
+
+		const CodeDocument* docToUse = nullptr;
+		CodeDocument::Position pos;
+		CodeDocument::Position lineStart;
+
+	};
+
 	/** A Token is the entry that is being used in the autocomplete popup (or any other IDE tools
 	    that might use that database. */
 	struct Token: public ReferenceCountedObject

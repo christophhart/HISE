@@ -520,6 +520,8 @@ struct DrawActions
 
 		void flush(uint64_t perfettoTrackId, uint32 profileTrackId);
 
+		void flushWithoutClear();
+
 		void logError(const String& message);
 
 		void addDrawActionListener(Listener* l);

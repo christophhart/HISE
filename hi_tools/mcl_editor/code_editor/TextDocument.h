@@ -247,6 +247,8 @@ public:
 
 	TextDocument(CodeDocument& doc_);;
 
+	void setBaseLocation(const UriLocation& location) { baseLocation = location; }
+
 	void deactivateLines(SparseSet<int> deactivatedLines);
 
 	/** Get the current font. */
@@ -442,7 +444,11 @@ public:
 
 	Array<Selection> getSearchResults() const;
 
+	bool matchesLocation(const UriLocation& l) const;
+
 private:
+
+	UriLocation baseLocation;
 
 	mutable int columnTryingToMaintain = -1;
 
