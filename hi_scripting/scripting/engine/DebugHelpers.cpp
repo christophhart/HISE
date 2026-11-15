@@ -593,4 +593,267 @@ hise::DebugInformationBase::Ptr DebugableObject::Helpers::getDebugInformation(De
 }
 
 
+struct UriLocationDebugInformation : public DebugInformationBase
+{
+	UriLocationDebugInformation(const UriLocation::WithExpression& e, const String& dataType) :
+		location(e)
+	{
+
+	}
+
+	void doubleClickCallback(const MouseEvent& e, Component* c) override
+	{
+		PopupIncludeEditor::gotoUriLocation(nullptr, c, location.second);
+	}
+
+	int getType() const override {
+		return (int)UriError::ErrorType::Unknown;
+	}
+
+	String getTextForName() const override
+	{
+		return location.first;
+	}
+
+	String getTextForDataType() const override
+	{
+		return dataType;
+	}
+
+	virtual String getTextForValue() const override
+	{
+		return location.second.toLocationString(UriLocation::UriFormat::Compact);
+	}
+
+	virtual UriLocation getLocation() const override { return location.second; }
+	virtual bool isWatchable() const override { return true; }
+	virtual bool isAutocompleteable() const override { return false; }
+
+private:
+
+	String dataType;
+	UriLocation::WithExpression location;
+};
+
+struct UriErrorDebugInformation : public UriLocationDebugInformation
+{
+	UriErrorDebugInformation(UriErrorLogger::SourceType s, const std::pair<UriError, int>& e) :
+		UriLocationDebugInformation({ e.first.wasOk() ? "OK" : e.first.errorMessage, e.first }, ""),
+		source(s),
+		error(e)
+	{}
+
+	int getType() const { return (int)error.first.errorType; }
+
+	String getTextForDataType() const override
+	{
+		String s;
+
+		switch (source)
+		{
+		case UriErrorLogger::SourceType::None:
+			s << "Unknown"; break;
+		case UriErrorLogger::SourceType::Compilation:
+			s << "Compilation"; break;
+		case UriErrorLogger::SourceType::Runtime:
+			s << "Runtime"; break;
+		case UriErrorLogger::SourceType::Diagnostics:
+			s << "Diagnostics"; break;
+		case UriErrorLogger::SourceType::Debug:
+			s << "Debugger"; break;
+		}
+
+		if (error.second > 1)
+			s << " (" << String(error.second) << "x)";
+
+		return s;
+	}
+
+	int getNumChildElements() const override
+	{
+		return error.first.callstack.size();
+	}
+
+	Ptr getChildElement(int index) override
+	{
+		auto revIndex = error.first.callstack.size() - (index + 1);
+		return new UriLocationDebugInformation(error.first.callstack[revIndex], "  callstack");
+	}
+
+	const UriErrorLogger::SourceType source;
+	std::pair<UriError, int> error;
+};
+
+struct UriLocationTreeDebugInformation : public UriLocationDebugInformation
+{
+	UriLocationTreeDebugInformation(UriLocationTree::Ptr p) :
+		UriLocationDebugInformation({ p->getAsString(), *p }, ""),
+		node(p)
+	{};
+
+	int getType() const override
+	{
+		return UriError::SourceType::Include;
+	}
+
+	String getTextForDataType() const override
+	{
+		auto t = node->category.toString();
+
+		if (t == "inline")
+			t << " function";
+
+		if (auto lb = getDiagnosticObject())
+			t << ":" << lb->getObjectName().toString();
+
+		auto typeInfo = node->data->getProperty("typeInfo");
+
+		if (typeInfo.isString())
+			t << ":" << typeInfo.toString();
+
+		return t;
+	}
+
+	int getNumChildElements() const override
+	{
+		if (auto lb = getDiagnosticObject())
+		{
+			return lb->occurrences.size();
+		}
+		else
+		{
+			return node->getNumChildren();
+		}
+	}
+
+	Ptr getChildElement(int index) override
+	{
+		if (auto lb = getDiagnosticObject())
+		{
+			if (isPositiveAndBelow(index, lb->occurrences.size()))
+				return new UriLocationDebugInformation(lb->occurrences[index], "  reference");
+		}
+		else
+		{
+			if (auto c = node->getChild(index))
+				return new UriLocationTreeDebugInformation(c);
+		}
+
+		jassertfalse;
+		return nullptr;
+	}
+
+	LightweightDiagnostics* getDiagnosticObject() const
+	{
+		return dynamic_cast<LightweightDiagnostics*>(node->data->getProperty("typeInfo").getObject());
+	}
+
+	UriLocationTree::Ptr node;
+};
+
+void JavascriptProcessor::ErrorProvider::getColourAndLetterForType(int type, Colour& colour, char& letter)
+{
+	auto s = (UriError::ErrorType)type;
+
+	switch (s)
+	{
+	case UriError::ErrorType::OK:
+		colour = Colour(HISE_OK_COLOUR);
+		letter = 'C';
+		break;
+	case UriError::ErrorType::Unknown:
+		colour = Colours::grey;
+		letter = 'S';
+		break;
+	case UriError::ErrorType::Error:
+		colour = Colour(HISE_ERROR_COLOUR);
+		letter = 'E';
+		break;
+	case UriError::ErrorType::Warning:
+		colour = Colour(HISE_WARNING_COLOUR);
+		letter = 'W';
+		break;
+	case UriError::ErrorType::Info:
+		colour = Colour(HISE_OK_COLOUR);
+		letter = 'I';
+		break;
+	case UriError::ErrorType::Hint:
+		colour = Colours::slateblue;
+		letter = 'H';
+		break;
+	case UriError::ErrorType::Breakpoint:
+	case UriError::ErrorType::Blink:
+	case UriError::ErrorType::BreakBlink:
+		colour = Colour(HISE_BREAKPOINT_COLOUR);
+		letter = 'B';
+		break;
+	}
+
+	colour = colour.withMultipliedBrightness(0.5f);
+}
+
+int JavascriptProcessor::ErrorProvider::getNumDebugObjects() const
+{
+	int num = 0;
+
+	if (currentBreakpoint.second != 0)
+		num++;
+
+	num += currentBlinkEvents.size();
+
+	if (currentIncludeTree != nullptr)
+		num++;
+
+	if (lastTree != nullptr)
+		num++;
+
+	num += getNumErrors(UriError::SourceType::All);
+
+	return num;
+}
+
+DebugInformationBase::Ptr JavascriptProcessor::ErrorProvider::getDebugInformation(int index)
+{
+	if (currentBreakpoint.second != 0)
+	{
+		if (index == 0)
+			return new UriErrorDebugInformation(UriErrorLogger::SourceType::Debug, currentBreakpoint);
+
+		index--;
+	}
+
+	if (isPositiveAndBelow(index, currentBlinkEvents.size()))
+	{
+		return new UriErrorDebugInformation(UriErrorLogger::SourceType::Debug, currentBlinkEvents[index]);
+	}
+	else
+		index -= currentBlinkEvents.size();
+
+	if (currentIncludeTree != nullptr)
+	{
+		if (index == 0)
+			return new UriLocationTreeDebugInformation(currentIncludeTree);
+
+		index--;
+	}
+
+	if (lastTree != nullptr)
+	{
+		if (index == 0)
+			return new UriLocationTreeDebugInformation(lastTree);
+
+		index--;
+	}
+
+	auto list = getErrorList(SourceType::All);
+
+	if (isPositiveAndBelow(index, list.size()))
+	{
+		auto item = list[index];
+		return new UriErrorDebugInformation(item.first.sourceType, item);
+	}
+
+	return nullptr;
+}
+
 } // namespace hise

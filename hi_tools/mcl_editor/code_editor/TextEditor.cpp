@@ -248,49 +248,43 @@ void TextEditor::setGotoFunction(const GotoFunction& f)
 	gotoFunction = f;
 }
 
-void TextEditor::clearWarningsAndErrors()
+void TextEditor::clearWarningsAndErrors(UriError::SourceType sourceType)
 {
-	setDiagnostics({});
-	
-	autofixButton = nullptr;
-	currentError = nullptr;
-	warnings.clear();
-	hints.clear();
-	repaint();
-}
-
-void TextEditor::addHint(const UriError& e)
-{
-	hints.add(new Error(document, e, true));
-	repaint();
-}
-
-void TextEditor::addWarning(const UriError& e, bool isWarning)
-{
-	warnings.add(new Error(document, e, isWarning));
-	repaint();
-}
-
-void TextEditor::addWarning(const String& errorMessage, bool isWarning)
-{
-	warnings.add(new Error(document, errorMessage, isWarning));
-	repaint();
-}
-
-void TextEditor::setError(const UriError& e)
-{
-	currentError = new Error(document, e, false);
-	repaint();
-}
-
-void TextEditor::setError(const String& errorMessage)
-{
-	if (errorMessage.isEmpty())
-		currentError = nullptr;
+	if (sourceType == UriError::SourceType::All)
+	{
+		autofixButton = nullptr;
+		errors.clear();
+	}
 	else
-		currentError = new Error(document, errorMessage, false);
+	{
+		autofixButton = nullptr;
 
-	repaint();
+		for (int i = 0; i < errors.size(); i++)
+		{
+			if (errors[i]->originalError.sourceType == sourceType)
+				errors.remove(i--);
+		}
+	}
+
+	rebuildDiagnosticLines();
+}
+
+
+void TextEditor::addUriError(const UriError& e)
+{
+	jassert(matchesUriLocation(e));
+
+	switch (e.errorType)
+	{
+	case UriError::ErrorType::Blink:
+		gutter.sendBlinkMessage(e.line);
+		break;
+	default:
+		errors.add(new Error(document, e));
+		break;
+	}
+
+	rebuildDiagnosticLines();
 }
 
 void TextEditor::abortAutocomplete()
@@ -326,48 +320,45 @@ TooltipWithArea::Data TextEditor::getTooltip(Point<float> position)
 		}
 	}
 
-	if (currentError != nullptr)
+	for (auto e : errors)
 	{
-		if (auto d = currentError->getTooltip(transform, position))
-			return d;
-	}
-
-	for (auto w : warnings)
-	{
-		if (auto d = w->getTooltip(transform, position))
-			return d;
-	}
-
-	for (auto h : hints)
-	{
-		if (auto d = h->getTooltip(transform, position))
+		if (auto d = e->getTooltip(transform, position))
 			return d;
 	}
 
 	if (tokenTooltipFunction)
 	{
-		auto start = document.findIndexNearestPosition(position.transformedBy(transform.inverted()));
-		auto end = start;
+		auto s = document.getSelection(0);
 
-		document.navigate(start, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::backwardCol);
-		document.navigate(end, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::forwardCol);
+		String token;
 
-		auto token = document.getSelectionContent({ start, end });
+		Point<int> start, end;
+
+		if (s.isSingular())
+		{
+			start = document.findIndexNearestPosition(position.transformedBy(transform.inverted()));
+			end = start;
+			
+			document.navigate(start, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::backwardCol);
+			document.navigate(end, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::forwardCol);
+
+			token = document.getSelectionContent({ start, end });
+		}
+		else
+		{
+			start = s.head;
+			end = s.tail;
+			token = document.getSelectionContent(s);
+		}
 
 		if (token.isNotEmpty())
 		{
 			TooltipWithArea::Data d;
 			d.id = Identifier(token);
-			d.text = tokenTooltipFunction(token, start.x);
-
-				
-
+			d.text = token;
 			auto b = document.getBoundsOnRow(start.x, { start.y, end.y }, GlyphArrangementArray::OutOfBoundsMode::ReturnLastCharacter).getRectangle(0);
-
 			d.relativePosition = b.getBottomLeft().transformedBy(transform);
-
-			if (d.text.isEmpty())
-				return {};
+			tokenTooltipFunction(d);
 
 			return d;
 		}
@@ -522,6 +513,11 @@ bool TextEditor::setParameterSelection(int index, bool useUndo)
 #endif
 }
 
+void TextEditor::setDiagnosticsFunction(const std::function<void(bool)>& f)
+{
+	diagnosticsTimer.diagnosticsFunction = f;
+}
+
 void TextEditor::updateLineRanges()
 {
 	auto ranges = languageManager->createLineRange(document.getCodeDocument());
@@ -543,6 +539,7 @@ void TextEditor::updateAfterTextChange(Range<int> rangeToInvalidate)
 			}
 
 			te.updateSelections();
+			te.rebuildDiagnosticLines();
 
 			if (rangeToInvalidate.getLength() != 0 &&
 				rangeToInvalidate.getLength() != te.document.getNumRows())
@@ -550,11 +547,8 @@ void TextEditor::updateAfterTextChange(Range<int> rangeToInvalidate)
 
 			te.updateViewTransform();
 
-			if (te.currentError != nullptr)
-				te.currentError->rebuild();
-
-			for (auto w : te.warnings)
-				w->rebuild();
+			for (auto e : te.errors)
+				e->rebuild();
 		};
 
 		SafeAsyncCall::callAsyncIfNotOnMessageThread<TextEditor>(*this, f);
@@ -669,12 +663,24 @@ LanguageManager* TextEditor::getLanguageManager()
 ScrollBar& TextEditor::getVerticalScrollBar()
 { return scrollBar; }
 
-void TextEditor::setDiagnostics(const DiagnosticLines& dl)
+void TextEditor::rebuildDiagnosticLines()
 {
-	gutter.setDiagnostics(dl);
+	if (languageManager == nullptr)
+		return;
+
+	mcl::DiagnosticLines lines;
+
+	auto loc = languageManager->createUriLocation({});
+
+	for (auto e : errors)
+		lines.addUriError(e->toUriError(loc));
+
+	gutter.setDiagnostics(lines);
 
 	if (auto p = dynamic_cast<FullEditor*>(getParentComponent()))
-		p->codeMap.setDiagnostics(dl);
+		p->codeMap.setDiagnostics(lines);
+
+	repaint();
 }
 
 TextEditor::InplaceDebugValueComponent::InplaceDebugValueComponent(TextEditor& parent_,
@@ -689,7 +695,6 @@ TextEditor::InplaceDebugValueComponent::InplaceDebugValueComponent(TextEditor& p
 		setMouseCursor(MouseCursor::PointingHandCursor);
 		p = createPath(ipv->info->getIconPath());
 	}
-		
 
 	updatePosition();
 }
@@ -704,16 +709,13 @@ void TextEditor::InplaceDebugValueComponent::updatePosition()
 	auto b = document.getBoundsOnRow(line, {col, col+1}, GlyphArrangementArray::ReturnBeyondLastCharacter).getRectangle(0);
             
 	b = b.translated(document.getCharacterRectangle().getWidth() * 1.0f, 0.0f);
-
 	vf = document.getFont().withHeight(document.getFontHeight() * parent.viewScaleFactor * 0.7f);
-	
 	auto w = b.getWidth() * value->value.length() + 20.0f;
 
 	if(!p.isEmpty())
 		w += b.getHeight();
 
 	auto area = b.transformed(parent.transform);
-
 	area = area.withWidth(w);
 
 	setBounds(area.toNearestInt());
@@ -849,12 +851,7 @@ bool TextEditor::nav(ModifierKeys mods, TextDocument::Target target, TextDocumen
 
 	if (isLineSwap && document.getNumSelections() == 1)
 	{
-			
-
 		auto prevSelection = document.getSelection(0).oriented();
-
-			
-
 		document.setSelection(0, prevSelection, true);
 
 		if(prevSelection.head.y != 0)
@@ -901,7 +898,7 @@ TextEditor::AutofixComponent::AutofixComponent(mcl::TextEditor& editor_, const E
 {
 
 	icon.loadPathFromData(EditorIcons::autofixIcon, SIZE_OF_PATH(EditorIcons::autofixIcon));
-	errorMessage = error.errorMessage;
+	errorMessage = error.originalError.errorMessage;
 
 	Selection el(error.start.getLineNumber(), 0, error.start.getLineNumber()+1, 0);
 
@@ -1111,11 +1108,9 @@ TooltipWithArea::Data TextEditor::Error::getTooltip(const AffineTransform& trans
 
 	if (a.contains(position))
 	{
-		d.text = errorMessage;
+		d.text = originalError.errorMessage;
 		d.relativePosition = a.getBottomLeft().translated(0.0f, 5.0f);
-
 		d.id = String(d.relativePosition.toString().hash());
-
 		d.clickAction = {};
 	}
 
@@ -1124,20 +1119,9 @@ TooltipWithArea::Data TextEditor::Error::getTooltip(const AffineTransform& trans
 
 void TextEditor::Error::rebuild()
 {
-	if (isEntireLine)
-	{
-		Selection errorWord(start.getLineNumber(), start.getIndexInLine(), end.getLineNumber(), end.getIndexInLine());
-		errorLines = document.getUnderlines(errorWord, mcl::TextDocument::Metric::baseline);
-		area = document.getSelectionRegion(errorWord).getRectangle(0).withWidth(errorLines[0].getLength());
-	}
-	else
-	{
-		Selection errorWord(start.getLineNumber(), start.getIndexInLine(), end.getLineNumber(), end.getIndexInLine());
-		errorLines = document.getUnderlines(errorWord, mcl::TextDocument::Metric::baseline);
-		area = document.getSelectionRegion(errorWord).getRectangle(0);
-	}
-
-			
+	Selection errorWord(start.getLineNumber(), start.getIndexInLine(), end.getLineNumber(), end.getIndexInLine());
+	errorLines = document.getUnderlines(errorWord, mcl::TextDocument::Metric::baseline);
+	area = document.getSelectionRegion(errorWord).getRectangle(0);
 }
 
 int TextEditor::getNumDisplayedRows() const
@@ -1223,10 +1207,6 @@ hise::MarkdownLink TextEditor::getLink() const
 
 	return MarkdownLink();
 }
-
-
-
-
 
 void TextEditor::updateAutocomplete(bool forceShow /*= false*/)
 {
@@ -1498,6 +1478,8 @@ void TextEditor::insertCodeSnippet(const String& textToInsert, Array<Range<int>>
 	}
 }
 
+GutterComponent& TextEditor::getGutterComponent() { return gutter; }
+
 void TextEditor::closeAutocomplete(bool async, const String& textToInsert, Array<Range<int>> selectRanges)
 {
 	if (!autocompleteEnabled)
@@ -1692,6 +1674,7 @@ void TextEditor::setLanguageManager(LanguageManager* ownedLanguageManager)
 
 	if (languageManager != nullptr)
 	{
+		document.setBaseLocation(ownedLanguageManager->createUriLocation({}));
 		ownedLanguageManager->setupEditor(this);
 		setCodeTokeniser(languageManager->createCodeTokeniser());
         updateLineRanges();
@@ -1785,13 +1768,12 @@ void mcl::TextEditor::scaleView (float scaleFactorMultiplier, float verticalCent
 
 void TextEditor::AutofixComponent::updatePosition()
 {
-
-	if(editor.currentError != nullptr)
+	if (auto e = editor.getFirstError())
 	{
 		auto& document = editor.getTextDocument();
-		auto line = editor.currentError->start.getLineNumber();
+		auto line = e->start.getLineNumber();
 		auto col = 10000;
-		auto b = document.getBoundsOnRow(line, {col, col+1}, GlyphArrangementArray::ReturnBeyondLastCharacter).getRectangle(0);
+		auto b = document.getBoundsOnRow(line, { col, col + 1 }, GlyphArrangementArray::ReturnBeyondLastCharacter).getRectangle(0);
 		b = b.translated(document.getCharacterRectangle().getWidth() * 1.0f, 0.0f);
 		auto area = b.withWidth(50).transformed(editor.transform);
 		setBounds(area.toNearestInt());
@@ -1934,9 +1916,9 @@ void mcl::TextEditor::translateToEnsureCaretIsVisible()
         visibleHeight -= currentSearchBox->getHeight() * 2;
     
     if (t.y < 0.f)
-        translateView (0.f, -t.y);
+        translateView (0.f, -(t.y - 40.0f));
     else if (b.y > visibleHeight)
-        translateView (0.f, -b.y + visibleHeight);
+        translateView (0.f, -(b.y + 40.0f) + visibleHeight);
 
 	if (document.getFoldableLineRangeHolder().isFolded(i.x))
 		document.getFoldableLineRangeHolder().unfold(i.x);
@@ -2042,22 +2024,9 @@ void mcl::TextEditor::paint (Graphics& g)
         
     }
     
-	if (currentError != nullptr)
-	{
-		currentError->paintLines(g, transform, Colour(HISE_ERROR_COLOUR));
-		g.setColour(Colours::red.withAlpha(0.08f));
-		auto b = currentError->area.transformedBy(transform).withLeft(gutter.getGutterWidth()).withRight(getWidth());;
-		g.fillRect(b);
-	}
-    
-	for (auto w : warnings)
-		w->paintLines(g, transform, w->isWarning ? Colour(HISE_WARNING_COLOUR) : Colour(HISE_ERROR_COLOUR));
-
-	for (auto w : hints)
-		w->paintLines(g, transform, Colours::lightblue);
-
-
-
+	for (auto e: errors)
+		e->paintLines(g, transform, UriError::getColour(e->originalError.errorType));
+	
 	for(auto& h: heatmap)
 	{
 		auto row = h.first.getLineNumber();
@@ -2754,13 +2723,13 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 
     autocompleteTimer.abortAutocomplete();
 
-	tooltipManager.clearDisplay();
-
 	for (const auto& kf : keyPressFunctions)
 	{
 		if (kf(key))
 			return true;
 	}
+
+	tooltipManager.clearDisplay();
 
     // =======================================================================================
     using Target     = TextDocument::Target;
@@ -3147,7 +3116,7 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 		if (key == KeyPress('e', ModifierKeys::ctrlModifier, 0) ||
 			key == KeyPress('e', ModifierKeys::ctrlModifier | ModifierKeys::shiftModifier, 0))
 		{
-			if (currentError != nullptr)
+			if (auto e = getFirstError())
 			{
 				document.setSelections({ currentError->getSelection() }, true);
 				return true;
@@ -3537,7 +3506,7 @@ void mcl::TextEditor::renderTextUsingGlyphArrangement (juce::Graphics& g)
 
 	highlight.paintHighlight(g);
 
-	if (enableSyntaxHighlighting && !tokenRebuildPending)
+	if (enableSyntaxHighlighting)
 	{
 		auto rows = document.getRangeOfRowsIntersecting(g.getClipBounds().toFloat());
 
@@ -3614,11 +3583,12 @@ void TextEditor::LiveDiagnosticsTimer::timerCallback()
 {
 	if (parent.getDocument().getNumLines() == 0)
 		return;
+    
+	if (parent.currentAutoComplete != nullptr)
+		return;
 
-    
-    
 	jassert(diagnosticsFunction);
-	diagnosticsFunction();
+	diagnosticsFunction(true);
 
 	stopTimer();
     

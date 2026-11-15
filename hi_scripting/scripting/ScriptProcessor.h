@@ -374,14 +374,7 @@ public:
         Array<WeakReference<JavascriptProcessor>> list;
     };
 
-	Result returnResult(const Result& r)
-	{
-		if(!r.wasOk())
-			runtimeErrorBroadcaster.sendMessage(sendNotificationAsync, r.getErrorMessage());
-
-		return r;
-	}
-    
+	
 	using PreprocessorFunction = std::function<bool(const Identifier&, String& m)>;
 
     bool usePreprocessorAtMerge = false;
@@ -485,8 +478,6 @@ public:
 		static JavascriptCodeEditor* getActiveEditor(JavascriptProcessor* p);
 
 		static JavascriptCodeEditor* getActiveEditor(Processor* p);
-
-		static CodeDocument* gotoAndReturnDocumentWithDefinition(Processor* p, DebugableObjectBase* object);
 	};
 
 	template <typename T> static ProcessorMetadata withScriptnodeMetadata(const ProcessorMetadata& md)
@@ -537,11 +528,53 @@ public:
 	Array<std::pair<String, mcl::LanguageManager::InplaceDebugValue::Ptr>> deferredValues;
     mcl::LanguageManager::InplaceDebugValue::List inplaceValues;
     LambdaBroadcaster<Identifier, int> inplaceBroadcaster;
-	LambdaBroadcaster<String> runtimeErrorBroadcaster;
-    
+	
 	virtual void fileChanged() override;
 
 	void compileScript(const ResultFunction& f = ResultFunction());
+
+	struct ErrorProvider : public ApiProviderBase,
+						   public UriErrorLogger,
+						   public ApiProviderBase::Holder
+	{
+		ErrorProvider(JavascriptProcessor& jp) :
+			parent(jp)
+		{};
+
+		void handleAsyncUpdate() override
+		{
+			rebuild();
+		}
+
+		String getUriProcessorId() const override
+		{
+			return parent.getUriProcessorId();
+		}
+
+		std::pair<bool, String> getUriContent(const String& uri) const override
+		{
+			return parent.getUriContent(uri);
+		}
+
+		ApiProviderBase* getProviderBase() override
+		{
+			return this;
+		}
+
+		void getColourAndLetterForType(int type, Colour& colour, char& letter);
+
+		int getNumDebugObjects() const override;
+
+		DebugInformationBase::Ptr getDebugInformation(int index) override;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ErrorProvider);
+
+		JavascriptProcessor& parent;
+
+		std::pair<UriError, int> currentBreakpoint;
+		std::vector<std::pair<UriError, int>> currentBlinkEvents;
+		UriLocationTree::Ptr currentIncludeTree;
+	} errorProvider;
 
 #if USE_BACKEND
 	using DiagnosticList = Array<UriError>;
@@ -624,6 +657,8 @@ public:
 	DebugSession* getDebugSession() override;
 
 	HiseJavascriptEngine *getScriptEngine();
+
+	void logRuntimeError(const UriError& r);
 
 	void mergeCallbacksToScript(String &x, const String& sepString=String()) const;
 	bool parseSnippetsFromString(const String &x, bool clearUndoHistory = false);

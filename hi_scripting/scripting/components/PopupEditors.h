@@ -42,7 +42,8 @@ class DebugConsoleTextEditor;
 struct EditorBottomBar : public Component,
 						 public ControlledObject,
 					     public Timer,
-						 public ButtonListener
+						 public ButtonListener,
+						 public ComboBoxListener
 {
 	static constexpr int BOTTOM_HEIGHT = 24;
 
@@ -52,11 +53,15 @@ struct EditorBottomBar : public Component,
 
 	void buttonClicked(Button* b) override;
 
+	void comboBoxChanged(ComboBox* cb) override;
+
 	void recompile();
 
-	void setShowResume(bool on, int lineNumber);
+	void clearError(UriError::SourceType s);
 
-	void setError(const String& errorMessage);
+	void setError(const UriError& e);
+
+	void setCurrentlyParsing();
 
 	ScopedPointer<DebugConsoleTextEditor> resultLabel;
 
@@ -116,16 +121,67 @@ struct EditorBottomBar : public Component,
 	bool isHalted = false;
 	bool lastCompileOk = false;
 	
+	void onLocationChange(const UriLocation& l)
+	{
+		if (callstackSelector.isVisible())
+		{
+			auto currentError = getCurrentError();
+
+			if (currentError.matches(l))
+				callstackSelector.setSelectedItemIndex(0, dontSendNotification);
+
+			currentError.forInvertedCallstack([&](int index, const UriLocation::WithExpression& e)
+			{
+				if (e.second.matches(l))
+				{
+					callstackSelector.setSelectedId(index + 2, dontSendNotification);
+				}
+			});
+		}
+		
+	}
+
 private:
+
+	UriError getCurrentError() const;
+
+	std::map<UriError::SourceType, UriError> errors;
+
+	void gotoLocation(const UriLocation& l);
+
 	std::function<void()> compileFunction;
+
+	struct CallstackLAF : public PopupLookAndFeel
+	{
+		void drawComboBox(Graphics& g, int width, int height, bool /*isButtonDown*/, int /*buttonX*/, int /*buttonY*/, int /*buttonW*/, int /*buttonH*/, ComboBox& c)
+		{
+			g.setColour(Colours::white.withAlpha(0.3f));
+
+			g.setFont(GLOBAL_MONOSPACE_FONT());
+			g.drawText(c.getText(), c.getLocalBounds(), Justification::left);
+
+			Path arrow;
+			arrow.addTriangle({ 0.0f, 0.0f }, { 1.0f, 0.0f }, { 0.5f, 1.0f });
+			auto tb = c.getLocalBounds().removeFromRight(c.getHeight()).toFloat();
+			PathFactory::scalePath(arrow, tb.withSizeKeepingCentre(10, 8));
+			g.fillPath(arrow);
+		}
+
+		void drawLabel(Graphics& g, Label& l) {};
+	} callstackLaf;
+
+	ComboBox callstackSelector;
+
+	JavascriptProcessor* jp;
 };
 
 
 class PopupIncludeEditor : public Component,
 						   public Dispatchable,
                            public GlobalScriptCompileListener,
-						   public mcl::GutterComponent::BreakpointListener,
-						   public JavascriptThreadPool::SleepListener
+						   public JavascriptThreadPool::SleepListener,
+						   public UriErrorLogger::Listener,
+						   public UriBreakpoint::Owner::UriBreakpointListener
 {
 public:
 
@@ -145,9 +201,21 @@ public:
 	
 	~PopupIncludeEditor();
 
-	bool keyPressed(const KeyPress& key) override;
+	void onUriBreakpointEvent(const UriBreakpoint& knownEvent, const UriError& breakpoint) override;
+	void onError(const UriError& e, int numOccurrences) override;
+	void onClear(UriErrorLogger::SourceType s) override;
+	void onLocationTree(UriLocationTree::Ptr newTree) override;
 
-	static void runTimeErrorsOccured(PopupIncludeEditor& t, Array<ExternalScriptFile::RuntimeError>* errors);
+	int getSourceTypeMask() const override 
+	{ 
+		return UriError::SourceType::Runtime |
+			   UriError::SourceType::Debug |
+			   UriError::SourceType::Include |
+			   UriError::SourceType::Compilation |
+			   UriError::SourceType::Diagnostics; 
+	}
+
+	bool keyPressed(const KeyPress& key) override;
 
 	void resized() override;;
 
@@ -174,7 +242,7 @@ public:
 
 	using EditorType = CommonEditorFunctions::EditorType;
 
-	bool matchesLocation(const UriLocation& loc) const;
+	bool matchesUriLocation(const UriLocation& loc) const override;
 
 	bool sleepStateChanged(const UriLocation& location, bool on) override;
 
@@ -246,67 +314,8 @@ private:
         
     }
 
-    void setError(const Result& r)
-    {
-		bottomBar->setError(r.getErrorMessage());
-
-		if (auto asmcl = dynamic_cast<mcl::FullEditor*>(editor.get()))
-		{
-			if (!r.wasOk())
-			{
-				auto errorMessage = r.getErrorMessage();
-
-				auto secondLine = errorMessage.fromFirstOccurrenceOf("\n", false, false).substring(1).trim();
-
-				auto fileName = getFile().getFileName();
-
-				bool isSameFile = true;
-
-				if (!secondLine.startsWith(callback.toString()))
-					isSameFile = false;
-
-				if(fileName.isNotEmpty() && secondLine.contains(fileName))
-					isSameFile = true;
-
-				if (fileName.isEmpty() && secondLine.contains(".js"))
-					isSameFile = false;
-
-				if (secondLine.isEmpty())
-					isSameFile = true;
-
-				if (!isSameFile)
-				{
-					asmcl->editor.clearWarningsAndErrors();
-					return;
-				}
-
-				auto message = errorMessage.upToFirstOccurrenceOf("{{", false, false);
-				auto line = errorMessage.fromFirstOccurrenceOf("Line ", false, false).getIntValue();
-				auto col = errorMessage.fromFirstOccurrenceOf("column ", false, false).getIntValue();
-
-				if(line == 0 && col == 0)
-				{
-					auto charIndex = mcl::TextEditor::Error::Helpers::getCharNumberFromBase64String(errorMessage.fromFirstOccurrenceOf("{{", false, false).upToFirstOccurrenceOf("\n", false, false));
-
-					CodeDocument::Position pos(asmcl->editor.getDocument(), charIndex);
-					line = pos.getLineNumber() + 1;
-					col = pos.getIndexInLine();
-				}
-
-				String mclError = "Line ";
-				mclError << line << "(" << col << "): " << message;
-
-				asmcl->editor.setError(mclError);
-			}
-			else
-			{
-				asmcl->editor.clearWarningsAndErrors();
-			}
-		}
-    }
-
     void addButtonAndCompileLabel();
-	void refreshAfterCompilation(const JavascriptProcessor::SnippetResult& r);
+	void refreshAfterCompilation(const UriError& e);
 	void compileInternal();
 
     bool unreferencedExternalFile = false;

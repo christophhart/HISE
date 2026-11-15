@@ -735,24 +735,15 @@ void HiseJavascriptEngine::RootObject::removeFromCallStack(const Identifier& id)
 }
 
 
-UriError HiseJavascriptEngine::RootObject::withCallStack(const UriLocation& l, const String& errorMessage) const
+
+
+void HiseJavascriptEngine::RootObject::attachCallstack(UriError& e) const
 {
-	UriError e;
-	e.fillLocation(l);
-
-	if (e.getUriType() != UriLocation::UriType::ExternalFile)
-		e.uri = currentCallback.toString() + "()";
-
-	e.errorMessage = errorMessage;
+	e.processorId = hiseSpecialData.processor->getUriProcessorId();
 
 	for (const auto& s : callStack)
-	{
 		e.callstack.push_back({ s.functionName.toString(), s.location.createUriLocation() });
-	}
-
-	return e;
 }
-
 
 
 
@@ -785,7 +776,7 @@ var HiseJavascriptEngine::RootObject::eval(Args a)
 	return var::undefined();
 }
 
-Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowConstDeclarations/*=true*/, const Identifier& callbackId)
+UriError HiseJavascriptEngine::execute(const String& javascriptCode, bool allowConstDeclarations/*=true*/, const Identifier& callbackId)
 {
 #if JUCE_DEBUG
 	auto mc = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getMainController();
@@ -930,7 +921,7 @@ ApiClass::Constant ApiClass::Constant::null;
 #endif
 
 
-var HiseJavascriptEngine::callFunction(const Identifier& function, const var::NativeFunctionArgs& args, Result* result)
+var HiseJavascriptEngine::callFunction(const Identifier& function, const var::NativeFunctionArgs& args, UriError* result)
 {
 #if JUCE_DEBUG
 	auto mc = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getMainController();

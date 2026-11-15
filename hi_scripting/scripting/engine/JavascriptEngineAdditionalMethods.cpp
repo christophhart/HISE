@@ -352,6 +352,32 @@ HiseJavascriptEngine::RootObject::RootObject() :
 
 var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) const
 {
+	auto callWithCallstack = [this](const Scope& s, ConstScriptingObject* c, const Identifier& functionName, int functionIndex, var* parameterList, int numParameters)
+	{
+#if ENABLE_SCRIPTING_BREAKPOINTS
+
+		bool hasCallableParameter = false;
+
+		for (int i = 0; i < numParameters; i++)
+		{
+			hasCallableParameter |= dynamic_cast<WeakCallbackHolder::CallableObject*>(parameterList[i].getObject()) != nullptr;
+		}
+
+		if (hasCallableParameter)
+		{
+			String callId;
+			callId << c->getObjectName() << "." << functionName;
+			RootObject::ScopedCallstackEntry scs(*s.root, Identifier(callId), &location);
+			return c->callFunction(functionIndex, parameterList, numParameters);
+		}
+#endif
+
+		return c->callFunction(functionIndex, parameterList, numParameters);
+	};
+
+
+
+
 #if HISE_SHADOW_PARSER_ENABLED
 	if (s.isShadowParsing())
 	{
@@ -453,6 +479,11 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
                         
 #if ENABLE_SCRIPTING_SAFE_CHECKS
                         types = constObject->getForcedParameterTypes(functionIndex, numArgs);
+						
+#endif
+
+#if ENABLE_SCRIPTING_BREAKPOINTS
+						constFunctionId = dot->child;
 #endif
 
 						CHECK_CONDITION_WITH_LOCATION(functionIndex != -1, "function not found");
@@ -480,7 +511,7 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 				constObject->setCurrentLocation(object->location.externalFile, object->location.getCharIndex());
 #endif
 
-			return constObject->callFunction(functionIndex, parameters, numArgs);
+			return callWithCallstack(s, constObject, constFunctionId, functionIndex, parameters, numArgs);
 		}
 
 		if (DotOperator* dot = dynamic_cast<DotOperator*> (object.get()))
@@ -501,6 +532,7 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 				CHECK_CONDITION_WITH_LOCATION(numArgs == arguments.size(), "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
 
 				var parameters[5];
+				bool hasCallableParameter = false;
 
 				for (int i = 0; i < arguments.size(); i++)
                 {
@@ -530,7 +562,7 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
                 }
 					
 
-				return c->callFunction(functionIndex, parameters, numArgs);
+				return callWithCallstack(s, c, dot->child, functionIndex, parameters, numArgs);
 			}
 
 			if (DynamicObject* dynObj = thisObject.getDynamicObject())
@@ -648,7 +680,7 @@ var HiseJavascriptEngine::callExternalFunctionRaw(var function, const var::Nativ
 }
 
 
-var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFunctionArgs& args, Result* result /*= nullptr*/, bool allowMessageThread)
+var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFunctionArgs& args, UriError* result /*= nullptr*/, bool allowMessageThread)
 {
 #if JUCE_DEBUG
 	if (!allowMessageThread)
@@ -660,6 +692,14 @@ var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFu
 
 	var returnVal;
 
+	auto wrapError = [&](const UriError& e)
+	{
+		if (auto c = dynamic_cast<DebugableObject*>(function.getObject()))
+			return e.withBaseCallstack({ c->getObjectName().toString(), c->getLocation() });
+
+		return e;
+	};
+
 	static const Identifier thisIdent("this");
 
 	try
@@ -667,21 +707,20 @@ var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFu
 		if(!externalFunctionPending)
 			prepareTimeout();
 
-		if (result != nullptr) *result = Result::ok();
+		if (result != nullptr) *result = UriError::ok();
 
 		return callExternalFunctionRaw(function, args);
 	}
 	catch (String &error)
 	{
 		jassertfalse;
-		if (result != nullptr) *result = Result::fail(error);
+		if (result != nullptr)
+			*result = wrapError(UriError::fail(error));
 	}
 	catch (UriError &e)
 	{
-		static const Identifier func("function");
-
-		if (result != nullptr && root != nullptr)
-			*result = Result::fail(e.toFullCallStack()); // dumpCallStack(e, func));
+		if (result != nullptr)
+			*result = wrapError(e);
 	}
 
 	return returnVal;
@@ -1440,7 +1479,7 @@ String HiseJavascriptEngine::RootObject::Callback::getDebugDataType() const
 String HiseJavascriptEngine::RootObject::Callback::getDebugName() const
 { return callbackName.toString() + "()"; }
 
-DynamicObject::Ptr HiseJavascriptEngine::RootObject::Callback::createScope(RootObject* r)
+HiseJavascriptEngine::RootObject::LocalScopeCreator::ScopeData HiseJavascriptEngine::RootObject::Callback::createScope(RootObject* r)
 {
 	DynamicObject::Ptr obj = new DynamicObject();
                 

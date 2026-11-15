@@ -846,9 +846,6 @@ void JavascriptProcessor::SnippetDocument::Notifier::handleAsyncUpdate()
 	parent.pendingNewContent = String();
 }
 
-JavascriptProcessor::SnippetResult::SnippetResult(Result r_, int c_): r(r_), c(c_)
-{}
-
 ValueTree JavascriptProcessor::createApiTree()
 {
 #if USE_BACKEND
@@ -892,6 +889,21 @@ DebugSession* JavascriptProcessor::getDebugSession()
 
 HiseJavascriptEngine* JavascriptProcessor::getScriptEngine()
 { return scriptEngine; }
+
+void JavascriptProcessor::logRuntimeError(const UriError & r)
+{
+	auto p = dynamic_cast<Processor*>(this);
+
+	auto copy = r;
+	copy.callstack = {};
+	p->getMainController()->getJavascriptThreadPool().attachAsyncCallstack(copy);
+	
+	for (auto& ss : r.callstack)
+		copy.callstack.push_back(ss);
+
+	debugError(p, copy.toConsoleMessage());
+	errorProvider.logUriError(UriError::SourceType::Runtime, copy);
+}
 
 #if USE_BACKEND
 WeakCallbackHolder::CallableObject::StrictnessLevel JavascriptProcessor::getStrictnessLevel() const
@@ -951,7 +963,8 @@ JavascriptProcessor::JavascriptProcessor(MainController *mc) :
 	lastCompileWasOK(false),
 	lastResult(UriError::ok()),
 	callStackEnabled(mc->isCallStackEnabled()),
-	repaintDispatcher(mc)
+	repaintDispatcher(mc),
+	errorProvider(*this)
 {
 	initialiseProjectDll(mc);
 
@@ -1035,6 +1048,33 @@ void JavascriptProcessor::setActiveEditor(JavascriptCodeEditor* e, CodeDocument:
 #if USE_BACKEND
 	dynamic_cast<Processor*>(this)->getMainController()->setLastActiveEditor(e, pos);
 #endif
+}
+
+std::pair<bool, String> JavascriptProcessor::getUriContent(const String& uri) const
+{
+	UriLocation l;
+	l.processorId = getUriProcessorId();
+	l.uri = uri;
+
+	if (l.getUriType() == UriLocation::UriType::onInit)
+		return { true, getSnippet(0)->getAllContent() };
+
+	for (int i = 0; i < getNumWatchedFiles(); i++)
+	{
+		if (l.matchesFile(getWatchedFile(i)))
+			return { true, getWatchedFileDocument(i).getAllContent() };
+	}
+
+#if USE_BACKEND
+	auto p = dynamic_cast<const Processor*>(this);
+	auto root = p->getMainController()->getActiveFileHandler()->getSubDirectory(FileHandlerBase::Scripts);
+	auto f = root.getChildFile(uri);
+
+	if (f.existsAsFile())
+		return { true, f.loadFileAsString() };
+#endif
+
+	return { false, "Can't resolve include " + uri };
 }
 
 hise::JavascriptCodeEditor* JavascriptProcessor::getActiveEditor()
@@ -1144,6 +1184,26 @@ UriError JavascriptProcessor::compileInternal()
 	auto mc = dynamic_cast<Processor*>(this)->getMainController();
 	LockHelpers::freeToGo(mc);
 
+	errorProvider.currentBlinkEvents.clear();
+	errorProvider.currentBreakpoint = {};
+	errorProvider.clearUriErrors(UriError::SourceType::All, sendNotificationAsync);
+
+	Array<UriError> diagnosticErrors;
+
+	{
+		initialiseEngine();
+
+		auto cd = createFullShadowParseData();
+
+		shadowParse(cd, [&](const Array<UriError>& diagnostics)
+		{
+			diagnosticErrors.addArray(diagnostics);
+		}, sendNotificationSync);
+
+		// clear the diagnostics again, we'll send them after we know if the compilation went through fine...
+		errorProvider.clearUriErrors(UriErrorLogger::SourceType::Diagnostics, sendNotificationAsync);
+	}
+
 	SUSPEND_GLOBAL_DISPATCH(mc, "compile script");
 	auto sp1 = compileProfile.profile(0);
 
@@ -1223,13 +1283,29 @@ UriError JavascriptProcessor::compileInternal()
 			if (codeToCompile.isEmpty())
 				continue;
 
-
-            
 			lastResult = scriptEngine->execute(codeToCompile, callbackId == onInit, callbackId);
 
-			if (!lastResult.wasOk())
+			errorProvider.logUriError(UriErrorLogger::SourceType::Compilation, lastResult, sendNotificationAsync);
+
+			if (lastResult.wasOk())
 			{
-				debugError(thisAsProcessor, lastResult.getErrorMessage());
+				for (auto& d : diagnosticErrors)
+				{
+					// compilation went through => demote to warning
+					if (d.errorType == UriError::ErrorType::Error)
+						d.errorType = UriError::ErrorType::Warning;
+
+					errorProvider.logUriError(UriErrorLogger::SourceType::Diagnostics, d);
+				}
+			}
+			else
+			{
+				for (auto& d : diagnosticErrors)
+				{
+					errorProvider.logUriError(UriErrorLogger::SourceType::Diagnostics, d);
+				}
+
+				debugError(thisAsProcessor, lastResult.toConsoleMessage());
 
 				content->endInitialization();
 				scriptEngine->setIsInitialising(false);
@@ -1378,6 +1454,8 @@ void JavascriptProcessor::shadowParse(const DiagnosticBase::ShadowParseData& cd,
 	// prevent the last compilation from spamming the console.
 	lastResult = UriError::ok();
 
+	errorProvider.clearUriErrors(UriErrorLogger::SourceType::Diagnostics, sendNotificationAsync);
+
 	// Async path (IDE F7): defer to scripting thread, callback on message thread.
 	auto f = [cd, callback](Processor* p)
 	{
@@ -1386,7 +1464,9 @@ void JavascriptProcessor::shadowParse(const DiagnosticBase::ShadowParseData& cd,
 
 		auto postParse = [diagnostics, callback](Dispatchable* obj)
 		{
-			callback(diagnostics);
+			if(callback)
+				callback(diagnostics);
+
 			return Dispatchable::Status::OK;
 		};
 
@@ -2633,10 +2713,10 @@ void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Ta
 			// We're calling a high-priority task from the sample loading thread.
 			// This can be executed synchronously
 
-			Result r = executeNow(t, p, f);
+			auto r = executeNow(t, p, f);
 
 			if (r.failed())
-				getMainController()->getConsoleHandler().writeToConsole(r.getErrorMessage(), 1, dynamic_cast<Processor*>(p), Colours::blue);
+				getMainController()->getConsoleHandler().writeToConsole(r.toConsoleMessage(), 1, dynamic_cast<Processor*>(p), Colours::blue);
 		}
 
 		break;
@@ -2703,9 +2783,9 @@ void JavascriptThreadPool::addDeferredPaintJob(ScriptingApi::Content::ScriptPane
 	deferredPanels.push(std::move(spWeak));
 }
 
-Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilationList& pendingCompilations)
+UriError JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilationList& pendingCompilations)
 {
-	Result r = Result::ok();
+	UriError r = UriError::ok();
 
 	auto alreadyCompiled = [pendingCompilations](const CallbackTask& t)
 	{
@@ -2803,6 +2883,12 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 #endif
 
 			r = hpt.call();
+
+			if (!r.wasOk())
+			{
+				auto jp = hpt.getFunction().getProcessor();
+				LOG_RUNTIME_ERROR(r, jp);
+			}
 		}
 
 		clearCounter(t);
@@ -2850,6 +2936,12 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 	#endif
 
 				r = lpt.call();
+
+				if (!r.wasOk())
+				{
+					auto jp = lpt.getFunction().getProcessor();
+					LOG_RUNTIME_ERROR(r, jp);
+				}
 			}
 
 			TRACE_EVENT_END("scripting");//, t);
@@ -2919,9 +3011,9 @@ void JavascriptThreadPool::run()
 
 			auto r = executeQueue(Task::LowPriorityCallbackExecution, compiledProcessors);
 			
-			if (!r.wasOk() && r.getErrorMessage() != "Engine is dangling")
+			if (!r.wasOk() && r.toConsoleMessage() != "Engine is dangling")
 			{
-				debugError(getMainController()->getMainSynthChain(), r.getErrorMessage());
+				debugError(getMainController()->getMainSynthChain(), r.toConsoleMessage());
 			}
 
 			PROFILE_ONLY(checkRecording());
@@ -3064,30 +3156,6 @@ hise::JavascriptCodeEditor* JavascriptProcessor::EditorHelpers::getActiveEditor(
 	auto activeEditor = processor->getMainController()->getLastActiveEditor();
 
 	return dynamic_cast<JavascriptCodeEditor*>(activeEditor);
-}
-
-juce::CodeDocument* JavascriptProcessor::EditorHelpers::gotoAndReturnDocumentWithDefinition(Processor* p, DebugableObjectBase* object)
-{
-	if (object == nullptr)
-		return nullptr;
-
-	auto jsp = dynamic_cast<JavascriptProcessor*>(p);
-
-	auto info = DebugableObject::Helpers::getDebugInformation(jsp->getScriptEngine(), object);
-
-	if (info != nullptr)
-	{
-		DebugableObject::Helpers::gotoLocation(p, info.get());
-
-		auto activeEditor = getActiveEditor(jsp);
-
-		if (activeEditor != nullptr)
-		{
-			return &activeEditor->getDocument();
-		}
-	}
-
-	return nullptr;
 }
 
 } // namespace hise

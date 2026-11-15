@@ -162,6 +162,15 @@ struct LightweightDiagnostics::ValidatorEvaluator: public ReferenceCountedObject
 
 	}
 
+	String createStackframeExpression() const
+	{
+		String s;
+		if (lb != nullptr)
+			s << lb->getObjectName().toString();
+		s << "." << methodName.toString() << "()";
+		return s;
+	}
+
 	DiagnosticResult performRuntimeIdCheck(const String& idType)
 	{
 		if (idType == "ScriptComponent")
@@ -555,6 +564,9 @@ inline void HiseJavascriptEngine::RootObject::ObjectTypeMap::addDeferredDiagnost
 	{
 		DeferredData nd;
 		currentLocation->fillLocation(nd.location);
+
+		nd.callstack = currentCallstack;
+
 		nd.evaluationString = validatorString;
 		nd.validator = test;
 
@@ -570,6 +582,11 @@ void HiseJavascriptEngine::RootObject::ObjectTypeMap::checkDeferredDiagnostics(c
 	{
 		if (auto p = dynamic_cast<LightweightDiagnostics::ValidatorEvaluator*>(df.validator.getObject()))
 		{
+			OwnedArray<ScopedCallStack> originalStack;
+
+			for (const auto& c : df.callstack)
+				originalStack.add(new ScopedCallStack(this, c));
+
 			auto ok = p->evaluate(df.evaluationString);
 
 			if (ok.shouldReport())

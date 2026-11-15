@@ -52,24 +52,47 @@ public:
 	void mouseDown(const MouseEvent& e);
 	void mouseDoubleClick(const MouseEvent& e) override;
 
+    void setError(const UriError& e)
+    {
+        ok = e.wasOk();
+        pending = false;
+
+        if (e.errorType == UriError::ErrorType::Error)
+            setText(e.errorMessage, dontSendNotification);
+        else
+        {
+            String msg;
+
+            if (e.sourceType == UriError::SourceType::Diagnostics)
+                msg << "Diagnostic OK";
+
+            if (e.sourceType == UriError::SourceType::Compilation)
+                msg << "Compilation OK";
+               
+            setText(msg, dontSendNotification);
+        }
+
+        currentlyParsing = false;
+        
+        lastError = e;
+        repaint();
+    }
+
 	void gotoText();
 
 	void addToHistory(const String& s);
 
 	void textEditorReturnKeyPressed(TextEditor& /*t*/);
 
-    void setOK(bool isOK)
-    {
-		pending = false;
-        ok = isOK;
-        repaint();
-    }
+    
     
 	void startCompilation()
 	{
 		pending = true;
 		repaint();
 	}
+
+    bool currentlyParsing = false;
 
 private:
 
@@ -89,8 +112,9 @@ private:
                 
                 auto br = JUCE_LIVE_CONSTANT_OFF(1.3f);
                 
-                Colour resultColours[2] = { Colour(HISE_ERROR_COLOUR).withMultipliedBrightness(br),
-                                            Colour(HISE_OK_COLOUR).withMultipliedBrightness(br) };
+                Colour resultColours[3] = { Colour(HISE_OK_COLOUR).withMultipliedBrightness(br),
+                                            Colour(HISE_WARNING_COLOUR).withMultipliedBrightness(br),
+                                            Colour(HISE_ERROR_COLOUR).withMultipliedBrightness(br) };
                 
                 g.setColour(Colours::white.withAlpha(0.4f));
                 
@@ -101,23 +125,38 @@ private:
                 auto xMargin = JUCE_LIVE_CONSTANT_OFF(8.5f);
                 
                 ta.removeFromRight(xMargin);
+                auto c3 = ta.removeFromRight(circleWidth).withSizeKeepingCentre(circleWidth, circleWidth);
+                ta.removeFromRight(margin);
                 auto c2 = ta.removeFromRight(circleWidth).withSizeKeepingCentre(circleWidth, circleWidth);
                 ta.removeFromRight(margin);
                 auto c1 = ta.removeFromRight(circleWidth).withSizeKeepingCentre(circleWidth, circleWidth);
                 
                 auto isError = !d->ok;
-                
+                auto isWarning = d->lastError.errorType == UriError::ErrorType::Breakpoint;
+                auto isOk = !(isError || isWarning);
+
+                if (d->currentlyParsing)
+                {
+                    isError = false;
+                    isWarning = true;
+                    isOk = false;
+                }
+
 				auto isPending = d->pending;
 
-                g.setColour(resultColours[0].withAlpha(isError && !isPending ? 0.7f : noAlpha));
+                g.setColour(resultColours[0].withAlpha((isOk && !isPending) ? 0.7f : noAlpha));
                 g.drawEllipse(c1, 1.0f);
-                g.setColour(resultColours[1].withAlpha(!isError && !isPending ? 0.7f : noAlpha));
+                g.setColour(resultColours[1].withAlpha((isWarning && !isPending) ? 0.7f : noAlpha));
                 g.drawEllipse(c2, 1.0f);
+                g.setColour(resultColours[2].withAlpha((isError && !isPending) ? 0.7f : noAlpha));
+                g.drawEllipse(c3, 1.0f);
                 
-                g.setColour(resultColours[0].withAlpha(isError && !isPending ? 1.0f : noAlpha));
+                g.setColour(resultColours[0].withAlpha((isOk && !isPending) ? 1.0f : noAlpha));
                 g.fillEllipse(c1.reduced(padding));
-                g.setColour(resultColours[1].withAlpha(!isError && !isPending ? 1.0f : noAlpha));
+                g.setColour(resultColours[1].withAlpha((isWarning && !isPending) ? 1.0f : noAlpha));
                 g.fillEllipse(c2.reduced(padding));
+                g.setColour(resultColours[2].withAlpha((isError && !isPending) ? 1.0f : noAlpha));
+                g.fillEllipse(c3.reduced(padding));
                 
             }
         }

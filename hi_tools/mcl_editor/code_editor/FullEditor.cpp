@@ -179,9 +179,13 @@ void FullEditor::setColourScheme(const juce::CodeEditorComponent::ColourScheme& 
 	editor.colourScheme = s;
 }
 
-void FullEditor::setCurrentBreakline(int n)
+void FullEditor::setCurrentBreakline(const UriError& e)
 {
-	editor.gutter.setCurrentBreakline(n);
+	if (editor.matchesUriLocation(e) || e.wasOk())
+	{
+		auto scope = e.wasOk() ? nullptr : editor.languageManager->getScopeFromLocation(CodeDocument::Position(editor.getDocument(), e.charIndex));
+		editor.gutter.setCurrentBreakline(e, scope);
+	}
 }
 
 void FullEditor::sendBlinkMessage(int n)

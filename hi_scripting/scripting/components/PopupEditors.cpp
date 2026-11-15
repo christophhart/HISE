@@ -127,22 +127,8 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileT
 
 	addEditor(externalFile->getFileDocument(), isJavascript);
 
-	
-
-	
-
 	addButtonAndCompileLabel();
-	refreshAfterCompilation(JavascriptProcessor::SnippetResult(s->getLastErrorMessage(), 0));
-
-	if (externalFile != nullptr && !isJavascript)
-		externalFile->getRuntimeErrorBroadcaster().addListener(*this, runTimeErrorsOccured);
-	if(isJavascript)
-	{
-		jp->runtimeErrorBroadcaster.addListener(*this, [](PopupIncludeEditor& e, const String& errorMessage)
-		{
-			e.setError(errorMessage.isEmpty() ? Result::ok() : Result::fail(errorMessage));
-		});
-	}
+	refreshAfterCompilation(s->getLastErrorMessage());
 
 	for (int i = 0; i < jp->getNumWatchedFiles(); i++)
 	{
@@ -159,6 +145,9 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileT
 			}
 		}
 	}
+
+	jp->addUriBreakpointListener(this);
+	jp->errorProvider.addListener(this, true);
 }
 
 PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier &callback_) :
@@ -172,42 +161,19 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier 
 	addEditor(d, true);
 	addButtonAndCompileLabel();
 
-	jp->runtimeErrorBroadcaster.addListener(*this, [](PopupIncludeEditor& e, const String& errorMessage)
-	{
-		if(errorMessage.isNotEmpty())
-		{
-			auto m = errorMessage.upToFirstOccurrenceOf("{{", false, false);
-			auto encodedState = errorMessage.fromFirstOccurrenceOf("{{", false, false).upToFirstOccurrenceOf("}}", false, false);
-			auto pId = HiseJavascriptEngine::RootObject::CodeLocation::Helpers::getProcessorId(encodedState);
-
-			UriLocation loc;
-			loc.charIndex = HiseJavascriptEngine::RootObject::CodeLocation::Helpers::getCharNumberFromBase64String(encodedState);
-
-			loc.uri = HiseJavascriptEngine::RootObject::CodeLocation::Helpers::getFileName(encodedState);
-
-			auto uri = loc.toLocationString(UriLocation::UriFormat::CallbackId);
-
-			if(e.callback.toString() == uri)
-			{
-				loc.fillLineAndCol(e.doc->getCodeDocument());
-				String mclError;
-				mclError << loc.toLocationString(UriLocation::UriFormat::LineAndCol);
-				mclError << ": " << errorMessage;
-				e.editor->editor.setError(mclError);
-			}
-		}
-	});
-
-    dynamic_cast<Processor*>(jp.get())->getMainController()->addScriptListener(this);
+	dynamic_cast<Processor*>(jp.get())->getMainController()->addScriptListener(this);
     
-	refreshAfterCompilation(JavascriptProcessor::SnippetResult(s->getLastErrorMessage(), 0));
+	jp->addUriBreakpointListener(this);
+	jp->errorProvider.addListener(this, true);
+
+	refreshAfterCompilation(s->getLastErrorMessage());
 }
 
 struct JavascriptLanguageManager : public mcl::LanguageManager
 {
 	JavascriptLanguageManager(JavascriptProcessor* jp_, const UriLocation& location_, mcl::TextEditor& ed):
 		jp(jp_),
-        callback(callback_)
+        location(location_)
 	{
 		jp->heatmapManager.heatmapBroadcaster.addListener(ed, [](mcl::TextEditor& ed, DebugInformationBase::Ptr info, const std::map<int, double>* heatmap)
 		{
@@ -450,23 +416,24 @@ void PopupIncludeEditor::addButtonAndCompileLabel()
     
 	bottomBar->setCompileFunction(BIND_MEMBER_FUNCTION_0(PopupIncludeEditor::compileInternal));
 
-    
-    
 	setSize(800, 800);
 }
 
-
-
-void PopupIncludeEditor::refreshAfterCompilation(const JavascriptProcessor::SnippetResult& r)
+void PopupIncludeEditor::refreshAfterCompilation(const UriError& e)
 {
     checkUnreferencedExternalFile();
-	setError(r.r);
 }
 
 PopupIncludeEditor::~PopupIncludeEditor()
 {
     Processor *sp = dynamic_cast<Processor*>(jp.get());
     
+	if (jp != nullptr)
+	{
+		jp->errorProvider.removeListener(this);
+		jp->removeUriBreakpointListener(this);
+	}
+
 	if (jp != nullptr && editor != nullptr)
 	{
 		auto& doc = editor->editor.getDocument();
@@ -475,18 +442,133 @@ PopupIncludeEditor::~PopupIncludeEditor()
         CodeDocument::Position p(doc, pos.x, pos.y);
      
         sp->getMainController()->removeScriptListener(this);
-        
 		jp->setWatchedFilePosition(p);
 	}
 
 	editor = nullptr;
-
 	tokeniser = nullptr;
-
 	bottomBar = nullptr;
-
     doc = nullptr;
 	externalFile = nullptr;
+}
+
+void PopupIncludeEditor::onUriBreakpointEvent(const UriBreakpoint& knownEvent, const UriError& breakpoint)
+{
+	bottomBar->setError(breakpoint);
+
+	if (editor->editor.matchesUriLocation(breakpoint) || breakpoint.wasOk())
+	{
+		SafeAsyncCall::call<PopupIncludeEditor>(*this, [breakpoint](PopupIncludeEditor& pe)
+		{
+			if (breakpoint.errorType == UriError::ErrorType::Blink)
+			{
+				pe.editor->editor.getGutterComponent().sendBlinkMessage(breakpoint.line);
+				return;
+			}
+
+			pe.editor->setCurrentBreakline(breakpoint);
+
+			if (!breakpoint.wasOk())
+			{
+				pe.editor->editor.setTokenTooltipFunction([&pe](mcl::TooltipWithArea::Data& d)
+				{
+					pe.onBreakpointTooltip(d);
+				});
+
+				PopupIncludeEditor::gotoUriLocation(pe.jp, pe.editor.get(), breakpoint);
+			}
+			else
+			{
+				pe.editor->editor.setTokenTooltipFunction({});
+			}
+		});
+	}
+	else
+	{
+		std::vector<UriLocation::WithExpression> callstackMatches;
+
+		for (const auto& cs : breakpoint.callstack)
+		{
+			if (editor->editor.matchesUriLocation(cs.second))
+				callstackMatches.push_back(cs);
+		}
+
+		if (!callstackMatches.empty())
+			editor->editor.getGutterComponent().setExternalCallstackMatches(callstackMatches);
+
+		if (!breakpoint.wasOk() && breakpoint.errorMessage.startsWith("Step"))
+		{
+			SafeAsyncCall::call<PopupIncludeEditor>(*this, [breakpoint](PopupIncludeEditor& pe)
+			{
+				PopupIncludeEditor::gotoUriLocation(pe.jp, pe.editor.get(), breakpoint);
+			});
+		}
+	}
+}
+
+void PopupIncludeEditor::onError(const UriError& e, int numOccurrences)
+{
+	auto s = e.sourceType;
+	
+	jassert((s & UriError::SourceType::Runtime)     ||
+	        (s & UriError::SourceType::Diagnostics) ||
+			(s & UriError::SourceType::Debug)       ||
+			(s & UriError::SourceType::Compilation) ||
+			(s & UriError::SourceType::Include));
+
+	auto shouldProcess = editor->editor.matchesUriLocation(e) || e.wasOk();
+
+	shouldProcess &= numOccurrences == 1;
+	
+	if (shouldProcess)
+	{
+		SafeAsyncCall::call<PopupIncludeEditor>(*this, [e](PopupIncludeEditor& pe)
+		{
+			pe.bottomBar->setError(e);
+
+			if (!e.wasOk())
+				pe.editor->editor.addUriError(e);
+		});
+	}
+}
+
+void PopupIncludeEditor::onClear(UriErrorLogger::SourceType s)
+{
+	jassert((s & UriError::SourceType::Runtime)     ||
+	        (s & UriError::SourceType::Diagnostics) ||
+			(s & UriError::SourceType::Debug)       ||
+			(s & UriError::SourceType::Compilation) ||
+			(s & UriError::SourceType::Include));
+
+	
+
+	SafeAsyncCall::call<PopupIncludeEditor>(*this, [s](PopupIncludeEditor& pe)
+	{
+		if (s & UriError::SourceType::Compilation)
+			pe.editor->editor.refreshBreakpoints();
+
+		pe.bottomBar->clearError(s);
+		pe.editor->editor.clearWarningsAndErrors(s);
+	});
+}
+
+void PopupIncludeEditor::onLocationTree(UriLocationTree::Ptr newTree)
+{
+	if (newTree != nullptr)
+	{
+		if (auto st = newTree->getSubTree(baseLocation, false))
+		{
+			if (auto l = dynamic_cast<JavascriptLanguageManager*>(editor->editor.getLanguageManager()))
+			{
+				l->lastScopeTree = st;
+
+				SafeAsyncCall::call<mcl::TextEditor>(editor->editor, [](mcl::TextEditor& ed)
+				{
+					ed.updateLineRanges();
+				});
+			}
+		}
+	}
 }
 
 
@@ -514,34 +596,6 @@ bool PopupIncludeEditor::keyPressed(const KeyPress& key)
 #endif
 
 	return false;
-}
-
-void PopupIncludeEditor::runTimeErrorsOccured(PopupIncludeEditor& t, Array<ExternalScriptFile::RuntimeError>* errors)
-{
-	if (errors == nullptr)
-		return;
-
-	if (auto asmcl = CommonEditorFunctions::as(&t))
-	{
-		for (const auto& e : *errors)
-		{
-			auto matchesFile = e.matches(t.externalFile->getFile().getFileNameWithoutExtension());
-
-			if (matchesFile && e.errorLevel == ExternalScriptFile::RuntimeError::ErrorLevel::Warning)
-				asmcl->editor.addWarning(e.toString(), true);
-
-			if (e.errorLevel == ExternalScriptFile::RuntimeError::ErrorLevel::Error)
-			{
-				if (matchesFile)
-					asmcl->editor.addWarning(e.toString(), false);
-
-				if(t.bottomBar != nullptr)
-					t.bottomBar->setError("GLSL Compile Error");
-			}
-		}
-
-		asmcl->repaint();
-	}
 }
 
 void PopupIncludeEditor::resized()
@@ -703,7 +757,7 @@ void PopupIncludeEditor::compileInternal()
 		for(auto w: p.getWarnings())
 			ed.addWarning(w, true);
 
-		bottomBar->setError(ok.getErrorMessage());
+		bottomBar->setError(UriError::fromResult(ok, jp));
 
 		if(!ok.wasOk())
 		{
@@ -751,7 +805,7 @@ void PopupIncludeEditor::compileInternal()
 	{
 		Component::SafePointer<PopupIncludeEditor> safeP(this);
     
-	    auto f = [safeP](const JavascriptProcessor::SnippetResult& r)
+	    auto f = [safeP](const UriError& r)
 	    {
 	        if(safeP.getComponent() != nullptr)
 	        {
@@ -968,7 +1022,7 @@ float PopupIncludeEditor::getGlobalCodeFontSize(Component* c)
 	return ft->getMainController()->getGlobalCodeFontSize();
 }
 
-bool PopupIncludeEditor::matchesLocation(const UriLocation& loc) const
+bool PopupIncludeEditor::matchesUriLocation(const UriLocation& loc) const
 {
 	if (externalFile != nullptr)
 		return loc.matchesFile(externalFile->getFile());
@@ -1001,16 +1055,13 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 
 	if (isJavascript)
 	{
-		auto callbackToUse = callback;
+		baseLocation.processorId = jp->getUriProcessorId();
+		baseLocation.uri = callback.toString();
 
-		if (callbackToUse.isNull() && externalFile != nullptr)
-		{
-			callbackToUse = Identifier(externalFile->getFile().getFileName());
-		}
+		if (externalFile != nullptr)
+			baseLocation.uri = externalFile->getFile().getFullPathName();
 		
-		
-
-		ed.setLanguageManager(new JavascriptLanguageManager(jp, callbackToUse, ed));
+		ed.setLanguageManager(new JavascriptLanguageManager(jp, baseLocation, ed));
 	}
 	else
 	{
@@ -1041,7 +1092,7 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 
 	if (isJavascript)
 	{
-		getEditor()->addBreakpointListener(this);
+		editor->editor.getGutterComponent().setOwner(jp);
 
 		auto& tp = mc->getJavascriptThreadPool();
 		tp.addSleepListener(this);
@@ -1057,7 +1108,10 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 			}
 		};
         
-        getEditor()->editor.setGotoFunction(BIND_MEMBER_FUNCTION_2(::hise::PopupIncludeEditor::jumpToFromShortcut));
+		getEditor()->editor.setGotoFunction([jp_](const UriLocation::WithExpression& l)
+		{
+			return jp_->jumpToDefinition(l);
+		});
 	}
 
 	WeakReference<ApiProviderBase::Holder> safeHolder = dynamic_cast<ApiProviderBase::Holder*>(jp.get());
@@ -1119,9 +1173,14 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 
 	if (isJavascript)
 	{
-		ed.setDiagnosticsFunction([this]()
+		ed.setDiagnosticsFunction([this](bool shouldParse)
 		{
-			shadowParse(false);
+			if(shouldParse)
+				shadowParse();
+			else if (bottomBar != nullptr)
+			{
+				bottomBar->setCurrentlyParsing();
+			}
 		});
 	}
 
@@ -1130,8 +1189,9 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 #endif
 }
 
-EditorBottomBar::EditorBottomBar(JavascriptProcessor* jp):
-	ControlledObject(dynamic_cast<Processor*>(jp)->getMainController())
+EditorBottomBar::EditorBottomBar(JavascriptProcessor* jp_):
+	ControlledObject(dynamic_cast<Processor*>(jp_)->getMainController()),
+	jp(jp_)
 {
 	addAndMakeVisible(resultLabel = new DebugConsoleTextEditor("messageBox", dynamic_cast<Processor*>(jp)));
 
@@ -1141,25 +1201,38 @@ EditorBottomBar::EditorBottomBar(JavascriptProcessor* jp):
 	compileButton->addListener(this);
 	compileButton->setColour(TextButton::buttonColourId, Colours::transparentBlack);
 
-	addAndMakeVisible(resumeButton = new TextButton("new button"));
-	resumeButton->setButtonText(TRANS("Resume"));
-	resumeButton->setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
-	resumeButton->addListener(this);
-	resumeButton->setColour(TextButton::buttonColourId, Colours::transparentBlack);
-	resumeButton->setVisible(false);
+	addChildComponent(callstackSelector);
+	callstackSelector.setLookAndFeel(&callstackLaf);
+	callstackSelector.addListener(this);
+
+	callstackSelector.setTooltip("Click to select callstack frame");
+	
+	addChildComponent(resumeButton = new HiseShapeButton("resume", this, factory));
+	addChildComponent(overButton = new HiseShapeButton("over", this, factory));
+	addChildComponent(nextButton = new HiseShapeButton("next", this, factory));
+
+	auto bpColour = Colour(HISE_BREAKPOINT_COLOUR).withMultipliedBrightness(1.6f);
+	auto offColour = Colour(HISE_ERROR_COLOUR).withMultipliedBrightness(1.6f);
+	
+
+	overButton->setTooltip("Step over next statement [F10]");
+	nextButton->setTooltip("Step into next statement [F11]");
+	resumeButton->setTooltip("Resume execution [F5]");
+
+	overButton->setColours(bpColour.withMultipliedAlpha(0.75f), bpColour, bpColour);
+	nextButton->setColours(bpColour.withMultipliedAlpha(0.75f), bpColour, bpColour);
+	resumeButton->setColours(bpColour.withMultipliedAlpha(0.75f), bpColour, bpColour);
 
 	addAndMakeVisible(errorButton = new HiseShapeButton("error", this, factory));
 
 	errorButton->setVisible(false);
-
-	auto offColour = Colour(HISE_ERROR_COLOUR).withMultipliedBrightness(1.6f);
 
 	errorButton->setColours(offColour.withMultipliedAlpha(0.75f), offColour, offColour);
 
 	errorButton->setTooltip("Navigate to the code position that causes the compiliation error.");
 	
 	compileButton->setLookAndFeel(&blaf);
-	resumeButton->setLookAndFeel(&blaf);
+	resultLabel->setTooltip("Click to enter a REPL evaluation, then press enter to print result to console");
 
 	setOpaque(true);
 }
@@ -1169,11 +1242,23 @@ void EditorBottomBar::resized()
 	auto b = getLocalBounds();
 	compileButton->setBounds(b.removeFromRight(75));
 
+	if (resumeButton->isVisible())
+		resumeButton->setBounds(b.removeFromLeft(b.getHeight()).reduced(3));
+
+	if (nextButton->isVisible())
+		nextButton->setBounds(b.removeFromLeft(b.getHeight()).reduced(3));
+
+	if (overButton->isVisible())
+		overButton->setBounds(b.removeFromLeft(b.getHeight()).reduced(3));
+
+	if (b.getX() > 0)
+		b.removeFromLeft(5);
+
 	if (errorButton->isVisible())
 		errorButton->setBounds(b.removeFromLeft(35).reduced(2).translated(0, 1));
 
-	if (resumeButton->isVisible())
-		resumeButton->setBounds(b.removeFromRight(75));
+	if (callstackSelector.isVisible())
+		callstackSelector.setBounds(b.removeFromLeft(callstackSelector.getWidth()));
 
 	resultLabel->setBounds(b);
 }
@@ -1191,8 +1276,31 @@ void EditorBottomBar::buttonClicked(Button* b)
 	}
 	if (b == errorButton)
 	{
-		resultLabel->gotoText();
+		gotoLocation(getCurrentError());
+		
+		if(callstackSelector.isVisible())
+			callstackSelector.setSelectedItemIndex(0, dontSendNotification);
+
 		getMainController()->getLastActiveEditor()->grabKeyboardFocusAsync();
+	}
+}
+
+void EditorBottomBar::comboBoxChanged(ComboBox* cb)
+{
+	auto idx = cb->getSelectedItemIndex();
+
+	auto currentError = getCurrentError();
+
+	if (idx == 0)
+	{
+		gotoLocation(currentError);
+	}
+	else
+	{
+		idx = cb->getSelectedId() - 2;
+
+		if (isPositiveAndBelow(idx, currentError.callstack.size()))
+			gotoLocation(currentError.callstack[idx].second);
 	}
 }
 
@@ -1202,28 +1310,36 @@ void EditorBottomBar::recompile()
 	compileFunction();
 }
 
-void EditorBottomBar::setShowResume(bool on, int lineNumber)
+void EditorBottomBar::clearError(UriError::SourceType s)
 {
-	resumeButton->setVisible(on);
+	for (auto& e : errors)
+	{
+		if (e.first & (int)s)
+			e.second = {};
+	}
 
-	if (on)
-		resultLabel->setText("Breakpoint at line " + String(lineNumber), dontSendNotification);
-
-	resized();
+	startTimer(200);
 }
 
-void EditorBottomBar::setError(const String& errorMessage)
+void EditorBottomBar::setError(const UriError& e)
 {
-	lastCompileOk = errorMessage.isEmpty();
+	if (e.wasOk())
+	{
+		clearError(e.sourceType);
+		return;
+	}
+
+	jassert(e.sourceType != UriError::SourceType::None);
+	jassert(e.sourceType != UriError::SourceType::All);
+
+	errors[e.sourceType] = e;
 	startTimer(200);
+}
 
-	auto m = errorMessage.upToFirstOccurrenceOf("{", false, false).upToFirstOccurrenceOf("\n", false, false);
-
-	if (errorMessage.isEmpty())
-		m = "Compiled OK";
-
-	if (resultLabel != nullptr)
-		resultLabel->setText(m, dontSendNotification);
+void EditorBottomBar::setCurrentlyParsing()
+{
+	resultLabel->currentlyParsing = true;
+	resultLabel->setText("Waiting for diagnostics...", dontSendNotification);
 }
 
 void EditorBottomBar::paint(Graphics& g)
@@ -1235,11 +1351,112 @@ void EditorBottomBar::paint(Graphics& g)
 
 void EditorBottomBar::timerCallback()
 {
-	errorButton->setVisible(!lastCompileOk);
-	resultLabel->setOK(lastCompileOk);
+	auto currentError = getCurrentError();
+
+	
+	
+
+	resultLabel->setError(currentError);
+	resumeButton->setVisible(currentError.errorType == UriError::ErrorType::Breakpoint);
+	nextButton->setVisible(resumeButton->isVisible());
+	overButton->setVisible(resumeButton->isVisible());
+
+	auto offColour = Colour(resumeButton->isVisible() ? HISE_BREAKPOINT_COLOUR : HISE_ERROR_COLOUR).withMultipliedBrightness(1.6f);
+	errorButton->setColours(offColour.withMultipliedAlpha(0.75f), offColour, offColour);
+
+	callstackSelector.setVisible(currentError.callstack.size() > 0);
+
+	callstackSelector.clear(dontSendNotification);
+
+	auto maxWidth = 0;
+
+	if (!currentError.wasOk())
+	{
+		auto top = currentError.toLocationString(UriLocation::UriFormat::Compact);
+
+		maxWidth = jmax<int>(maxWidth, GLOBAL_MONOSPACE_FONT().getStringWidthFloat(top));
+
+		callstackSelector.addItem(top, 1);
+
+		currentError.forInvertedCallstack([&](int index, const UriLocation::WithExpression& e)
+		{
+			auto i = e.second.toLocationString(UriLocation::UriFormat::Compact) + ": " + e.first;
+			callstackSelector.addItem(i, index+2);
+			maxWidth = jmax<int>(maxWidth, GLOBAL_MONOSPACE_FONT().getStringWidthFloat(i));
+		});
+
+		callstackSelector.setSize(maxWidth + getHeight(), getHeight());
+		callstackSelector.setSelectedItemIndex(0, dontSendNotification);
+	}
+
+	errorButton->setVisible(!currentError.wasOk());
+	
 	repaint();
 	resized();
 	stopTimer();
+}
+
+UriError EditorBottomBar::getCurrentError() const
+{
+	auto getBestErrorWithType = [&](UriError::ErrorType t)
+	{
+		auto sourcePriority = {
+			UriError::SourceType::Include,
+			UriError::SourceType::Diagnostics,
+			UriError::SourceType::Compilation,
+			UriError::SourceType::Runtime,
+			UriError::SourceType::Debug
+		};
+
+		for(auto s: sourcePriority)
+		{
+			if (errors.find(s) != errors.end())
+			{
+				auto& item = errors.at(s);
+				if (item.errorType == t)
+					return item;
+			}
+		}
+
+		return UriError();
+	};
+
+	if (auto e = getBestErrorWithType(UriError::ErrorType::Error))
+		return e;
+
+	if (auto e = getBestErrorWithType(UriError::ErrorType::Breakpoint))
+		return e;
+
+	return UriError();
+}
+
+void hise::EditorBottomBar::gotoLocation(const UriLocation& l)
+{
+	if(l)
+		PopupIncludeEditor::gotoUriLocation(nullptr, this, l);
+}
+
+Path EditorBottomBar::Factory::createPath(const String& url) const
+{
+	Path p;
+
+	if (url == "resume")
+	{
+		static const unsigned char pathData[] = { 110,109,252,127,69,68,4,0,158,67,108,252,127,7,68,4,0,220,67,108,252,127,7,68,4,0,64,67,108,252,127,69,68,4,0,158,67,99,101,0,0 };
+		p.loadPathFromData(pathData, sizeof(pathData));
+	}
+
+	if (url == "next")
+	{
+		static const unsigned char pathData[] = { 110,109,0,128,69,68,144,34,205,67,108,0,128,69,68,88,117,219,67,108,0,128,7,68,88,117,219,67,108,0,128,7,68,144,34,205,67,108,0,128,69,68,144,34,205,67,99,109,174,220,27,68,80,21,65,67,108,162,35,49,68,80,21,65,67,108,162,35,49,68,44,122,135,67,108,128,
+229,68,68,44,122,135,67,108,0,128,38,68,148,68,196,67,108,128,26,8,68,44,122,135,67,108,174,220,27,68,44,122,135,67,108,174,220,27,68,80,21,65,67,99,101,0,0 };
+		p.loadPathFromData(pathData, sizeof(pathData));
+	}
+
+	LOAD_EPATH_IF_URL("error", ColumnIcons::errorIcon);
+	LOAD_EPATH_IF_URL("over", EditorIcons::redoIcon);
+
+	return p;
 }
 
 } // namespace hise

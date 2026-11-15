@@ -74,45 +74,12 @@ public:
 		numResourceTypes
 	};
 
-	struct RuntimeError
-	{
-		using Broadcaster = LambdaBroadcaster<Array<RuntimeError>*>;
-
-		enum class ErrorLevel
-		{
-			Error = 0,
-			Warning = 1,
-			Invalid,
-			numErrorLevels
-		};
-
-		RuntimeError(const String& e);
-
-		String toString() const;
-
-		RuntimeError();
-
-		ErrorLevel errorLevel = ErrorLevel::Invalid;
-
-		bool matches(const String& fileNameWithoutExtension) const;
-
-	private:
-
-		String file;
-
-		int lineNumber = -1;
-		
-		String errorMessage;
-	};
-
-
-
+	
 	ExternalScriptFile(const File&file);
 
 	ExternalScriptFile(const File& rootDirectory, const ValueTree& v):
 	  resourceType(ResourceType::EmbeddedInSnippet),
-	  file(rootDirectory.getChildFile(v["filename"].toString())),
-	  currentResult(Result::ok())
+	  file(rootDirectory.getChildFile(v["filename"].toString()))
 	{
 
 #if USE_BACKEND
@@ -124,11 +91,7 @@ public:
 
 	~ExternalScriptFile();
 
-	void setResult(Result r);
-
 	CodeDocument& getFileDocument();
-
-	Result getResult() const;
 
 	bool reloadIfChanged(bool force=false)
 	{
@@ -172,9 +135,6 @@ public:
 
 	typedef ReferenceCountedObjectPtr<ExternalScriptFile> Ptr;
 
-	void setRuntimeErrors(const Result& r);
-
-	RuntimeError::Broadcaster& getRuntimeErrorBroadcaster();
 
 	ResourceType getResourceType() const
 	{
@@ -188,12 +148,6 @@ private:
 	Time lastEditTime;
 
 	ResourceType resourceType;
-
-	RuntimeError::Broadcaster runtimeErrorBroadcaster;
-
-	Array<RuntimeError> runtimeErrors;
-
-	Result currentResult;
 
 	File file;
 

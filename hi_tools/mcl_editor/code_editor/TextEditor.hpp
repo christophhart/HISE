@@ -140,26 +140,19 @@ public:
 	void setDeactivatedLines(const SparseSet<int>& lines);
 	
 
-	void clearWarningsAndErrors();
+	void clearWarningsAndErrors(UriError::SourceType s = UriError::SourceType::All);
 
 	virtual MarkdownLink getLink() const override;
 
-	void addHint(const UriError& e);
-
-	void addWarning(const UriError& e, bool isWarning = true);
-	
-
-	void addWarning(const String& errorMessage, bool isWarning=true);
-
-	void setError(const UriError& e);
-
-	void setError(const String& errorMessage);
+	void addUriError(const UriError& e);
 
 	void abortAutocomplete();
 
 	void refreshLineWidth();
 
 	void insertCodeSnippet(const String& textToInsert, Array<Range<int>> selectRanges);
+
+	GutterComponent& getGutterComponent();
 
 	CodeDocument& getDocument();
 
@@ -206,11 +199,7 @@ public:
 
 	bool setParameterSelection(int index, bool useUndo=true);
 
-	void setDiagnosticsFunction(const std::function<void(void)>& f)
-	{
-		diagnosticsTimer.diagnosticsFunction = f;
-		diagnosticsTimer.trigger();
-	}
+	void setDiagnosticsFunction(const std::function<void(bool)>& f);
 
 	void closeAutocomplete(bool async, const String& textToInsert, Array<Range<int>> selectRanges);
 
@@ -307,7 +296,7 @@ public:
 
 	ScrollBar& getVerticalScrollBar();
 
-	void setDiagnostics(const DiagnosticLines& dl);
+	void rebuildDiagnosticLines();
 
 	void rebuildInplaceDebugValues();
 
@@ -326,8 +315,6 @@ public:
 
 		void rebuild();
 
-		bool isEntireLine = false;
-
 		TextDocument& document;
 
 		CodeDocument::Position start;
@@ -336,9 +323,26 @@ public:
 		juce::Rectangle<float> area;
 		Array<Line<float>> errorLines;
 
-		String errorMessage;
-		bool isWarning;
+		UriError toUriError(const UriLocation& rootLocation) const
+		{
+			auto copy = originalError;
+			copy.fillLocation(start);
+			return copy;
+		}
+
+		UriError originalError;
 	};
+
+	Error* getFirstError() const
+	{
+		for (auto e : errors)
+		{
+			if (e->originalError.errorType == UriError::Error)
+				return e;
+		}
+
+		return nullptr;
+	}
 
 private:
 
@@ -446,13 +450,14 @@ private:
 		{
 			if(parent.shadowParseAfterDelay && diagnosticsFunction)
             {
+				diagnosticsFunction(false);
                 parent.tokenRebuildPending = true;
                 parent.repaint();
                 startTimer(1000);
             }
 		}
 
-		std::function<void()> diagnosticsFunction;
+		std::function<void(bool)> diagnosticsFunction;
 		TextEditor& parent;
 	} diagnosticsTimer;
 
@@ -562,10 +567,8 @@ private:
     double lastTransactionTime;
     bool tabKeyUsed = true;
     TextDocument& document;
-	ScopedPointer<Error> currentError;
 
-	OwnedArray<Error> hints;
-	OwnedArray<Error> warnings;
+	OwnedArray<Error> errors;
 
 	Array<PopupMenuFunction> popupMenuFunctions;
 	Array<PopupMenuResultFunction> popupMenuResultFunctions;

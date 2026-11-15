@@ -132,9 +132,9 @@ class HiseJavascriptEngine: public ApiProviderBase
 {
 public:
     
-    using ScopeTree = std::vector<std::pair<Range<int>, DynamicObject::Ptr>>;
-    
-	/** Creates an instance of the engine.
+	
+
+    /** Creates an instance of the engine.
 	This creates a root namespace and defines some basic Object, String, Array
 	and Math library methods.
 	*/
@@ -431,9 +431,9 @@ public:
 		RootObject();
 
 		Time timeout;
-		bool stopAtNextStatement = false;
-		Array<UriBreakpoint> initBreakpoints;
-		Array<var> breakpointFunctions;
+		
+		UriLocationTree::Ptr lastIncludeTree;
+		UriLocationTree::Ptr lastScopeTree;
 
 		struct ScopedWaker
 		{
@@ -804,7 +804,7 @@ public:
 		void removeFromCallStack(const Identifier& id);
 		//String dumpCallStack(Error& lastError, const Identifier& rootFunctionName);
 
-		UriError withCallStack(const UriLocation& l, const String& errorMessage) const;
+		void attachCallstack(UriError& e) const;
 
 		void setCallStackEnabled(bool shouldeBeEnabled) { enableCallstack = shouldeBeEnabled; }
 
@@ -844,7 +844,7 @@ public:
 
 			String getDebugName() const override;
 
-			DynamicObject::Ptr createScope(RootObject* r) override;
+			ScopeData createScope(RootObject* r) override;
 
 			int getNumChildElements() const override;
 

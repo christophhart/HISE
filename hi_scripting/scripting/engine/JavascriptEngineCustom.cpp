@@ -291,6 +291,9 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 #endif
 
 		var results[5];
+
+		bool isCallable = false;
+
 		for (int i = 0; i < expectedNumArguments; i++)
 		{
 			results[i] = argumentList[i]->getResult(s);
@@ -298,6 +301,11 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 #if ENABLE_SCRIPTING_SAFE_CHECKS
 			logDiagnosticsOrThrow(s, HiseJavascriptEngine::checkValidParameter(i, results[i], types[i]));
 #endif
+
+#if ENABLE_SCRIPTING_BREAKPOINTS
+			isCallable |= dynamic_cast<WeakCallbackHolder::CallableObject*>(results[i].getObject()) != nullptr;
+#endif
+
 		}
 
 		CHECK_CONDITION_WITH_LOCATION(apiClass != nullptr, "API class does not exist");
@@ -313,7 +321,18 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 				}
 			}
 #endif
-			return apiClass->callFunction(functionIndex, results, expectedNumArguments);
+
+			if (isCallable)
+			{
+				String callId;
+				callId << apiClass->getObjectName() << "." << functionName;
+				RootObject::ScopedCallstackEntry scs(*s.root, Identifier(callId), &location);
+				return apiClass->callFunction(functionIndex, results, expectedNumArguments);
+			}
+			else
+			{
+				return apiClass->callFunction(functionIndex, results, expectedNumArguments);
+			}
 		}
 		catch (String& error)
 		{
@@ -670,7 +689,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		void doubleClickCallback(const MouseEvent &/*event*/, Component* ed)
 		{
-			DebugableObject::Helpers::gotoLocation(ed, nullptr, location);
+			PopupIncludeEditor::gotoUriLocation(nullptr, ed, location);
 		}
 
 		AttributedString getDescription() const override 
