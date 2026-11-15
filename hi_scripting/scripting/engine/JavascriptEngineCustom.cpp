@@ -27,6 +27,8 @@ std::pair<var, DiagnosticBase::DiagnosticResult> HiseJavascriptEngine::RootObjec
 		auto obj = ts.getCurrentScopeObject();
 
 		if (args.thisObject.isObject())
+		{
+			body->resolveTypeDefinitionInScopeTree(s, args.thisObject, "this", true);
 			obj->setProperty("this", args.thisObject);
 
 		Array<var> thisArgs;
@@ -40,7 +42,6 @@ std::pair<var, DiagnosticBase::DiagnosticResult> HiseJavascriptEngine::RootObjec
 				if (parameterTypes[i])
 				{
 					auto ok = VarTypeChecker::checkType(args.arguments[i], parameterTypes[i], false);
-
 					if (!ok.wasOk())
 					{
 						auto actual = LightweightDiagnostics::Helpers::getTypeForObjectTypeCheck(args.arguments[i]);
@@ -56,6 +57,7 @@ std::pair<var, DiagnosticBase::DiagnosticResult> HiseJavascriptEngine::RootObjec
 				}
 
 				obj->setProperty(id, args.arguments[i]);
+				body->resolveTypeDefinitionInScopeTree(s, args.arguments[i], id.toString(), true);
 			}
 				
 		}
@@ -78,7 +80,9 @@ struct HiseJavascriptEngine::RootObject::RegisterVarStatement : public Statement
 
 		if (s.isShadowParsing())
 		{
-			s.getShadowParserRootObject()->setProperty(name, initialiser->getResult(s));
+			auto v = initialiser->getResult(s);
+			resolveTypeDefinitionInScopeTree(s, v, name.toString(), true);
+			s.getShadowParserRootObject()->setProperty(name, v);
 			return ok;
 		}
 
@@ -124,8 +128,11 @@ struct HiseJavascriptEngine::RootObject::RegisterName : public Expression
 #if HISE_SHADOW_PARSER_ENABLED
 
 		if (s.isShadowParsing())
-			return s.getShadowParserRootObject(namespaceId)->getProperty(name);
-
+		{
+			auto v = s.getShadowParserRootObject(namespaceId)->getProperty(name);
+			resolveTypeDefinitionInScopeTree(s, v, "reference", false);
+			return v;
+		}
 #endif
 
 		return *data;
@@ -624,7 +631,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
         ScopeData createScope(RootObject* r) override
         {
-            DynamicObject::Ptr n = new DynamicObject();
+			using LSC = HiseJavascriptEngine::RootObject::LocalScopeCreator;
 
 			LSC::ScopeData sd;
 
@@ -928,6 +935,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 				auto obj = ts.getCurrentScopeObject();
 
 				if (args.thisObject.isObject())
+				{
 					obj->setProperty("this", args.thisObject);
 
 				Array<var> thisArgs;
@@ -937,6 +945,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 					auto id = parameterNames[i].id;
 
 					if (isPositiveAndBelow(i, args.numArguments))
+					{
 						obj->setProperty(id, args.arguments[i]);
 				}
 
@@ -1417,7 +1426,9 @@ struct HiseJavascriptEngine::RootObject::LocalVarStatement : public Expression
 #if HISE_SHADOW_PARSER_ENABLED
 		if (s.isShadowParsing())
 		{
-			s.scope->setProperty(name, initialiser->getResult(s));
+			auto v = initialiser->getResult(s);
+			resolveTypeDefinitionInScopeTree(s, v, name.toString(), true);
+			s.scope->setProperty(name, v);
 			return ok;
 		}
 #endif
