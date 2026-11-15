@@ -472,7 +472,7 @@ void FloatingTabComponent::popupMenuClickOnTab(int tabIndex, const String& /*tab
 		moveTab(tabIndex, 0, true);
 		moveContent(tabIndex, 0);
 	}
-	else if (result == 6)
+	else if (result == SortTabs)
 	{
 		for (int i = 0; i < getNumTabs(); i++)
 		{

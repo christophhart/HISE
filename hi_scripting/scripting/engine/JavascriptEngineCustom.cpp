@@ -30,6 +30,8 @@ std::pair<var, DiagnosticBase::DiagnosticResult> HiseJavascriptEngine::RootObjec
 		{
 			body->resolveTypeDefinitionInScopeTree(s, args.thisObject, "this", true);
 			obj->setProperty("this", args.thisObject);
+		}
+			
 
 		Array<var> thisArgs;
 
@@ -742,7 +744,10 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
                 
                 nt->markdownDescription << "**Inline Function:**" << parts[4] << "  \n";
                 nt->markdownDescription << "**ReturnType:** " << parts[2] << "  \n";
-                nt->markdownDescription << "**Location:** " << parts[3] << "  \n";
+
+				nt->location = UriLocation::fromEncodedString(parts[3]);
+
+                nt->markdownDescription << "**Location:** " << nt->location.toLocationString(UriLocation::UriFormat::Compact) << "  \n";
                 
                 return nt;
             }
@@ -766,7 +771,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
             signature << ")";
             
             signature << "|" << VarTypeChecker::getTypeName(returnType);
-			signature << "|" << "Defined at" << location.toLocationString(UriLocation::UriFormat::Callback);
+			signature << "|" << location.toLocationString(UriLocation::UriFormat::Base64);
             signature << "|" << commentDoc;
             
             return signature;
@@ -947,6 +952,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 					if (isPositiveAndBelow(i, args.numArguments))
 					{
 						obj->setProperty(id, args.arguments[i]);
+						body->resolveTypeDefinitionInScopeTree(s, args.arguments[i], id.toString(), true);
+					}
 				}
 
 				body.get()->perform(*ts.getCurrentScope(), &rv.first);
