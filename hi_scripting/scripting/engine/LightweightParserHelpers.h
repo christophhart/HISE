@@ -500,7 +500,12 @@ struct NativeTypeDiagnostic : public LightweightDiagnostics
 
     bool isDynamicType() const
     {
-        return (t == VarTypeChecker::DataContent && !custom);
+        if (custom)
+            return false;
+
+        return t == VarTypeChecker::NotUndefined ||
+               t == VarTypeChecker::JSON ||
+               t == VarTypeChecker::DataContent;
     }
     
     var getConstantValue(const Identifier& childId) const override
@@ -524,27 +529,56 @@ struct NativeTypeDiagnostic : public LightweightDiagnostics
     VarTypeChecker::VarTypes t;
 };
 
-struct ArrayWithKnownElementType
+struct ComplexDiagnosticObject : public LightweightDiagnostics,
+                                 public AssignableObject
 {
-    struct Diagnostics : public LightweightDiagnostics,
-        public AssignableObject
+    ComplexDiagnosticObject(const LightweightDiagnostics::Factory& f, ProcessorWithScriptingContent* p, const var& value, const String& argsId);
+      
+    // do nothing
+    void assign(const int, var) override {}
+
+    // return the lightweight diagnostics of the element type
+    var getAssignedValue(int index) const override 
     {
-        Diagnostics(ProcessorWithScriptingContent* p, const ValueTree& v, const String& argId);
+        return var(children[index].get());
+    }
 
-        // do nothing
-        void assign(const int, var) override {}
+    // only return the first element ever
+    int getCachedIndex(const var& indexVar) const override 
+    {
+        if (type == VarTypeChecker::VarTypes::Array)
+            return (int)indexVar;
 
-        // return the lightweight diagnostics of the element type
-        var getAssignedValue(int) const override { return returnType; }
+        else if (type == VarTypeChecker::VarTypes::JSON)
+        {
+            return properties.indexOf(indexVar.toString());
+        }
 
-        // only return the first element ever
-        int getCachedIndex(const var&) const override { return 0; }
+        return -1;
+    }
 
-        var returnType;
+    VarTypeChecker::VarTypes type;
+    ReferenceCountedArray<LightweightDiagnostics> children;
+    StringArray properties;
+};
 
-    };
+struct ArrayWithKnownElementType: public LightweightDiagnostics,
+                                  public AssignableObject
+{
+    ArrayWithKnownElementType(const LightweightDiagnostics::Factory& f, ProcessorWithScriptingContent* p, const ValueTree& v, const String& argId);
 
-    static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("Array"); }
+    static LightweightDiagnostics::Ptr createIfKnownElementType(const LightweightDiagnostics::Factory& f, ProcessorWithScriptingContent* p, const var& possibleArrayWithKnownElements);
+
+    // do nothing
+    void assign(const int, var) override {}
+
+    // return the lightweight diagnostics of the element type
+    var getAssignedValue(int) const override { return returnType; }
+
+    // only return the first element ever
+    int getCachedIndex(const var&) const override { return 0; }
+
+    var returnType;
 };
 
 struct InbuiltFunction : public LightweightDiagnostics
