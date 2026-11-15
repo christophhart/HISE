@@ -456,7 +456,7 @@ struct ScriptBroadcasterMap::TargetEntry : public ScriptBroadcasterMap::EntryBas
 
 		menubar.addButton("goto", Justification::right, [jp, loc](Button* b, bool value)
 		{
-			DebugableObject::Helpers::gotoLocation(b, jp, loc);
+			PopupIncludeEditor::gotoUriLocation(jp, b, loc);
 		});
 
 		marginTop = 30;

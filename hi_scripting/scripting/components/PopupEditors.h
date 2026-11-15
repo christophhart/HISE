@@ -151,9 +151,11 @@ public:
 
 	void resized() override;;
 
-	void gotoChar(int character, int lineNumber = -1);
+	void onBreakpointTooltip(mcl::TooltipWithArea::Data& d);
 
-	void breakpointsChanged(mcl::GutterComponent& g) override;
+	static bool gotoUriLocation(UriLocation::Owner* owner, Component* c, const UriLocation& location);
+
+	void gotoChar(int character, int lineNumber = -1);
 
 	void paintOverChildren(Graphics& g) override;
 
@@ -163,8 +165,6 @@ public:
 
 	File getFile() const;
 	
-    int jumpToFromShortcut(int lineNumber, const String& token);
-    
 	JavascriptProcessor* getScriptProcessor() { return jp; }
 
 	static File getPropertyFile()
@@ -197,6 +197,8 @@ public:
 	bool isJavascript() const { return t == FileTypes::Javascript; }
 
 private:
+
+	UriLocation baseLocation;
 
 	enum class FileTypes
 	{

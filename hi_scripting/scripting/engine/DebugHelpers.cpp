@@ -190,73 +190,20 @@ String DebugInformation::toString()
 
 struct UndoableLocationSwitch: public UndoableAction
 {
-    static String getLocationString(JavascriptProcessor* p, const String& indexString)
-    {
-        if(indexString == "onInit")
-            return "";
-        
-        for(int i = 0; i < p->getNumWatchedFiles(); i++)
-        {
-            auto f = p->getWatchedFile(i);
-            
-            if(f.getFileName() == indexString)
-            {
-                return f.getFullPathName();
-            }
-        }
-        
-        return indexString + "()";
-    }
-    
-    static String getDescription(Processor* p)
-    {
-        String d;
-        
-        if (auto editor = p->getMainController()->getLastActiveEditor())
-        {
-            if (auto editorPanel = editor->findParentComponentOfClass<CodeEditorPanel>())
-            {
-                mcl::TextEditor& e = dynamic_cast<mcl::FullEditor*>(editor)->editor;
-                auto s = e.getTextDocument().getSelection(0).head;
-                
-                StringArray indexList;
-                editorPanel->fillIndexList(indexList);
-                auto idx = editorPanel->getCurrentIndex();
-                d << indexList[idx];
-                d << ":";
-                d << String(s.x);
-                
-            }
-        }
-        
-        
-        
-        return d;
-    }
-    
     UriLocation getPosition(Processor* p)
     {
-        UriLocation location;
-        
         if (auto editor = p->getMainController()->getLastActiveEditor())
         {
             if (auto editorPanel = editor->findParentComponentOfClass<CodeEditorPanel>())
             {
                 mcl::TextEditor& e = dynamic_cast<mcl::FullEditor*>(editor)->editor;
                 auto s = e.getTextDocument().getSelection(0).head;
-                
                 CodeDocument::Position pos(e.getDocument(), s.x, s.y);
-                
-                StringArray indexList;
-                editorPanel->fillIndexList(indexList);
-                auto idx = editorPanel->getCurrentIndex();
-                
-                location.charIndex = pos.getPosition();
-                location.uri = getLocationString(dynamic_cast<JavascriptProcessor*>(p), indexList[idx]);
+				return e.getLanguageManager()->createUriLocation(pos);
             }
         }
         
-        return location;
+		return {};
     }
     
     UndoableLocationSwitch(Processor* p, UriLocation location)
@@ -291,37 +238,11 @@ struct UndoableLocationSwitch: public UndoableAction
     
     bool gotoInternal(Processor* processor, UriLocation location)
     {
-        if(processor == nullptr)
+		if(processor == nullptr || !location)
             return false;
         
         auto editor = processor->getMainController()->getLastActiveEditor();
-
-        if (editor == nullptr)
-            return false;
-
-        if (auto editorPanel = editor->findParentComponentOfClass<CodeEditorPanel>())
-        {
-            editorPanel = findOrCreateEditorPanel(editorPanel, processor, location);
-            editorPanel->gotoLocation(processor, location);
-            return true;
-        }
-        else if (location.getUriType() == UriLocation::UriType::ExternalFile)
-        {
-            auto jsp = dynamic_cast<JavascriptProcessor*>(processor);
-
-            File f(location.uri);
-
-            jsp->showPopupForFile(f, location.charIndex);
-            return true;
-        }
-        else if (auto scriptEditor = editor->findParentComponentOfClass<ScriptingEditor>())
-        {
-            scriptEditor->showOnInitCallback();
-            scriptEditor->gotoChar(location.charIndex);
-            return true;
-        }
-    
-        return false;
+		return PopupIncludeEditor::gotoUriLocation(nullptr, editor, location);
     }
     
     WeakReference<Processor> oldProcessor, newProcessor;
@@ -329,28 +250,6 @@ struct UndoableLocationSwitch: public UndoableAction
 };
 #endif
 
-bool gotoLocationInternal(Processor* processor, UriLocation location)
-{
-    if(!location)
-        return false;
-    
-#if USE_BACKEND
-    
-    auto um = processor->getMainController()->getLocationUndoManager();
-    
-    um->beginNewTransaction();
-    um->perform(new UndoableLocationSwitch(processor, location),
-                UndoableLocationSwitch::getDescription(processor));
-    
-    processor->getMainController()->getCommandManager()->commandStatusChanged();
-    
-    return true;
-    
-#else
-    ignoreUnused(processor, location);
-    return false;
-#endif
-}
 
 AttributedString DebugableObject::Helpers::getFunctionDoc(const String& docBody, const Array<Identifier>& parameters)
 {
@@ -368,39 +267,6 @@ AttributedString DebugableObject::Helpers::getFunctionDoc(const String& docBody,
 
 	return info;
 }
-
-bool DebugableObject::Helpers::gotoLocation(Component* ed, JavascriptProcessor* sp, const UriLocation& location)
-{
-#if USE_BACKEND
-	auto handler = dynamic_cast<ScriptEditHandler*>(ed);
-
-	if (sp == nullptr && handler != nullptr)
-	{
-		sp = handler->getScriptEditHandlerProcessor();
-	}
-
-	if (sp == nullptr)
-	{
-		// You have to somehow manage to pass the processor here...
-		jassertfalse;
-		return false;
-	}
-
-	return gotoLocationInternal(dynamic_cast<Processor*>(sp), location);
-
-#else
-	ignoreUnused(ed, sp, location);
-	return false;
-#endif
-}
-
-
-bool DebugableObject::Helpers::gotoLocation(Processor* processor, DebugInformationBase* info)
-{
-	return gotoLocationInternal(processor, info->getLocation());
-}
-
-
 
 UriLocation DebugableObject::Helpers::getLocationFromProvider(Processor* p, DebugableObjectBase* obj)
 {

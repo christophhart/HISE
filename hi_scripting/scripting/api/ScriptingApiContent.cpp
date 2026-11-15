@@ -9687,9 +9687,7 @@ void ScriptingApi::Content::Helpers::gotoLocation(ScriptComponent* sc)
 		if (info->getObject() == sc)
 		{
 			auto location = info->getObject()->getLocation();
-
-			DebugableObject::Helpers::gotoLocation(p, info.get());
-
+			PopupIncludeEditor::gotoUriLocation(jp, nullptr, location);
 			return;
 		}
 	}

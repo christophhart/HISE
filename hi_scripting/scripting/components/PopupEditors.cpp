@@ -458,19 +458,6 @@ bool PopupIncludeEditor::keyPressed(const KeyPress& key)
 		bottomBar->recompile();
 		return true;
 	}
-
-#if 0
-    if (TopLevelWindowWithKeyMappings::matches(this, key, TextEditorShortcuts::goto_undo))
-    {
-        return dynamic_cast<Processor*>(jp.get())->getMainController()->getLocationUndoManager()->undo();
-        return true;
-    }
-    if (TopLevelWindowWithKeyMappings::matches(this, key, TextEditorShortcuts::goto_redo))
-    {
-        return dynamic_cast<Processor*>(jp.get())->getMainController()->getLocationUndoManager()->redo();
-        return true;
-    }
-#endif
     
 	if (TopLevelWindowWithKeyMappings::matches(this, key, TextEditorShortcuts::goto_file))
 	{
@@ -656,12 +643,6 @@ void PopupIncludeEditor::blink(MainController* mc, const UriLocation& location)
 File PopupIncludeEditor::getFile() const
 {
 	return externalFile != nullptr ? externalFile->getFile() : File();
-}
-
-int PopupIncludeEditor::jumpToFromShortcut(int lineNumber, const String& token)
-{
-	jp->jumpToDefinition(token, lineNumber, "");
-	return -1;
 }
 
 void PopupIncludeEditor::compileInternal()

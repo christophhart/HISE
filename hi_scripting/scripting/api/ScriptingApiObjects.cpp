@@ -9637,9 +9637,9 @@ struct ScriptingObjects::GlobalCableReference::DataCallback: public scriptnode::
 
 		BackendPanelHelpers::ScriptingWorkspace::showEditor(br, true);
 
-		auto f = [sp, l]()
+		auto f = [sp, l, rootEditor]()
 		{
-			DebugableObject::Helpers::gotoLocation(nullptr, dynamic_cast<JavascriptProcessor*>(sp), l);
+			PopupIncludeEditor::gotoUriLocation(dynamic_cast<JavascriptProcessor*>(sp), rootEditor, l);
 		};
 
 		Timer::callAfterDelay(400, f); 
@@ -9760,9 +9760,9 @@ struct ScriptingObjects::GlobalCableReference::Callback: public scriptnode::rout
 
 		BackendPanelHelpers::ScriptingWorkspace::showEditor(br, true);
 
-		auto f = [sp, l]()
+		auto f = [sp, l, rootEditor]()
 		{
-			DebugableObject::Helpers::gotoLocation(nullptr, dynamic_cast<JavascriptProcessor*>(sp), l);
+			PopupIncludeEditor::gotoUriLocation(dynamic_cast<JavascriptProcessor*>(sp), rootEditor, l);
 		};
 
 		Timer::callAfterDelay(400, f); 

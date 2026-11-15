@@ -958,7 +958,7 @@ public:
 			
 			if (editor != nullptr)
 			{
-                DebugableObject::Helpers::gotoLocation(editor, jp, loc);
+				PopupIncludeEditor::gotoUriLocation(jp, editor, loc);
 				auto search = getTextEditor("searchTerm")->getText();
 				CodeReplacer::refreshSelection(editor, search);
                 editor->grabKeyboardFocusAsync();
@@ -1485,10 +1485,14 @@ bool JavascriptProcessor::performPopupMenuAction(int menuId, Component* c)
 	}
 	case JumpToDefinition:
 	{
-		auto token = CommonEditorFunctions::getCurrentToken(c);
-		auto pos = CommonEditorFunctions::getCaretPos(c);
-		const String namespaceId = JavascriptCodeEditor::Helpers::findNamespaceForPosition(pos);
-		jumpToDefinition(token, pos.getLineNumber(), namespaceId);
+		if (auto ed = CommonEditorFunctions::as(c))
+		{
+			UriLocation::WithExpression l;
+			l.first = CommonEditorFunctions::getCurrentToken(c);
+			auto pos = CommonEditorFunctions::getCaretPos(c);
+			l.second = ed->editor.getLanguageManager()->createUriLocation(pos);
+			return jumpToDefinition(l);
+		}
 
 		return true;
 	}

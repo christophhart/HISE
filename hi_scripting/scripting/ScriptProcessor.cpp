@@ -1017,98 +1017,17 @@ void JavascriptProcessor::addPopupMenuItems(PopupMenu &menu, Component* c, const
 }
 
 
-void JavascriptProcessor::jumpToDefinition(const String& token, int lineNumber, const String& namespaceId)
+bool JavascriptProcessor::jumpToDefinition(const UriLocation::WithExpression& locationAndToken)
 {
-#if USE_BACKEND
-	if (token.isNotEmpty())
-	{
-		if(token.startsWithChar('"'))
-		{
-			auto scriptRoot = dynamic_cast<Processor*>(this)->getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts);
+	if (locationAndToken.first.isEmpty())
+		return false;
 
-			auto sf = scriptRoot.getChildFile(token.substring(1)).withFileExtension("js");
+	auto data = HiseJavascriptEngine::SimpleExpressionData::parse(getScriptEngine(), locationAndToken);
 
-			if (sf.existsAsFile())
-			{
-				UriLocation l;
-				l.uri = sf.getFullPathName();
-				l.charIndex = 0;
+	if (auto t = data.getResolvedNode())
+		return PopupIncludeEditor::gotoUriLocation(this, nullptr, *t);
 
-				DebugableObject::Helpers::gotoLocation(nullptr, this, l);
-				return;
-			}
-		}
-		if (auto l = getScriptEngine()->preprocessor->getLocationForPreprocessor(token))
-		{
-			DebugableObject::Helpers::gotoLocation(nullptr, this, l);
-			return;
-		}
-
-		auto trimmedToken = token.fromLastOccurrenceOf("[", false, false);
-
-        trimmedToken = trimmedToken.removeCharacters("!");
-        
-		const String c = namespaceId.isEmpty() ? trimmedToken : namespaceId + "." + trimmedToken;
-
-        auto infos = DebugableObject::Helpers::getDebugInformationFromString(getScriptEngine(), c);
-        
-        if(infos.size() == 1)
-        {
-            if(DebugableObject::Helpers::gotoLocation(dynamic_cast<Processor*>(this), infos[0].get()))
-                return;
-        }
-        else if (!infos.isEmpty())
-        {
-            PopupMenu m;
-            
-            m.addSectionHeader("Choose Goto target");
-            
-            int index = 1;
-            
-            for(auto i: infos)
-                m.addItem(index++, i->getTextForName(), true, false);
-            
-            if(auto r = m.show())
-            {
-                if(DebugableObject::Helpers::gotoLocation(dynamic_cast<Processor*>(this), infos[r-1].get()))
-                    return;
-            }
-            else
-                return;
-        }
-        
-        PresetHandler::showMessageWindow("Can't locate symbol", "The symbol `" + c + "` cannot be found");
-        
-#if 0
-		auto f = [c](Processor* p)
-		{
-			Result result = Result::ok();
-
-			auto s = dynamic_cast<JavascriptProcessor*>(p);
-			var t = s->getScriptEngine()->evaluate(c, &result);
-
-			if (result.wasOk())
-			{
-				auto info = DebugableObject::Helpers::getDebugInformation(s->getScriptEngine(), t);
-
-				auto f2 = [info, s]()
-				{
-					if (info != nullptr)
-						DebugableObject::Helpers::gotoLocation(dynamic_cast<Processor*>(s), info.get());
-				};
-
-				MessageManager::callAsync(f2);
-			}
-
-			return SafeFunctionCall::OK;
-		};
-
-		auto p = dynamic_cast<Processor*>(this);
-
-		p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, MainController::KillStateHandler::TargetThread::ScriptingThread);
-#endif
-	}
-#endif
+	return false;
 }
 
 void JavascriptProcessor::setActiveEditor(JavascriptCodeEditor* e, CodeDocument::Position pos)

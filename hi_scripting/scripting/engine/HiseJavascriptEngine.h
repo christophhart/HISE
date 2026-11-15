@@ -917,10 +917,9 @@ public:
 			String getDebugName() const override { return id.toString(); };
 			String getDebugValue() const override { return id.toString(); };
 
-			void doubleClickCallback(const MouseEvent &, Component* e)
-			{
-				DebugableObject::Helpers::gotoLocation(e, nullptr, namespaceLocation);
-			}
+			UriLocation getLocation() const override { return namespaceLocation; }
+
+			void doubleClickCallback(const MouseEvent &, Component* e);
 
 			int getNumChildElements() const override
 			{

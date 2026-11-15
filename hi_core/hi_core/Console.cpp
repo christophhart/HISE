@@ -254,9 +254,13 @@ void Console::mouseDoubleClick(const MouseEvent& /*e*/)
 
 	const String line = newTextConsole->getDocument().getLine(selectionStart.getLineNumber());
 
-	DebugableObject::Helpers::gotoLocation(mc->getMainSynthChain(), line);
+    auto locString = line.fromFirstOccurrenceOf("{{", true, false);
 
-	
+    if (locString.isNotEmpty())
+    {
+        auto location = UriLocation::fromEncodedString(locString);
+        PopupIncludeEditor::gotoUriLocation(nullptr, this, location);
+    }
 };;
 
 void Console::mouseWheelMove(const MouseEvent& e, const MouseWheelDetails& wheel)

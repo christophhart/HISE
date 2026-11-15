@@ -410,8 +410,8 @@ struct ScriptBroadcaster::Display: public Component,
 
 			gotoButton.onClick = [this]()
 			{
-				if(item != nullptr)
-					DebugableObject::Helpers::gotoLocation(nullptr, jp, item->location);
+				if (item != nullptr)
+					PopupIncludeEditor::gotoUriLocation(jp, nullptr, item->location);
 			};
 
 			powerButton.onClick = [this]()
@@ -2635,9 +2635,9 @@ void ScriptBroadcaster::DebugableObjectListener::registerSpecialBodyItems(Compon
 
 				auto loc = location;
 
-				gotoButton.onClick = [p, loc]()
+				gotoButton.onClick = [this, p, loc]()
 				{
-					DebugableObject::Helpers::gotoLocation(nullptr, dynamic_cast<JavascriptProcessor*>(p), loc);
+					PopupIncludeEditor::gotoUriLocation(dynamic_cast<JavascriptProcessor*>(p), this, loc);
 				};
 			}
 
@@ -2761,7 +2761,7 @@ void ScriptBroadcaster::ScriptCallListener::registerSpecialBodyItems(ComponentWi
             
 			gotoButton.onClick = [this]()
 			{
-				DebugableObject::Helpers::gotoLocation(nullptr, dynamic_cast<JavascriptProcessor*>(item->p), item->location);
+				PopupIncludeEditor::gotoUriLocation(dynamic_cast<JavascriptProcessor*>(item->p), this, item->location);
 			};
 		}
 

@@ -44,8 +44,8 @@ class TextEditor : public juce::Component,
 {
 public:
 
-	using TokenTooltipFunction = std::function<String(const String&, int)>;
-	using GotoFunction = std::function<int(int lineNumber, const String& token)>;
+	using TokenTooltipFunction = std::function<void(TooltipWithArea::Data&)>;
+	using GotoFunction = std::function<bool(const UriLocation::WithExpression&)>;
 
 	using PopupMenuFunction = std::function<void(TextEditor&, PopupMenu&, const MouseEvent& e)>;
 	using PopupMenuResultFunction = std::function<bool(TextEditor&, int)>;
@@ -63,6 +63,11 @@ public:
     TextEditor(TextDocument& doc);
     ~TextEditor();
     void setFont (juce::Font font);
+
+	UriLocation createUriLocation(Selection s) const;
+	bool matchesUriLocation(const UriLocation& location) const;
+	bool gotoLocation(const UriLocation& location);
+
     void setText (const juce::String& text);
     void translateView (float dx, float dy);
     void scaleView (float scaleFactor, float verticalCenter);
@@ -169,7 +174,7 @@ public:
     
 	bool gotoDefinition(Selection s1 = {});
 
-	
+	bool gotoDefinition(Selection s1 = {});
 
 	void threadStateChanged(bool isRunning) override;
 
@@ -308,56 +313,8 @@ public:
 
 	struct Error
 	{
-		struct Helpers
-		{
-			static int getCharNumberFromBase64String(const String& base64EncodedString)
-			{
-				auto s = getDecodedString(base64EncodedString);
-
-				auto sa = StringArray::fromTokens(s, "|", "");
-
-				return sa[2].getIntValue();
-			}
-
-			static String getProcessorId(const String& base64EncodedString)
-			{
-				auto s = getDecodedString(base64EncodedString);
-
-				auto sa = StringArray::fromTokens(s, "|", "");
-
-				jassert(sa.size() > 0);
-
-				return sa[0];
-			}
-
-			static String getFileName(const String& base64EncodedString)
-			{
-				auto s = getDecodedString(base64EncodedString);
-
-				auto sa = StringArray::fromTokens(s, "|", "");
-
-				jassert(sa.size() > 1);
-
-				if (sa[1].isEmpty())
-					return String();
-
-				if (sa[1].contains("()"))
-					return sa[1];
-
-				return "{PROJECT_FOLDER}" + sa[1];
-			}
-
-			static String getDecodedString(const String& base64EncodedString)
-			{
-				MemoryOutputStream mos;
-				Base64::convertFromBase64(mos, base64EncodedString.removeCharacters("{}"));
-				return String::createStringFromData(mos.getData(), (int)mos.getDataSize());
-			}
-		};
-
-		Error(TextDocument& doc_, const String& e, bool isWarning_);
-
-		Error(TextDocument& doc, const UriError& uri, bool isWarning);
+		
+		Error(TextDocument& doc, const UriError& uri);
 
 		Selection getSelection() const;
 

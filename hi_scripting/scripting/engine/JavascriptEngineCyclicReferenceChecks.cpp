@@ -326,6 +326,11 @@ bool HiseJavascriptEngine::RootObject::updateCyclicReferenceList(ThreadData& dat
 	return true;
 }
 
+void HiseJavascriptEngine::RootObject::JavascriptNamespace::doubleClickCallback(const MouseEvent&, Component* e)
+{
+	PopupIncludeEditor::gotoUriLocation(nullptr, e, namespaceLocation);
+}
+
 bool HiseJavascriptEngine::RootObject::JavascriptNamespace::updateCyclicReferenceList(ThreadData& data, const Identifier& parentId)
 {
 	auto nsString = id.toString() + ".";

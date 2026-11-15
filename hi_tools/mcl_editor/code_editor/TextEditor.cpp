@@ -121,6 +121,48 @@ void mcl::TextEditor::setFont (Font font)
     repaint();
 }
 
+UriLocation TextEditor::createUriLocation(Selection s) const
+{
+	if (languageManager != nullptr)
+		return languageManager->createUriLocation(CodeDocument::Position(document.getCodeDocument(), s.head.x, s.head.y));
+	
+	return {};
+}
+
+bool TextEditor::matchesUriLocation(const UriLocation& location) const
+{
+	if (languageManager != nullptr)
+	{
+		auto rootPos = languageManager->createUriLocation({});
+		return rootPos.sameUriAndProcessorId(location);
+	}
+
+	return false;
+}
+
+bool TextEditor::gotoLocation(const UriLocation& location)
+{
+	if (matchesUriLocation(location))
+	{
+		auto copy = location;
+
+		if (!(location.getResolveState() & UriLocation::ResolveState::LineResolved))
+		{
+			jassert(location.getResolveState() | UriLocation::ResolveState::RawCharIndex);
+
+			CodeDocument::Position pos(getDocument(), location.charIndex);
+			copy.fillLocation(pos);
+		}
+
+		Selection s({ copy.line-1, copy.col-1 }, { copy.line-1, copy.col-1 });
+		document.setSelections({ s }, true);
+		grabKeyboardFocusAsync();
+		return true;
+	}
+
+	return false;
+}
+
 void mcl::TextEditor::setText (const String& text)
 {
     document.replaceAll (text);
@@ -341,23 +383,31 @@ bool TextEditor::gotoDefinition(Selection s1)
 		if (s1.tail.isOrigin())
 			s1 = document.getSelection(0);
 
-		const auto o = s1.tail;
+		String selectedExpression;
 
-		auto p = o;
-		auto s = p;
+		CodeDocument::Position pos(getDocument(), s1.head.x, s1.head.y);
 
-		document.navigate(s, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::backwardCol);
-		document.navigate(s, mcl::TextDocument::Target::cppToken, mcl::TextDocument::Direction::backwardCol);
-		document.navigate(p, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::forwardCol);
+		if (s1.isSingular())
+		{
+			const auto o = s1.tail;
 
-		Selection tokenSelection(s.x, s.y, p.x, p.y);
-		auto token = document.getSelectionContent(tokenSelection);
+			auto p = o;
+			auto s = p;
 
-		auto sl = gotoFunction(s.x, token);
+			document.navigate(s, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::backwardCol);
+			document.navigate(s, mcl::TextDocument::Target::cppToken, mcl::TextDocument::Direction::backwardCol);
+			document.navigate(p, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::forwardCol);
 
-		document.jumpToLine(sl);
-            
-		return true;
+			Selection tokenSelection(s.x, s.y, p.x, p.y);
+			selectedExpression = document.getSelectionContent(tokenSelection);
+		}
+		else
+		{
+			selectedExpression = document.getSelectionContent(s1);
+		}
+			
+		auto l = languageManager->createUriLocation(pos);
+		return gotoFunction({ selectedExpression, l });
 	}
 
 	return false;
@@ -992,61 +1042,9 @@ bool TextEditor::AutofixComponent::calculateFix()
 #endif
 }
 
-TextEditor::Error::Error(TextDocument& doc_, const String& e, bool isWarning_):
+TextEditor::Error::Error(TextDocument& doc_, const UriError& location):
 	document(doc_),
-	isWarning(isWarning_)
-{
-	auto s = e.fromFirstOccurrenceOf("Line ", false, false);
-	auto l = s.getIntValue() - 1;
-
-	auto useDefaultJuceErrorFormat = s.contains(", column ");
-
-	auto c = s.fromFirstOccurrenceOf(useDefaultJuceErrorFormat ? "column " : "(", false, false).upToFirstOccurrenceOf(")", false, false).getIntValue();
-	errorMessage = s.fromFirstOccurrenceOf(": ", false, false);
-
-	Point<int> pos, endPoint;
-
-	auto maxLength = document.doc.getLine(l).trimCharactersAtEnd(" \t\n").length();
-
-	if (c >= (maxLength-1))
-		c = -1;
-
-	if (c == -1)
-	{
-		isEntireLine = true;
-		pos = Point<int>(l, 0);
-				
-		document.navigate(pos, TextDocument::Target::line, mcl::TextDocument::Direction::forwardCol);
-
-		endPoint = pos;
-				
-
-		document.navigate(pos, TextDocument::Target::firstnonwhitespace, mcl::TextDocument::Direction::backwardCol);
-	}
-	else
-	{
-		pos = Point<int>(l, c);
-
-		document.navigate(pos, TextDocument::Target::subwordWithPoint, TextDocument::Direction::backwardCol);
-		endPoint = pos;
-		document.navigate(endPoint, TextDocument::Target::subwordWithPoint, TextDocument::Direction::forwardCol);
-
-		if (pos == endPoint)
-			endPoint.y += 1;
-	}
-
-	start = CodeDocument::Position(document.getCodeDocument(), pos.x, pos.y);
-	end = CodeDocument::Position(document.getCodeDocument(), endPoint.x, endPoint.y);
-	start.setPositionMaintained(true);
-	end.setPositionMaintained(true);
-
-	rebuild();
-}
-
-TextEditor::Error::Error(TextDocument& doc_, const UriError& location, bool isWarning_):
-	document(doc_),
-	isWarning(isWarning_),
-	errorMessage(location.errorMessage)
+	originalError(location)
 {
 	Point<int> s(location.line - 1, location.col);
 	auto e = s;
@@ -1061,8 +1059,6 @@ TextEditor::Error::Error(TextDocument& doc_, const UriError& location, bool isWa
 	end = CodeDocument::Position(document.getCodeDocument(), e.x, e.y);
 	start.setPositionMaintained(true);
 	end.setPositionMaintained(true);
-
-	isEntireLine = false;
 
 	rebuild();
 }

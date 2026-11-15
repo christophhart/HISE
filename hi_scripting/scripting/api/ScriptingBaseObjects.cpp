@@ -957,7 +957,7 @@ void ConstScriptingObject::gotoLocationWithDatabaseLookup()
 	
 	if (auto loc = DebugableObject::Helpers::getLocationFromProvider(p, this))
 	{
-		DebugableObject::Helpers::gotoLocation(nullptr, dynamic_cast<JavascriptProcessor*>(p), loc);
+		PopupIncludeEditor::gotoUriLocation(dynamic_cast<JavascriptProcessor*>(p), nullptr, loc);
 	}
 }
 

@@ -123,7 +123,8 @@ void DebugConsoleTextEditor::mouseDoubleClick(const MouseEvent& /*e*/)
 
 void DebugConsoleTextEditor::gotoText()
 {
-	DebugableObject::Helpers::gotoLocation(processor->getMainController()->getMainSynthChain(), fullErrorMessage);
+	if(!lastError.wasOk())
+		PopupIncludeEditor::gotoUriLocation(dynamic_cast<JavascriptProcessor*>(processor.get()), this, lastError);
 }
 
 void DebugConsoleTextEditor::addToHistory(const String& s)
@@ -161,7 +162,8 @@ void DebugConsoleTextEditor::textEditorReturnKeyPressed(TextEditor& /*t*/)
 		loc.charIndex = tokens[1].getIntValue();
 		loc.uri = tokens[0];
 
-		DebugableObject::Helpers::gotoLocation(this, jsp, loc);
+		PopupIncludeEditor::gotoUriLocation(jsp, this, loc);
+
 		return;
 	}
     

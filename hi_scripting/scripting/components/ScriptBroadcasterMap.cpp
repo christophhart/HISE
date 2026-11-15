@@ -1074,8 +1074,8 @@ void ScriptBroadcasterMap::EntryBase::setCurrentError(const String& e)
 
 		menubar.addButton("error", Justification::right, [errorLocation](Button* b, bool value)
 		{
-			auto synthChain = b->findParentComponentOfClass<ControlledObject>()->getMainController()->getMainSynthChain();
-			DebugableObject::Helpers::gotoLocation(synthChain, errorLocation);
+			auto location = UriLocation::fromEncodedString(errorLocation);
+			PopupIncludeEditor::gotoUriLocation(nullptr, b, location);
 		});
 
 		auto b = menubar.buttons.getLast();

@@ -233,8 +233,11 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 	{
 		using ST = DebugSession::ProfileDataSource::SourceType;
 
-		if(s == ST::Script || s == ST::Trace)
-			DebugableObject::Helpers::gotoLocation(c, loc);
+		if (s == ST::Script || s == ST::Trace)
+		{
+			auto location = UriLocation::fromEncodedString(loc);
+			PopupIncludeEditor::gotoUriLocation(nullptr, p, location);
+		}
 		else if (s == ST::DSP)
 		{
 			auto brw = GET_BACKEND_ROOT_WINDOW(p);
