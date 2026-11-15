@@ -327,6 +327,10 @@ struct ScriptComponentDiagnosticBase : public LightweightDiagnostics
                 if (classTree.isValid())
                     initClassTree(classTree);
             }
+            else
+            {
+                initClassTree(ValueTree("ScriptComponent"));
+            }
         }
 
        
@@ -502,6 +506,24 @@ struct ScriptComponentDiagnosticBase : public LightweightDiagnostics
                     .withWrongToken(v)
                     .withFuzzySuggestion(options)
                     .withErrorCode(DiagnosticResult::ErrorCode::InvalidOption);
+
+                if (cd.methodName == Identifier("set") && sc != nullptr)
+                {
+                    try
+                    {
+                        sc->handleScriptPropertyChange(propId.toString());
+                        return DR::ok();
+                    }
+                    catch (String& s)
+                    {
+                        String msg;
+                        msg << "set property " << sc->getName() << "." << propId.toString();
+                        msg << " to `" << v << "`";
+                        return DR::fail(msg)
+                            .withSeverity(DiagnosticResult::Severity::Info)
+                            .withErrorCode(DiagnosticResult::ErrorCode::UntouchedMethod);
+                    }
+                }
 
                 return DR::ok();
             }
@@ -1418,7 +1440,6 @@ LightweightDiagnostics::Factory::Factory()
     registerType<ScriptingApi::Content::ScriptDynamicContainer>();
     registerType<ScriptingApi::Content::ScriptPanel>();
     registerType<ScriptingObjects::ScriptBroadcaster>();
-    registerType<ArrayWithKnownElementType>();
 
     registerType<ScriptingApi::Synth>();
 

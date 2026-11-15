@@ -91,18 +91,6 @@ struct LightweightDiagnostics : public DiagnosticBase,
         String checkString;
     };
 
-    struct NavigationToken : public mcl::TokenCollection::Token
-    {
-        NavigationToken(LightweightDiagnostics* lb) :
-            Token("")
-        {
-            for (const auto& o : lb->occurrences)
-                occurrences.add(o.toJSON());
-        }
-
-        Array<var> occurrences;
-    };
-
     virtual DiagnosticResult performCustomCheck(const CustomCheckData& cd)
     {
         // Convention: return unknown for callback checks, this will handle all default
@@ -166,6 +154,11 @@ struct LightweightDiagnostics : public DiagnosticBase,
                 return new T(p, c, argId);
             };
         }
+
+        LightweightDiagnostics::Ptr getLightweightDiagnosticsFromVar(ProcessorWithScriptingContent* pwsc, const var& obj) const;
+
+        /** Turns whatever is passed in into a diagnostic object. Used by the parser to attach type info to the scope tree. */
+        LightweightDiagnostics::Ptr createTypeInfoObject(ProcessorWithScriptingContent* p, const var& value, const String& argsId) const;
 
         LightweightDiagnostics::Ptr createLightweightPrototype(ProcessorWithScriptingContent* p, const Identifier& id, const String& argId) const;
 
@@ -359,7 +352,7 @@ struct LightweightDiagnostics : public DiagnosticBase,
         LightweightDiagnostics* thisObj;
     };
 
-    std::vector<UriLocation> occurrences;
+    std::vector<UriLocation::WithExpression> occurrences;
 
     DiagnosticResult shadowParseCallbackWithArgType(const CallbackParseOptions& callbackOptions);
 

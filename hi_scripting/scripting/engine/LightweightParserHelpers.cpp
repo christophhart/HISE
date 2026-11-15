@@ -40,12 +40,17 @@ LightweightDiagnostics::Ptr LightweightDiagnostics::Factory::createInternal(Proc
 {
 	auto nativeType = Helpers::getVarTypeFromPrimitiveType(id.toString());
 
+	auto apiTree = ApiHelpers::getApiTree();
+
+	if (nativeType == VarTypeChecker::Array && argId.isNotEmpty())
+	{
+		return new ArrayWithKnownElementType(*this, p, apiTree.getChildWithName("Array"), argId);
+	}
+
 	auto isMeta = id.toString().startsWith("MetaObjects::") || argId.contains("MetaObjects::");
 
 	if (nativeType != VarTypeChecker::Undefined && !isMeta)
 		return new NativeTypeDiagnostic(p, nativeType, argId);
-
-	auto apiTree = ApiHelpers::getApiTree();
 
 	if (isMeta)
 	{
@@ -96,6 +101,33 @@ LightweightDiagnostics::Ptr LightweightDiagnostics::Factory::createInternal(Proc
 	}
 
 	return new LightweightDiagnostics(p, cTree, argId);
+}
+
+
+
+LightweightDiagnostics::Ptr LightweightDiagnostics::Factory::createTypeInfoObject(ProcessorWithScriptingContent* p, const var& value, const String& argsId) const
+{
+	if (auto lb = dynamic_cast<LightweightDiagnostics*>(value.getObject()))
+		return lb;
+
+	if (auto fo = dynamic_cast<WeakCallbackHolder::CallableObject*>(value.getObject()))
+		return nullptr; // jassertfalse
+		//c->data->setProperty("typeInfo", possibleDiagnosticObject);
+	else if (auto ar = value.getArray())
+	{
+		if (auto knownType = ArrayWithKnownElementType::createIfKnownElementType(*this, p, value))
+			return knownType;
+		else
+			return new ComplexDiagnosticObject(*this, p, value, argsId);
+	}
+	else if (auto obj = value.getDynamicObject())
+		return new ComplexDiagnosticObject(*this, p, value, argsId);
+
+	auto wt = VarTypeChecker::getType(value);
+	jassert(wt.isPrimitive());
+	auto typeId = VarTypeChecker::getTypeName(wt);
+	return createLightweightPrototype(p, typeId, value.toString());
+	
 }
 
 LightweightDiagnostics::Ptr LightweightDiagnostics::Factory::createLightweightPrototype(ProcessorWithScriptingContent* p, const Identifier& id, const String& argId) const
@@ -523,10 +555,7 @@ struct LightweightConstantInfoToken : public TokenWithDot
 
 void LightweightDiagnostics::fillAutocompleteTokens(mcl::TokenCollection::List& list, const String& prevToken)
 {
-	if (!occurrences.empty())
-		list.add(new NavigationToken(this));
-
-    for (const auto& fi : functions)
+	for (const auto& fi : functions)
     {
         auto mt = LightweightFunctionInfoToken::getMethodTree(fi);
 
@@ -930,7 +959,7 @@ var LightweightDiagnostics::Helpers::getTypeForLoopIterator(ProcessorWithScripti
 
 	if (auto lb = dynamic_cast<LightweightDiagnostics*>(iteratedObject.getObject()))
 	{
-		if (auto ar = dynamic_cast<ArrayWithKnownElementType::Diagnostics*>(lb))
+		if (auto ar = dynamic_cast<AssignableObject*>(lb))
 			return ar->getAssignedValue(0);
 
 		if (lb->getObjectName() == Identifier("Buffer"))
@@ -1003,8 +1032,6 @@ NativeTypeDiagnostic::NativeTypeDiagnostic(ProcessorWithScriptingContent* p, Var
     else if (type == VarTypeChecker::DataContent)
     {
 		ValueTree t("DataContent");
-
-		t.setProperty("length", 1, nullptr);
 
 		for (auto m : ApiHelpers::getApiTree().getChildWithName("Array"))
 			t.addChild(m.createCopy(), -1, nullptr);
@@ -1086,13 +1113,72 @@ LightweightDiagnostics::FunctionInfo InbuiltFunction::createFunctionInfo(VarType
 	return self;
 }
 
-ArrayWithKnownElementType::Diagnostics::Diagnostics(ProcessorWithScriptingContent* p, const ValueTree& v, const String& argId) :
+ComplexDiagnosticObject::ComplexDiagnosticObject(const LightweightDiagnostics::Factory& f, ProcessorWithScriptingContent* p, const var& value, const String& argsId):
+LightweightDiagnostics(p, {}, argsId)
+{
+	if (auto ar = value.getArray())
+	{
+		type = VarTypeChecker::Array;
+		initClassTree(ApiHelpers::getApiTree().getChildWithName("Array"));
+
+		int index;
+
+		for (const auto& v : *ar)
+		{
+			String childId;
+			childId << argsId << "[" << String(index) << "]";
+
+			children.add(f.createTypeInfoObject(p, v, childId));
+			index++;
+		}
+	}
+	else if (auto obj = value.getDynamicObject())
+	{
+		type = VarTypeChecker::JSON;
+		initClassTree(ValueTree("JSON"));
+
+		for (const auto& nv : obj->getProperties())
+		{
+			String childId;
+			childId << argsId << "." << nv.name.toString();
+			children.add(f.createTypeInfoObject(p, nv.value, childId));
+		}
+	}
+	else
+	{
+		jassertfalse;
+	}
+}
+
+ArrayWithKnownElementType::ArrayWithKnownElementType(const LightweightDiagnostics::Factory& f, ProcessorWithScriptingContent* p, const ValueTree& v, const String& argId) :
 	LightweightDiagnostics(p, v, argId)
 {
-	LightweightDiagnostics::Factory f;
-
 	if (argId.isNotEmpty())
 		returnType = var(f.createLightweightPrototype(p, Identifier(argId), "").get());
+}
+
+LightweightDiagnostics::Ptr ArrayWithKnownElementType::createIfKnownElementType(const LightweightDiagnostics::Factory& f, ProcessorWithScriptingContent* pwsc, const var& possibleArrayWithKnownElements)
+{
+	if (auto ar = possibleArrayWithKnownElements.getArray())
+	{
+		if (ar->isEmpty())
+			return nullptr;
+
+		auto firstType = VarTypeChecker::getType(ar->getFirst());
+
+		for (auto& v : *ar)
+		{
+			auto thisType = VarTypeChecker::getType(v);
+
+			if (!firstType.matches(thisType, false))
+				return nullptr;
+		}
+
+		auto v = ApiHelpers::getApiTree().getChildWithName("Array");
+		return new ArrayWithKnownElementType(f, pwsc, v, VarTypeChecker::getTypeName(firstType).toString());
+	}
+
+	return nullptr;
 }
 
 }

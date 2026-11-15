@@ -440,6 +440,7 @@ public:
 						public CyclicReferenceCheckBase
 	{
 		RootObject();
+		~RootObject();
 
 		Time timeout;
 		
@@ -1255,6 +1256,76 @@ public:
 		Identifier currentCallback;
 
 		ThreadLocalValue<var> localThreadThisObject;
+		bool currentlyExecuting = false;
+	};
+
+	struct SimpleExpressionData
+	{
+		enum class Type
+		{
+			Error,
+			Nothing,
+			LiteralValue,
+			Namespace,
+			Function,
+			VarDefinition,
+			ApiClass,
+			NeedsEvaluation,
+			Evaluated,
+			numParentTypes
+		};
+
+		enum class EvaluationType
+		{
+			TypeInfo,
+			RuntimeValue
+		};
+
+		enum class RemainingExpressionFormat
+		{
+			NoTrailingDot, // use this to create autocomplete tokens
+			Full		   // use this otherwise lol
+		};
+
+		static SimpleExpressionData parse(HiseJavascriptEngine* engine, const UriLocation::WithExpression& token);
+
+		operator bool() const { return type != Type::Error; }
+
+		UriError getParseError() const;
+
+		UriLocationTree::Ptr getResolvedNode() const;
+
+		Type getType() const { return type; }
+
+		SimpleExpressionData evaluate(HiseJavascriptEngine* engine, EvaluationType evaluationType);
+
+		var getResolvedValue(EvaluationType evaluationType) const;
+		
+		LightweightDiagnostics::Ptr getTypeInfo() const;
+
+		String getAutocompleteTokenContent() const;
+
+		String getRemainingExpression(RemainingExpressionFormat format) const;
+
+		void addAutocompleteTokens(mcl::TokenCollection::List& tokens) const;
+
+	private:
+
+		
+
+		String fullExpression;
+		LightweightDiagnostics::Ptr typeInfo;
+		var literalValue;
+		UriError parseError;
+		Type type = Type::Nothing;
+		Identifier parentId;
+		Identifier tokenId;
+		String postTokenExpression;
+		UriLocationTree::Ptr resolvedParentNode;
+		UriLocationTree::Ptr resolvedTokenNode;
+
+		struct Parser;
+		struct Evaluator;
 	};
 
 	void getColourAndLetterForType(int type, Colour& colour, char& letter) override
@@ -1290,8 +1361,6 @@ private:
 	void prepareTimeout() const noexcept;
 	
 	DynamicObject::Ptr unneededScope;
-
-	ScopeTree lastShadowParseScope;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(HiseJavascriptEngine);
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HiseJavascriptEngine)

@@ -144,7 +144,6 @@ HiseJavascriptEngine::RootObject::ObjectTypeMap::TypeScope::~TypeScope()
 {
 	auto scopeToBeDeleted = parent.scopeStack->pop();
 
-	parent.scopeHistory.push_back({ codeLocation, scopeToBeDeleted });
 	parent.currentThisObject = prevThisObject;
 }
 
@@ -156,6 +155,12 @@ HiseJavascriptEngine::RootObject::Scope* HiseJavascriptEngine::RootObject::Objec
 DynamicObject* HiseJavascriptEngine::RootObject::ObjectTypeMap::TypeScope::getCurrentScopeObject() const
 {
 	return parent.scopeStack->getCurrentScopeObject().get();
+}
+
+HiseJavascriptEngine::RootObject::ObjectTypeMap::ScopedCallStack::ScopedCallStack(ShadowParserBase* p, const UriLocation::WithExpression& stackFrame):
+	parent(*dynamic_cast<ObjectTypeMap*>(p))
+{
+	parent.currentCallstack.add(stackFrame);
 }
 
 HiseJavascriptEngine::RootObject::ObjectTypeMap::ScopedCallStack::ScopedCallStack(ShadowParserBase* parser, const Statement* s, const String& customStackName) :
@@ -259,24 +264,9 @@ HiseJavascriptEngine::RootObject::ObjectTypeMap::Strictness HiseJavascriptEngine
 
 
 
-LightweightDiagnostics::Ptr HiseJavascriptEngine::RootObject::ObjectTypeMap::getLightweighDiagnosticsFromVar(const var& obj) const
+LightweightDiagnostics::Ptr HiseJavascriptEngine::RootObject::ObjectTypeMap::createTypeInfoObject(const var& obj, const String& argsId) const
 {
-	if (auto lb = dynamic_cast<LightweightDiagnostics*>(obj.getObject()))
-		return lb;
-
-	auto type = VarTypeChecker::getType(obj);
-
-	if (type.asPrimitiveType() == VarTypeChecker::VarTypes::Array)
-		return lightweightDiagnostics.createLightweightPrototype(pwsc, "Array", "");
-
-    if (type.asPrimitiveType() == VarTypeChecker::VarTypes::String)
-        return lightweightDiagnostics.createLightweightPrototype(pwsc, "String", obj.toString());
-
-    
-	if (auto js = obj.getDynamicObject())
-		return lightweightDiagnostics.createLightweightPrototype(pwsc, "JSON", JSON::toString(obj));
-
-	return lightweightDiagnostics.createLightweightPrototype(pwsc, VarTypeChecker::getTypeName(type), "");
+	return lightweightDiagnostics.createTypeInfoObject(pwsc, obj, argsId);
 }
 
 HiseJavascriptEngine::RootObject::Scope& HiseJavascriptEngine::RootObject::ObjectTypeMap::getCurrentScope()
@@ -311,15 +301,6 @@ void HiseJavascriptEngine::RootObject::ObjectTypeMap::addDiagnostic(const UriErr
 
 	diagnostics->add(item);
 }
-
-HiseJavascriptEngine::ScopeTree HiseJavascriptEngine::RootObject::ObjectTypeMap::getScopeTree() const
-{
-	auto history = scopeHistory;
-	history.push_back({ Range<int>(0, INT_MAX), scopeStack->getCurrentScopeObject() });
-	return history;
-}
-
-
 
 HiseJavascriptEngine::RootObject::ObjectTypeMap::ScopedLocationSetter::ScopedLocationSetter(ObjectTypeMap& m, const Statement* s) :
 	parent(m),

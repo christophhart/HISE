@@ -90,7 +90,7 @@ struct HiseJavascriptEngine::RootObject::ObjectTypeMap : public ReferenceCounted
 		return lightweightDiagnostics.createLightweightPrototype(pwsc, apiClassName, {});
 	}
 
-	LightweightDiagnostics::Ptr getLightweighDiagnosticsFromVar(const var& obj) const;
+	LightweightDiagnostics::Ptr createTypeInfoObject(const var& obj, const String& argsId) const;
 
 	LightweightDiagnostics::Ptr createAnonoymousDiagnosticObject(const Identifier& className, const String& argId)
 	{
@@ -105,9 +105,6 @@ struct HiseJavascriptEngine::RootObject::ObjectTypeMap : public ReferenceCounted
 
 	void addDiagnostic(const UriError& i) override;
 
-
-	ScopeTree getScopeTree() const;
-
 	ScopeSafety getMinimumRequiredScopeSafety() const;
 
 	Strictness getStrictnessForCallback(const Identifier& callbackId) const;
@@ -120,6 +117,8 @@ struct HiseJavascriptEngine::RootObject::ObjectTypeMap : public ReferenceCounted
 
 	struct ScopedCallStack
 	{
+		ScopedCallStack(ShadowParserBase* p, const UriLocation::WithExpression& stack);
+
 		ScopedCallStack(ShadowParserBase* parser, const Statement* s, const String& customStackName = String());
 
 		~ScopedCallStack();
@@ -131,7 +130,7 @@ struct HiseJavascriptEngine::RootObject::ObjectTypeMap : public ReferenceCounted
 
 	String callscopeAnnotation;
 
-	bool allowLocationRecording = true;
+	DiagnosticBase::ShadowParseData::Options options;
 
 private:
 
@@ -140,6 +139,8 @@ private:
 	struct DeferredData
 	{
 		UriLocation location;
+		Array<UriLocation::WithExpression> callstack;
+
 		var validator;
 		String evaluationString;
 	};
@@ -155,8 +156,6 @@ private:
 	ProcessorWithScriptingContent* pwsc;
 
 	ScopeStack* scopeStack;
-
-	ScopeTree scopeHistory;
 
 	CriticalSection lock;
 

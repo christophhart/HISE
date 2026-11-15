@@ -303,6 +303,10 @@ HiseJavascriptEngine::RootObject::RootObject() :
 #pragma warning (disable : 4702)
 #endif
 
+HiseJavascriptEngine::RootObject::~RootObject()
+{
+	jassert(!currentlyExecuting);
+}
 
 var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) const
 {
