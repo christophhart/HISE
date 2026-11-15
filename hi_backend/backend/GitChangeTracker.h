@@ -90,6 +90,9 @@ public:
 	/** Returns the changed files with their original filesystem path casing. */
 	std::vector<File> getChangedFilePaths() const;
 
+	/** Returns each changed hunk as display text and a source location. */
+	Array<UriLocation::WithExpression> getDiffHunks(const File& file) const;
+
 	/** The key used for the status lookup (the full path, lowercase if file names are case insensitive). */
 	static String getKey(const File& f);
 
@@ -123,11 +126,13 @@ private:
 		File repoRoot;
 		String baseCommit;
 		String headCommit;
+		String baseBranch;
 		StringArray branches;
 		HashMap<String, int> fileStatus;
 		HashMap<String, int> folderStatus;
 		StringArray ignoredFolders;
 		std::map<String, File> changedFilePaths;
+		std::map<String, Array<UriLocation::WithExpression>> fileDiffHunks;
 		std::map<String, int64> changedFiles;
 		int64 fileSetHash = 0;
 	};

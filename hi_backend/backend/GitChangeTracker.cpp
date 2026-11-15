@@ -177,6 +177,13 @@ std::vector<File> GitChangeTracker::getChangedFilePaths() const
 	return files;
 }
 
+Array<UriLocation::WithExpression> GitChangeTracker::getDiffHunks(const File& file) const
+{
+	auto s = getSnapshot();
+	auto it = s->fileDiffHunks.find(getKey(file));
+	return it != s->fileDiffHunks.end() ? it->second : Array<UriLocation::WithExpression>();
+}
+
 String GitChangeTracker::getBaseDescription() const
 {
 	auto s = getSnapshot();
@@ -331,6 +338,70 @@ GitChangeTracker::GitOutput GitChangeTracker::runGit(const File& workingDirector
 
 void GitChangeTracker::run()
 {
+	auto snapshotsMatch = [](const Snapshot& a, const Snapshot& b)
+	{
+		if (a.isRepository != b.isRepository || a.repoRoot.getFullPathName() != b.repoRoot.getFullPathName() ||
+			a.baseCommit != b.baseCommit || a.headCommit != b.headCommit || a.baseBranch != b.baseBranch ||
+			a.fileSetHash != b.fileSetHash || a.changedFiles != b.changedFiles || a.changedFilePaths.size() != b.changedFilePaths.size())
+			return false;
+
+		auto mapsMatch = [](const HashMap<String, int>& first, const HashMap<String, int>& second)
+		{
+			if (first.size() != second.size())
+				return false;
+
+			for (HashMap<String, int>::Iterator it(first); it.next();)
+			{
+				if (!second.contains(it.getKey()) || second[it.getKey()] != it.getValue())
+					return false;
+			}
+
+			return true;
+		};
+
+		if (!mapsMatch(a.fileStatus, b.fileStatus) || !mapsMatch(a.folderStatus, b.folderStatus))
+			return false;
+
+		if (a.branches.size() != b.branches.size() || a.ignoredFolders.size() != b.ignoredFolders.size())
+			return false;
+
+		for (int i = 0; i < a.branches.size(); i++)
+			if (a.branches[i] != b.branches[i])
+				return false;
+
+		for (int i = 0; i < a.ignoredFolders.size(); i++)
+			if (a.ignoredFolders[i] != b.ignoredFolders[i])
+				return false;
+
+		for (const auto& path : a.changedFilePaths)
+		{
+			auto it = b.changedFilePaths.find(path.first);
+
+			if (it == b.changedFilePaths.end() || it->second.getFullPathName() != path.second.getFullPathName())
+				return false;
+		}
+
+		if (a.fileDiffHunks.size() != b.fileDiffHunks.size())
+			return false;
+
+		for (const auto& fileDiff : a.fileDiffHunks)
+		{
+			auto it = b.fileDiffHunks.find(fileDiff.first);
+
+			if (it == b.fileDiffHunks.end() || it->second.size() != fileDiff.second.size())
+				return false;
+
+			for (int i = 0; i < fileDiff.second.size(); i++)
+				if (it->second.getReference(i).first != fileDiff.second.getReference(i).first ||
+					it->second.getReference(i).second.uri != fileDiff.second.getReference(i).second.uri ||
+					it->second.getReference(i).second.line != fileDiff.second.getReference(i).second.line ||
+					it->second.getReference(i).second.col != fileDiff.second.getReference(i).second.col)
+					return false;
+		}
+
+		return true;
+	};
+
 	while (!threadShouldExit())
 	{
 		File directory;
@@ -348,14 +419,17 @@ void GitChangeTracker::run()
 		if (doStatus && directory.isDirectory())
 		{
 			auto s = createSnapshot(directory);
+			bool changed = false;
 
 			{
 				ScopedLock sl(lock);
+				changed = !snapshotsMatch(*snapshot, *s);
 				snapshot = s;
-				snapshotChanged = true;
+				snapshotChanged = snapshotChanged || changed;
 			}
 
-			triggerAsyncUpdate();
+			if (changed)
+				triggerAsyncUpdate();
 		}
 
 		if (!jobs.isEmpty())
@@ -420,6 +494,7 @@ GitChangeTracker::Snapshot::Ptr GitChangeTracker::createSnapshot(const File& pro
 		sessionStart = sessionStartCommit;
 	}
 
+	s->baseBranch = branch;
 	s->baseCommit = s->headCommit;
 
 	if (mode == BaseMode::SessionStart && sessionStart.isNotEmpty())
@@ -578,6 +653,129 @@ GitChangeTracker::Snapshot::Ptr GitChangeTracker::createSnapshot(const File& pro
 
 	fileSet.sort(false);
 	s->fileSetHash = fileSet.joinIntoString("|").hashCode64();
+
+	if (s->baseCommit.isNotEmpty())
+	{
+		auto patch = runGit(s->repoRoot, GitChangeTrackerHelpers::args({ "diff", "--no-ext-diff", "--no-color", "--no-prefix", "--unified=0", s->baseCommit, "--" }));
+
+		if (patch.exitCode == 0)
+		{
+			String currentKey;
+			String hunkHeader;
+			StringArray changedLines;
+			bool inHunk = false;
+			bool expectingNewFilePath = false;
+
+			auto finishHunk = [&]()
+			{
+				if (currentKey.isEmpty() || hunkHeader.isEmpty())
+					return;
+
+				StringArray previewLines;
+				const int maxPreviewLines = 3;
+
+				for (int i = 0; i < jmin(maxPreviewLines, changedLines.size()); i++)
+					previewLines.add(changedLines[i].substring(1).trim().substring(0, 72));
+
+				String preview = previewLines.joinIntoString(" | ");
+
+				if (changedLines.size() > maxPreviewLines)
+					preview << " ...";
+
+				if (preview.isEmpty())
+					preview = "Changed lines";
+
+				auto newRange = hunkHeader.fromFirstOccurrenceOf("+", false, false).upToFirstOccurrenceOf("@@", false, false).trim();
+				auto lineText = newRange.upToFirstOccurrenceOf(",", false, false);
+				int lineNumber = lineText.getIntValue();
+
+				if (lineNumber < 1)
+					lineNumber = 1;
+
+				UriLocation location;
+				location.uri = s->changedFilePaths[currentKey].getFullPathName();
+				location.line = lineNumber;
+				location.col = 1;
+				UriLocation::WithExpression hunk(preview, location);
+				s->fileDiffHunks[currentKey].add(hunk);
+				hunkHeader.clear();
+				changedLines.clear();
+			};
+
+			for (const auto& line : StringArray::fromLines(patch.toString()))
+			{
+				if (line.startsWith("diff --git "))
+				{
+					finishHunk();
+					currentKey.clear();
+					inHunk = false;
+					expectingNewFilePath = false;
+				}
+				else if (!inHunk && line.startsWith("--- "))
+					expectingNewFilePath = true;
+				else if (!inHunk && expectingNewFilePath && line.startsWith("+++ "))
+				{
+					auto path = line.substring(4);
+					expectingNewFilePath = false;
+
+					if (path != "/dev/null")
+					{
+						auto file = s->repoRoot.getChildFile(path.replaceCharacter('/', File::getSeparatorChar()));
+						currentKey = getKey(file);
+					}
+				}
+				else if (line.startsWith("@@ "))
+				{
+					finishHunk();
+					hunkHeader = line;
+					inHunk = true;
+				}
+				else if (inHunk && line.isNotEmpty() && (line[0] == '+' || line[0] == '-'))
+					changedLines.add(line);
+			}
+
+			finishHunk();
+		}
+	}
+
+	for (const auto& changed : s->changedFiles)
+	{
+		if (s->fileDiffHunks.count(changed.first) > 0)
+			continue;
+
+		if (!s->fileStatus.contains(changed.first) || (Status)s->fileStatus[changed.first] != Status::Untracked)
+			continue;
+
+		auto fileIt = s->changedFilePaths.find(changed.first);
+		if (fileIt == s->changedFilePaths.end())
+			continue;
+
+		auto content = fileIt->second.loadFileAsString();
+
+		if (content.containsChar(0))
+			continue;
+
+		auto lines = StringArray::fromLines(content);
+		StringArray previewLines;
+
+		for (int i = 0; i < jmin(3, lines.size()); i++)
+			previewLines.add(lines[i].trim().substring(0, 72));
+
+		String preview = previewLines.joinIntoString(" | ");
+
+		if (lines.size() > 3)
+			preview << " ...";
+
+		if (preview.isEmpty())
+			preview = "New empty file";
+
+		UriLocation location;
+		location.uri = fileIt->second.getFullPathName();
+		location.line = 1;
+		location.col = 1;
+		UriLocation::WithExpression hunk(preview, location);
+		s->fileDiffHunks[changed.first].add(hunk);
+	}
 
 	return s;
 }

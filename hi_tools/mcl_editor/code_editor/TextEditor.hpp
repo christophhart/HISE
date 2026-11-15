@@ -293,7 +293,18 @@ public:
 
 	void setEnableAutocomplete(bool shouldBeEnabled);
 
-	using DiffLine = std::pair<CodeDocument::Position, LineDiff::ChangeType>;
+	struct DiffLine
+	{
+		DiffLine(const CodeDocument::Position& p, LineDiff::ChangeType t, int l) :
+		  pos(p),
+		  type(t),
+		  length(l)
+		{};
+		
+		CodeDocument::Position pos;
+		LineDiff::ChangeType type;
+		int length = 1;
+	};
 
 	void setDiffLines(const std::map<int, LineDiff::ChangeType>& diffLineIndexes);
 

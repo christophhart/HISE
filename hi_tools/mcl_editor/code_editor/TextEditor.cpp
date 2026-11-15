@@ -650,13 +650,22 @@ void TextEditor::setDiffLines(const std::map<int, LineDiff::ChangeType>& diffLin
 {
 	difflines.clear();
 
+	int lastLine = -2;
+	auto lastType = LineDiff::ChangeType::Unchanged;
+
 	for (const auto& a : diffLineIndexes)
 	{
-		auto t = a.second;
-
-		auto np = new DiffLine(CodeDocument::Position(getDocument(), a.first - 1, 0), t);
-		np->first.setPositionMaintained(true);
-		difflines.add(np);
+		if (a.first == lastLine + 1 && !difflines.isEmpty() && lastType == a.second)
+			difflines.getLast()->length++;
+		else
+		{
+			auto t = a.second;
+			auto np = new DiffLine(CodeDocument::Position(getDocument(), a.first - 1, 0), t, 1);
+			np->pos.setPositionMaintained(true);
+			difflines.add(np);
+			lastLine = a.first;
+			lastType = t;
+		}
 	}
 
 	repaint();
@@ -2217,10 +2226,10 @@ void mcl::TextEditor::paintOverChildren (Graphics& g)
 
 	for (const auto df : difflines)
 	{
-		auto row = df->first.getLineNumber();
+		auto row = df->pos.getLineNumber();
 
 		auto x = document.getBoundsOnRow(row, { 0, 1 }, GlyphArrangementArray::OutOfBoundsMode::ReturnLastCharacter).getRectangle(0);
-		x = x.withHeight(document.getRowHeight()).reduced(0.0f, 2.0f);
+		x = x.withHeight(document.getRowHeight() * df->length).reduced(0.0f, 2.0f);
 		x = x.transformedBy(transform).withWidth(getWidth());
 
 		x = x.withX(0.0f);
@@ -2228,7 +2237,7 @@ void mcl::TextEditor::paintOverChildren (Graphics& g)
 		Colour c;
 
 
-		switch (df->second)
+		switch (df->type)
 		{
 		case LineDiff::ChangeType::Added:
 			c = Colour(HISE_OK_COLOUR);
@@ -2243,10 +2252,8 @@ void mcl::TextEditor::paintOverChildren (Graphics& g)
 			break;
 		}
 
-		g.setColour(c.withAlpha(0.05f));
-		g.fillRect(x);
 		g.setColour(c);
-		g.fillRect(x.removeFromLeft(3.0f));
+		g.fillRoundedRectangle(x.removeFromLeft(3.0f), 1.5f);
 	}
 }
 
