@@ -83,6 +83,7 @@
 #include "scripting/engine/ApiValidator.h"
 #include "scripting/engine/ApiValidator.cpp"
 
+#include "scripting/engine/JavascriptTokenIterator.cpp"
 
 
 #include "scripting/engine/JavascriptEngineParser.cpp"
