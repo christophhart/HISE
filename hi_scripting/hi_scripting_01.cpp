@@ -85,7 +85,7 @@
 
 #include "scripting/engine/JavascriptTokenIterator.cpp"
 
-
+#include "scripting/engine/JavascriptIncludeParser.cpp"
 #include "scripting/engine/JavascriptEngineParser.cpp"
 #include "scripting/engine/JavascriptEngineObjects.cpp"
 #include "scripting/engine/JavascriptEngineMathObject.cpp"

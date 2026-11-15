@@ -308,6 +308,8 @@ public:
 
 	void setOnInitBreakpoints(const Array<UriBreakpoint>& breakpoints);
 
+	std::pair<UriLocationTree::Ptr, UriLocationTree::Ptr> parseIncludeTree();
+	
 	void registerApiClass(ApiClass *apiClass);
 
     void setIsInitialising(bool shouldBeInitialising)
@@ -753,6 +755,7 @@ public:
 
 		struct TokenIterator;
 		struct ExpressionTreeBuilder;
+		struct IncludeParser;
 
 		//==============================================================================
 		static var get(Args a, int index) noexcept{ return index < a.numArguments ? a.arguments[index] : var(); }
