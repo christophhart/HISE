@@ -38,13 +38,23 @@ Component* FloatingPanelTemplates::createCodeEditorPanel(FloatingTile* root)
 	ib.setDynamic(profileRoot, false);
 	ib.getPanel(profileRoot)->setForceShowTitle(false);
 
-	const int consoleId = ib.addChild<ConsolePanel>(codeEditor);
+	auto consoleCol = ib.addChild<VerticalTile>(codeEditor);
+
+	const int consoleId = ib.addChild<ConsolePanel>(consoleCol);
+
+	const int errorId = ib.addChild<UriErrorScriptWatchTable>(consoleCol);
+
+	ib.setCustomName(consoleId, "Console");
+	ib.setCustomName(errorId, "Error List");
+	
+	ib.setDynamic(consoleCol, false);
+	ib.setSizes(consoleCol, { -0.7, -0.3 });
 
     ib.getPanel(broadcasterMap)->getLayoutData().setKeyPress(false, FloatingTileKeyPressIds::fold_map);
 
 	ib.getPanel(variableWatch)->getLayoutData().setKeyPress(false, FloatingTileKeyPressIds::fold_watch);
 
-	ib.getPanel(consoleId)->getLayoutData().setKeyPress(false, FloatingTileKeyPressIds::fold_console);
+	ib.getPanel(consoleCol)->getLayoutData().setKeyPress(false, FloatingTileKeyPressIds::fold_console);
 
 	ib.setCustomName(codeEditor, "Code Editor");
 	ib.setSizes(codeEditor, { -0.7, -0.3 });
@@ -55,6 +65,7 @@ Component* FloatingPanelTemplates::createCodeEditorPanel(FloatingTile* root)
 
 	ib.getContent<FloatingTileContent>(variableWatch)->setStyleProperty("showConnectionBar", false);
 	ib.getContent<FloatingTileContent>(broadcasterMap)->setStyleProperty("showConnectionBar", false);
+	ib.getContent<FloatingTileContent>(errorId)->setStyleProperty("showConnectionBar", false);
 
 	ib.getContent(codeVertical)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::transparentBlack);
 	ib.getContent(codeEditor)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::transparentBlack);
@@ -509,6 +520,7 @@ void FloatingTileContent::Factory::registerBackendPanelTypes()
 	registerType<BackendProcessorEditor>(PopupMenuOptions::MenuCommandOffset);
 	registerType<ScriptWatchTablePanel>(PopupMenuOptions::ScriptWatchTable);
 	registerType<ConsolePanel>(PopupMenuOptions::Console);
+	registerType<UriErrorScriptWatchTable>(PopupMenuOptions::ErrorScriptWatchTable);
 	registerType<ScriptComponentList::Panel>(PopupMenuOptions::ScriptComponentList);
 	registerType<MarkdownEditorPanel>(PopupMenuOptions::MarkdownEditor);
 

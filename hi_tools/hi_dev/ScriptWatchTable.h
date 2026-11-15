@@ -156,6 +156,8 @@ public:
 		startTimer(timerspeed);
 	}
 
+	bool trimCellContent = true;
+
 private:
     
 	struct TooltipInfo : public Timer

@@ -2264,6 +2264,45 @@ Identifier ScriptWatchTablePanel::getProcessorTypeId() const
 	return JavascriptProcessor::getConnectorId();
 }
 
+Component* hise::UriErrorScriptWatchTable::createContentComponent(int)
+{
+	auto swt = new ScriptWatchTable();
+
+	swt->trimCellContent = false;
+
+	getMainController()->getFontSizeChangeBroadcaster().addListener(*swt, ScriptWatchTable::updateFontSize);
+
+	Array<int> typeIds =
+	{
+		(int)UriError::ErrorType::OK,
+		(int)UriError::ErrorType::Unknown,
+		(int)UriError::ErrorType::Error,
+		(int)UriError::ErrorType::Warning,
+		(int)UriError::ErrorType::Info,
+		(int)UriError::ErrorType::Hint,
+		(int)UriError::ErrorType::Breakpoint
+	};
+
+	StringArray sa =
+	{
+		"OK",
+		"Unknown",
+		"Error",
+		"Warning",
+		"Info",
+		"Hint",
+		"Breakpoint"
+	};
+
+	swt->setViewDataTypes(sa, typeIds);
+
+	WeakReference<Processor> c = getConnectedProcessor();
+
+	swt->setHolder(&dynamic_cast<JavascriptProcessor*>(getConnectedProcessor())->errorProvider);
+
+	return swt;
+}
+
 Component* ScriptWatchTablePanel::createContentComponent(int /*index*/)
 {
 	if (auto sw = getContent<ScriptWatchTable>())

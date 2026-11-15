@@ -346,6 +346,7 @@ public:
 			ApiCollection,
 			RLottieDevPanel,
 			ScriptWatchTable,
+			ErrorScriptWatchTable,
 			ScriptComponentEditPanel,
 			ScriptComponentCSSDebugger,
 			DspNetworkGraph,

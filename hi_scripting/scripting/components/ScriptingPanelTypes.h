@@ -31,7 +31,6 @@
 */
 
 #pragma once
-#include "hi_core/hi_components/floating_layout/PanelWithProcessorConnection.h"
 
 namespace hise { 
 using namespace juce;
@@ -482,6 +481,29 @@ private:
 
 	var columnData;
 	const Identifier showConnectionBar;
+};
+
+class UriErrorScriptWatchTable : public PanelWithProcessorConnection
+{
+public:
+
+	UriErrorScriptWatchTable(FloatingTile* parent) :
+		PanelWithProcessorConnection(parent)
+	{};
+
+	SET_PANEL_NAME("ErrorScriptWatchTable");
+
+	void fillModuleList(StringArray& moduleList) override
+	{
+		fillModuleListWithType<JavascriptProcessor>(moduleList);
+	}
+
+	Identifier getProcessorTypeId() const override
+	{
+		return JavascriptProcessor::getConnectorId();
+	}
+
+	Component* createContentComponent(int /*index*/) override;
 };
 
 

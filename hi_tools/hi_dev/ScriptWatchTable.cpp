@@ -1209,7 +1209,7 @@ void ScriptWatchTable::paintCell (Graphics& g, int rowNumber, int columnId,
 			}
 			else
 			{
-				text = getTextForColumn((ColumnId)columnId, info, false);
+				text = getTextForColumn((ColumnId)columnId, info, !trimCellContent);
 
 				Colour c = Colours::white.withAlpha(0.8f);
 
@@ -1219,8 +1219,6 @@ void ScriptWatchTable::paintCell (Graphics& g, int rowNumber, int columnId,
 					c = Colour(0xFFFFFFDD);
 
 				g.setColour(c);
-
-				
 
 				auto ff = GLOBAL_MONOSPACE_FONT().withHeight(table->getRowHeight() * 0.7f);
 
