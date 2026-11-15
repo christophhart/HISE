@@ -613,22 +613,4 @@ ApiClass::Constant& ApiClass::Constant::operator=(const Constant& other)
 }
 
 
-
-void hise::DiagnosticBase::ShadowParseData::Item::resolveDependencies(DependencyResolver* r)
-{
-	r->resolveDependencies(this, dependencies, postDependencies);
-
-	for (int i = 0; i < dependencies.size(); i++)
-	{
-		if (dependencies[i] == this)
-			dependencies.remove(i--);
-	}
-
-	for (int i = 0; i < postDependencies.size(); i++)
-	{
-		if (postDependencies[i] == this)
-			postDependencies.remove(i--);
-	}
-}
-
 } // namespace hise

@@ -796,6 +796,8 @@ namespace ScriptingObjects
 
 	private:
 
+		var debugData[DebugChildObjects::numDebugObjects];
+
 		Point<float> getPointFromVar(const var& data);
 		Rectangle<float> getRectangleFromVar(const var &data);
 		Rectangle<int> getIntRectangleFromVar(const var &data);

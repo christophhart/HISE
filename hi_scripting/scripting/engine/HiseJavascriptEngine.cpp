@@ -467,8 +467,12 @@ struct HiseJavascriptEngine::RootObject::Scope
 		{
 			auto nobj = rs->scope->getProperty(ns).getDynamicObject();
 
-			jassert(nobj != nullptr);
-
+			if (nobj == nullptr)
+			{
+				nobj = new DynamicObject();
+				rs->scope->setProperty(ns, nobj);
+			}
+			
 			return nobj;
 		}
 		else
@@ -798,52 +802,58 @@ struct HiseJavascriptEngine::RootObject::Statement
 		}
 	}
 
-	void fillLocation(const Scope& s, const var& possibleDiagnosticObject, const String& locationName, bool recursive) const
+	void resolveTypeDefinitionInScopeTree(const Scope& s, const var& possibleDiagnosticObject, const String& locationName, bool isDefinition) const
 	{
-		if (!s.isShadowParsing())
-			return;
-
-		if (auto sp = s.getShadowParser())
+		if (isDefinition)
 		{
-			if (!sp->allowLocationRecording)
-				return;
-		}
-		
-		auto appendIfNotEmpty = [](String ln, const String& appendix)
-		{
-			if (ln.isNotEmpty())
-				ln << appendix;
+			Identifier idToLookFor(locationName);
 
-			return ln;
-		};
-
-		if (recursive)
-		{
-			if (auto ar = possibleDiagnosticObject.getArray())
+			if (auto sp = s.getShadowParser())
 			{
-				int idx = 0;
-				for (const auto& v : *ar)
-					fillLocation(s, v, appendIfNotEmpty(locationName, "[" + String(idx++) + "]"), true);
-			}
-			if (auto obj = possibleDiagnosticObject.getDynamicObject())
-			{
-				for (auto& nv : obj->getProperties())
-					fillLocation(s, nv.value, appendIfNotEmpty(locationName, "." + nv.name.toString()), true);
+				if (auto scopeTree = sp->options.scopeTree.get())
+				{
+					if (auto inner = scopeTree->getInnerTree(location.createUriLocation()))
+					{
+						for (auto c : *inner)
+						{
+							if (c->id == idToLookFor)
+							{
+								if (auto lb = sp->createTypeInfoObject(possibleDiagnosticObject, locationName))
+									c->data->setProperty("typeInfo", var(lb.get()));
+							}
+						}
+					}
+				}
 			}
 		}
-		
-		if (auto lb = dynamic_cast<LightweightDiagnostics*>(possibleDiagnosticObject.getObject()))
+		else
 		{
 			UriLocation l;
+			location.fillLocation(l, true);
 
-			location.fillColumnAndLines(l.col, l.line, l.charIndex);
-			l.uri = location.externalFile;
-			
-			if(std::find(lb->occurrences.begin(), lb->occurrences.end(), l) == lb->occurrences.end())
-				lb->occurrences.push_back(l);
+			if (auto lb = dynamic_cast<LightweightDiagnostics*>(possibleDiagnosticObject.getObject()))
+			{
+				for (auto& b : lb->occurrences)
+				{
+					if (b.second.matches(l))
+					{
+						b.first = locationName;
+						return;
+					}
+				}
+
+				lb->occurrences.push_back({ locationName, l });
+			}
+
+			if (auto fo = dynamic_cast<WeakCallbackHolder::CallableObject*>(possibleDiagnosticObject.getObject()))
+			{
+				if (std::find(fo->callSites.begin(), fo->callSites.end(), l) == fo->callSites.end())
+					fo->callSites.push_back(l);
+			}
 		}
-	}
 
+		
+	}
 #endif
 
 	virtual String getProfileName() const { return {}; }

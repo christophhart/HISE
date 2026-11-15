@@ -540,107 +540,14 @@ struct DiagnosticBase: public ReferenceCountedObject
     
     struct ShadowParseData
     {
-        struct DependencyResolver;
-
-        struct Item: public ReferenceCountedObject
+        struct Options
         {
-            enum class Type
-            {
-                onInit,
-                StandaloneCode,
-                ExternalFile,
-                Callback
-            };
-
-            enum class CallbackFormat
-            {
-                PureId,
-                IncludeParenthesis,
-                ForceEmpty
-            };
-
-            using Ptr = ReferenceCountedObjectPtr<Item>;
-            using List = ReferenceCountedArray<Item>;
-
-
-
-            Item(Type t_, const String& fileName_, const String& code_) :
-                t(t_),
-                fileOrCallbackName(fileName_),
-                code(code_)
-            {}
-
-            void resolveDependencies(DependencyResolver* r);
-
-            String getFileName(CallbackFormat f=CallbackFormat::IncludeParenthesis) const 
-            { 
-                if (t == Type::ExternalFile)
-                    return fileOrCallbackName;
-
-                if (t == Type::Callback)
-                {
-                    switch (f)
-                    {
-                    case CallbackFormat::ForceEmpty: return "";
-                    case CallbackFormat::PureId: return fileOrCallbackName;
-                    case CallbackFormat::IncludeParenthesis: return fileOrCallbackName + "()";
-                    default: jassertfalse; return "";
-
-                    }
-                }
-
-                return "";
-            }
-
-            const Type t;
-            
-            const String code;
-
-            Item* const* begin() const { return dependencies.begin(); }
-            Item* const* end() const { return dependencies.end(); }
-
-            List makeFlatParseList() const
-            {
-                List l;
-
-                for (auto i : dependencies)
-                    l.add(i);
-
-                l.add(const_cast<Item*>(this));
-
-                for (auto p : postDependencies)
-                    l.add(p);
-
-                return l;
-            }
-
-            void setBreakPosition(int pos)
-            {
-                stopAtLineNumber = pos;
-            }
-
-            int getBreakPosition() const { return stopAtLineNumber; }
-
-        private:
-
-            const String fileOrCallbackName;
-            int stopAtLineNumber = -1;
-
-            List dependencies;
-            List postDependencies;
+            UriLocationTree::Ptr includeTree;
+            UriLocationTree::Ptr scopeTree;
         };
 
-        struct DependencyResolver
-        {
-            DependencyResolver() = default;
-
-            virtual ~DependencyResolver() {}
-            virtual void resolveDependencies(Item::Ptr item, Item::List& preDependencies, Item::List& postDependencies) = 0;
-
-            JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DependencyResolver);
-        };
-
-        Item::List items;
+        std::vector<UriLocation::WithExpression> codeToParse;
+        Options options;
     };
 
 #if USE_BACKEND
@@ -772,6 +679,21 @@ struct DiagnosticBase: public ReferenceCountedObject
         {
             UriError e;
             e.fillLocation(loc);
+            
+            switch (getSeverity())
+            {
+            case Severity::Warning:
+                e.errorType = UriError::ErrorType::Warning; break;
+            case Severity::Error:
+                e.errorType = UriError::ErrorType::Error; break;
+            case Severity::Hint:
+                e.errorType = UriError::ErrorType::Hint; break;
+            case Severity::Info:
+                e.errorType = UriError::ErrorType::Info; break;
+            default:
+                e.errorType = UriError::ErrorType::Error; break;
+            }
+
             e.errorMessage = getEditorString();
             e.metadata = createMetadata();
             return e;

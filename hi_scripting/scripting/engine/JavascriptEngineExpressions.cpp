@@ -41,7 +41,7 @@ struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 
 		auto v = s.findSymbolInParentScopes(name); 
 
-		fillLocation(s, v, "", false);
+		resolveTypeDefinitionInScopeTree(s, v, "reference", false);
 
 		if (v.isUndefined() && name == this_)
 		{
@@ -87,12 +87,13 @@ struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 		{
 			if (s.isShadowParsing())
 			{
+				resolveTypeDefinitionInScopeTree(s, newValue, name.toString(), false);
 				s.getRootScope()->scope->setProperty(name, newValue);
 				return;
 			}
 		}
 		
-		if(!s.isShadowParsing())
+		if(v == nullptr)
 			v = getPropertyPointer(currentScope->root.get(), name);
 
 		if (v != nullptr)
@@ -133,8 +134,7 @@ struct HiseJavascriptEngine::RootObject::ConstReference : public Expression
 			if (ns != nullptr)
 				v = s.getShadowParserRootObject(ns->id)->getProperty(getVariableName());
 
-			fillLocation(s, v, "", false);
-
+			resolveTypeDefinitionInScopeTree(s, v, "reference", false);
 			return v;
 		}
 #endif
@@ -178,13 +178,9 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 	{
 		var result = object->getResult(s);
 
-
 		auto returnWithLocation = [&](const var& v)
 		{
-#if HISE_SHADOW_PARSER_ENABLED
-			fillLocation(s, v, "", false);
-#endif
-
+			resolveTypeDefinitionInScopeTree(s, v, "reference[]", false);
 			return v;
 		};
 
@@ -331,7 +327,7 @@ struct HiseJavascriptEngine::RootObject::DotOperator : public Expression
 #if HISE_SHADOW_PARSER_ENABLED
 		if (s.isShadowParsing())
 		{
-			fillLocation(s, p, "", false);
+			resolveTypeDefinitionInScopeTree(s, p, "object." + child.toString(), false);
 
 			if (auto ptr = dynamic_cast<LightweightDiagnostics*>(p.getObject()))
 			{
@@ -765,50 +761,7 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 
 	std::pair<var, DiagnosticBase::DiagnosticResult> invokeShadowParse(const Scope& s, const var::NativeFunctionArgs& args, Strictness lv) const;
 
-	var invoke(const Scope& s, const var::NativeFunctionArgs& args) const
-	{
-		WARN_IF_AUDIO_THREAD(true, ScriptAudioThreadGuard::FunctionCall);
-
-		DynamicObject::Ptr functionRoot(new DynamicObject());
-
-		static const Identifier thisIdent("this");
-		functionRoot->setProperty(thisIdent, args.thisObject);
-
-		for (int i = 0; i < parameters.size(); ++i)
-			functionRoot->setProperty(parameters.getReference(i),
-			i < args.numArguments ? args.arguments[i] : var::undefined());
-
-		if (!capturedLocals.isEmpty())
-		{
-			for (const auto& c : capturedLocalValues)
-				functionRoot->setProperty(c.name, c.value);
-		}
-
-		var result;
-        
-#if ENABLE_SCRIPTING_BREAKPOINTS
-        
-        LocalScopeCreator::ScopedSetter sls(s.root, const_cast<FunctionObject*>(this));
-        
-        {
-            SimpleReadWriteLock::ScopedWriteLock sl(debugScopeLock);
-            lastScope = functionRoot;
-        }
-#endif
-        
-		body->perform(Scope(&s, s.root.get(), functionRoot.get()), &result);
-
-#if ENABLE_SCRIPTING_SAFE_CHECKS
-		if(enableCycleCheck)
-			lastScopeForCycleCheck = var(functionRoot.get());
-#endif
-
-		functionRoot->removeProperty("this");
-
-
-
-		return result;
-	}
+	var invoke(const Scope& s, const var::NativeFunctionArgs& args) const;
 
 	var invokeWithoutAllocation(const Scope &s, const var::NativeFunctionArgs &args, DynamicObject *scope) const
 	{

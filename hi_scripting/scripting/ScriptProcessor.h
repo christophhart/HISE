@@ -579,6 +579,8 @@ public:
 	using DiagnosticList = Array<UriError>;
 	using DiagnosticCallback = std::function<void(const DiagnosticList&)>;
 
+	DiagnosticBase::ShadowParseData createFullShadowParseData();
+
 	/** Shadow-parse a file in diagnostic mode.
 	    sendNotificationAsync (default): defers to the scripting thread via killVoicesAndCall,
 	    callback receives diagnostics on the message thread. Used by IDE (F7).
@@ -805,6 +807,10 @@ private:
 		
 
 	};
+
+	void initialiseEngine();
+
+	bool engineInitialised = false;
 
 	UpdateDispatcher repaintDispatcher;
 

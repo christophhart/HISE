@@ -345,7 +345,9 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 		{
 			auto parentValue = dot->parent->getResult(s);
 
-			if(auto lb = s.getShadowParser()->getLightweighDiagnosticsFromVar(parentValue))
+			dot->parent->resolveTypeDefinitionInScopeTree(s, parentValue, dot->child.toString() + "()", false);
+
+			if(auto lb = s.getShadowParser()->createTypeInfoObject(parentValue, ""))
 			{
 				Array<var> thisArgs;
 
@@ -361,6 +363,8 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 		else
 		{
 			auto f = object->getResult(s);
+
+			object->resolveTypeDefinitionInScopeTree(s, f, "function call", false);
 
 			if (auto fo = dynamic_cast<FunctionObject*>(f.getObject()))
 			{
@@ -518,7 +522,6 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
                     logDiagnosticsOrThrow(s, HiseJavascriptEngine::checkValidParameter(i, parameters[i], types[i]));
 #endif
                 }
-					
 
 				return callWithCallstack(s, c, dot->child, functionIndex, parameters, numArgs);
 			}
@@ -577,6 +580,53 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 	}
 }
 
+var HiseJavascriptEngine::RootObject::FunctionObject::invoke(const Scope& s, const var::NativeFunctionArgs& args) const
+{
+	WARN_IF_AUDIO_THREAD(true, ScriptAudioThreadGuard::FunctionCall);
+
+	DynamicObject::Ptr functionRoot(new DynamicObject());
+
+	static const Identifier thisIdent("this");
+	functionRoot->setProperty(thisIdent, args.thisObject);
+
+	for (int i = 0; i < parameters.size(); ++i)
+		functionRoot->setProperty(parameters.getReference(i),
+			i < args.numArguments ? args.arguments[i] : var::undefined());
+
+	if (!capturedLocals.isEmpty())
+	{
+		for (const auto& c : capturedLocalValues)
+			functionRoot->setProperty(c.name, c.value);
+	}
+
+	var result;
+
+#if ENABLE_SCRIPTING_BREAKPOINTS
+
+	LocalScopeCreator::ScopedSetter sls(s.root, const_cast<FunctionObject*>(this));
+
+	{
+		SimpleReadWriteLock::ScopedWriteLock sl(debugScopeLock);
+		lastScope = functionRoot;
+	}
+#endif
+
+	jassert(s.root->threadAwareLocalScopeCreator.get()->getRootBlockStatement() == body.get());
+
+	body->perform(Scope(&s, s.root.get(), functionRoot.get()), &result);
+
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (enableCycleCheck)
+		lastScopeForCycleCheck = var(functionRoot.get());
+#endif
+
+	functionRoot->removeProperty("this");
+
+
+
+	return result;
+}
+
 var HiseJavascriptEngine::RootObject::Scope::findFunctionCall(const CodeLocation& location, const var& targetObject, const Identifier& functionName) const
 {
 	if (DynamicObject* o = targetObject.getDynamicObject())
@@ -628,7 +678,6 @@ var HiseJavascriptEngine::callExternalFunctionRaw(var function, const var::Nativ
 	else if (auto ifo = dynamic_cast<RootObject::InlineFunction::Object*>(function.getObject()))
 	{
 		RootObject::ScopedLocalThisObject sto(*root, args.thisObject);
-
 		auto rv = ifo->performDynamically(RootObject::Scope(nullptr, root.get(), root.get()), const_cast<var*>(args.arguments), args.numArguments);
 
 		return rv;

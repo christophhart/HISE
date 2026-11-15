@@ -496,9 +496,11 @@ private:
 
 	BlockStatement* parseBlock()
 	{
+		auto prevBrace = location;
 		match(TokenTypes::openBrace);
 		ScopedPointer<BlockStatement> b(parseStatementList());
 		match(TokenTypes::closeBrace);
+		b->location = prevBrace;
 		return b.release();
 	}
 
@@ -951,6 +953,8 @@ private:
 
 				ScopedPointer<BlockStatement> s = ftb.parseStatementList();
 
+				ftb.copyDiagnosticsTo(*this);
+
 				match(TokenTypes::literal);
 				match(TokenTypes::closeParen);
 				match(TokenTypes::semicolon);
@@ -1361,6 +1365,8 @@ private:
 #endif
 		}
 
+		auto fLocation = location;
+
 		var fn = parseFunctionDefinition(name);
 
 		
@@ -1374,8 +1380,8 @@ private:
 			return new Assignment(location, nm, value);
 		}
 
-		ExpPtr nm(new UnqualifiedName(location, name, true)), value(new LiteralValue(location, fn));
-		return new Assignment(location, nm, value);
+		ExpPtr nm(new UnqualifiedName(fLocation, name, true)), value(new LiteralValue(fLocation, fn));
+		return new Assignment(fLocation, nm, value);
 	}
 
 	InlineFunction::Object *getInlineFunction(Identifier &id, JavascriptNamespace* ns=nullptr)
@@ -3097,7 +3103,9 @@ bool HiseJavascriptEngine::RootObject::areTypeEqual(const var& a, const var& b)
 
 void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowConstDeclarations)
 {
-	ExpressionTreeBuilder tb(*this, dynamic_cast<Processor*>(hiseSpecialData.processor)->getId(), code, String(), preprocessor);
+	ScopedValueSetter<bool> svs(currentlyExecuting, true);
+
+	ExpressionTreeBuilder tb(*this, dynamic_cast<Processor*>(hiseSpecialData.processor)->getId(), code, currentCallback.toString(), preprocessor);
 
 	tb.setupApiData(hiseSpecialData, allowConstDeclarations ? code : String());
 
@@ -3203,5 +3211,104 @@ void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowCon
 	}
 }
 
+
+Array<UriError> HiseJavascriptEngine::shadowParse(const DiagnosticBase::ShadowParseData& sd)
+{
+	Array<UriError> diagnostics;
+
+	RootObject::ObjectTypeMap::Ptr analyzer = new RootObject::ObjectTypeMap(*root, &diagnostics);
+	analyzer->options = sd.options;
+
+	ScopedPointer<RootObject::HiseSpecialData> hd = root->hiseSpecialData.createShadowParseData(analyzer.get());
+
+	String pid = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getId();
+	Array<var> functionsToShadowParse;
+
+	using DR = DiagnosticBase::DiagnosticResult;
+
+	for (auto& [callbackCode, callbackLocation] : sd.codeToParse)
+	{
+		auto copy = callbackCode;
+		auto ok = preprocessor->process(copy, pid + "." + callbackLocation.uri);
+
+		if (!ok.wasOk())
+		{
+			auto dr = DR::fail("Preprocessor error: " + ok.getErrorMessage().fromFirstOccurrenceOf(":", false, false))
+				.withSeverity(DR::Severity::Error)
+				.withClassification(DR::Classification::Syntax);
+
+			UriLocation loc;
+			loc.fillLocation(callbackLocation);
+			loc.line = 1;
+			loc.col = 0;
+			loc.charIndex = 0;
+			Array<UriError> result;
+			result.add(dr.createUriError(loc));
+			return result;
+		}
+
+		RootObject::ExpressionTreeBuilder tb(*root, callbackLocation.processorId, copy, callbackLocation.toLocationString(UriLocation::UriFormat::Callback), preprocessor);
+
+		try
+		{
+			tb.setupApiData(*hd.get(), copy);
+			ScopedPointer<RootObject::BlockStatement> sl = tb.parseStatementList();
+
+			if (sl != nullptr)
+			{
+				prepareTimeout();
+				analyzer->shadowParse(sl);
+
+				functionsToShadowParse.addArray(tb.functionsToShadowParse);
+
+				if (callbackLocation.getUriType() != UriLocation::UriType::onInit)
+					hd->shadowParseCallback(analyzer.get(), callbackLocation.toLocationString(UriLocation::UriFormat::CallbackId));
+			}
+		}
+		catch (UriError& e)
+		{
+			auto dr = DR::fail(e.errorMessage)
+				.withSeverity(ApiClass::DiagnosticResult::Severity::Error)
+				.withClassification(ApiClass::DiagnosticResult::Classification::Syntax);
+
+			e.errorType = UriError::ErrorType::Error;
+			e.metadata = dr.createMetadata();
+			e.errorMessage = dr.getEditorString();
+
+			tb.getDiagnostics().add(e);
+		}
+		catch (String& error)
+		{
+			auto dr = DR::fail(error)
+				.withSeverity(ApiClass::DiagnosticResult::Severity::Error)
+				.withClassification(ApiClass::DiagnosticResult::Classification::Syntax);
+
+			tb.getDiagnostics().add(dr.createUriError(callbackLocation));
+		}
+
+		for (const auto& d : tb.getDiagnostics())
+		{
+			auto copy = d;
+			copy.processorId = pid;
+			diagnostics.add(copy);
+		}
+	}
+
+	try
+	{
+		analyzer->checkDeferredDiagnostics(functionsToShadowParse);
+	}
+	catch (UriError& e)
+	{
+		jassertfalse;
+
+	}
+	catch (String& error)
+	{
+		jassertfalse;
+	}
+
+	return diagnostics;
+}
 
 } // namespace hise

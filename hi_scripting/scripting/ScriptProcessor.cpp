@@ -1381,7 +1381,27 @@ UriError JavascriptProcessor::compileInternal()
 
 	postCompileCallback();
 
-	return SnippetResult(Result::ok(), getNumSnippets());
+	return {};
+}
+
+void JavascriptProcessor::initialiseEngine()
+{
+	if (engineInitialised)
+		return;
+
+	scriptEngine->setCallStackEnabled(callStackEnabled);
+	scriptEngine->maximumExecutionTime = RelativeTime(mainController->getCompileTimeOut());
+
+	scriptEngine->setOnInitBreakpoints(resetAttachmentAndCreateBreakpointList());
+
+	registerApiClasses();
+
+	scriptEngine->registerNativeObject("Globals", mainController->getGlobalVariableObject());
+	scriptEngine->registerGlobalStorge(mainController->getGlobalVariableObject());
+
+	registerCallbacks();
+
+	engineInitialised = true;
 }
 
 void JavascriptProcessor::compileScript(const ResultFunction& rf /*= ResultFunction()*/)
@@ -1433,21 +1453,130 @@ void JavascriptProcessor::compileScript(const ResultFunction& rf /*= ResultFunct
 }
 
 #if USE_BACKEND
+
+DiagnosticBase::ShadowParseData JavascriptProcessor::createFullShadowParseData()
+{
+	jassert(engineInitialised);
+
+	DiagnosticBase::ShadowParseData sd;
+
+	auto [includeTree, scope] = getScriptEngine()->parseIncludeTree();
+
+	if (includeTree != nullptr)
+	{
+		Array<File> alreadyIncludedFiles;
+		Array<File> newIncludedFiles;
+
+		for (int i = 0; i < getNumWatchedFiles(); i++)
+			alreadyIncludedFiles.add(getWatchedFile(i));
+
+		includeTree->forEach([&](const UriLocationTree& t)
+		{
+			if (t.category == Identifier("include"))
+			{
+				UriLocation l;
+				l.processorId = getUriProcessorId();
+				l.uri = t.id.toString();
+
+				if(l.getUriType() == UriLocation::UriType::ExternalFile)
+				{
+					auto mc = dynamic_cast<Processor*>(this)->getMainController();
+					auto root = mc->getActiveFileHandler()->getSubDirectory(FileHandlerBase::Scripts);
+					newIncludedFiles.add(l.getFile(root));
+				}
+			}
+		
+			return false;
+		});
+
+		auto changeDetected = alreadyIncludedFiles.size() != newIncludedFiles.size();
+
+		if(!changeDetected)
+		{
+			for (int i = 0; i < alreadyIncludedFiles.size(); i++)
+				changeDetected |= alreadyIncludedFiles[i] != newIncludedFiles[i];
+		}
+
+		if (changeDetected)
+		{
+			clearFileWatchers();
+			
+			for (const auto& nf : newIncludedFiles)
+				addFileWatcher(nf);
+		}
+
+		scope->cleanup([](const UriLocationTree& v)
+		{
+			return v.id.isNull() && v.getNumChildren() == 0;
+		});
+
+		sd.options.includeTree = includeTree;
+		sd.options.scopeTree = scope;
+
+		for (int i = 0; i < getNumSnippets(); i++)
+		{
+			UriLocation l;
+			l.processorId = getUriProcessorId();
+			l.uri = getSnippet(i)->getCallbackName().toString().removeCharacters("()") + "()";
+			sd.codeToParse.push_back({ getSnippet(i)->getAllContent(), l });
+		}
+	}
+
+	return sd;
+}
+
 void JavascriptProcessor::shadowParse(const DiagnosticBase::ShadowParseData& cd, const DiagnosticCallback& callback,
 										   NotificationType notificationType)
 {
-	for (auto item : cd.items)
-		item->resolveDependencies(this);
+	
+
+	jassert(engineInitialised);
+
+	if (cd.options.includeTree == nullptr)
+	{
+		jassertfalse;
+		return;
+	}
+	
+	if (cd.codeToParse.empty())
+	{
+		jassertfalse;
+		return;
+	}
 
 	if (notificationType == sendNotificationSync)
 	{
-		// HTTP-direct path: run on the calling thread with a read lock to
-		// block until any in-progress compilation finishes.
-		SimpleReadWriteLock::ScopedReadLock sl(
-			mainController->getJavascriptThreadPool().getLookAndFeelRenderLock());
+		PerformanceCounter pc("shadowParse", 1);
+		pc.start();
 
-		auto diagnostics = scriptEngine->shadowParse(cd);
-		callback(diagnostics);
+		errorProvider.clearUriErrors(UriErrorLogger::SourceType::Diagnostics, sendNotificationAsync);
+
+		Array<UriError> diagnostics;
+
+		{
+			SimpleReadWriteLock::ScopedReadLock sl(
+				mainController->getJavascriptThreadPool().getLookAndFeelRenderLock());
+
+			diagnostics = scriptEngine->shadowParse(cd);
+		}
+
+		if (diagnostics.isEmpty())
+		{
+			errorProvider.logUriError(UriErrorLogger::SourceType::Diagnostics, UriError::ok(), sendNotificationAsync);
+		}
+		else
+		{
+			for (const auto& d : diagnostics)
+				errorProvider.logUriError(UriErrorLogger::SourceType::Diagnostics, d, sendNotificationAsync);
+		}
+
+		errorProvider.currentIncludeTree = cd.options.includeTree;
+		errorProvider.logLocationTree(cd.options.scopeTree);
+
+		if(callback)
+			callback(diagnostics);
+
+		pc.stop();
 		return;
 	}
 
@@ -1461,6 +1590,19 @@ void JavascriptProcessor::shadowParse(const DiagnosticBase::ShadowParseData& cd,
 	{
 		auto jp = dynamic_cast<JavascriptProcessor*>(p);
 		auto diagnostics = jp->scriptEngine->shadowParse(cd);
+
+		if (diagnostics.isEmpty())
+		{
+			jp->errorProvider.logUriError(UriErrorLogger::SourceType::Diagnostics, UriError::ok(), sendNotificationAsync);
+		}
+		else
+		{
+			for (const auto& d : diagnostics)
+				jp->errorProvider.logUriError(UriErrorLogger::SourceType::Diagnostics, d, sendNotificationAsync);
+		}
+		
+		jp->errorProvider.currentIncludeTree = cd.options.includeTree;
+		jp->errorProvider.logLocationTree(cd.options.scopeTree);
 
 		auto postParse = [diagnostics, callback](Dispatchable* obj)
 		{
@@ -1478,244 +1620,6 @@ void JavascriptProcessor::shadowParse(const DiagnosticBase::ShadowParseData& cd,
 	mainController->getKillStateHandler().killVoicesAndCall(
 		dynamic_cast<Processor*>(this), f,
 		MainController::KillStateHandler::TargetThread::ScriptingThread);
-}
-
-struct IncludeParser
-{
-	IncludeParser(const CodeDocument& onInit, const File& scriptDir_):
-		includeTree("onInit"),
-		scriptDir(scriptDir_)
-	{
-		String mos;
-		mos.preallocateBytes(onInit.getNumCharacters());
-
-		int lastStart = 0;
-
-		for (int i = 0; i < onInit.getNumLines(); i++)
-		{
-			auto l = onInit.getLine(i);
-
-			if (l.trim().startsWith("include("))
-			{
-				mos << "\n";
-				includeTree.addChild(createCodeTree(i, mos), -1, nullptr);
-				includeTree.addChild(createInclude(l, i), -1, nullptr);
-				lastStart = i + 1;
-				mos = {};
-			}
-			else
-				mos << l << "\n";
-		}
-
-		includeTree.addChild(createCodeTree(onInit.getNumLines(), mos), -1, nullptr);
-
-		for (auto c : includeTree)
-			parseExternalFile(c);
-	}
-
-	ValueTree createCodeTree(int i, const String& mos)
-	{
-		ValueTree c("Code");
-		c.setProperty("LineStart", lastStart, nullptr);
-		c.setProperty("LineEnd", i - 1, nullptr);
-		c.setProperty("Code", mos, nullptr);
-		c.setProperty("NumBytes", (int)(mos.end() - mos.begin()), nullptr);
-		lastStart = i + 1;
-		return c;
-	}
-
-	String getIncludeTree() const
-	{
-		return includeTree.createXml()->createDocument("");
-	}
-
-	ValueTree createInclude(const String& l, int i)
-	{
-		auto path = l.fromFirstOccurrenceOf("include(", false, false)
-			.upToFirstOccurrenceOf(";", false, false)
-			.trim()
-			.removeCharacters("()")
-			.trim()
-			.unquoted()
-			.replaceCharacter('\\', '/');
-
-		ValueTree includedFile("ExternalFile");
-		includedFile.setProperty("FilePath", path, nullptr);
-		includedFile.setProperty("LineNumber", i, nullptr);
-		return includedFile;
-	}
-
-	String createCodeFrom(const File& includedFile)
-	{
-		String s;
-		size_t numBytes = 0;
-
-		auto rp = includedFile.getRelativePathFrom(scriptDir).replaceCharacter('\\', '/');
-
-		ValueTree externalFileTree;
-
-		valuetree::Helpers::forEach(includeTree, [&](const ValueTree& v)
-		{
-			if (externalFileTree.isValid() && 
-				!v.isAChildOf(externalFileTree) &&
-				v.getType() == Identifier("Code"))
-				numBytes += (int)v["NumBytes"];
-
-			if (v.getType() == Identifier("ExternalFile"))
-			{
-				if (v["FilePath"].toString() == rp)
-					externalFileTree = v;
-			}
-
-			return false;
-		});
-
-		s.preallocateBytes(numBytes);
-
-		externalFileTree = {};
-
-		valuetree::Helpers::forEach(includeTree, [&](const ValueTree& v)
-		{
-			if (externalFileTree.isValid() &&
-				!v.isAChildOf(externalFileTree) && 
-				v.getType() == Identifier("Code"))
-				s << v["Code"].toString();
-
-			if (v.getType() == Identifier("ExternalFile"))
-			{
-				if (v["FilePath"].toString() == rp)
-					externalFileTree = v;
-			}
-
-			return false;
-		});
-
-		return s;
-	}
-
-	String createCodeUpToInclude(const File& includedFile)
-	{
-		String s; 
-		size_t numBytes = 0;
-
-		auto rp = includedFile.getRelativePathFrom(scriptDir).replaceCharacter('\\', '/');
-
-		valuetree::Helpers::forEach(includeTree, [&](const ValueTree& v)
-		{
-			if (v.getType() == Identifier("Code"))
-				numBytes += (int)v["NumBytes"];
-			
-			if (v.getType() == Identifier("ExternalFile"))
-			{
-				if (v["FilePath"].toString() == rp)
-					return true;
-			}
-
-			return false;
-		});
-		
-		s.preallocateBytes(numBytes);
-
-		valuetree::Helpers::forEach(includeTree, [&](const ValueTree& v)
-		{
-			if (v.getType() == Identifier("Code"))
-				s << v["Code"].toString();
-
-			if (v.getType() == Identifier("ExternalFile"))
-			{
-				if (v["FilePath"].toString() == rp)
-					return true;
-			}
-
-			return false;
-		});
-
-		return s;
-	}
-
-	void parseExternalFile(ValueTree& v)
-	{
-		if (v.getType() == Identifier("Code"))
-			return;
-
-		File tf(scriptDir.getChildFile(v["FilePath"].toString()));
-
-		if (tf.existsAsFile())
-		{
-			lastStart = 0;
-			
-			String mos;
-			mos.preallocateBytes(tf.getSize());
-
-			auto lines = StringArray::fromLines(tf.loadFileAsString());
-
-			for (int i = 0; i < lines.size(); i++)
-			{
-				auto l = lines[i];
-
-				if (l.trim().startsWith("include("))
-				{
-					v.addChild(createCodeTree(i, mos), -1, nullptr);
-					v.addChild(createInclude(l, i), -1, nullptr);
-					lastStart = i + 1;
-					mos = {};
-				}
-				else
-					mos << l << "\n";
-			}
-
-			v.addChild(createCodeTree(lines.size(), mos), -1, nullptr);
-
-			for (auto c : v)
-				parseExternalFile(c);
-		}
-		else
-			throw String(tf.getFullPathName() + " does not exist");
-
-	}
-
-private:
-
-	int lastStart = 0;
-
-	juce::ValueTree includeTree;
-	File scriptDir;
-};
-
-void JavascriptProcessor::resolveDependencies(DPItem::Ptr item, DPItem::List& preDependencies, DPItem::List& postDependencies)
-{
-	using Item = DiagnosticBase::ShadowParseData::Item;
-
-	if (item->t == Item::Type::ExternalFile)
-	{
-		auto scriptDir = dynamic_cast<Processor*>(this)->getMainController()->getSampleManager().getProjectHandler().getSubDirectory(ProjectHandler::SubDirectories::Scripts);
-
-		ValueTree onInit("onInit");
-
-		auto doc = getSnippet("onInit");
-
-		IncludeParser ip(*doc, scriptDir);
-		
-		DBG(ip.getIncludeTree());
-
-		auto code = ip.createCodeUpToInclude(File(item->getFileName()));
-
-		auto postCode = ip.createCodeFrom(File(item->getFileName()));
-
-		preDependencies.add(new Item(Item::Type::onInit, "", code));
-		postDependencies.add(new Item(Item::Type::onInit, "", postCode));
-	}
-
-	if (item->t == Item::Type::onInit)
-		return;
-
-	if (item->t == Item::Type::StandaloneCode)
-		return;
-
-	if (item->t == Item::Type::Callback)
-	{
-		preDependencies.add(new Item(Item::Type::onInit, "", getSnippet("onInit")->getAllContent()));
-	}
 }
 
 void JavascriptProcessor::onUriBreakpointAttachTypeChange(const UriBreakpoint& bp, AttachState newAttachState)
@@ -1826,17 +1730,9 @@ void JavascriptProcessor::setupApi()
 	PROFILE_ONLY(mc->getDebugSession().sendClearMessage());
 	scriptEngine = new HiseJavascriptEngine(this, mc);
 
-	scriptEngine->setCallStackEnabled(callStackEnabled);
-	scriptEngine->maximumExecutionTime = RelativeTime(mainController->getCompileTimeOut());
+	engineInitialised = false;
 
-	scriptEngine->setOnInitBreakpoints(currentBreakpoints);
-
-	registerApiClasses();
-	
-	scriptEngine->registerNativeObject("Globals", mainController->getGlobalVariableObject());
-	scriptEngine->registerGlobalStorge(mainController->getGlobalVariableObject());
-
-	registerCallbacks();
+	initialiseEngine();
 }
 
 

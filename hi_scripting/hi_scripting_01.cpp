@@ -87,6 +87,7 @@
 
 #include "scripting/engine/JavascriptIncludeParser.cpp"
 #include "scripting/engine/JavascriptEngineParser.cpp"
+#include "scripting/engine/JavascriptEvaluationParser.cpp"
 #include "scripting/engine/JavascriptEngineObjects.cpp"
 #include "scripting/engine/JavascriptEngineMathObject.cpp"
 #include "scripting/engine/JavascriptEngineAdditionalMethods.cpp"
