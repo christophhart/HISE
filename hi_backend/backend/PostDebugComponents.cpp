@@ -2,6 +2,65 @@
 namespace hise {
 using namespace juce;
 
+void FloatingPanelTemplates::addCodeEditorTabMenu(FloatingTabComponent* tabs)
+{
+	Component::SafePointer<FloatingTabComponent> safeTabs(tabs);
+	auto mc = tabs->getMainController();
+
+	tabs->setMenuButtonCallback([safeTabs, mc]()
+	{
+		if (safeTabs == nullptr)
+			return;
+
+		enum MenuItems
+		{
+			SaveAll = 1,
+			CloseAll,
+			CloseOthers
+		};
+
+		PopupLookAndFeel plaf;
+		PopupMenu m;
+		m.setLookAndFeel(&plaf);
+
+		m.addItem(SaveAll, "Save all");
+		m.addSeparator();
+		m.addItem(CloseAll, "Close all tabs", safeTabs->getNumTabs() > 0);
+		m.addItem(CloseOthers, "Close other tabs", safeTabs->getNumTabs() > 1);
+
+		auto result = m.show();
+
+		if (result == SaveAll)
+		{
+			int numSaved = 0;
+
+			// only write modified documents so that untouched files keep their timestamp
+			for (int i = 0; i < mc->getNumExternalScriptFiles(); i++)
+			{
+				auto ef = mc->getExternalScriptFile(i);
+
+				if (ef->getResourceType() == ExternalScriptFile::ResourceType::FileBased &&
+					ef->getFile().existsAsFile() &&
+					ef->getFileDocument().hasChangedSinceSavePoint())
+				{
+					ef->saveFile();
+					numSaved++;
+				}
+			}
+
+			debugToConsole(mc->getMainSynthChain(), "Saved " + String(numSaved) + " file(s)");
+		}
+		else if (result == CloseAll)
+		{
+			safeTabs->closeAllTabs();
+		}
+		else if (result == CloseOthers)
+		{
+			safeTabs->closeOtherTabs(safeTabs->getCurrentTabIndex());
+		}
+	});
+}
+
 Component* FloatingPanelTemplates::createCodeEditorPanel(FloatingTile* root)
 {
 #if USE_BACKEND
@@ -17,6 +76,9 @@ Component* FloatingPanelTemplates::createCodeEditorPanel(FloatingTile* root)
 	ib.getPanel(codeTabs)->getLayoutData().setKeyPress(true, FloatingTileKeyPressIds::focus_editor);
 	ib.getPanel(codeEditor)->getLayoutData().setKeyPress(false, FloatingTileKeyPressIds::fold_editor);
 	ib.getContent<FloatingTabComponent>(codeTabs)->setCycleKeyPress(FloatingTileKeyPressIds::cycle_editor);
+
+
+	addCodeEditorTabMenu(ib.getContent<FloatingTabComponent>(codeTabs));
 
 	const int navTabs = ib.addChild<FloatingTabComponent>(codeVertical);
 

@@ -183,6 +183,7 @@ namespace EditorIcons
 	DECLARE_DATA(warningIcon, 1549);
 	DECLARE_DATA(profileIcon, 1160);
 	DECLARE_DATA(peakIcon, 186);
+	DECLARE_DATA(gitIcon, 821);
 };
 
 namespace SampleToolbarIcons

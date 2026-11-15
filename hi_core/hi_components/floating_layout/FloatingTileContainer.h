@@ -232,6 +232,13 @@ public:
 
 	void setAddButtonCallback(const std::function<void()>& f);
 
+	/** Shows a horizontal three dot button at the right edge of the tab bar that calls the given function. */
+	void setMenuButtonCallback(const std::function<void()>& f);
+
+	void closeAllTabs();
+
+	void closeOtherTabs(int tabIndexToKeep);
+
 	void currentTabChanged(int newCurrentTabIndex, const String& newCurrentTabName) override;
 
     Identifier getCycleKeyPress() const { return cycleKeyId; }
@@ -246,6 +253,8 @@ private:
     Identifier cycleKeyId;
     
 	ScopedPointer<ShapeButton> addButton;
+
+	ScopedPointer<ShapeButton> menuButton;
 
 	PopupLookAndFeel plaf;
 
