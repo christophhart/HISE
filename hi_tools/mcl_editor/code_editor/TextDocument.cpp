@@ -1358,6 +1358,68 @@ Result FoldableLineRange::checkList(List& listToCheck, WeakPtr parent)
 	return Result::ok();
 }
 
+
+FoldableLineRange::Ptr FoldableLineRange::Helpers::createItem(const CodeDocument& doc, const UriLocationTree& e)
+{
+	auto start = e.line - 1;
+	auto end = e.hasRange() ? e.closeLocation.line - 1 : start + 1;
+	FoldableLineRange::Ptr newRange = new FoldableLineRange(doc, { start, end }, false);
+
+	String t;
+	t << e.category.toString();
+	t << " ";
+	t << e.getAsString();
+
+	newRange->setCustomText(t);
+	return newRange;
+}
+
+FoldableLineRange::Ptr FoldableLineRange::Helpers::addRecursive(const CodeDocument& doc, UriLocationTree& l)
+{
+	if (l.category == Identifier("scope"))
+	{
+		// allow the root scope to go through
+		if(l.charIndex != 0)
+			return nullptr;
+	}
+	
+	if(l.hasRange())
+	{
+		// don't show loops in the line range
+		if (l.category == Identifier("loop"))
+			return nullptr;
+
+		auto p = createItem(doc, l);
+
+		for (int i = 0; i < l.getNumChildren(); i++)
+		{
+			if (auto c = addRecursive(doc, *l.getChild(i)))
+			{
+				p->children.add(c);
+				c->parent = p.get();
+			}
+		}
+
+		return p;
+	}
+
+	return nullptr;
+}
+
+
+FoldableLineRange::List FoldableLineRange::Helpers::fromLocationTree(const CodeDocument& doc, UriLocationTree::Ptr tree)
+{
+	FoldableLineRange::List r;
+
+	if (auto root = addRecursive(doc, *tree))
+	{
+		for (auto c : root->children)
+			r.add(c);
+	}
+
+	return r;
+}
+
 FoldableLineRange::Listener::~Listener()
 {}
 

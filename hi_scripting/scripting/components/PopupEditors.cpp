@@ -205,7 +205,7 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier 
 
 struct JavascriptLanguageManager : public mcl::LanguageManager
 {
-	JavascriptLanguageManager(JavascriptProcessor* jp_, const Identifier& callback_, mcl::TextEditor& ed):
+	JavascriptLanguageManager(JavascriptProcessor* jp_, const UriLocation& location_, mcl::TextEditor& ed):
 		jp(jp_),
         callback(callback_)
 	{
@@ -231,7 +231,7 @@ struct JavascriptLanguageManager : public mcl::LanguageManager
     
     bool getInplaceDebugValues(InplaceDebugValue::List& values) const override
     {
-		auto sn = jp->getSnippetOrExternalFile(callback);
+		auto sn = jp->getSnippetOrExternalFile(location);
 		
 		for(auto& ip: jp->inplaceValues)
 		{
@@ -249,6 +249,14 @@ struct JavascriptLanguageManager : public mcl::LanguageManager
 	virtual void processBookmarkTitle(juce::String& t)
 	{
 		
+	}
+
+	UriLocation createUriLocation(const CodeDocument::Position& pos) const override
+	{
+		UriLocation loc;
+		loc.fillLocation(location);
+		loc.fillLocation(pos);
+		return loc;
 	}
 
 	String getDefaultScriptCodeSnippets(bool getDefault)
@@ -375,8 +383,40 @@ struct JavascriptLanguageManager : public mcl::LanguageManager
 		editor->setEnableBreakpoint(true);
 	}
 
+	UriLocationTree::Ptr getScopeFromLocation(const CodeDocument::Position& pos) const override
+	{
+		if (lastScopeTree != nullptr)
+		{
+			auto l = createUriLocation(pos);
+			auto t = lastScopeTree->getInnerTree(l);
+
+			if(auto functionTree = t->getThisOrParentWithCategory({ Identifier("function"), Identifier("inline") }))
+				return functionTree.get();
+
+			if (t->category == Identifier("loop"))
+				return t->getParent().get();
+			
+			return t;
+		}
+
+		return nullptr;
+	}
+
+	mcl::FoldableLineRange::List createLineRange(const juce::CodeDocument& doc) override
+	{
+		if (lastScopeTree != nullptr)
+		{
+			return mcl::FoldableLineRange::Helpers::fromLocationTree(doc, lastScopeTree);
+		}
+
+		return LanguageManager::createLineRange(doc);
+	}
+
+
+	UriLocationTree::Ptr lastScopeTree;
+
 	WeakReference<JavascriptProcessor> jp;
-    Identifier callback;
+	UriLocation location;
 };
 
 struct GLSLLanguageManager : public mcl::LanguageManager

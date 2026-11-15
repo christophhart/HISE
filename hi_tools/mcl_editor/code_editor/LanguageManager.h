@@ -88,6 +88,14 @@ public:
     /** Overwrite this and toggle the line comment. */
     virtual void toggleCommentForLine(TextEditor* editor, bool shouldBeCommented);
 
+    /** Overwrite this and create a UriLocation for the given cursor position. */
+    virtual UriLocation createUriLocation(const CodeDocument::Position& pos) const
+    {
+        return {};
+    }
+
+    virtual UriLocationTree::Ptr getScopeFromLocation(const CodeDocument::Position& pos) const { return nullptr; }
+
     bool hashIsPreprocessor = true;
 
     static String beautify(const String& input);

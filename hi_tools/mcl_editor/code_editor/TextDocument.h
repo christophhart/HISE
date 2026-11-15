@@ -67,6 +67,17 @@ public:
 	/** This will check whether the list is correctly nested with a weak ref to the parent. */
 	static Result checkList(List& listToCheck, WeakPtr parent=nullptr);
 
+	struct Helpers
+	{
+		static FoldableLineRange::Ptr createItem(const CodeDocument& doc, const UriLocationTree& e);;
+
+		static FoldableLineRange::Ptr addRecursive(const CodeDocument& doc, UriLocationTree& l);
+
+		static List fromLocationTree(const CodeDocument& doc, UriLocationTree::Ptr tree);
+	};
+
+	
+
 	class Listener
 	{
 	public:
@@ -166,7 +177,23 @@ public:
 
 	bool isScoped() const noexcept { return scoped; }
 
+	void setCustomText(const String& textToUse)
+	{
+		customText = textToUse;
+	}
+
+	String getTextToShow() const
+	{
+		if (customText.isNotEmpty())
+			return customText;
+
+		auto& doc = *start.getOwner();
+		return doc.getLine(getLineRange().getStart());
+	}
+
 private:
+
+	String customText;
 
 	bool scoped = false;
 

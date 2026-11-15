@@ -141,7 +141,7 @@ void FoldMap::displayedLineRangeChanged(Range<int> newRange)
 
 String FoldMap::getTextForFoldRange(FoldableLineRange::WeakPtr p)
 {
-	return doc.getCodeDocument().getLine(p->getLineRange().getStart());
+	return p->getTextToShow();
 }
 
 FoldMap::Item::Item(FoldableLineRange::WeakPtr p_, FoldMap& m):
