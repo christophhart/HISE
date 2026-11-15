@@ -133,11 +133,11 @@ bool TextEditor::matchesUriLocation(const UriLocation& location) const
 {
 	if (languageManager != nullptr)
 	{
-		auto rootPos = languageManager->createUriLocation({});
-		return rootPos.sameUriAndProcessorId(location);
+		if(auto rootPos = languageManager->createUriLocation({}))
+			return rootPos.sameUriAndProcessorId(location);	
 	}
 
-	return false;
+	return document.matchesLocation(location);
 }
 
 bool TextEditor::gotoLocation(const UriLocation& location)
@@ -1688,7 +1688,9 @@ void TextEditor::setLanguageManager(LanguageManager* ownedLanguageManager)
 
 	if (languageManager != nullptr)
 	{
-		document.setBaseLocation(ownedLanguageManager->createUriLocation({}));
+		if(auto bl = ownedLanguageManager->createUriLocation({}))
+			document.setBaseLocation(bl);
+
 		ownedLanguageManager->setupEditor(this);
 		setCodeTokeniser(languageManager->createCodeTokeniser());
         updateLineRanges();

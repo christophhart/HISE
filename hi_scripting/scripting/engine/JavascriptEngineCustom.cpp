@@ -942,6 +942,9 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 				if (args.thisObject.isObject())
 				{
 					obj->setProperty("this", args.thisObject);
+					body->resolveTypeDefinitionInScopeTree(s, args.thisObject, "this", true);
+				}
+					
 
 				Array<var> thisArgs;
 

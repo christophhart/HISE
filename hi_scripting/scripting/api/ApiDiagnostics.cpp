@@ -1117,18 +1117,12 @@ struct ScriptingObjects::ScriptedLookAndFeel::Diagnostics : public LightweightDi
             auto ok = p.parse();
 
             if (!ok.wasOk())
-                return DiagnosticResult::fail("CSS parser error: " + ok.getErrorMessage());
+                currentShadowParser->addDiagnostic(ok);
 
-            auto warnings = p.getWarnings();
-
-#if 0
-                for (auto w : warnings)
-                {
-                    auto currentParentValidator = dynamic_cast<ShadowParserType*>(currentShadowParser);
-                    currentParentValidator->addCustomDiagnostics(DiagnosticResult::fail("CSS Warning " + w)
-                        .withSeverity(DiagnosticResult::Severity::Warning));
-                }
-#endif
+            for (auto w : p.getWarnings())
+            {
+                currentShadowParser->addDiagnostic(w);
+            }
 
             return DiagnosticResult::ok();
         }

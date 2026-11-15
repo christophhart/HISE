@@ -142,7 +142,7 @@ Result HtmlParser::HeaderInformation::flush(DataProvider* d, State& state)
 	auto ok = p.parse();
 
 	if(!ok.wasOk())
-		return ok;
+		return Result::fail(ok.toConsoleMessage());
 
 	css = p.getCSSValues();
 	css.performAtRules(d);

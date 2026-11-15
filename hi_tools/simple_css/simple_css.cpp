@@ -82,7 +82,7 @@ struct CssTestSuite: public UnitTest
 		Parser p(code);
 		auto ok = p.parse();
 
-		expect(ok.wasOk(), ok.getErrorMessage());
+		expect(ok.wasOk(), ok.errorMessage);
 
 		auto css = p.getCSSValues();
 		auto ss = css.getForComponent(c.get());
@@ -320,7 +320,7 @@ struct CssTestSuite: public UnitTest
 		Parser p(code);
 		auto ok = p.parse();
 		if(ok.failed())
-			expect(false, "parser error: " + ok.getErrorMessage());
+			expect(false, "parser error: " + ok.toConsoleMessage());
 
 		return p.getCSSValues();
 	}
@@ -356,7 +356,7 @@ struct CssTestSuite: public UnitTest
 		auto ok = p.parse();
 
 		if(!ok)
-			expect(false, colourValue + ": " + ok.getErrorMessage());
+			expect(false, colourValue + ": " + ok.toConsoleMessage());
 
 		if(auto ss = p.getCSSValues().getFirst())
 		{
@@ -417,7 +417,7 @@ struct CssTestSuite: public UnitTest
 		auto ok = p.parse();
 
 		if(!ok)
-			expect(false, "parser error: " + ok.getErrorMessage());
+			expect(false, "parser error: " + ok.toConsoleMessage());
 
 		if(auto ss = p.getCSSValues().getWithAllStates(nullptr, s))
 		{
@@ -437,7 +437,7 @@ struct CssTestSuite: public UnitTest
 		auto ok = p.parse();
 
 		if(ok.failed())
-			expect(false, "Parser error: " + ok.getErrorMessage());
+			expect(false, "Parser error: " + ok.toConsoleMessage());
 
 		auto ss = p.getCSSValues().getWithAllStates(nullptr, s);
 		expect(ss != nullptr, cssCode);

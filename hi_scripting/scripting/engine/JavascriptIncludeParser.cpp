@@ -69,7 +69,12 @@ struct HiseJavascriptEngine::RootObject::IncludeParser : private TokenIterator
 
 		while (currentType != TokenTypes::eof)
 		{
-			
+			if (matchIf(TokenTypes::identifier))
+			{
+				if(isIncludeMethod(Identifier(currentValue.toString())))
+					parseIncludeMethod();
+			}
+
 			if (matchIf(TokenTypes::namespace_))
 				parseNamespace();
 			else if (matchIf(TokenTypes::include_))
@@ -93,6 +98,26 @@ struct HiseJavascriptEngine::RootObject::IncludeParser : private TokenIterator
 	Array<UriError> getIncludeErrors() const { return includeErrors; }
 
 private:
+
+	void parseIncludeMethod()
+	{
+		if (matchIf(TokenTypes::openParen))
+		{
+			auto uri = currentValue.toString();
+			
+			if (matchIf(TokenTypes::literal))
+			{
+				if (matchIf(TokenTypes::closeParen))
+				{
+					UriLocationTree::Ptr np = new UriLocationTree(thisNode.get());
+					location.fillLocation(*np);
+					np->uri = uri;
+					np->id = uri;
+					setCategory(np.get(), Category::Include);
+				}
+			}
+		}
+	}
 
 	static Identifier getIdForCategory(Category c)
 	{
@@ -464,6 +489,12 @@ private:
 		});
 
 		throw e;
+	}
+
+	static bool isIncludeMethod(const Identifier& id)
+	{
+		static const Array<Identifier> includeMethods("setStyleSheet", "setShader");
+		return includeMethods.contains(id);
 	}
 
 	static String getFileContent(RootObject& r, UriLocationTree::WeakPtr parent, const String& includeUri)

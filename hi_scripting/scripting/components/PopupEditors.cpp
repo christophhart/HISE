@@ -1364,20 +1364,25 @@ void PopupIncludeEditor::compileInternal()
 	{
 		auto& ed = editor->editor;
 
-		simple_css::Parser p(ed.getTextDocument().getCodeDocument().getAllContent());
+		simple_css::Parser p(ed.getTextDocument().getCodeDocument().getAllContent(), baseLocation);
 
 		ed.clearWarningsAndErrors();
 
 		auto ok = p.parse();
+		ok.sourceType = UriError::SourceType::Compilation;
 
-		for(auto w: p.getWarnings())
-			ed.addWarning(w, true);
+		for (auto w : p.getWarnings())
+		{
+			w.sourceType = UriError::SourceType::Compilation;
+			ed.addUriError(w);
+		}
+			
 
-		bottomBar->setError(UriError::fromResult(ok, jp));
+		bottomBar->setError(ok);
 
 		if(!ok.wasOk())
 		{
-			ed.setError(ok.getErrorMessage());
+			ed.addUriError(ok);
 		}
 		else
 		{
@@ -1414,7 +1419,7 @@ void PopupIncludeEditor::compileInternal()
 				return false;
 			});
 		}
-		
+
 		return;
 	}
 	else
@@ -1514,6 +1519,9 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 			ed.setLanguageManager(new GLSLLanguageManager());
 		else
 		{
+			baseLocation.processorId = jp->getUriProcessorId();
+			baseLocation.uri = externalFile->getFile().getFullPathName();
+			ed.getTextDocument().setBaseLocation(baseLocation);
 			ed.tokenCollection = new mcl::TokenCollection("CSS");
 			ed.tokenCollection->setUseBackgroundThread(false);
 			ed.setLanguageManager(new simple_css::LanguageManager(ed.getTextDocument()));

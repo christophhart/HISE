@@ -1250,7 +1250,7 @@ Result StyleSheet::Collection::performAtRules(DataProvider* d)
 				auto ok = p.parse();
 
 				if(ok.failed())
-					return Result::fail("Error at importing " + url + ": " + ok.getErrorMessage());
+					return Result::fail("Error at importing " + url + ": " + ok.errorMessage);
 
 				auto newCss = p.getCSSValues();
 				importStack.add(url);

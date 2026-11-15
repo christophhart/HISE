@@ -3926,24 +3926,7 @@ RestServer::Response RestHelpers::handleParseCSS(MainController* mc,
 	simple_css::Parser parser(code);
 	auto parseResult = parser.parse();
 	
-	// Helper to parse "Line X, column Y: message" into structured diagnostic data
-	auto parseDiagLocation = [](const String& s, int& line, int& col, String& msg)
-	{
-		if (s.startsWith("Line "))
-		{
-			line = s.fromFirstOccurrenceOf("Line ", false, false).getIntValue();
-			auto afterColumn = s.fromFirstOccurrenceOf("column ", false, false);
-			col = afterColumn.getIntValue();
-			// The message starts after "column N: "
-			msg = afterColumn.fromFirstOccurrenceOf(": ", false, false);
-		}
-		else
-		{
-			line = 1;
-			col = 1;
-			msg = s;
-		}
-	};
+	
 	
 	// Build diagnostics array
 	Array<var> diagArray;
@@ -3951,32 +3934,24 @@ RestServer::Response RestHelpers::handleParseCSS(MainController* mc,
 	
 	if (!parseOk)
 	{
-		int line, col;
-		String msg;
-		parseDiagLocation(parseResult.getErrorMessage(), line, col, msg);
-		
 		DynamicObject::Ptr d = new DynamicObject();
-		d->setProperty(RestApiIds::line, line);
-		d->setProperty(RestApiIds::column, col);
+		d->setProperty(RestApiIds::line, parseResult.line);
+		d->setProperty(RestApiIds::column, parseResult.col);
 		d->setProperty(RestApiIds::severity, "error");
 		d->setProperty(RestApiIds::source, "css");
-		d->setProperty(RestApiIds::message, msg);
+		d->setProperty(RestApiIds::message, parseResult.errorMessage);
 		diagArray.add(var(d.get()));
 	}
 	
 	// Add warnings (present even on partial parse failure)
 	for (const auto& w : parser.getWarnings())
 	{
-		int line, col;
-		String msg;
-		parseDiagLocation(w, line, col, msg);
-		
 		DynamicObject::Ptr d = new DynamicObject();
-		d->setProperty(RestApiIds::line, line);
-		d->setProperty(RestApiIds::column, col);
+		d->setProperty(RestApiIds::line, parseResult.line);
+		d->setProperty(RestApiIds::column, parseResult.col);
 		d->setProperty(RestApiIds::severity, "warning");
 		d->setProperty(RestApiIds::source, "css");
-		d->setProperty(RestApiIds::message, msg);
+		d->setProperty(RestApiIds::message, parseResult.errorMessage);
 		diagArray.add(var(d.get()));
 	}
 	

@@ -397,21 +397,6 @@ struct HiseJavascriptEngine::RootObject::Scope
 	{
 		if (p != nullptr && p->currentShadowParser != nullptr)
 			currentShadowParser = p->currentShadowParser;
-
-	}
-
-	mutable var currentIteratorObject;
-	mutable int currentIteratorIndex;
-	
-	void setCurrentIteratorObject(var &newObject) const
-	{
-		currentIteratorIndex = 0;
-		currentIteratorObject = newObject;
-	}
-
-	void incIteratorIndex() const
-	{
-		currentIteratorIndex++;
 	}
 
 	ObjectTypeMap* getShadowParser() const { return dynamic_cast<ObjectTypeMap*>(currentShadowParser); }

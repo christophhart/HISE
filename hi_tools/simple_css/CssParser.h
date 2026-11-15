@@ -307,14 +307,14 @@ class Parser
 {
 public:
 
-	Parser(const String& cssCode);;
+	Parser(const String& cssCode, const UriLocation& baseLocation=UriLocation());
 
 	/** This will parse the string and return a Result indicating the errors. */
-	Result parse();
+	UriError parse();
 
 	/** After you've parsed the string you can query this function to get all the warnings that the CSS code
 	 *  produced. It contains missing properties and invalid selectors. */
-	StringArray getWarnings() const { return warnings; }
+	Array<UriError> getWarnings() const { return warnings; }
 
 	/** returns a list of StyleSheet objects that can be used to style the appearance of your JUCE components. */
 	StyleSheet::Collection getCSSValues() const;
@@ -362,7 +362,11 @@ public:
 
 private:
 
-	String getLocation(String::CharPointerType p=String::CharPointerType(nullptr)) const;
+	void addWarning(String::CharPointerType p, const String& errorMessage);
+
+	UriLocation baseLocation;
+
+	UriLocation getLocation(String::CharPointerType p=String::CharPointerType(nullptr)) const;
 
 	struct KeywordWarning
 	{
@@ -437,7 +441,7 @@ private:
 	String::CharPointerType ptr, end;
 	bool recoverUnterminatedFunctionAtDeclarationBoundary = false;
 
-	StringArray warnings;
+	Array<UriError> warnings;
 
 	bool addAllStyleSheet = false;
 };

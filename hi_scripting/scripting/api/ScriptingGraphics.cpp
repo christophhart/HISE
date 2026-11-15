@@ -2634,15 +2634,19 @@ String ScriptingObjects::ScriptedLookAndFeel::loadStyleSheetFile(const String& f
 void ScriptingObjects::ScriptedLookAndFeel::setStyleSheetInternal(const String& cssCode)
 {
 	currentStyleSheet = cssCode;
-	simple_css::Parser p(cssCode);
+
+	auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
+
+	UriLocation cssLocation;
+	cssLocation.processorId = jp->getUriProcessorId();
+	cssLocation.uri = currentStyleSheetFile;
+
+	simple_css::Parser p(cssCode, cssLocation);
 
 	p.setAddAllStyleSheet(true);
 
 	auto ok = p.parse();
-
-	if(!ok.wasOk())
-		reportScriptError(ok.getErrorMessage());
-
+	LOG_RUNTIME_ERROR(ok, jp);
 	auto newCollection = p.getCSSValues();
 
 	SimpleReadWriteLock::ScopedWriteLock sl(getMainController()->getJavascriptThreadPool().getLookAndFeelRenderLock());

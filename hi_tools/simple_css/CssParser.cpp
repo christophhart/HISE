@@ -1381,7 +1381,8 @@ private:
 
 
 
-Parser::Parser(const String& cssCode):
+Parser::Parser(const String& cssCode, const UriLocation& baseLocation_):
+	baseLocation(baseLocation_),
 	code(cssCode),
 	ptr(code.begin()),
 	end(code.end())
@@ -1455,10 +1456,9 @@ bool Parser::match(TokenType t)
 
 void Parser::throwError(const String& errorMessage)
 {
-	String error = getLocation();
-	error << errorMessage;
-
-	throw Result::fail(error);
+	auto e = UriError::fail(errorMessage);
+	e.fillLocation(getLocation());
+	throw e;
 }
 
 bool Parser::matchIf(TokenType t)
@@ -1751,7 +1751,7 @@ Parser::RawClass Parser::parseSelectors()
 	return newClass;
 }
 
-Result Parser::parse()
+UriError Parser::parse()
 {
 	try
 	{
@@ -1808,7 +1808,7 @@ Result Parser::parse()
 			if(!newClass)
 			{
 				match(TokenType::EndOfFIle);
-				return Result::ok();
+				return UriError::ok();
 			}
 				
 
@@ -1891,7 +1891,7 @@ Result Parser::parse()
 					transformParser.parse({});
 
 					for(const auto& warning: transformParser.getWarnings())
-						warnings.add(getLocation(kw.currentLocation) + warning);
+						addWarning(kw.currentLocation, warning);
 
 					if(!transformParser.isValid())
 					{
@@ -1903,7 +1903,7 @@ Result Parser::parse()
 
 				if(nl.items.size() == 1 && nl.items.front() == "!important")
 				{
-					warnings.add(getLocation(kw.currentLocation) +
+					addWarning(kw.currentLocation,
 						"Empty !important value for '" + nl.property + "' ignored.");
 					skip();
 					kw.setLocation(*this);
@@ -1917,7 +1917,7 @@ Result Parser::parse()
 
 				if(hasFourDigitHash)
 				{
-					warnings.add(getLocation(kw.currentLocation) +
+					addWarning(kw.currentLocation,
 						"Four-digit hash colour ignored; use rgba() or HISE #AARRGGBB.");
 					skip();
 					kw.setLocation(*this);
@@ -1954,12 +1954,12 @@ Result Parser::parse()
 					{
 						if(hasFourDigitGradientHash)
 						{
-							warnings.add(getLocation(kw.currentLocation) +
+							addWarning(kw.currentLocation,
 								"Four-digit hash colour ignored; use rgba() or HISE #AARRGGBB.");
 						}
 						else
 						{
-							warnings.add(getLocation(kw.currentLocation) + "Invalid linear-gradient value ignored.");
+							addWarning(kw.currentLocation, "Invalid linear-gradient value ignored.");
 						}
 
 						skip();
@@ -1984,7 +1984,7 @@ Result Parser::parse()
 
 					if(!ColourParser(colourValue).isValid())
 					{
-						warnings.add(getLocation(kw.currentLocation) + "Invalid colour '" + colourValue +
+						addWarning(kw.currentLocation, "Invalid colour '" + colourValue +
 							"' for '" + nl.property + "' ignored.");
 						skip();
 						kw.setLocation(*this);
@@ -1998,7 +1998,7 @@ Result Parser::parse()
 
 					if(timingFunction.startsWith("steps") && !parseTimingFunction(timingFunction))
 					{
-						warnings.add(getLocation(kw.currentLocation) + "Invalid transition timing function '" +
+						addWarning(kw.currentLocation, "Invalid transition timing function '" +
 							timingFunction + "' ignored.");
 						skip();
 						kw.setLocation(*this);
@@ -2038,8 +2038,7 @@ Result Parser::parse()
 
 					if(hasPreviousValue && (int)isImportantLine(nl) >= (int)previousIsImportant)
 					{
-						warnings.add(getLocation(kw.currentLocation) + "Repeated " + nl.property +
-							" overrides the previous value; use commas to combine shadows.");
+						addWarning(kw.currentLocation, "Repeated " + nl.property + " overrides the previous value; use commas to combine shadows.");
 					}
 				}
 					
@@ -2057,16 +2056,34 @@ Result Parser::parse()
 			
 		match(TokenType::EndOfFIle);
 
-		return Result::ok();
+		return UriError::ok();
 	}
-	catch(Result& r)
+	catch(UriError& r)
 	{
-
 		return r;
 	}
+	catch (Result& r)
+	{
+		jassertfalse;
+		return UriError::fromResult(r, nullptr);
+	}
+
+	jassertfalse;
+	return UriError::fail("unknown");
 }
 
-String Parser::getLocation(String::CharPointerType p) const
+void Parser::addWarning(String::CharPointerType p, const String& errorMessage)
+{
+	UriError w;
+	w.errorMessage << errorMessage;
+	w.errorType = UriError::ErrorType::Warning;
+	skip();
+	w.fillLocation(getLocation());
+
+	warnings.add(w);
+}
+
+UriLocation Parser::getLocation(String::CharPointerType p) const
 {
 	if(!p)
 		p = ptr;
@@ -2089,9 +2106,11 @@ String Parser::getLocation(String::CharPointerType p) const
 		s++;
 	}
 
-	String loc;
-	loc << "Line " << String(line+1) + ", column " + String(col+1) << ": ";
-	return loc;
+	UriLocation l = baseLocation;
+	l.line = line + 1;
+	l.col = col + 1;
+	l.charIndex = p - code.begin();
+	return l;
 }
 
 Parser::KeywordWarning::KeywordWarning(Parser& parent_):
@@ -2108,10 +2127,11 @@ void Parser::KeywordWarning::check(const String& s, KeywordDataBase::KeywordType
 {
 	if(!database->getKeywords(type).contains(s))
 	{
-		String w = parent.getLocation(currentLocation);
+		String w;
 		w << "unsupported " + database->getKeywordName(type) << ": ";
 		w << s;
-		parent.warnings.add(w);
+		parent.skip();
+		parent.addWarning(currentLocation, w);
 	}
 }
 
