@@ -87,6 +87,11 @@ StringArray ScriptingObjects::ScriptShader::FileParser::getLines()
 	return StringArray::fromLines(s);
 }
 
+File ScriptingObjects::ScriptShader::FileParser::getMatchingFile() const
+{
+	return getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts).getChildFile(fileNameWithoutExtension).withFileExtension("glsl");
+}
+
 String ScriptingObjects::ScriptShader::FileParser::createLinePointer(int i) const
 {
 	String l;
@@ -100,7 +105,9 @@ String ScriptingObjects::ScriptShader::FileParser::loadFileContent()
 {
 #if USE_BACKEND
 
-	auto glslFile = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts).getChildFile(fileNameWithoutExtension).withFileExtension("glsl");
+	auto glslFile = getMatchingFile();
+
+	
 
 
 	auto ef = getMainController()->getExternalScriptFile(glslFile, false);

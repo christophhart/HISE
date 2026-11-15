@@ -432,15 +432,18 @@ void HiseJavascriptEngine::SimpleExpressionData::addAutocompleteTokens(mcl::Toke
 	case Type::Error:
 		break;
 	case Type::Nothing:
-		getResolvedNode()->forEachParent([&](const UriLocationTree& t)
+		if (auto r = getResolvedNode())
 		{
-			for (auto c : t)
+			r->forEachParent([&](const UriLocationTree& t)
 			{
-				if (c->id.isValid())
-					tokens.add(new LocationTreeToken(*c, ""));
-			}
-			return false;
-		});
+				for (auto c : t)
+				{
+					if (c->id.isValid())
+						tokens.add(new LocationTreeToken(*c, ""));
+				}
+				return false;
+			});
+		}
 		break;
 	case Type::LiteralValue:
 	case Type::VarDefinition:

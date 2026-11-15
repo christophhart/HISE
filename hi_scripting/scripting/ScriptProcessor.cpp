@@ -458,18 +458,7 @@ ExternalScriptFile::Ptr FileChangeListener::addFileWatcher(const File &file)
 
 void FileChangeListener::setFileResult(const UriError& e)
 {
-	for (int i = 0; i < watchers.size(); i++)
-	{
-		if (file == watchers[i]->getFile())
-		{
-			watchers[i]->setResult(r);
-		}
-	}
-}
-
-Result FileChangeListener::getWatchedResult(int index)
-{
-	return watchers[index]->getResult();
+	jassertfalse;
 }
 
 juce::CodeDocument::Position FileChangeListener::getLastPosition(CodeDocument& docToLookFor) const
@@ -549,13 +538,13 @@ bool FileChangeListener::isEmbeddedSnippetFile(int index) const
 	return false;
 }
 
-CodeDocument& FileChangeListener::getWatchedFileDocument(int index)
+CodeDocument& FileChangeListener::getWatchedFileDocument(int index) const
 {
 	if(index < watchers.size())
 		return watchers[index]->getFileDocument();
 
 	jassertfalse;
-	return emptyDoc;
+	return const_cast<FileChangeListener*>(this)->emptyDoc;
 }
 
 void FileChangeListener::showPopupForFile(int index, int charNumberToDisplay/*=0*/, int /*lineNumberToDisplay=-1*/)
@@ -1102,7 +1091,7 @@ void JavascriptProcessor::addInplaceDebugValue(const UriLocation& loc, const Str
 		{
 			for(int i = 0; i < scriptEngine->getNumIncludedFiles(); i++)
 			{
-				if(scriptEngine->getIncludedFile(i).getFileName() == callback)
+				if(loc.matchesFile(scriptEngine->getIncludedFile(i)))
 				{
 					std::pair<String, mcl::LanguageManager::InplaceDebugValue::Ptr> d;
 
@@ -1392,6 +1381,7 @@ void JavascriptProcessor::initialiseEngine()
 	scriptEngine->setCallStackEnabled(callStackEnabled);
 	scriptEngine->maximumExecutionTime = RelativeTime(mainController->getCompileTimeOut());
 
+	scriptEngine->setIncludeAndScopeTree({ lastIncludeTree, lastScopeTree });
 	scriptEngine->setOnInitBreakpoints(resetAttachmentAndCreateBreakpointList());
 
 	registerApiClasses();
@@ -1509,6 +1499,9 @@ DiagnosticBase::ShadowParseData JavascriptProcessor::createFullShadowParseData()
 		{
 			return v.id.isNull() && v.getNumChildren() == 0;
 		});
+
+		lastIncludeTree = includeTree;
+		lastScopeTree = scope;
 
 		sd.options.includeTree = includeTree;
 		sd.options.scopeTree = scope;
@@ -1715,8 +1708,6 @@ void JavascriptProcessor::onUriBreakpointEvent(const UriBreakpoint& resolvedBrea
 
 void JavascriptProcessor::setupApi()
 {
-	clearFileWatchers();
-
     sendClearMessage();
 
 	inplaceValues.clearQuick();
@@ -2330,34 +2321,6 @@ void JavascriptProcessor::stuffAfterCompilation(const UriError& result)
 	}
 #endif
 	
-
-	clearFileWatchers();
-
-	const int numFiles = scriptEngine->getNumIncludedFiles();
-
-	for (int i = 0; i < numFiles; i++)
-	{
-		mainController->checkAndAbortMessageThreadOperation();
-
-		addFileWatcher(scriptEngine->getIncludedFile(i));
-		setFileResult(scriptEngine->getIncludedFile(i), scriptEngine->getIncludedFileResult(i));
-	}
-
-	const String fileName = ApiHelpers::getFileNameFromErrorMessage(result.r.getErrorMessage());
-
-	if (fileName.isNotEmpty())
-	{
-		for (int i = 0; i < getNumWatchedFiles(); i++)
-		{
-			mainController->checkAndAbortMessageThreadOperation();
-
-			if (getWatchedFile(i).getFileName() == fileName)
-			{
-				setFileResult(getWatchedFile(i), result.r);
-			}
-		}
-	}
-
 	for(auto & d: deferredValues)
 	{
 		for (int i = 0; i < getNumWatchedFiles(); i++)

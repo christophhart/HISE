@@ -3300,8 +3300,7 @@ Array<UriError> HiseJavascriptEngine::shadowParse(const DiagnosticBase::ShadowPa
 	}
 	catch (UriError& e)
 	{
-		jassertfalse;
-
+		diagnostics.add(e);
 	}
 	catch (String& error)
 	{

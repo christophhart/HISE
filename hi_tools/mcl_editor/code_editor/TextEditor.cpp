@@ -1673,6 +1673,15 @@ void TextEditor::displayedLineRangeChanged(Range<int> newRange)
 	}
 }
 
+void TextEditor::setEnableSyntaxHighlighting(bool shouldBeEnabled)
+{
+	if (enableSyntaxHighlighting != shouldBeEnabled)
+	{
+		enableSyntaxHighlighting = shouldBeEnabled;
+		repaint();
+	}
+}
+
 void TextEditor::setLanguageManager(LanguageManager* ownedLanguageManager)
 {
 	languageManager = ownedLanguageManager;

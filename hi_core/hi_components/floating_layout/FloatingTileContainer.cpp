@@ -373,42 +373,55 @@ void FloatingTabComponent::popupMenuClickOnTab(int tabIndex, const String& /*tab
 {
 	PopupMenu m;
 
+	enum Actions
+	{
+		RenameTab = 1,
+		ExportAsJSON,
+		ReplaceWithJSON,
+		CloseAllTabs,
+		CloseDuplicateTabs,
+		CloseOtherTabs,
+		MoveToFront,
+		SortTabs
+	};
+
 	m.setLookAndFeel(&plaf);
 
-	m.addItem(1, "Rename Tab", !getComponent(tabIndex)->isVital());
+	m.addItem(RenameTab, "Rename Tab", !getComponent(tabIndex)->isVital());
 	m.addSeparator();
-	m.addItem(2, "Export Tab as JSON", !getComponent(tabIndex)->isVital());
-	m.addItem(3, "Replace Tab with JSON in clipboard", !getComponent(tabIndex)->isVital());
-	m.addItem(4, "Close all tabs", getNumTabs() != 0);
-	m.addItem(7, "Close other tabs", getNumTabs() > 1);
-	m.addItem(5, "Move to front", getComponent(tabIndex) != nullptr, tabIndex == 0);
+	m.addItem(ExportAsJSON, "Export Tab as JSON", !getComponent(tabIndex)->isVital());
+	m.addItem(ReplaceWithJSON, "Replace Tab with JSON in clipboard", !getComponent(tabIndex)->isVital());
+	m.addItem(CloseAllTabs, "Close all tabs", getNumTabs() != 0);
+	m.addItem(CloseDuplicateTabs, "Close duplicate tabs", getNumTabs() != 0);
+	m.addItem(CloseOtherTabs, "Close other tabs", getNumTabs() > 1);
+	m.addItem(MoveToFront, "Move to front", getComponent(tabIndex) != nullptr, tabIndex == 0);
 	m.addItem(6, "Sort tabs");
 
 	const int result = m.show();
 
-	if (result == 1)
+	if (result == RenameTab)
 	{
 		auto newName = PresetHandler::getCustomName("Tab", "Enter the tab name");
 		getComponent(tabIndex)->getCurrentFloatingPanel()->setCustomTitle(newName);
 		
 		getTabbedButtonBar().repaint();
 	}
-	else if (result == 2)
+	else if (result == ExportAsJSON)
 	{
 		SystemClipboard::copyTextToClipboard(getComponent(tabIndex)->exportAsJSON());
 	}
-	else if (result == 3)
+	else if (result == ReplaceWithJSON)
 	{
 		getComponent(tabIndex)->loadFromJSON(SystemClipboard::getTextFromClipboard());
 	}
-	else if (result == 4)
+	else if (result == CloseAllTabs)
 	{
 		while (getNumTabs() > 0)
 		{
 			removeFloatingTile(getComponent(0));
 		}
 	}
-	else if (result == 7)
+	else if (result == CloseOtherTabs)
 	{
 		moveTab(tabIndex, 0, false);
 		moveContent(tabIndex, 0);
@@ -416,7 +429,45 @@ void FloatingTabComponent::popupMenuClickOnTab(int tabIndex, const String& /*tab
 		while (getNumTabs() > 1)
 			removeFloatingTile(getComponent(1));
 	}
-	else if (result == 5)
+	else if (result == CloseDuplicateTabs)
+	{
+		Array<UriLocation> existingLocations;
+
+		for (int i = 0; i < getNumTabs(); i++)
+		{
+			if (auto pc = dynamic_cast<CodeEditorPanel*>(getComponent(i)->getCurrentFloatingPanel()))
+			{
+				auto removeThisTab = false;
+
+				if (auto pe = pc->getContent<PopupIncludeEditor>())
+				{
+					auto thisLocation = pe->getUriLocation();
+
+					for (auto e : existingLocations)
+					{
+						if (e.sameUriAndProcessorId(thisLocation))
+						{
+							removeThisTab = true;
+							break;
+						}
+					}
+
+					existingLocations.add(thisLocation);
+				}
+				else
+				{
+					removeThisTab = true;
+				}
+
+				if (removeThisTab)
+				{
+					removeFloatingTile(getComponent(i));
+					i--;
+				}
+			}
+		}
+	}
+	else if (result == MoveToFront)
 	{
 		moveTab(tabIndex, 0, true);
 		moveContent(tabIndex, 0);

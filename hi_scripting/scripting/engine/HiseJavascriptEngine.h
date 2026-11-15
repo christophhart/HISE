@@ -317,6 +317,8 @@ public:
 
 	void setOnInitBreakpoints(const Array<UriBreakpoint>& breakpoints);
 
+	void setIncludeAndScopeTree(const std::pair<UriLocationTree::Ptr, UriLocationTree::Ptr>& treeData);
+
 	std::pair<UriLocationTree::Ptr, UriLocationTree::Ptr> parseIncludeTree();
 	
 	void registerApiClass(ApiClass *apiClass);

@@ -56,13 +56,28 @@ Component* CodeEditorPanel::createContentComponent(int index)
 
 	auto p = dynamic_cast<JavascriptProcessor*>(getProcessor());
 
+	ExternalScriptFile::Ptr ef;
+
+	auto scriptRoot = GET_PROJECT_HANDLER(getMainController()->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Scripts);
+
+	if (scriptPath.isNotEmpty())
+	{
+		UriLocation externalLoc;
+		externalLoc.processorId = p->getUriProcessorId();
+		externalLoc.uri = scriptPath;
+
+		auto scriptFile = externalLoc.getFile(scriptRoot);
+
+		if (scriptFile.existsAsFile())
+		{
+			ef = getMainController()->getExternalScriptFile(scriptFile, true);
+			refreshSelectorValue(getProcessor(), externalLoc.toLocationString(UriLocation::UriFormat::ConnectionId));
+		}
+	}
+
 	int numSnippets = p->getNumSnippets();
-	int numFiles = p->getNumWatchedFiles();
-
-	const bool isCallback = scriptPath.isEmpty() && index < numSnippets;
-	const bool isExternalFile = scriptPath.isNotEmpty() || (index >= numSnippets && (index-numSnippets) < numFiles);
-
-	if (isCallback)
+	
+	if (ef == nullptr && index < numSnippets)
 	{
 		auto pe = new PopupIncludeEditor(p, p->getSnippet(index)->getCallbackName());
 
@@ -76,46 +91,43 @@ Component* CodeEditorPanel::createContentComponent(int index)
 		pe->grabKeyboardFocusAsync();
 		return pe;
 	}
-	else if (isExternalFile)
+	else
 	{
-        File f;
-        
-        auto scriptFolder = f = GET_PROJECT_HANDLER(dynamic_cast<Processor*>(p)).getSubDirectory(FileHandlerBase::Scripts);
-        
-        if(scriptPath.isNotEmpty())
-        {
-            f = scriptFolder.getChildFile(scriptPath);
-            refreshSelectorValue(getProcessor(), f.getFileName());
-        }
-        else
-        {
-            const int fileIndex = index - p->getNumSnippets();
-            f = p->getWatchedFile(fileIndex);
-            scriptPath = f.getRelativePathFrom(scriptFolder);
-        }
-        
-		if (f.getFileExtension() == ".h")
+		auto externalIndex = index - numSnippets;
+
+		if(ef == nullptr && isPositiveAndBelow(externalIndex, getProcessor()->getMainController()->getNumExternalScriptFiles()))
+			ef = getProcessor()->getMainController()->getExternalScriptFile(externalIndex);
+
+		if (ef != nullptr)
 		{
-			snex::ui::WorkbenchData* wb = new snex::ui::WorkbenchData();
-			wb->setUseFileAsContentSource(f);
-			return new snex::SnexPlayground(wb);
+			
+
+			auto f = ef->getFile();
+			scriptPath = f.getFullPathName();
+
+			if (f.getFileExtension() == ".h")
+			{
+				snex::ui::WorkbenchData* wb = new snex::ui::WorkbenchData();
+				wb->setUseFileAsContentSource(f);
+				return new snex::SnexPlayground(wb);
+			}
+
+			auto pe = new PopupIncludeEditor(p, f);
+			pe->addMouseListener(this, true);
+
+			if (scaleFactor != -1.0f)
+				pe->getEditor()->editor.setScaleFactor(scaleFactor);
+
+			if (pe->isJavascript())
+				pe->getEditor()->editor.tokenCollection = BackendRootWindow::getJavascriptTokenCollection(this);
+
+			if (auto ed = pe->getEditor())
+				getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
+
+			pe->grabKeyboardFocusAsync();
+
+			return pe;
 		}
-
-		auto pe = new PopupIncludeEditor(p, f);
-		pe->addMouseListener(this, true);
-
-        if(scaleFactor != -1.0f)
-            pe->getEditor()->editor.setScaleFactor(scaleFactor);
-
-		if(pe->isJavascript())
-			pe->getEditor()->editor.tokenCollection = BackendRootWindow::getJavascriptTokenCollection(this);
-
-		if(auto ed = pe->getEditor())
-			getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
-
-		pe->grabKeyboardFocusAsync();
-
-		return pe;
 	}
 
 	return nullptr;
@@ -163,40 +175,6 @@ var CodeEditorPanel::toDynamicObject() const
     obj.getDynamicObject()->setProperty("ScriptFile", scriptPath);
     
     return obj;
-}
-
-CodeEditorPanel* CodeEditorPanel::showOrCreateTab(FloatingTabComponent* parentTab, JavascriptProcessor* jp, int index)
-{
-	for (int tabIndex = 0; tabIndex < parentTab->getNumTabs(); tabIndex++)
-	{
-		if (auto tc = dynamic_cast<FloatingTile*>(parentTab->getTabContentComponent(tabIndex)))
-		{
-			if (auto cep = dynamic_cast<CodeEditorPanel*>(tc->getCurrentFloatingPanel()))
-			{
-				auto processorMatches = cep->getConnectedProcessor() == dynamic_cast<Processor*>(jp);
-				auto indexMatches = cep->getCurrentIndex() == index;
-
-				if (processorMatches && indexMatches)
-				{
-					parentTab->setCurrentTabIndex(tabIndex);
-
-					return cep;
-				}
-			}
-		}
-	}
-
-	FloatingInterfaceBuilder ib(parentTab->getParentShell());
-
-	auto newEditor = ib.addChild<CodeEditorPanel>(0);
-
-	auto ed = ib.getContent<CodeEditorPanel>(newEditor);
-	
-	ib.finalizeAndReturnRoot();
-
-	ed->setContentWithUndo(dynamic_cast<Processor*>(jp), index);
-	parentTab->setCurrentTabIndex(parentTab->getNumTabs() - 1);
-	return ed;
 }
 
 void CodeEditorPanel::scriptWasCompiled(JavascriptProcessor *processor)
@@ -261,33 +239,14 @@ void CodeEditorPanel::fillIndexList(StringArray& indexList)
 			indexList.add(p->getSnippet(i)->getCallbackName().toString());
 		}
 
-		auto scriptRoot = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::SubDirectories::Scripts);
-		
-		String globalScriptPath = dynamic_cast<const GlobalSettingManager*>(getMainController())->getSettingsObject().getSetting(HiseSettings::Scripting::GlobalScriptPath);
-		String globalScriptFolder = File(globalScriptPath).getFileName() + "/";
-
-		for (int i = 0; i < p->getNumWatchedFiles(); i++)
+		for (int i = 0; i < getMainController()->getNumExternalScriptFiles(); i++)
 		{
-			auto f = p->getWatchedFile(i);
-			auto path = f.getRelativePathFrom(scriptRoot);
-
-			if (path.contains(globalScriptFolder))
-				path = path.fromFirstOccurrenceOf(globalScriptFolder, false, false);
-
-			if(p->isEmbeddedSnippetFile(i))
-				path << " (embedded)";
-
-			indexList.add(path.replaceCharacter('\\', '/'));
-		}
-
-		if (auto h = dynamic_cast<scriptnode::DspNetwork::Holder*>(p))
-		{
-#if HISE_INCLUDE_SNEX
-			if (auto network = h->getActiveOrDebuggedNetwork())
-			{
-				network->fillSnexObjects(indexList);
-			}
-#endif
+			auto ef = getMainController()->getExternalScriptFile(i);
+			
+			UriLocation loc;
+			loc.processorId = p->getUriProcessorId();
+			loc.uri = ef->getFile().getFullPathName();
+			indexList.add(loc.toLocationString(UriLocation::UriFormat::ConnectionId));
 		}
 	}
 }

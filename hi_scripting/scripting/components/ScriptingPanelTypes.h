@@ -82,8 +82,6 @@ public:
 
 	var toDynamicObject() const override;
 
-	static CodeEditorPanel* showOrCreateTab(FloatingTabComponent* parentTab, JavascriptProcessor* jp, int index);
-
 	void scriptWasCompiled(JavascriptProcessor *processor) override;
 
 	void mouseDown(const MouseEvent& event) override;

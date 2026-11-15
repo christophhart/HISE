@@ -689,8 +689,13 @@ bool PanelWithProcessorConnection::ProcessorConnection::undo()
 {
 	if (panel.getComponent() && oldProcessor != nullptr)
 	{
-		panel->currentIndex = oldIndex;
 		panel->setCurrentProcessor(oldProcessor.get());
+		panel->refreshIndexList();
+
+		if(oldIndex != -1)
+			panel->currentIndex = oldIndex;
+
+		
 		panel->refreshContent();
 		panel->performAdditionalUndoInformation(additionalInfo);
 		return true;

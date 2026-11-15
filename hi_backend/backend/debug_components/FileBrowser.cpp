@@ -910,7 +910,11 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
 					
 					if (auto mws = FloatingTileHelpers::findTileWithId<FloatingTabComponent>(root, Identifier("ScriptEditorTabs")))
 					{
-						CodeEditorPanel::showOrCreateTab(mws, jsp, idx);
+						UriLocation location;
+						location.processorId = jsp->getUriProcessorId();
+						location.uri = newRoot.getFullPathName();
+						PopupIncludeEditor::gotoUriLocation(jsp, this, location);
+						
 					}
 					else
 					{

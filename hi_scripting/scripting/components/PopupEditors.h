@@ -63,13 +63,6 @@ struct EditorBottomBar : public Component,
 
 	void setCurrentlyParsing();
 
-	ScopedPointer<DebugConsoleTextEditor> resultLabel;
-
-	struct Factory : public PathFactory
-	{
-		Path createPath(const String& url) const override;
-	} factory;
-
 	void paint(Graphics& g);
 
 	void setCompileFunction(const std::function<void()>& f)
@@ -77,9 +70,41 @@ struct EditorBottomBar : public Component,
 		compileFunction = f;
 	}
 
+	void timerCallback();
+
+	void onLocationChange(const UriLocation& l);
+
+	void setIsDetachedFile(bool isDetached);
+
+private:
+
+	struct Factory : public PathFactory
+	{
+		Path createPath(const String& url) const override;
+	} factory;
+
+	struct CallstackLAF : public PopupLookAndFeel
+	{
+		void drawComboBox(Graphics& g, int width, int height, bool /*isButtonDown*/, int /*buttonX*/, int /*buttonY*/, int /*buttonW*/, int /*buttonH*/, ComboBox& c)
+		{
+			g.setColour(Colours::white.withAlpha(0.3f));
+
+			g.setFont(GLOBAL_MONOSPACE_FONT());
+			g.drawText(c.getText(), c.getLocalBounds(), Justification::left);
+
+			Path arrow;
+			arrow.addTriangle({ 0.0f, 0.0f }, { 1.0f, 0.0f }, { 0.5f, 1.0f });
+			auto tb = c.getLocalBounds().removeFromRight(c.getHeight()).toFloat();
+			PathFactory::scalePath(arrow, tb.withSizeKeepingCentre(10, 8));
+			g.fillPath(arrow);
+		}
+
+		void drawLabel(Graphics& g, Label& l) {};
+	} callstackLaf;
+
 	struct ButtonLAF : public LookAndFeel_V4
 	{
-		void drawButtonText(Graphics &g, TextButton &button, bool isMouseOverButton, bool isButtonDown) override
+		void drawButtonText(Graphics& g, TextButton& button, bool isMouseOverButton, bool isButtonDown) override
 		{
 			float alpha = 0.6f;
 
@@ -104,9 +129,22 @@ struct EditorBottomBar : public Component,
 
 	} blaf;
 
-	void timerCallback();
+	UriError getCurrentError() const;
+
+	void gotoLocation(const UriLocation& l);
+
+	
+
+	std::map<UriError::SourceType, UriError> errors;
+	std::function<void()> compileFunction;
+
+	ComboBox callstackSelector;
+	JavascriptProcessor* jp;
+	bool detached = false;
+	ScopedPointer<DebugConsoleTextEditor> resultLabel;
 
 	ScopedPointer<TextButton> compileButton;
+	ScopedPointer<TextButton> copyIncludeButton;
 	ScopedPointer<HiseShapeButton> resumeButton;
 	ScopedPointer<HiseShapeButton> nextButton;
 	ScopedPointer<HiseShapeButton> overButton;
@@ -114,59 +152,6 @@ struct EditorBottomBar : public Component,
 	ScopedPointer<HiseShapeButton> errorButton;
 
 	bool isHalted = false;
-	
-	void onLocationChange(const UriLocation& l)
-	{
-		if (callstackSelector.isVisible())
-		{
-			auto currentError = getCurrentError();
-
-			if (currentError.matches(l))
-				callstackSelector.setSelectedItemIndex(0, dontSendNotification);
-
-			currentError.forInvertedCallstack([&](int index, const UriLocation::WithExpression& e)
-			{
-				if (e.second.matches(l))
-				{
-					callstackSelector.setSelectedId(index + 2, dontSendNotification);
-				}
-			});
-		}
-		
-	}
-
-private:
-
-	UriError getCurrentError() const;
-
-	std::map<UriError::SourceType, UriError> errors;
-
-	void gotoLocation(const UriLocation& l);
-
-	std::function<void()> compileFunction;
-
-	struct CallstackLAF : public PopupLookAndFeel
-	{
-		void drawComboBox(Graphics& g, int width, int height, bool /*isButtonDown*/, int /*buttonX*/, int /*buttonY*/, int /*buttonW*/, int /*buttonH*/, ComboBox& c)
-		{
-			g.setColour(Colours::white.withAlpha(0.3f));
-
-			g.setFont(GLOBAL_MONOSPACE_FONT());
-			g.drawText(c.getText(), c.getLocalBounds(), Justification::left);
-
-			Path arrow;
-			arrow.addTriangle({ 0.0f, 0.0f }, { 1.0f, 0.0f }, { 0.5f, 1.0f });
-			auto tb = c.getLocalBounds().removeFromRight(c.getHeight()).toFloat();
-			PathFactory::scalePath(arrow, tb.withSizeKeepingCentre(10, 8));
-			g.fillPath(arrow);
-		}
-
-		void drawLabel(Graphics& g, Label& l) {};
-	} callstackLaf;
-
-	ComboBox callstackSelector;
-
-	JavascriptProcessor* jp;
 };
 
 
@@ -258,6 +243,8 @@ public:
 
 	bool isJavascript() const { return t == FileTypes::Javascript; }
 
+	UriLocation getUriLocation() const { return baseLocation; }
+
 private:
 
 	UriLocation baseLocation;
@@ -271,10 +258,9 @@ private:
 
 	FileTypes t = FileTypes::Javascript;
 
-    void checkUnreferencedExternalFile()
+    bool checkUnreferencedExternalFile()
     {
         bool before = unreferencedExternalFile;
-        
         auto f = getFile();
         
         if(f.existsAsFile())
@@ -293,19 +279,23 @@ private:
         else
             unreferencedExternalFile = false;
         
-        if(auto pc = findParentComponentOfClass<PanelWithProcessorConnection>())
-        {
-            if(before && !unreferencedExternalFile)
-            {
-                pc->refreshSelectorValue(dynamic_cast<Processor*>(jp.get()), getFile().getFileName());
-            }
-            else if (unreferencedExternalFile)
-            {
-                pc->setDynamicTitle(getFile().getFileName() + " (detached)");
-            }
-        }
-        
-        
+		if (before != unreferencedExternalFile)
+		{
+			SafeAsyncCall::call<PopupIncludeEditor>(*this, [before](PopupIncludeEditor& pe)
+			{
+				if (auto pc = pe.findParentComponentOfClass<PanelWithProcessorConnection>())
+				{
+					if (before && !pe.unreferencedExternalFile)
+						pc->refreshSelectorValue(dynamic_cast<Processor*>(pe.jp.get()), pe.getFile().getFileName());
+					else if (pe.unreferencedExternalFile)
+						pc->setDynamicTitle(pe.getFile().getFileName() + " (detached)");
+				}
+			});
+
+			return true;
+		}
+
+		return false;
     }
 
     void addButtonAndCompileLabel();

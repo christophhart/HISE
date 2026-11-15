@@ -146,6 +146,12 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileT
 		}
 	}
 
+	if (unreferencedExternalFile)
+	{
+		editor->editor.setEnableSyntaxHighlighting(false);
+		bottomBar->setIsDetachedFile(true);
+	}
+
 	jp->addUriBreakpointListener(this);
 	jp->errorProvider.addListener(this, true);
 }
@@ -540,7 +546,17 @@ void PopupIncludeEditor::onClear(UriErrorLogger::SourceType s)
 			(s & UriError::SourceType::Compilation) ||
 			(s & UriError::SourceType::Include));
 
-	
+	if (s == UriErrorLogger::SourceType::Diagnostics)
+	{
+		if (checkUnreferencedExternalFile())
+		{
+			SafeAsyncCall::call<PopupIncludeEditor>(*this, [](PopupIncludeEditor& pe)
+			{
+				pe.editor->editor.setEnableSyntaxHighlighting(!pe.unreferencedExternalFile);
+				pe.bottomBar->setIsDetachedFile(pe.unreferencedExternalFile);
+			});
+		}
+	}
 
 	SafeAsyncCall::call<PopupIncludeEditor>(*this, [s](PopupIncludeEditor& pe)
 	{
@@ -1681,6 +1697,9 @@ void EditorBottomBar::resized()
 	auto b = getLocalBounds();
 	compileButton->setBounds(b.removeFromRight(75));
 
+	if (copyIncludeButton != nullptr)
+		copyIncludeButton->setBounds(compileButton->getBounds());
+
 	if (resumeButton->isVisible())
 		resumeButton->setBounds(b.removeFromLeft(b.getHeight()).reduced(3));
 
@@ -1759,6 +1778,9 @@ void EditorBottomBar::recompile()
 
 void EditorBottomBar::clearError(UriError::SourceType s)
 {
+	if (detached)
+		return;
+
 	for (auto& e : errors)
 	{
 		if (e.first & (int)s)
@@ -1770,6 +1792,9 @@ void EditorBottomBar::clearError(UriError::SourceType s)
 
 void EditorBottomBar::setError(const UriError& e)
 {
+	if (detached)
+		return;
+
 	if (e.wasOk())
 	{
 		clearError(e.sourceType);
@@ -1785,8 +1810,11 @@ void EditorBottomBar::setError(const UriError& e)
 
 void EditorBottomBar::setCurrentlyParsing()
 {
-	resultLabel->currentlyParsing = true;
-	resultLabel->setText("Waiting for diagnostics...", dontSendNotification);
+	if (!detached)
+	{
+		resultLabel->currentlyParsing = true;
+		resultLabel->setText("Waiting for diagnostics...", dontSendNotification);
+	}
 }
 
 void EditorBottomBar::paint(Graphics& g)
@@ -1800,9 +1828,6 @@ void EditorBottomBar::timerCallback()
 {
 	auto currentError = getCurrentError();
 
-	
-	
-
 	resultLabel->setError(currentError);
 	resumeButton->setVisible(currentError.errorType == UriError::ErrorType::Breakpoint);
 	nextButton->setVisible(resumeButton->isVisible());
@@ -1810,9 +1835,7 @@ void EditorBottomBar::timerCallback()
 
 	auto offColour = Colour(resumeButton->isVisible() ? HISE_BREAKPOINT_COLOUR : HISE_ERROR_COLOUR).withMultipliedBrightness(1.6f);
 	errorButton->setColours(offColour.withMultipliedAlpha(0.75f), offColour, offColour);
-
 	callstackSelector.setVisible(currentError.callstack.size() > 0);
-
 	callstackSelector.clear(dontSendNotification);
 
 	auto maxWidth = 0;
@@ -1841,6 +1864,63 @@ void EditorBottomBar::timerCallback()
 	repaint();
 	resized();
 	stopTimer();
+}
+
+void EditorBottomBar::onLocationChange(const UriLocation& l)
+{
+	if (callstackSelector.isVisible())
+	{
+		auto currentError = getCurrentError();
+
+		if (currentError.matches(l))
+			callstackSelector.setSelectedItemIndex(0, dontSendNotification);
+
+		currentError.forInvertedCallstack([&](int index, const UriLocation::WithExpression& e)
+		{
+			if (e.second.matches(l))
+			{
+				callstackSelector.setSelectedId(index + 2, dontSendNotification);
+			}
+		});
+	}
+}
+
+void EditorBottomBar::setIsDetachedFile(bool isDetached)
+{
+	if (isDetached != detached)
+	{
+		if (isDetached)
+		{
+			addAndMakeVisible(copyIncludeButton = new TextButton("Copy Include"));
+			copyIncludeButton->setBounds(compileButton->getBounds());
+			copyIncludeButton->setLookAndFeel(&blaf);
+
+			copyIncludeButton->onClick = [this]()
+			{
+				UriLocation l;
+				l.processorId = jp->getUriProcessorId();
+				l.uri = "onInit";
+
+				UriLocation sl;
+				sl.processorId = jp->getUriProcessorId();
+				sl.uri = findParentComponentOfClass<PopupIncludeEditor>()->getFile().getFullPathName();
+
+				String includeString;
+				includeString << "include(";
+				includeString << sl.toLocationString(UriLocation::UriFormat::RelativePath).quoted();
+				includeString << ");\n";
+
+				SystemClipboard::copyTextToClipboard(includeString);
+				PopupIncludeEditor::gotoUriLocation(jp, this, l);
+			};
+		}
+
+		compileButton->setVisible(!isDetached);
+		resultLabel->setEnabled(!isDetached);
+		resultLabel->setText("File is currently not included. Click on `Copy Include` then paste it to the onInit callback and recompile", dontSendNotification);
+		detached = isDetached;
+		repaint();
+	}
 }
 
 UriError EditorBottomBar::getCurrentError() const

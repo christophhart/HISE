@@ -246,6 +246,8 @@ namespace ScriptingObjects
 
 			StringArray getLines();
 
+			File getMatchingFile() const;
+
 		private:
 
 			const bool addLineNumbers = false;

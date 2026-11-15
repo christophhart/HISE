@@ -287,7 +287,7 @@ public:
 
 	bool isEmbeddedSnippetFile(int index) const;
 
-	CodeDocument& getWatchedFileDocument(int index);
+	CodeDocument& getWatchedFileDocument(int index) const;
 
 	void setCurrentPopup(DocumentWindow *window);
 
@@ -627,16 +627,19 @@ public:
 	virtual const SnippetDocument *getSnippet(int c) const = 0;
 	virtual int getNumSnippets() const = 0;
 
-	CodeDocument* getSnippetOrExternalFile(const Identifier& id)
+	const CodeDocument* getSnippetOrExternalFile(const UriLocation& location) const
 	{
-		if(auto sn = getSnippet(id))
-			return sn;
-
-		for(int i = 0; i < getNumWatchedFiles(); i++)
+		if (location.getUriType() == UriLocation::UriType::ExternalFile)
 		{
-			if(getWatchedFile(i).getFileName() == id.toString())
-				return &getWatchedFileDocument(i);
+			for (int i = 0; i < getNumWatchedFiles(); i++)
+			{
+				if(location.matchesFile(getWatchedFile(i)))
+					return &getWatchedFileDocument(i);
+			}
 		}
+
+		if(auto sn = getSnippet(Identifier(location.toLocationString(UriLocation::UriFormat::CallbackId))))
+			return sn;
 
 		return nullptr;
 	}
@@ -807,6 +810,9 @@ private:
 		
 
 	};
+
+	UriLocationTree::Ptr lastIncludeTree;
+	UriLocationTree::Ptr lastScopeTree;
 
 	void initialiseEngine();
 

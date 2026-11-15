@@ -240,6 +240,8 @@ public:
 
 	void displayedLineRangeChanged(Range<int> newRange) override;
 
+	void setEnableSyntaxHighlighting(bool shouldBeEnabled);
+
 	void translateToEnsureCaretIsVisible();
 
 	bool isReadOnly() const;

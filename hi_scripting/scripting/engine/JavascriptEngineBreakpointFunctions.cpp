@@ -117,6 +117,12 @@ void HiseJavascriptEngine::setOnInitBreakpoints(const Array<UriBreakpoint>& brea
 	root->breakpointState.unresolvedBreakpoints.addArray(breakpoints);
 }
 
+void HiseJavascriptEngine::setIncludeAndScopeTree(const std::pair<UriLocationTree::Ptr, UriLocationTree::Ptr>& treeData)
+{
+	root->lastIncludeTree = treeData.first;
+	root->lastScopeTree = treeData.second;
+}
+
 void HiseJavascriptEngine::clearRuntimeBreakpoints()
 {
 	root->breakpointState.resolvedBreakpoints.clear();

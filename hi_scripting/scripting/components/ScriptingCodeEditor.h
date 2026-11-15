@@ -142,6 +142,13 @@ private:
                     isOk = false;
                 }
 
+                if (!d->isEnabled())
+                {
+                    resultColours[0] = Colours::grey;
+                    resultColours[1] = Colours::grey;
+                    resultColours[2] = Colours::grey;
+                }
+
 				auto isPending = d->pending;
 
                 g.setColour(resultColours[0].withAlpha((isOk && !isPending) ? 0.7f : noAlpha));
