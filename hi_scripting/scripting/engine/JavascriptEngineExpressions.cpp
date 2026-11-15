@@ -547,6 +547,8 @@ struct HiseJavascriptEngine::RootObject::FunctionCall : public Expression
 		return nullptr;
 	};
 	
+	bool isStepIntoTarget() const override { return true; }
+
 	bool replaceChildStatement(Ptr& newChild, Statement* childToReplace) override
 	{
 		return swapIf(newChild, childToReplace, object) ||
@@ -559,6 +561,7 @@ struct HiseJavascriptEngine::RootObject::FunctionCall : public Expression
 	mutable bool initialised = false;
 	mutable bool isConstObjectApiFunction = false;
 	mutable bool parentIsConstReference = false;
+	mutable Identifier constFunctionId;
 	mutable ConstScriptingObject* constObject = nullptr;
 	mutable int numArgs = -1;
 	mutable int functionIndex = -1;
@@ -701,15 +704,9 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 
 	void prepareCycleReferenceCheck() override;
 
-    DynamicObject::Ptr createScope(RootObject* r) override
-    {
-        DynamicObject::Ptr copy = new DynamicObject();
-        
-        for(auto& x: lastScope->getProperties())
-            copy->setProperty(x.name, x.value);
-        
-        return copy;
-    };
+	BlockStatement* getRootBlockStatement() const override;
+
+    ScopeData createScope(RootObject* r) override;;
     
 	String getComment() const override
 	{

@@ -2787,6 +2787,26 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
         {
             if(gr.c == c && gr.functionName == functionname)
             {
+				if (gr.breakpointState != GraphicsWithComponent::BreakpointState::DrawSynchronously)
+				{
+					DrawActions::Handler::Iterator it(&gr.g->getDrawHandler());
+
+					if (c != nullptr)
+					{
+						it.render(g_, c);
+					}
+					else
+					{
+						while (auto action = it.getNextAction())
+							action->perform(g_);
+					}
+
+					if (gr.breakpointState == GraphicsWithComponent::BreakpointState::ClearOnNextRun)
+						gr.breakpointState = GraphicsWithComponent::BreakpointState::DrawSynchronously;
+
+					return true;
+				}
+
                 g = gr.g;
                 break;
             }
@@ -2809,55 +2829,136 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
         
 		var thisObject(this);
 
+		
         
+		if (c != nullptr && c->getParentComponent() != nullptr)
+		{
+			var n = c->getParentComponent()->getName();
+			argsObject.getDynamicObject()->setProperty("parentName", n);
+		}
+
+		static const StringArray hiddenProps = { "jcclr" };
+
+		if (c != nullptr)
+		{
+			for (auto& nv : c->getProperties())
+			{
+				if (!argsObject.hasProperty(nv.name))
+				{
+					bool hidden = false;
+
+					for (const auto& hp : hiddenProps)
+					{
+						if (nv.name.toString().contains(hp))
+						{
+							hidden = true;
+							break;
+						}
+					}
+
+					if (!hidden)
+						argsObject.getDynamicObject()->setProperty(nv.name, nv.value);
+				}
+			}
+		}
         
 		{
+			if (HiseJavascriptEngine::hasBreakpoints(f))
+			{
+				setBreakpointState(c, functionname, GraphicsWithComponent::BreakpointState::DrawAfterBreakpoint);
+
+				lastResult = UriError::ok();
+
+				auto& thread = getScriptProcessor()->getMainController_()->getJavascriptThreadPool();
+				auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
+
+				//std::function<UriError(JavascriptProcessor*)>
+
+				Array<var> deferredData;
+				deferredData.add(f);
+				deferredData.add(thisObject);
+				deferredData.add(args[0]);
+				deferredData.add(args[1]);
+
+				var asyncGraphics = args[0];
+
+				Component::SafePointer<Component> safeC(c);
+
+				auto task = [deferredData, safeC, this, functionname](JavascriptProcessor* jp)
+				{
+					if (safeC.getComponent() == nullptr)
+					{
+						return UriError::ok();
+					}
+
+					try
+					{
+						auto& pool = dynamic_cast<Processor*>(jp)->getMainController()->getJavascriptThreadPool();
+						auto gobj = deferredData[2];
+						
+						auto triggerRepaint = [safeC, gobj]()
+						{
+							dynamic_cast<GraphicsObject*>(gobj.getObject())->getDrawHandler().flushWithoutClear();
+
+							if(safeC != nullptr)
+								SafeAsyncCall::repaint(safeC);
+						};
+
+						JavascriptThreadPool::ScopedCustomOnBreakFunction sds(pool, triggerRepaint);
+						var::NativeFunctionArgs ar(deferredData[1], deferredData.getRawDataPointer() + 2, 2);
+						jp->getScriptEngine()->callExternalFunctionRaw(deferredData[0], ar);
+
+						dynamic_cast<GraphicsObject*>(gobj.getObject())->getDrawHandler().flush(0, 0);
+						setBreakpointState(safeC, functionname, GraphicsWithComponent::BreakpointState::ClearOnNextRun);
+
+						if(safeC != nullptr)
+							SafeAsyncCall::repaint(safeC);
+
+						return UriError::ok();
+					}
+					catch (UriError& e)
+					{
+						setBreakpointState(safeC, functionname, GraphicsWithComponent::BreakpointState::ClearOnNextRun);
+
+						if(safeC != nullptr)
+							SafeAsyncCall::repaint(safeC);
+						return e;
+					}
+				};
+
+				thread.addJob(hise::JavascriptThreadPool::Task::LowPriorityCallbackExecution, jp, task);
+
+				return true;
+			}
+
 			if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(getScriptProcessor()->getMainController_()->getJavascriptThreadPool().getLookAndFeelRenderLock()))
 			{
 				TRACE_SCRIPTING("executing script function");
 				DebugSession::ProfileDataSource::ScopedProfiler sp(profileData, holder);
 
-				if (c != nullptr && c->getParentComponent() != nullptr)
-				{
-					var n = c->getParentComponent()->getName();
-					argsObject.getDynamicObject()->setProperty("parentName", n);
-				}
-                
-                static const StringArray hiddenProps = {"jcclr"};
-                
-                if(c != nullptr)
-                {
-                    for(auto& nv: c->getProperties())
-                    {
-                        if(!argsObject.hasProperty(nv.name))
-                        {
-                            bool hidden = false;
-                            
-                            for(const auto& hp: hiddenProps)
-                            {
-                                if(nv.name.toString().contains(hp))
-                                {
-                                    hidden = true;
-                                    break;
-                                }
-                            }
-                            
-                            if(!hidden)
-                                argsObject.getDynamicObject()->setProperty(nv.name, nv.value);
-                        }
-                    }
-                }
-
 				var::NativeFunctionArgs arg(thisObject, args, 2);
-				auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
-				lastResult = Result::ok();
+				auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
+				auto engine = jp->getScriptEngine();
+				lastResult = UriError::ok();
 
 				engine->callExternalFunction(f, arg, &lastResult, true);
 
-				if (lastResult.wasOk())
-					g->getDrawHandler().flush(0, 0);
-				else
-					debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), lastResult.getErrorMessage());
+				g->getDrawHandler().flush(0, 0);
+
+#if USE_BACKEND
+				if (!lastResult.wasOk())
+				{
+					String errorRoot;
+
+					if (c != nullptr)
+						errorRoot << c->getName() << ".";
+
+					errorRoot << functionname << "()";
+
+					lastResult = lastResult.withBaseCallstack({ errorRoot , {} });
+					LOG_RUNTIME_ERROR(lastResult, jp);
+				}
+#endif	
 			}
 		}
 

@@ -45,7 +45,10 @@ namespace TextEditorShortcuts
 	DECLARE_ID(show_search);
 	DECLARE_ID(show_full_search);
 	DECLARE_ID(breakpoint_resume);
-	DECLARE_ID(breakpoint_next);
+	DECLARE_ID(breakpoint_step_into);
+	DECLARE_ID(breakpoint_step_over);
+	DECLARE_ID(breakpoint_step_resume);
+	DECLARE_ID(breakpoint_step_out);
 	DECLARE_ID(show_search_replace);
 	DECLARE_ID(add_autocomplete_template);
 	DECLARE_ID(clear_autocomplete_templates);
@@ -95,13 +98,9 @@ struct FullEditor: public Component,
 
 	void setColourScheme(const juce::CodeEditorComponent::ColourScheme& s);
 
-	void setCurrentBreakline(int n);
+	void setCurrentBreakline(const UriError& e);
 
 	void sendBlinkMessage(int n);
-
-	void addBreakpointListener(GutterComponent::BreakpointListener* l);
-
-	void removeBreakpointListener(GutterComponent::BreakpointListener* l);
 
 	void enableBreakpoints(bool shouldBeEnabled);
 

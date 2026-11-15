@@ -1477,12 +1477,36 @@ namespace ScriptingObjects
         
         struct GraphicsWithComponent
         {
+			enum class BreakpointState
+			{
+				DrawSynchronously,
+				DrawAfterBreakpoint,
+				ClearOnNextRun
+			};
+
             ReferenceCountedObjectPtr<GraphicsObject> g;
             Identifier functionName;
             Component* c = nullptr;
+
+			BreakpointState breakpointState = BreakpointState::DrawSynchronously;
         };
         
-        Array<GraphicsWithComponent> graphics;
+		bool setBreakpointState(Component* c, const Identifier& fn, GraphicsWithComponent::BreakpointState s)
+		{
+			for (auto& bp : graphics)
+			{
+				if (bp.c == c && bp.functionName == fn)
+				{
+					auto changed = bp.breakpointState != s;
+					bp.breakpointState = s;
+					return changed;
+				}
+			}
+
+			return false;
+		}
+        
+		Array<GraphicsWithComponent> graphics;
         
 		String currentStyleSheet;
 		String currentStyleSheetFile;

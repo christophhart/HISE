@@ -504,6 +504,186 @@ struct HiseJavascriptEngine::RootObject::Statement
 {
 	using Ptr = ScopedPointer<Statement>;
 
+	struct Tree: public ReferenceCountedObject
+	{
+		using Ptr = ReferenceCountedObjectPtr<Tree>;
+		using List = ReferenceCountedArray<Tree>;
+		using WeakPtr = WeakReference<Tree>;
+
+	private:
+
+		Tree(const Statement* s_, Tree* parent_):
+		  s(s_),
+		  parent(parent_)
+		{
+			int index = 0;
+
+			while (auto c = const_cast<Statement*>(s)->getChildStatement(index))
+			{
+				children.add(new Tree(c, this));
+				index++;
+			}
+		}
+
+	public:
+
+		template <typename T=bool> T forEach(const std::function<T(const Statement*)>& f) const
+		{
+			if (auto ok = f(s))
+				return ok;
+
+			for (auto c : children)
+			{
+				if (auto ok = c->forEach(f))
+					return ok;
+			}
+
+			return T();
+		}
+
+		template <typename T=bool> T forEachParent(const std::function<T(const Statement*)>& f) const
+		{
+			if (auto ok = f(s))
+				return ok;
+
+			if (parent != nullptr)
+			{
+				return parent->forEachParent(f);
+			}
+			
+			return T();
+		}
+
+		int indexInParent() const
+		{
+			if (parent != nullptr)
+				return parent->children.indexOf(this);
+
+			return -1;
+		}
+
+		template <typename T> const T* getTypedStatement() const
+		{
+			return dynamic_cast<const T*>(this->s);
+		}
+		
+		bool matches(const Statement* statement) const
+		{
+			return this->s == statement;
+		}
+
+		WeakPtr getParentTree() const { return parent; }
+
+		bool isParentOf(const Statement* possibleChild) const
+		{
+			for (auto c : children)
+			{
+				if (c->matches(possibleChild))
+					return true;
+
+				if (c->isParentOf(possibleChild))
+					return true;
+			}
+
+			return false;
+		}
+
+		
+
+		const Tree* findRecursive(const Statement* t) const
+		{
+			if (matches(t))
+				return this;
+
+			for (auto c : children)
+			{
+				if (auto p = c->findRecursive(t))
+					return p;
+			}
+
+			return nullptr;
+		}
+
+		template <typename StatementType> const StatementType* findParentWithType(const Statement* childStatement) const
+		{
+			auto childTree = findRecursive(childStatement);
+
+			while (childTree != nullptr)
+			{
+				if (auto t = childTree->getTypedStatement<StatementType>())
+					return t;
+
+				childTree = childTree->parent.get();
+			}
+
+			return nullptr;
+		}
+
+		const Statement* getChildOf(const Statement* parentToLookFor, int indexInParent) const
+		{
+			if (auto p = findRecursive(parentToLookFor))
+			{
+				if (isPositiveAndBelow(indexInParent, p->children.size()))
+					return p->children[indexInParent]->s;
+			}
+
+			return nullptr;
+		}
+
+		int getIndexWithin(const Statement* parent, const Statement* child) const
+		{
+			if (auto p = findRecursive(parent))
+			{
+				for (int i = 0; i < p->children.size(); i++)
+				{
+					if (p->children[i]->matches(child) || p->children[i]->isParentOf(child))
+						return i;
+				}
+			}
+
+			return -1;
+		}
+
+		std::vector<std::pair<const Statement*, int>> createStackPath(const Statement* s, int index) const
+		{
+			jassert(isParentOf(s));
+
+			std::vector<std::pair<const Statement*, int>> path;
+
+			if (auto innerChild = findRecursive(s))
+			{
+				jassert(innerChild->s == s);
+				path.push_back({ s, index });
+
+				while (innerChild != this && innerChild != nullptr)
+				{
+					auto index = innerChild->indexInParent();
+
+					jassert(index != -1);
+					path.push_back({ innerChild->parent->s, index + 1 });
+					innerChild = innerChild->parent;
+				}
+			}
+
+			return path;
+		}
+
+		static Tree::Ptr create(const Statement* s)
+		{
+			return new Tree(s, nullptr);
+		}
+
+	private:
+
+		UriLocationTree::Ptr attachedScope;
+		const Statement* s;
+		List children;
+		WeakPtr parent;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Tree);
+
+	};
+
 	Statement(const CodeLocation& l) noexcept : location(l) {}
 	virtual ~Statement() {}
 
@@ -516,6 +696,30 @@ struct HiseJavascriptEngine::RootObject::Statement
 	}
 
 	virtual bool isConstant() const { return false; }
+
+	virtual bool isValidJumpTarget() const { return true; }
+	virtual bool isStepIntoTarget() const { return false; }
+
+	template <typename SubType=Statement> Statement* findRecursive(const std::function<Statement*(SubType*)>& f)
+	{
+		if (auto typed = dynamic_cast<SubType*>(this))
+		{
+			if (auto s = f(typed))
+				return s;
+		}
+
+		int i = 0;
+
+		while (auto c = getChildStatement(i))
+		{
+			if (auto s = c->findRecursive<SubType>(f))
+				return s;
+
+			i++;
+		}
+
+		return nullptr;
+	}
 
 	template <typename SubType=Statement> bool callRecursive(const std::function<bool(SubType*)>& f)
 	{
@@ -686,10 +890,6 @@ struct HiseJavascriptEngine::RootObject::Statement
 
 	virtual bool replaceChildStatement(Ptr& newChild, Statement* oldChild) { return false; };
 
-#if ENABLE_SCRIPTING_BREAKPOINTS
-	UriBreakpoint breakpoint;
-#endif
-
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Statement)
 };
 
@@ -832,7 +1032,8 @@ UriError HiseJavascriptEngine::execute(const String& javascriptCode, bool allowC
 		root->setEnableOnInitProfiling(enableOnInitProfiling);
 
 		RootObject::ScopedWaker sw(*root);
-		root->stopAtNextStatement = false;
+		root->breakpointState.clearBreakPosition();
+			
 		root->execute(copy, allowConstDeclarations);
 	}
 	catch (String &error)
@@ -901,9 +1102,9 @@ void HiseJavascriptEngine::setCallStackEnabled(bool shouldBeEnabled)
 	root->setCallStackEnabled(shouldBeEnabled);
 }
 
-void HiseJavascriptEngine::stopAtNextStatement(bool value)
+void HiseJavascriptEngine::stopAtNextStatement(UriBreakpoint::Owner::NextBreakpointAction value)
 {
-	root->stopAtNextStatement = value;
+	root->breakpointState.stopAtNextStatement = value;
 }
 
 

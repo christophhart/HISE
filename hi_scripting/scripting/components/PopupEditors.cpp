@@ -614,6 +614,648 @@ void PopupIncludeEditor::resized()
 	bottomBar->setBounds(b);
 }
 
+struct BreakpointDebugTooltip : public mcl::TooltipWithArea::ComponentWithData,
+								public PathFactory
+								
+{
+	struct RowData
+	{
+		String path;
+		String value;
+		Colour extraColour;
+		int valuePadding = 0;
+
+		int getMessageWidth() const
+		{
+			String message;
+
+			int w = 0;
+
+			if (valuePadding != 0)
+			{
+				w = valuePadding;
+				message << value;
+			}
+			else
+				message << "path: " << value;
+				
+			w += GLOBAL_MONOSPACE_FONT().getStringWidth(message);
+			
+			if (!extraColour.isTransparent())
+				w += 24;
+
+			w += 24;
+
+			return w;
+		}
+
+		int getPathWidth() const
+		{
+			return GLOBAL_MONOSPACE_FONT().getStringWidth(path + ": ");
+		}
+
+		void paint(Graphics& g, Rectangle<float> b)
+		{
+			g.setFont(GLOBAL_MONOSPACE_FONT());
+			g.setColour(Colour(0xFF444444));
+
+			if (valuePadding)
+			{
+				g.drawText(path + ":", b.removeFromLeft(valuePadding), Justification::left);
+			}
+			else
+			{
+				auto thisPadding = getPathWidth();
+				g.drawText(path + ":", b.removeFromLeft(thisPadding), Justification::left);
+			}
+
+			g.setColour(Colour(0xFF222222));
+			g.drawText(value, b, Justification::left);
+			
+			if(!extraColour.isTransparent())
+			{
+				b = b.removeFromRight(b.getHeight());
+				g.setColour(extraColour);
+				g.fillRect(b.reduced(4));
+				g.setColour(Colours::black);
+				g.drawRect(b.reduced(4), 1);
+			}
+		}
+	};
+
+	static bool isComplexItem(const var& obj)
+	{
+		auto useComplexViewer = false;
+
+		useComplexViewer |= obj.isArray();
+		useComplexViewer |= obj.getDynamicObject() != nullptr;
+		useComplexViewer |= dynamic_cast<DebugableObjectBase*>(obj.getObject()) != nullptr;
+
+		return useComplexViewer;
+	}
+
+	static RowData toDisplayString(const String& path, const var& value)
+	{
+		RowData rd;
+
+		auto f = GLOBAL_MONOSPACE_FONT();
+
+		auto pathColour = Colour(0xFF555555);
+		auto valueColour = Colour(0xFF222222);
+
+		rd.path = path.replace("%PARENT%", "");
+		
+		if (auto obj = dynamic_cast<DebugableObjectBase*>(value.getObject()))
+		{
+			String v;
+			v << obj->getDebugName() << " - ";
+			v << obj->getDebugValue();
+			v << " (" << obj->getDebugDataType() << ")";
+			rd.value = v;
+		}
+		else
+		{
+			String v;
+
+			if (value.isString())
+				v << value.toString().quoted() << " (String)";
+			else if (value.isArray())
+				v << "Array[" << String(value.size()) << "]";
+			else if (auto obj = value.getDynamicObject())
+				v << "JSON";
+			else
+			{
+				if (path.toLowerCase().contains("colour"))
+				{
+					auto c = ApiHelpers::getColourFromVar(value);
+					v << "#" << c.toDisplayString(true);
+					rd.extraColour = c;
+				}
+				else
+				{
+					v << value.toString();
+					auto wt = VarTypeChecker::getType(value);
+					v << " (" << VarTypeChecker::getTypeName(wt) << ")";
+				}
+			}
+
+			rd.value = v;
+		}
+
+		return rd;
+	}
+
+	struct VarTreeViewItem : public juce::TreeViewItem
+	{
+		VarTreeViewItem(Component* rootComponent_, const var& value_, const String& path_) :
+		  TreeViewItem(),
+		  value(value_),
+		  path(path_),
+		  rootComponent(rootComponent_)
+		{
+			message = toDisplayString(path, value);
+		}
+
+		bool mightContainSubItems() override
+		{
+			return isComplexItem(value);
+		}
+
+		String getUniqueName() const override
+		{
+			return path;
+		}
+
+		int getItemWidth() const override
+		{
+			return message.getMessageWidth();
+		}
+
+		void itemOpennessChanged(bool isNowOpen) override;
+
+		void paintItem(Graphics& g, int width, int height) override
+		{
+			Rectangle<int> b(0, 0, width, height);
+			message.paint(g, b.toFloat());
+		}
+
+		RowData message;
+		String path;
+		var value;
+
+		Component* rootComponent;
+	};
+
+	struct Content : public Component,
+					 public UriErrorLogger::Listener
+	{
+		Content(BreakpointDebugTooltip& parent, JavascriptProcessor* jp_) :
+			data(parent.data),
+			jp(jp_),
+			r(Result::ok())
+		{
+			jp->errorProvider.addListener(this, false);
+
+			triggerEvaluation();
+			setSize(150, 24);
+
+			setInterceptsMouseClicks(false, true);
+		};
+
+		~Content()
+		{
+			jp->errorProvider.removeListener(this);
+		}
+
+		void triggerEvaluation()
+		{
+			auto p = dynamic_cast<Processor*>(this->jp.get());
+			Component::SafePointer<Content> safeThis(this);
+			auto taskType = JavascriptThreadPool::Task::Type::ReplEvaluation;
+
+			auto f = GLOBAL_MONOSPACE_FONT();
+			
+			message = {};
+			message.path = "pending";
+
+			p->getMainController()->getJavascriptThreadPool().addJob(taskType, jp,
+			[safeThis](JavascriptProcessor* p)
+			{
+				if (safeThis.getComponent() != nullptr)
+				{
+					HiseJavascriptEngine* engine = p->getScriptEngine();
+					safeThis->evaluatedValue = engine->evaluate(safeThis->data.text, &safeThis->r);
+
+					SafeAsyncCall::call<Content>(*safeThis, [](Content& c)
+					{
+						c.onEvaluation();
+					});
+				}
+
+				return UriError::ok();
+			});
+		}
+
+		void resizeTreeView()
+		{
+			if (complexViewer != nullptr)
+			{
+				auto w = message.getMessageWidth();
+				
+				auto vw = complexViewer->getViewport()->getViewedComponent()->getWidth();
+				auto vh = complexViewer->getViewport()->getViewedComponent()->getHeight();
+
+				auto h = 24;
+				h = jmin(h + vh, 400);
+				w = jlimit(w, 800, vw);
+
+				getParentComponent()->setSize(w + 24, h);
+				repaint();
+			}
+		}
+
+		void onError(const UriError& e, int numOccurrences) override
+		{
+			if (e.sourceType == UriError::SourceType::Debug &&
+				e.errorType == UriError::ErrorType::Breakpoint)
+			{
+				triggerEvaluation();
+			}
+		}
+
+		void onClear(UriError::SourceType s) override
+		{
+			if (s == UriError::SourceType::Debug)
+			{
+				triggerEvaluation();
+			}
+		}
+
+		void resized() override
+		{
+			if (complexViewer != nullptr)
+			{
+				auto b = getLocalBounds();
+				b.removeFromTop(24);
+				complexViewer->setBounds(b);
+			}
+		}
+
+		void onEvaluation()
+		{
+			if (r.wasOk())
+			{
+				message = toDisplayString(data.text, evaluatedValue);
+
+				int h = 24;
+
+				auto useComplexViewer = isComplexItem(evaluatedValue);
+
+				if (useComplexViewer)
+				{
+					if (complexViewer == nullptr)
+					{
+						addAndMakeVisible(complexViewer = new TreeView());
+						complexViewer->setRootItemVisible(false);
+						complexViewer->setMultiSelectEnabled(false);
+					}
+					
+					auto state = complexViewer->getOpennessState(true);
+
+					complexViewer->setRootItem(new VarTreeViewItem(this, evaluatedValue, data.text));
+
+					if(state != nullptr)
+						complexViewer->restoreOpennessState(*state, false);
+
+					resizeTreeView();
+				}
+				else
+				{
+					auto w = message.getMessageWidth();
+					getParentComponent()->setSize(w + 24 + 50, h);
+					repaint();
+				}
+			}
+		}
+
+		void paint(Graphics& g) override
+		{
+			auto b = getLocalBounds().toFloat();
+			b = b.removeFromTop(24.0f);
+			b.removeFromLeft(20.0f);
+			message.paint(g, b);
+		}
+
+		RowData message;
+
+		mcl::TooltipWithArea::Data data;
+		WeakReference<JavascriptProcessor> jp;
+		Result r;
+		bool pending = true;
+		var evaluatedValue;
+
+		ScopedPointer<juce::TreeView> complexViewer;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Content);
+	};
+
+	struct PersistentParent : public mcl::TooltipWithArea::ComponentWithData
+	{
+		PersistentParent(ScopedPointer<Content>& t):
+		  ComponentWithData(t->data),
+		  closeButton("close", nullptr, *t->findParentComponentOfClass<BreakpointDebugTooltip>())
+		{
+			content = t.release();
+			auto oldParent = content->getParentComponent();
+			oldParent->removeChildComponent(content);
+			addChildComponent(content);
+			setSize(content->getWidth() + 24, content->getHeight());
+
+			addAndMakeVisible(closeButton);
+			closeButton.setColours(Colours::black.withAlpha(0.5f),
+								   Colours::black.withAlpha(0.7f),
+								   Colours::black.withAlpha(0.8f));
+
+			closeButton.onClick = [this]()
+			{
+				auto p = findParentComponentOfClass<mcl::TextEditor>();
+				p->removeChildComponent(this);
+				delete this;
+			};
+		}
+
+		void paint(Graphics& g) override
+		{
+			this->drawBackground(g);
+		}
+
+		void mouseDown(const MouseEvent& e) override
+		{
+			dragger.startDraggingComponent(this, e);
+		}
+
+		void mouseDrag(const MouseEvent& e) override
+		{
+			dragger.dragComponent(this, e, nullptr);
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+			auto topRight = b.removeFromRight(24).removeFromTop(24).reduced(4);
+			closeButton.setBounds(topRight);
+
+			if (content != nullptr)
+				content->setBounds(b);
+		}
+
+		HiseShapeButton closeButton;
+
+		ScopedPointer<Content> content;
+
+		ComponentDragger dragger;
+	};
+
+	BreakpointDebugTooltip(const mcl::TooltipWithArea::Data& d, JavascriptProcessor* jp_):
+		ComponentWithData(d),
+		stickyButton("pin", nullptr, *this),
+		content(new Content(*this, jp_))
+	{
+		addAndMakeVisible(content);
+		addAndMakeVisible(stickyButton);
+		stickyButton.setColours(Colours::black.withAlpha(0.5f), 
+								Colours::black.withAlpha(0.7f), 
+								Colours::black.withAlpha(0.8f));
+
+		stickyButton.onClick = [this]()
+		{
+			auto p = findParentComponentOfClass<mcl::TextEditor>();
+
+			auto nc = new PersistentParent(content);
+			
+			auto pos = getPosition();
+			
+			p->addAndMakeVisible(nc);
+			nc->setTopLeftPosition(pos);
+			
+			p->clearTooltip();
+		};
+
+		setSize(content->getWidth() + 24, 24);
+	}
+
+	Path createPath(const String& url) const override
+	{
+		Path p;
+		LOAD_EPATH_IF_URL("pin", ScriptnodeIcons::pinIcon);
+		LOAD_EPATH_IF_URL("close", HiBinaryData::ProcessorEditorHeaderIcons::closeIcon);
+		return p;
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+		auto topRight = b.removeFromRight(24).removeFromTop(24).reduced(4);
+		stickyButton.setBounds(topRight);
+
+		if(content != nullptr)
+			content->setBounds(b);
+	}
+
+	void paint(Graphics& g) override
+	{
+		this->drawBackground(g);
+	}
+
+	ScopedPointer<Content> content;
+	HiseShapeButton stickyButton;
+
+	
+};
+
+void BreakpointDebugTooltip::VarTreeViewItem::itemOpennessChanged(bool isNowOpen)
+{
+	if (isNowOpen)
+	{
+		clearSubItems();
+
+		int valuePadding = 0;
+
+		if (value.isArray())
+		{
+			for (int i = 0; i < value.size(); i++)
+			{
+				auto c = value[i];
+				auto cp = path + "[" + String(i) + "]";
+				auto ni = new VarTreeViewItem(rootComponent, c, cp);
+				valuePadding = jmax(valuePadding, ni->message.getPathWidth());
+				addSubItem(ni);
+			}
+		}
+		else if (auto obj = value.getDynamicObject())
+		{
+			for (auto& nv : obj->getProperties())
+			{
+				auto ni = new VarTreeViewItem(rootComponent, nv.value, path + "." + nv.name.toString());
+				valuePadding = jmax(valuePadding, ni->message.getPathWidth());
+				addSubItem(ni);
+			}
+				
+		}
+		else if (auto dobj = dynamic_cast<DebugableObjectBase*>(value.getObject()))
+		{
+			auto numDebugObjects = dobj->getNumChildElements();
+
+			for (int i = 0; i < numDebugObjects; i++)
+			{
+				auto di = dobj->getChildElement(i);
+				auto n = di->getTextForName();
+				auto v = di->getVariantCopy();
+				auto ni = new VarTreeViewItem(rootComponent, v, path + "." + n);
+				valuePadding = jmax(valuePadding, ni->message.getPathWidth());
+				addSubItem(ni);
+			}
+		}
+
+		for (int i = 0; i < getNumSubItems(); i++)
+			dynamic_cast<VarTreeViewItem*>(getSubItem(i))->message.valuePadding = valuePadding;
+	}
+
+	if (auto r = dynamic_cast<Content*>(rootComponent))
+	{
+		SafeAsyncCall::callAsyncIfNotOnMessageThread<Content>(*r, [](Content& c)
+		{
+			c.resizeTreeView();
+		});
+	}
+}
+
+void PopupIncludeEditor::onBreakpointTooltip(mcl::TooltipWithArea::Data& d)
+{
+	d.customComponentFunction = [this](const mcl::TooltipWithArea::Data& d)
+	{
+		mcl::TooltipWithArea::ComponentWithData* c;
+
+		auto canBeCustomDisplay = d.text == "this";
+		canBeCustomDisplay |= !JavascriptTokeniser::isReservedKeyword(d.text);
+		canBeCustomDisplay &= !d.text.containsChar('(');
+
+		if (canBeCustomDisplay)
+			c = new BreakpointDebugTooltip(d, jp.get());
+		else
+			c = new mcl::TooltipWithArea::Display(d);
+		
+		return c;
+	};
+}
+
+
+
+bool PopupIncludeEditor::gotoUriLocation(UriLocation::Owner* owner, Component* c, const UriLocation& l)
+{
+	auto resolveState = l.getResolveState();
+
+	if (!(resolveState & UriLocation::ResolveState::PathResolved))
+		return false;
+
+	
+
+	mcl::FullEditor* activeEditor = nullptr;
+
+	if (auto t = dynamic_cast<mcl::FullEditor*>(c))
+		activeEditor = t;
+
+	if (c == nullptr)
+	{
+		if (auto p = dynamic_cast<Processor*>(owner))
+		{
+			activeEditor = dynamic_cast<mcl::FullEditor*>(p->getMainController()->getLastActiveEditor());
+		}
+	}
+
+	if (activeEditor == nullptr && c != nullptr)
+	{
+		if (auto brw = GET_BACKEND_ROOT_WINDOW(c))
+		{
+			activeEditor = dynamic_cast<mcl::FullEditor*>(brw->getBackendProcessor()->getLastActiveEditor());
+		}
+	}
+	
+	if (activeEditor != nullptr)
+	{
+		if (activeEditor->editor.gotoLocation(l))
+			return true;
+
+		auto brw = activeEditor->findParentComponentOfClass<ComponentWithBackendConnection>();
+
+		FloatingTile* root = nullptr;
+
+		if (brw != nullptr)
+			root = brw->getBackendRootWindow()->getRootFloatingTile();
+
+
+		if (root != nullptr)
+		{
+			FloatingTabComponent* codeTabs = nullptr;
+
+			if (auto ptile = activeEditor->findParentComponentOfClass<FloatingTile>())
+			{
+				codeTabs = ptile->findParentTileWithType<FloatingTabComponent>();
+			}
+
+			if (codeTabs == nullptr)
+			{
+				Component::callRecursive<FloatingTabComponent>(root, [&](FloatingTabComponent* ed)
+				{
+					auto id = ed->getParentShell()->getLayoutData().getID();
+
+					if (id == Identifier("ScriptEditorTabs"))
+					{
+						codeTabs = ed;
+						return true;
+					}
+
+					return false;
+				});
+			}
+
+			if (codeTabs != nullptr)
+			{
+				for (int i = 0; i < codeTabs->getNumTabs(); i++)
+				{
+					auto tc = dynamic_cast<FloatingTile*>(codeTabs->getTabContentComponent(i));
+					
+					if (auto cep = dynamic_cast<CodeEditorPanel*>(tc->getCurrentFloatingPanel()))
+					{
+						if (auto pe = cep->getContent<PopupIncludeEditor>())
+						{
+							if (pe->editor->editor.gotoLocation(l))
+							{
+								pe->bottomBar->onLocationChange(l);
+
+								codeTabs->setCurrentTabIndex(i);
+								return true;
+							}
+						}
+					}
+				}
+
+				FloatingInterfaceBuilder ib(codeTabs->getParentShell());
+				auto newEditor = ib.addChild<CodeEditorPanel>(0);
+				auto ed = ib.getContent<CodeEditorPanel>(newEditor);
+				ib.finalizeAndReturnRoot();
+
+				if (auto p = ProcessorHelpers::getFirstProcessorWithName(root->getMainController()->getMainSynthChain(), l.processorId))
+				{
+					ed->setCurrentProcessor(p);
+
+					StringArray indexList;
+					ed->fillIndexList(indexList);
+
+					auto connectionId = l.toLocationString(UriLocation::UriFormat::ConnectionId);
+					auto index = indexList.indexOf(connectionId);
+
+					if (index != -1)
+					{
+						ed->setContentWithUndo(p, index);
+
+						if (auto pe = ed->getContent<PopupIncludeEditor>())
+						{
+							if (pe->editor->editor.gotoLocation(l))
+							{
+								pe->bottomBar->onLocationChange(l);
+								return true;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	return false;
+}
+
 void PopupIncludeEditor::gotoChar(int character, int lineNumber/*=-1*/)
 {
 	CodeDocument::Position pos;
@@ -637,51 +1279,6 @@ void PopupIncludeEditor::gotoChar(int character, int lineNumber/*=-1*/)
 }
 
 
-
-void PopupIncludeEditor::breakpointsChanged(mcl::GutterComponent& g)
-{
-	auto pid = dynamic_cast<Processor*>(jp.get())->getId();
-	auto uri = externalFile != nullptr ? externalFile->getFile().getFullPathName() : callback.toString();
-
-	jp->clearPreprocessorFunctions();
-
-	jp->getScriptEngine()->clearRuntimeBreakpoints();
-
-	jp->currentBreakpoints = g.getBreakpointLocations(pid, uri);
-
-	int idx = 0;
-
-	Array<int> resolvedBreakpoints;
-
-	for (const auto& bp : jp->currentBreakpoints)
-	{
-		if (jp->getScriptEngine()->addRuntimeBreakpoint(bp))
-			resolvedBreakpoints.add(idx);
-
-		idx++;
-	}
-
-	g.setActiveBreakpoints(resolvedBreakpoints);
-
-
-
-	return;
-	
-	auto cb = callback;
-
-	WeakReference<mcl::GutterComponent> safeGutter(&g);
-
-	jp->addPreprocessorFunction([safeGutter, cb](const Identifier& id, String& s)
-	{
-		if (id == cb && safeGutter != nullptr)
-			return safeGutter->injectBreakPoints(s);
-
-		return false;
-	});
-
-	bottomBar->compileButton->triggerClick();
-}
-
 void PopupIncludeEditor::paintOverChildren(Graphics& g)
 {
     if (getEditor() == dynamic_cast<Processor*>(jp.get())->getMainController()->getLastActiveEditor())
@@ -704,7 +1301,10 @@ void PopupIncludeEditor::initKeyPresses(Component* root)
 	TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::show_search_replace, "Search & Replace", KeyPress('g', ModifierKeys::commandModifier, 'g'));
 
 	TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::breakpoint_resume, "Resume breakpoint", KeyPress(KeyPress::F10Key));
-	TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::breakpoint_next, "Step to next statement", KeyPress(KeyPress::F11Key));
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::breakpoint_step_into, "Step into next statement", KeyPress(KeyPress::F11Key));
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::breakpoint_step_over, "Step over next statement", KeyPress(KeyPress::F10Key));
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::breakpoint_step_out, "Step out of statement", KeyPress(KeyPress::F11Key, ModifierKeys::shiftModifier, 0));
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::breakpoint_step_resume, "Resume execution", KeyPress(KeyPress::F9Key));
 
 	TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::goto_file, "Goto file", KeyPress('t', ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 't'));
     
@@ -808,9 +1408,7 @@ void PopupIncludeEditor::compileInternal()
 	    auto f = [safeP](const UriError& r)
 	    {
 	        if(safeP.getComponent() != nullptr)
-	        {
 	            safeP->refreshAfterCompilation(r);
-	        }
 	    };
 	    
 		jp->compileScript(f);
@@ -1030,15 +1628,8 @@ bool PopupIncludeEditor::matchesUriLocation(const UriLocation& loc) const
 		return loc.toLocationString(UriLocation::UriFormat::CallbackId) == callback.toString();
 }
 
-bool PopupIncludeEditor::sleepStateChanged(const UriLocation& location, bool on)
+bool PopupIncludeEditor::sleepStateChanged(const UriError& location, bool on)
 {
-	if (matchesLocation(location))
-	{
-		getEditor()->setCurrentBreakline(on ? location.line : -1);
-		bottomBar->setShowResume(on, location.line);
-		return true;
-	}
-
 	return false;
 }
 
@@ -1140,19 +1731,29 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 			jp->performPopupMenuAction(JavascriptProcessor::ScriptContextActions::ClearAutocompleteTemplates, getEditor());
 			return true;
 		}
-		if (k == KeyPress::F9Key)
+		if (TopLevelWindowWithKeyMappings::matches(getEditor(), k, TextEditorShortcuts::breakpoint_step_into))
 		{
-			bottomBar->resultLabel->gotoText();
+			jp->resumeExecution(UriBreakpoint::Owner::NextBreakpointAction::StepInto);
 			return true;
 		}
-		if (TopLevelWindowWithKeyMappings::matches(getEditor(), k, TextEditorShortcuts::breakpoint_next))
+		if (TopLevelWindowWithKeyMappings::matches(getEditor(), k, TextEditorShortcuts::breakpoint_step_out))
 		{
-			dynamic_cast<Processor*>(jp.get())->getMainController()->getJavascriptThreadPool().resume(true);
+			jp->resumeExecution(UriBreakpoint::Owner::NextBreakpointAction::StepOut);
+			return true;
+		}
+		if (TopLevelWindowWithKeyMappings::matches(getEditor(), k, TextEditorShortcuts::breakpoint_step_resume))
+		{
+			jp->resumeExecution(UriBreakpoint::Owner::NextBreakpointAction::Resume);
+			return true;
+		}
+		if (TopLevelWindowWithKeyMappings::matches(getEditor(), k, TextEditorShortcuts::breakpoint_step_over))
+		{
+			jp->resumeExecution(UriBreakpoint::Owner::NextBreakpointAction::StepOver);
 			return true;
 		}
 		if (TopLevelWindowWithKeyMappings::matches(getEditor(), k, TextEditorShortcuts::breakpoint_resume))
 		{
-			dynamic_cast<Processor*>(jp.get())->getMainController()->getJavascriptThreadPool().resume(false);
+			jp->resumeExecution(UriBreakpoint::Owner::NextBreakpointAction::Resume);
 			return true;
 		}
 		if (TopLevelWindowWithKeyMappings::matches(getEditor(), k, TextEditorShortcuts::show_full_search))
@@ -1267,11 +1868,19 @@ void EditorBottomBar::buttonClicked(Button* b)
 {
 	if (b == resumeButton)
 	{
-		getMainController()->getJavascriptThreadPool().resume(false);
+		jp->resumeExecution(UriBreakpoint::Owner::NextBreakpointAction::Resume);
+	}
+	if (b == nextButton)
+	{
+		jp->resumeExecution(UriBreakpoint::Owner::NextBreakpointAction::StepInto);
+	}
+	if (b == overButton)
+	{
+		jp->resumeExecution(UriBreakpoint::Owner::NextBreakpointAction::StepOver);
 	}
 	if (b == compileButton)
 	{
-		getMainController()->getJavascriptThreadPool().resume(false);
+		jp->resumeExecution(UriBreakpoint::Owner::NextBreakpointAction::Resume);
 		recompile();
 	}
 	if (b == errorButton)

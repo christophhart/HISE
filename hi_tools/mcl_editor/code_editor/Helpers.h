@@ -226,6 +226,8 @@ struct DiagnosticLines
 struct TooltipWithArea : public Component,
 	public Timer
 {
+	struct ComponentWithData;
+
 	struct Data
 	{
 		bool operator==(const Data& other) const
@@ -247,12 +249,35 @@ struct TooltipWithArea : public Component,
 		Point<float> relativePosition;
 		String text;
 		std::function<void()> clickAction;
+		std::function<ComponentWithData*(const Data& d)> customComponentFunction;
 	};
 
-	struct Display : public Component
+	struct ComponentWithData : public Component
+	{
+		ComponentWithData(const Data& d) :
+			data(d)
+		{};
+
+		void drawBackground(Graphics& g)
+		{
+			UnblurryGraphics ug(g, *this);
+
+			auto b = getLocalBounds().toFloat();
+
+			g.setColour(Colours::white.withAlpha(0.85f));
+			ug.fillUnblurryRect(b);
+
+			g.setColour(Colours::black);
+			ug.draw1PxRect(b);
+		}
+
+		Data data;
+	};
+
+	struct Display : public ComponentWithData
 	{
 		Display(const Data& d) :
-			data(d)
+		  ComponentWithData(d)
 		{
 			f = getBasicFont();
 
@@ -262,23 +287,14 @@ struct TooltipWithArea : public Component,
 
 		void paint(Graphics& g) override
 		{
-			UnblurryGraphics ug(g, *this);
+			drawBackground(g);
 
 			auto b = getLocalBounds().toFloat();
-
-
-			
-			
-			g.setColour(Colours::white.withAlpha(0.85f));
-			ug.fillUnblurryRect(b);
 			g.setFont(f);
-			g.setColour(Colours::black);
-			ug.draw1PxRect(b);
 			g.drawText(data.text, b, Justification::centred);
 		}
 
 		Font f;
-		Data data;
 	};
 
 	TooltipWithArea(Component& root_) :
@@ -328,8 +344,11 @@ struct TooltipWithArea : public Component,
 
 		if (currentTooltip.id.isValid())
 		{
-			currentDisplay = new Display(currentTooltip);
-			//shadow.setOwner(currentDisplay);
+			if (currentTooltip.customComponentFunction)
+				currentDisplay = currentTooltip.customComponentFunction(currentTooltip);
+			else
+				currentDisplay = new Display(currentTooltip);
+
 			root.addAndMakeVisible(currentDisplay);
 			currentDisplay->setTopLeftPosition(currentPosition);
 			
@@ -366,7 +385,7 @@ struct TooltipWithArea : public Component,
 		}
 	}
 
-	ScopedPointer<Display> currentDisplay;
+	ScopedPointer<ComponentWithData> currentDisplay;
 	Component& root;
 	Point<int> currentPosition;
 	Data currentTooltip;

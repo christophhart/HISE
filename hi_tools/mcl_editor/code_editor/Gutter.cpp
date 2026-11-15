@@ -14,12 +14,6 @@ namespace mcl
 using namespace juce;
 
 
-GutterComponent::BreakpointListener::~BreakpointListener()
-{}
-
-void GutterComponent::BreakpointListener::breakpointsChanged(GutterComponent& g)
-{}
-
 float GutterComponent::getGutterWidth() const
 {
 	auto numRows = document.getNumRows();
@@ -37,9 +31,80 @@ void GutterComponent::foldStateChanged(FoldableLineRange::WeakPtr rangeThatHasCh
 	repaint();
 }
 
+void GutterComponent::timerCallback()
+{
+	for (auto s : breakpoints)
+	{
+		owner->modifyUriBreakpoint(s->toUriBreakpoint(), sendNotificationAsync);
+	}
+	
+	stopTimer();
+	repaint();
+}
+
+void GutterComponent::triggerBreakpointUpdate()
+{
+	startTimer(100);
+}
+
+void GutterComponent::codeDocumentTextInserted(const String& newText, int insertIndex)
+{
+	triggerBreakpointUpdate();
+}
+
+void GutterComponent::codeDocumentTextDeleted(int startIndex, int endIndex)
+{
+	triggerBreakpointUpdate();
+}
+
 void GutterComponent::rootWasRebuilt(FoldableLineRange::WeakPtr newRoot)
 {
 	repaint();
+}
+
+TooltipWithArea::Data GutterComponent::getTooltip(Point<float> pos)
+{
+	TooltipWithArea::Data d;
+	d.relativePosition = pos;
+	d.id = "gutter";
+	d.text = "Click to add breakpoint";
+	d.relativePosition.setX(getGutterWidth());
+
+	if (hoveredData.rowNumber == currentBreakLine.getLineNumber())
+	{
+		d.id = "breakline";
+		d.text = "Drag to move the instruction pointer within the current scope";
+	}
+	else if (auto bp = getBreakpoint(hoveredData.rowNumber))
+	{
+		d.id = String(breakpoints.indexOf(bp));
+
+		if (bp->currentState == Breakpoint::State::Stale)
+			d.text = "Breakpoint is stale. Recompile the script after text edits. ";
+		else if (bp->currentState == Breakpoint::State::Unresolved)
+			d.text = "Breakpoint is disabled because no executable location was found. ";
+		else if (!bp->enabled.getValue())
+			d.text = "Breakpoint is disabled. Toggle via context menu. ";
+		else if (!breakpointsEnabled)
+			d.text = "Breakpoints are disabled globally for this editor. ";
+		else
+		{
+			d.text = "Breakpoint active. ";
+
+			if (bp->blinkIfHit.getValue())
+				d.text << "Blinks on hit. ";
+
+			if (bp->breakIfHit.getValue())
+				d.text << "Breaks on hit. ";
+
+			if (bp->useCondition.getValue())
+				d.text << "Condition: `" << bp->condition.getValue().toString() << "`. ";
+		}
+		
+		d.text << "Click->delete breakpoint. Right click->Options";
+	}
+	
+	return d;
 }
 
 void GutterComponent::mouseMove(const MouseEvent& event)
@@ -47,25 +112,11 @@ void GutterComponent::mouseMove(const MouseEvent& event)
 	repaint();
 }
 
-void GutterComponent::valueChanged(Value& value)
-{
-	sendBreakpointChangeMessage();
-}
+
 
 void GutterComponent::setBreakpointsEnabled(bool shouldBeEnabled)
 {
 	breakpointsEnabled = shouldBeEnabled;
-	repaint();
-}
-
-void GutterComponent::sendBreakpointChangeMessage()
-{
-	if (recompileOnBreakpointChange)
-	{
-		for (auto l : listeners)
-			l->breakpointsChanged(*this);
-	}
-
 	repaint();
 }
 
@@ -115,84 +166,169 @@ void GutterComponent::setError(int lineNumber, const String& error)
 	repaint();
 }
 
-void GutterComponent::addBreakpointListener(BreakpointListener* l)
+void GutterComponent::setDiagnostics(const DiagnosticLines& dl)
 {
-	listeners.addIfNotAlreadyThere(l);
+	diagnosticLines = dl;
+	repaint();
 }
 
-Array<UriBreakpoint> GutterComponent::getBreakpointLocations(const String& processorId, const String& uri) const
+void GutterComponent::setExternalCallstackMatches(const std::vector<UriLocation::WithExpression>& newExternalCallstack)
 {
-	Array<UriBreakpoint> locations;
+	externalCallstack = newExternalCallstack;
+	
+	SafeAsyncCall::repaint(this);
+}
 
-	for (const auto& bp : breakpoints)
+void GutterComponent::setCurrentBreakline(const UriError& breakPosition, UriLocationTree::Ptr scope)
+{
+	jassert(MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread());
+
+	externalCallstack.clear();
+	currentBreakPosition = breakPosition;
+
+	if (!currentBreakPosition.wasOk())
 	{
-		UriBreakpoint loc;
-		loc.fillLocation(bp->pos);
-		loc.processorId = processorId;
-		loc.uri = uri;
-
-		loc.enabled = bp->enabled.getValue();
-		loc.expression = bp->condition.getValue().toString();
-		loc.blinkOnHit = bp->blinkIfHit.getValue();
-		loc.breakOnHit = bp->breakIfHit.getValue();
-
-		locations.add(loc);
-	}
-
-	return locations;
-}
-
-void GutterComponent::removeBreakpointListener(BreakpointListener* l)
-{
-	listeners.removeAllInstancesOf(l);
-}
-
-void GutterComponent::setCurrentBreakline(int n)
-{
-	if (n != -1)
-	{
-		currentBreakLine = CodeDocument::Position(document.getCodeDocument(), n, 0);
+		currentBreakpointScope = scope;
+		currentBreakLine = CodeDocument::Position(document.getCodeDocument(), breakPosition.line-1, 0);
 		currentBreakLine.setPositionMaintained(true);
 	}
 	else
 	{
+		currentBreakpointScope = nullptr;
 		currentBreakLine = {};
 	}
 
-		
-
-	MessageManager::callAsync([this]()
-	{
-		this->repaint();
-	});
+	repaint();
 }
 
-GutterComponent::Breakpoint::Breakpoint(Value::Listener* listener, int l, bool profiling_, CodeDocument& doc): 
-	pos(doc, l, 0),
+void GutterComponent::onUriBreakpointAttachTypeChange(const UriBreakpoint& bp, UriBreakpoint::Owner::AttachState newState)
+{
+	for (auto b : breakpoints)
+	{
+		if (b->toUriBreakpoint().matches(bp))
+		{
+			b->currentState = newState;
+			break;
+		}
+	}
+
+	SafeAsyncCall::repaint(this);
+}
+
+void GutterComponent::onUriBreakpointChange(const UriBreakpoint& bp, ChangeType changeType)
+{
+	if (changeType == ChangeType::AttachStateChange)
+		return;
+
+	if (changeType == ChangeType::Modified)
+	{
+		for (auto b : breakpoints)
+		{
+			if (b->up.matches(bp))
+			{
+				b->copyPropertiesFrom(bp);
+				return;
+			}
+		}
+
+		return;
+	}
+		
+	if (changeType == ChangeType::Added)
+	{
+		for (auto b : breakpoints)
+		{
+			if (b->up.matches(bp))
+			{
+				jassertfalse;
+				return;
+			}
+		}
+
+		Breakpoint::Ptr np = new Breakpoint(*this, bp, document.getCodeDocument());
+		np->copyPropertiesFrom(bp);
+		breakpoints.add(np);
+	}
+	else
+	{
+		for (auto b : breakpoints)
+		{
+			if (b->toUriBreakpoint().matches(bp))
+			{
+				breakpoints.removeObject(b);
+				break;
+			}
+		}
+	}
+
+	SafeAsyncCall::repaint(this);
+}
+
+bool GutterComponent::matchesUriLocation(const UriLocation& location) const
+{
+	return document.matchesLocation(location);
+}
+
+GutterComponent::Breakpoint::Breakpoint(GutterComponent& parent_, const UriBreakpoint& bp_, CodeDocument& doc): 
+	parent(parent_),
+	pos(doc, bp_.line-1, bp_.col-1),
+	up(bp_),
 	condition(String("true")), 
 	useCondition(var(1)), 
 	enabled(var(1)),
 	breakIfHit(var(1)),
 	blinkIfHit(var(0)),
-	profiling(profiling_) 
+	profiling(false) 
 {
 	if(profiling)
 	{
+#if 0
 		while(l >= 0 && !doc.getLine(l).containsChar('{'))
 			l--;
 
 		auto col = doc.getLine(0).indexOfChar('{');
 		pos = CodeDocument::Position(doc, l, col);
 		logExpression.setValue("Scope @ line " + String(l+1));
+#endif
 	}
 
 	pos.setPositionMaintained(true);
-	condition.addListener(listener);
-	useCondition.addListener(listener);
-	enabled.addListener(listener);
-	logExpression.addListener(listener);
-	breakIfHit.addListener(listener);
-	blinkIfHit.addListener(listener);
+	condition.addListener(this);
+	useCondition.addListener(this);
+	enabled.addListener(this);
+	logExpression.addListener(this);
+	breakIfHit.addListener(this);
+	blinkIfHit.addListener(this);
+}
+
+UriBreakpoint GutterComponent::Breakpoint::toUriBreakpoint() const
+{
+	auto copy = up;
+	copy.fillLocation(pos);
+
+	if (enabled.getValue())
+	{
+		copy.blinkOnHit = (bool)blinkIfHit.getValue();
+		copy.breakOnHit = (bool)breakIfHit.getValue();
+		copy.enabled = (bool)enabled.getValue();
+		copy.expression = useCondition.getValue() ? condition.getValue().toString() : "true";
+	}
+
+	return copy;
+}
+
+void GutterComponent::Breakpoint::copyPropertiesFrom(const UriBreakpoint& bp)
+{
+	up = bp;
+	pos.setLineAndIndex(bp.line - 1, bp.col-1);
+
+	ScopedValueSetter<bool> svs(skipUpdate, true);
+
+	blinkIfHit.setValue(bp.blinkOnHit);
+	breakIfHit.setValue(bp.breakOnHit);
+	enabled.setValue(bp.enabled);
+	useCondition.setValue(bp.expression != "true");
+	condition.setValue(bp.expression);
 }
 
 String GutterComponent::Breakpoint::processLine(const String& s)
@@ -298,13 +434,17 @@ void GutterComponent::BlinkState::draw(GutterComponent& gutter, const Array<Text
 	if (alpha == 0.0f)
 		return;
 
+	auto GUTTER_WIDTH = gutter.getGutterWidth();
+
 	for (auto& r : rows)
 	{
 		if ((r.rowNumber == lineNumber - 1))
 		{
 			auto b = gutter.getRowBounds(r);
 			b.setWidth((float)gutter.getWidth());
-			g.setColour(Colours::white.withAlpha(alpha));
+			g.setColour(Colour(HISE_BREAKPOINT_COLOUR).withAlpha(alpha));
+			g.fillRect(b.removeFromLeft(GUTTER_WIDTH));
+			g.setColour(Colour(HISE_BREAKPOINT_COLOUR).withAlpha(alpha * 0.4f));
 			g.fillRect(b);
 		}
 	}
@@ -361,13 +501,19 @@ void GutterComponent::BlinkHandler::draw(Graphics& g, const Array<TextDocument::
 }
 
 //==========================================================================
-mcl::GutterComponent::GutterComponent(TextDocument& document)
-	: document(document)
+mcl::GutterComponent::GutterComponent(TextDocument& document_)
+	: document(document_)
 	, memoizedGlyphArrangements([this](int row) { return getLineNumberGlyphs(row); })
 	, blinkHandler(*this)
 {
+	document.getCodeDocument().addListener(this);
 	setRepaintsOnMouseActivity(true);
 
+}
+
+GutterComponent::~GutterComponent()
+{
+	document.getCodeDocument().removeListener(this);
 }
 
 void mcl::GutterComponent::setViewTransform(const AffineTransform& transformToUse)
@@ -486,19 +632,19 @@ void mcl::GutterComponent::paint(Graphics& g)
 
 			if (isHintLine)
 			{
-				c = Colours::lightblue;
+				c = UriError::getColour(UriError::Hint);
 				b2 = b2.removeFromRight(2.0f);
 			}
 
 			if (isErrorLine)
 			{
-				c = Colour(HISE_ERROR_COLOUR);
+				c = UriError::getColour(UriError::Error);
 				b2 = b2.removeFromRight(2.0f);
 			}
 			
 			if (isWarningLine)
 			{
-				c = Colour(HISE_WARNING_COLOUR);
+				c = UriError::getColour(UriError::Warning);
 				b2 = b2.removeFromRight(2.0f);
 			}
 
@@ -624,7 +770,12 @@ void mcl::GutterComponent::paint(Graphics& g)
 			auto bPath = bp->createPath();
 			PathFactory::scalePath(bPath, b);
 
-			if (bp->enabled.getValue() && breakpointsEnabled)
+			auto isActive = (bool)bp->enabled.getValue();
+
+			isActive &= breakpointsEnabled;
+			isActive &= bp->currentState == Breakpoint::State::OK;
+
+			if (isActive)
 			{
 				Colour c;
 
@@ -647,22 +798,86 @@ void mcl::GutterComponent::paint(Graphics& g)
 		}
 	}
 
+	if (currentBreakpointScope != nullptr)
+	{
+		jassert(currentBreakpointScope->hasRange());
+		
+		auto scopeLineRange = currentBreakpointScope->getLineRange();
+
+		auto scopeStart = getRowData(scopeLineRange.getStart() - 1);
+		auto scopeEnd = getRowData(scopeLineRange.getEnd() - 1);
+
+		if (scopeStart != nullptr && scopeEnd != nullptr)
+		{
+			auto a = getRowBounds(*scopeStart).withHeight(document.getRowHeight() * scaleFactor);
+			auto b = getRowBounds(*scopeEnd).withHeight(document.getRowHeight() * scaleFactor);
+
+			auto scopeArea = a.getUnion(b);
+
+			g.setColour(Colour(HISE_BREAKPOINT_COLOUR));
+			g.fillRect(scopeArea.withWidth(1).toFloat());
+		}
+	}
+
+	Array<int> drawnLines;
+	Path callstackIcon;
+	callstackIcon.loadPathFromData(EditorIcons::redoIcon, EditorIcons::redoIcon_Size);
+
+	auto drawCallstackLine = [&](Graphics& g, const UriLocation& callstackLine)
+	{
+		auto rowIndex = callstackLine.line - 1;
+
+		if (drawnLines.contains(rowIndex) || rowIndex == currentBreakLine.getLineNumber())
+			return;
+
+		if (auto r = getRowData(rowIndex))
+		{
+			g.setColour(Colour(HISE_BREAKPOINT_COLOUR).withAlpha(0.7f));
+
+			auto b = getRowBounds(*r).withHeight(document.getRowHeight() * scaleFactor);
+			auto pb = b.withWidth(b.getHeight()).reduced(5);
+
+			PathFactory::scalePath(callstackIcon, pb);
+			g.fillPath(callstackIcon);
+			g.setColour(Colour(HISE_BREAKPOINT_COLOUR).withAlpha(0.05f));
+			g.fillRect(b.withWidth(getWidth()));
+			drawnLines.add(rowIndex);
+		}
+	};
+
+	for (const auto& ex : externalCallstack)
+		drawCallstackLine(g, ex.second);
+
 	if (currentBreakLine != CodeDocument::Position())
 	{
-		if (auto r = getRowData(currentBreakLine.getLineNumber() - 1))
+		for (auto bp : breakpoints)
+			drawnLines.add(bp->getLineNumber());
+
+		for (auto cs : currentBreakPosition.callstack)
+		{
+			if (!currentBreakPosition.matches(cs.second))
+				continue;
+
+			drawCallstackLine(g, cs.second);
+		}
+			
+
+		if (auto r = getRowData(currentBreakLine.getLineNumber()))
 		{
 			auto b = getRowBounds(*r).withHeight(document.getRowHeight() * scaleFactor);
-			g.setColour(Colour(HISE_WARNING_COLOUR).withAlpha(0.05f));
+			g.setColour(Colour(breaklineDragger != nullptr ? SIGNAL_COLOUR : HISE_BREAKPOINT_COLOUR).withAlpha(0.05f));
 			g.fillRect(b.withWidth(getWidth()));
-
-			g.setColour(Colours::white);
 
 			Path arrow = createArrow();
 
-			b = b.withWidth(b.getHeight()).reduced(JUCE_LIVE_CONSTANT(6.0f) * scaleFactor);
+			b = b.removeFromLeft(getGutterWidth());
+			b = b.removeFromRight(b.getHeight()).reduced(JUCE_LIVE_CONSTANT_OFF(6.0f)* scaleFactor).translated(2.0f, 0.0f);
 
+			g.setColour(breaklineDragger != nullptr ? Colour(SIGNAL_COLOUR) : Colour(HISE_BREAKPOINT_COLOUR));
 			PathFactory::scalePath(arrow, b);
 			g.fillPath(arrow);
+			g.setColour(Colours::white.withAlpha(0.9f));
+			g.strokePath(arrow, PathStrokeType(1.0f));
 		}
 	}
 	
@@ -724,9 +939,12 @@ void mcl::GutterComponent::mouseDown(const MouseEvent& e)
 
 	if (delta > 18.0f)
 	{
-		if (e.mods.isCommandDown() || e.mods.isShiftDown())
+		if (e.mods.isCommandDown())
 		{
-			breakpoints.clear();
+			if (owner != nullptr)
+				owner->clearBreakpoints(sendNotificationAsync);
+
+			return;
 		}
 		else if(e.mods.isRightButtonDown())
 		{
@@ -749,10 +967,6 @@ void mcl::GutterComponent::mouseDown(const MouseEvent& e)
 			m.addItem(3, "Delete all breakpoints", !breakpoints.isEmpty());
 			m.addItem(4, "Recompile when breakpoints change", true, recompileOnBreakpointChange);
 			m.addItem(6, "Create profiling breakpoints", true, createProfilingBreakpoints);
-
-			m.addSeparator();
-			m.addItem(7, "Export breakpoints as JSON", !breakpoints.isEmpty(), false);
-			m.addItem(8, "Import breakpoints from JSON", true, false);
 
 			auto r = m.show();
 
@@ -891,7 +1105,8 @@ void mcl::GutterComponent::mouseDown(const MouseEvent& e)
 			}
 			else if (r == 3)
 			{
-				breakpoints.clear();
+				if (owner != nullptr)
+					owner->clearBreakpoints(sendNotification);
 			}
 			else if (r == 4)
 			{
@@ -921,52 +1136,44 @@ void mcl::GutterComponent::mouseDown(const MouseEvent& e)
                 auto root = TopLevelWindowWithOptionalOpenGL::findRoot(this);
                 CallOutBox::launchAsynchronously(std::unique_ptr<Component>(t), root->getLocalArea(this, calloutBounds), root);
 			}
-			else if (r == 7)
-			{
-				SystemClipboard::copyTextToClipboard(JSON::toString(getBreakpointsAsJSON("", "")));
-			}
-			else if (r == 8)
-			{
-				auto t = SystemClipboard::getTextFromClipboard();
-				var obj;
-
-				auto ok = JSON::parse(t, obj);
-
-				if (ok.wasOk())
-					setBreakpointsFromJSON(obj, "", "");
-			}
+			
 		}
-		else
+		else if (owner != nullptr)
 		{
+			
 			auto found = false;
 
 			for (int i = 0; i < breakpoints.size(); i++)
 			{
 				if (*breakpoints[i] == hoveredData.rowNumber)
 				{
-					breakpoints.remove(i--);
+					owner->removeUriBreakpoint(breakpoints[i]->toUriBreakpoint(), sendNotification);
 					found = true;
+					break;
 				}
 			}
 
 			if(!found)
 			{
-				Breakpoint::Ptr np = new Breakpoint(this, hoveredData.rowNumber, createProfilingBreakpoints, document.getCodeDocument());
+				UriBreakpoint np;
+				
+				auto lm = findParentComponentOfClass<TextEditor>()->getLanguageManager();
+				auto newPos = lm->createUriLocation(CodeDocument::Position(document.getCodeDocument(), hoveredData.rowNumber, 0));
+				np.fillLocation(newPos);
 
-				if(createProfilingBreakpoints)
+				if (e.mods.isShiftDown())
 				{
-					for(auto p: breakpoints)
-					{
-						if(*p == np->getLineNumber())
-							return;
-					}
+					np.breakOnHit = false;
+					np.blinkOnHit = true;
 				}
-				
-				breakpoints.add(np);
-			}
-				
 
-			sendBreakpointChangeMessage();
+				auto result = owner->addUriBreakpoint(np, sendNotification);
+
+				if (result.first == UriBreakpoint::Owner::AttachState::Duplicate)
+				{
+					breakpoints.add(new Breakpoint(*this, result.second, document.getCodeDocument()));
+				}
+			}
 		}
 
 		findParentComponentOfClass<mcl::TextEditor>()->translateView(0.0f, 0.0f);
@@ -975,7 +1182,26 @@ void mcl::GutterComponent::mouseDown(const MouseEvent& e)
 		return;
 	}
 
+	if (owner != nullptr && isBreakLineActive() && hoveredData.rowNumber == currentBreakLine.getLineNumber())
+	{
+		breaklineDragger = new BreaklineDragger(*this);
+		breaklineDragger->startDragging(e);
+		return;
+	}
+
+
 	document.getFoldableLineRangeHolder().toggleFoldState(hoveredData.rowNumber);
+}
+
+void GutterComponent::mouseDrag(const MouseEvent& e)
+{
+	if (breaklineDragger != nullptr)
+		breaklineDragger->dragInstructionMarker(e);
+}
+
+void GutterComponent::mouseUp(const MouseEvent & e)
+{
+	breaklineDragger = nullptr;
 }
 
 void mcl::GutterComponent::sendBlinkMessage(int n)
@@ -983,58 +1209,49 @@ void mcl::GutterComponent::sendBlinkMessage(int n)
 	blinkHandler.addBlinkState(n);
 }
 
-void GutterComponent::setActiveBreakpoints(const Array<int> activeBreakpoints)
+
+GutterComponent::BreaklineDragger::BreaklineDragger(GutterComponent& g) :
+	parent(g)
+{}
+
+GutterComponent::BreaklineDragger::~BreaklineDragger()
 {
-	for (int i = 0; i < breakpoints.size(); i++)
+	UriBreakpoint newLocation;
+	newLocation.fillLocation(parent.currentBreakPosition);
+	newLocation.fillLocation(parent.currentBreakLine);
+	
+	auto resolvedPos = parent.owner->moveInstructionPointer(newLocation);
+
+	if ((bool)resolvedPos)
 	{
-		auto isActive = activeBreakpoints.contains(i);
-		breakpoints[i]->enabled = isActive;
+		parent.currentBreakPosition.fillLocation(resolvedPos);
+		parent.setCurrentBreakline(parent.currentBreakPosition, parent.currentBreakpointScope);
 	}
-
-	repaint();
-}
-
-void GutterComponent::setBreakpointsFromJSON(const var& breakpointData, const String& processorId, const String& uri)
-{
-	if (auto ar = breakpointData.getArray())
+	else
 	{
-		breakpoints.clear();
-
-		for (const auto& v : *ar)
-		{
-			auto b = UriBreakpoint::fromJSON(v);
-
-			if (b.processorId.isEmpty() && processorId.isNotEmpty())
-				b.processorId = processorId;
-
-			if (b.uri.isEmpty() && uri.isNotEmpty())
-				b.uri = uri;
-
-			auto bp = new Breakpoint(this, b.line, false, document.getCodeDocument());
-			bp->condition = b.expression;
-			bp->enabled = b.enabled;
-			bp->blinkIfHit = b.blinkOnHit;
-			bp->breakIfHit = b.breakOnHit;
-			bp->useCondition = b.expression != "true";
-
-			breakpoints.add(bp);
-		}
-
-		sendBreakpointChangeMessage();
-		repaint();
+		parent.currentBreakPosition.fillLocation(originalLocation);
+		parent.setCurrentBreakline(parent.currentBreakPosition, parent.currentBreakpointScope);
 	}
 }
 
-var GutterComponent::getBreakpointsAsJSON(const String& processorId, const String& uri) const
+void GutterComponent::BreaklineDragger::startDragging(const MouseEvent& e)
 {
-	Array<var> list;
+	originalLocation.fillLocation(parent.currentBreakPosition);
+	parent.repaint();
+}
 
-	auto uriList = getBreakpointLocations(processorId, uri);
+void GutterComponent::BreaklineDragger::dragInstructionMarker(const MouseEvent& e)
+{
+	auto pos = e.position.transformedBy(parent.transform.inverted());
+	auto newPos = parent.document.findIndexNearestPosition(pos);
 
-	for (const auto& u : uriList)
-		list.add(u.toJSON());
+	auto lr = parent.currentBreakpointScope->getLineRange();
+	lr -= 1;
+	
+	auto l = lr.clipValue(newPos.x);
 
-	return var(list);
+	parent.currentBreakLine.setLineAndIndex(l, 0);
+	parent.repaint();
 }
 
 }

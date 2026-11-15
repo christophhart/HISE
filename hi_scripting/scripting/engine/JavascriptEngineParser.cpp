@@ -85,6 +85,58 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
         diagnostics.add(copy);
     }
     
+	LocalScopeCreator::ScopeData localScopeData;
+
+	void addLocalScopeData(const LocalScopeCreator::ScopeData& sd)
+	{
+		localScopeData.clear();
+
+		for (const auto& item : sd)
+		{
+			if (item.type != LocalScopeCreator::DataType::Unknown)
+			{
+				jassert(item.source != nullptr);
+				localScopeData.push_back(item);
+			}
+		}
+	}
+
+	/** Called by the expression evaluator to add the iterator Ids to the stack to be resolvable. */
+	void addLoopIteratorsFromScope(const Scope& s)
+	{
+		auto thisScope = &s;
+
+		while (thisScope != nullptr)
+		{
+			if (thisScope->currentLoopStatement != nullptr)
+			{
+				auto typed = (LoopStatement*)thisScope->currentLoopStatement;
+
+				IteratorData nd;
+				nd.loop = typed;
+				nd.id = typed->iteratorId;
+				currentIterators.insert(0, nd);
+			}
+
+			thisScope = thisScope->parent;
+		}
+	}
+
+	void copyDiagnosticsTo(ExpressionTreeBuilder& parent)
+	{
+		jassert(isDiagnosticMode() == parent.isDiagnosticMode());
+
+		if (isDiagnosticMode())
+		{
+			parent.diagnostics.addArray(diagnostics);
+			parent.functionsToShadowParse.addArray(functionsToShadowParse);
+		}
+		else
+		{
+			parent.functionsForBreakpoints.addArray(functionsForBreakpoints);
+		}
+	}
+
 	BlockStatement* parseStatementList()
 	{
 		ScopedPointer<BlockStatement> b(new BlockStatement(location));
@@ -2243,6 +2295,60 @@ private:
 		return parseFactor(nullptr);
 	}
 
+	Expression* parseLocalScopeExpression(const Identifier& id)
+	{
+		if (!localScopeData.empty())
+		{
+			for (auto& s : localScopeData)
+			{
+				if (s.id == id)
+				{
+					if (auto cb = dynamic_cast<Callback*>(s.source))
+					{
+						if (s.type == LocalScopeCreator::DataType::Parameter)
+						{
+							var* callbackParameter = cb->getVarPointer(s.id);
+							return new CallbackParameterReference(location, callbackParameter);
+						}
+						else
+						{
+							jassert(s.type == LocalScopeCreator::DataType::LocalVar);
+							return new CallbackLocalReference(location, cb, s.id);
+						}
+					}
+					else if (auto ob = dynamic_cast<InlineFunction::Object*>(s.source))
+					{
+						if (s.type == LocalScopeCreator::DataType::Parameter)
+						{
+							int index = 0;
+
+							for (const auto& p : ob->parameterNames)
+							{
+								if (p.id == s.id)
+									return new InlineFunction::ParameterReference(location, ob, index);
+
+								index++;
+							}
+
+							jassertfalse;
+						}
+						else
+						{
+							jassert(s.type == LocalScopeCreator::DataType::LocalVar);
+							return new LocalReference(location, ob, s.id);
+						}
+					}
+					else
+					{
+						jassertfalse;
+					}
+				}
+			}
+		}
+
+		return nullptr;
+	}
+
 	Expression* parseFactor(JavascriptNamespace* ns=nullptr)
 	{
 		if (currentType == TokenTypes::identifier)
@@ -2274,6 +2380,8 @@ private:
 			{
 				return parseSuffixes(new LoopStatement::IteratorName(location, iteratorLoop, parseIdentifier()));
 			}
+			else if (auto e = parseLocalScopeExpression(id))
+				return parseSuffixes(e);
 			else if (auto ob = dynamic_cast<InlineFunction::Object*>(outerInlineFunction))
 			{
 				const int inlineParameterIndex = ob->parameterNames.indexOf(id);
@@ -2955,19 +3063,30 @@ var HiseJavascriptEngine::RootObject::evaluate(const String& code)
 	ExpressionTreeBuilder tb(*this, pid, code, String(), preprocessor);
 	tb.setupApiData(hiseSpecialData, code);
     
-	auto& cp = currentLocalScopeCreator.get();
+	LocalScopeCreator::ScopeData sd;
 
-    DynamicObject::Ptr localScope = cp != nullptr ? cp->createScope(this) : nullptr;
-    
-    if(localScope == nullptr)
-        localScope = this;
-    else
-    {
-        for(const auto& x: getProperties())
-            localScope->setProperty(x.name, x.value);
-    }
-    
-	return ExpPtr(tb.parseExpression())->getResult(Scope(nullptr, this, localScope.get()));
+	auto& cp = threadAwareLocalScopeCreator.get();
+
+	if (cp.get() == nullptr)
+		cp = breakpointState.currentLocalScopeCreator.get();
+
+	if (cp != nullptr)
+		sd = cp->createScope(this);
+
+	DynamicObject::Ptr localScope(new DynamicObject());
+
+	for (const auto& item : sd)
+	{
+		if (item.type == LocalScopeCreator::DataType::Unknown)
+			localScope->setProperty(item.id, item.value);
+	}
+
+	auto ls = Scope(breakpointState.currentBreakpointScope, this, localScope.get());
+
+	tb.addLocalScopeData(sd);
+	tb.addLoopIteratorsFromScope(ls);
+
+	return ExpPtr(tb.parseExpression())->getResult(ls);
 }
 
 bool HiseJavascriptEngine::RootObject::areTypeEqual(const var& a, const var& b)
@@ -3001,16 +3120,60 @@ void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowCon
 		PROFILE_ONLY(DebugSession::ProfileDataSource::ScopedProfiler sp(onInitProfileSource, hiseSpecialData.processor));
 		PROFILE_ONLY(sl->currentProfileRoot = onInitProfileSource);
 
+		Array<UriBreakpoint> onInitBreakpoints;
+
 		if (allowConstDeclarations)
 		{
+			jassert(breakpointState.resolvedBreakpoints.empty());
 			jassert(breakpointFunctions.isEmpty());
 			breakpointFunctions.addArray(tb.functionsForBreakpoints);
 
-			for (const auto& bp : initBreakpoints)
-				addRuntimeBreakpoint(bp);
+			auto& list = breakpointState.unresolvedBreakpoints;
+
+			auto OK = UriBreakpoint::Owner::AttachState::OK;
+
+			for (int i = 0; i < list.size(); i++)
+			{
+				auto bp = list[i];
+
+				if (auto runtimeStatement = addRuntimeBreakpoint(bp))
+				{
+					auto newLoc = runtimeStatement->location.createUriLocation();
+					bp.fillLocation(newLoc);
+					hiseSpecialData.processor->setBreakpointState({ OK, bp }, sendNotificationAsync);
+					breakpointState.resolvedBreakpoints[runtimeStatement] = bp;
+					list.remove(i--);
+					continue;
+				}
+
+				if (auto onInitStatement = attachBreakpointInBlock(sl.get(), bp))
+				{
+					auto newLoc = onInitStatement->location.createUriLocation();
+					bp.fillLocation(newLoc);
+					hiseSpecialData.processor->setBreakpointState({ OK, bp }, sendNotificationAsync);
+					breakpointState.resolvedBreakpoints[onInitStatement] = bp;
+					onInitBreakpoints.add(bp);
+					list.remove(i--);
+					continue;
+				}
+			}
 		}
+
+		OnInitScopeCreator oisc(sl.get());
+		LocalScopeCreator::ScopedSetter svs(this, &oisc);
 		
 		sl->perform(Scope(nullptr, this, this), nullptr);
+
+		if (allowConstDeclarations)
+		{
+			for (auto bp : onInitBreakpoints)
+			{
+				if (auto i = breakpointState.getStatementWithResolvedBreakpoint(bp))
+					breakpointState.resolvedBreakpoints.erase(i);
+
+				hiseSpecialData.processor->setBreakpointState({ UriBreakpoint::Owner::AttachState::Stale, bp }, sendNotificationAsync);
+			}
+		}
 	}
 
 	Array<OptimizationPass::OptimizationResult> results;

@@ -496,42 +496,10 @@ void HiseJavascriptEngine::RootObject::prepareCycleReferenceCheck()
 #endif
 }
 
-bool HiseJavascriptEngine::RootObject::addRuntimeBreakpoint(const UriBreakpoint& bp)
-{
-	auto locId = bp.toLocationString(UriLocation::UriFormat::ConnectionId);
 
-	auto check = [&](BlockStatement* bl)
-	{
-		UriLocation simple;
-		bl->location.fillLocation(simple, false);
 
-		auto thisId = simple.toLocationString(UriLocation::UriFormat::ConnectionId);
 
-		if (thisId == locId)
-		{
-			auto range = bl->getBlockLineRangeFromStatements();
 
-			if (range.contains(bp.line))
-			{
-				for (auto s : bl->statements)
-				{
-					auto sLoc = s->location.createUriLocation();
-					auto sIndex = sLoc.line;
-
-					if (sIndex == bp.line)
-					{
-						s->breakpoint = bp;
-						return true;
-					}
-				}
-			}
-		}
-
-		return false;
-	};
-
-	return forEachRuntimeBlockStatement(check);
-}
 
 HiseJavascriptEngine::RootObject::ScopedLocalThisObject::ScopedLocalThisObject(RootObject& r_,  var newObject):
 	r(r_)
@@ -560,12 +528,14 @@ HiseJavascriptEngine::RootObject::LocalScopeCreator::ScopedSetter::ScopedSetter(
 	r(r_.get())
 {
 #if ENABLE_SCRIPTING_BREAKPOINTS
+
+	prevValue = p;
+
 	auto isMessageThread = MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread();
 
 	if (!isMessageThread)
 	{
-		auto& cp = r->currentLocalScopeCreator.get();
-		prevValue = p;
+		auto& cp = r->threadAwareLocalScopeCreator.get();
 		std::swap(prevValue, cp);
 		ok = true;
 	}
@@ -577,7 +547,7 @@ HiseJavascriptEngine::RootObject::LocalScopeCreator::ScopedSetter::~ScopedSetter
 #if ENABLE_SCRIPTING_BREAKPOINTS
 	if (ok)
 	{
-		auto& cp = r->currentLocalScopeCreator.get();
+		auto& cp = r->threadAwareLocalScopeCreator.get();
 		std::swap(cp, prevValue);
 	}
 #endif
@@ -617,6 +587,31 @@ void HiseJavascriptEngine::RootObject::JavascriptNamespace::prepareCycleReferenc
 void HiseJavascriptEngine::RootObject::FunctionObject::prepareCycleReferenceCheck()
 {
 	enableCycleCheck = true;
+}
+
+HiseJavascriptEngine::RootObject::BlockStatement* HiseJavascriptEngine::RootObject::FunctionObject::getRootBlockStatement() const
+{
+	return dynamic_cast<BlockStatement*>(body.get());
+}
+
+HiseJavascriptEngine::RootObject::LocalScopeCreator::ScopeData HiseJavascriptEngine::RootObject::FunctionObject::createScope(RootObject* r)
+{
+	using LSC = RootObject::LocalScopeCreator;
+
+	LSC::ScopeData sd;
+
+	for (const auto& nv : lastScope->getProperties())
+	{
+		LSC::Item item;
+		item.id = nv.name;
+		item.value = nv.value;
+		item.type = LSC::DataType::Unknown;
+		item.source = this;
+
+		sd.push_back(item);
+	}
+
+	return sd;
 }
 
 void HiseJavascriptEngine::RootObject::InlineFunction::Object::prepareCycleReferenceCheck()

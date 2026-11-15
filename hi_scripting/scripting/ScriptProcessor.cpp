@@ -456,7 +456,7 @@ ExternalScriptFile::Ptr FileChangeListener::addFileWatcher(const File &file)
 	return p;
 }
 
-void FileChangeListener::setFileResult(const File &file, Result r)
+void FileChangeListener::setFileResult(const UriError& e)
 {
 	for (int i = 0; i < watchers.size(); i++)
 	{
@@ -1718,8 +1718,21 @@ void JavascriptProcessor::resolveDependencies(DPItem::Ptr item, DPItem::List& pr
 	}
 }
 
-void JavascriptProcessor::stopAtBreakpoint(const UriLocation& location)
+void JavascriptProcessor::onUriBreakpointAttachTypeChange(const UriBreakpoint& bp, AttachState newAttachState)
 {
+	if (newAttachState == AttachState::Stale)
+		getScriptEngine()->setRuntimeBreakpoint(bp, UriBreakpointListener::ChangeType::Removed);
+}
+
+std::pair<UriBreakpoint::Owner::AttachState, UriBreakpoint> JavascriptProcessor::attachBreakpoint(const UriBreakpoint& bp)
+{
+	return getScriptEngine()->attachBreakpoint(bp);
+}
+
+void JavascriptProcessor::stopOnBreakpoint(const UriError& location)
+{
+	jassert(location.errorType | UriError::ErrorType::Breakpoint);
+
 	auto mc = dynamic_cast<Processor*>(this)->getMainController();
 	auto c = mc->getKillStateHandler().getCurrentThread();
 
@@ -1749,6 +1762,50 @@ void JavascriptProcessor::stopAtBreakpoint(const UriLocation& location)
 		message << "Breakpoint in UI Thread";// at " << id << "(Line " << lineNumber << ")";
 		throw message;
 	}
+}
+void JavascriptProcessor::resumeExecution(NextBreakpointAction n)
+{
+	auto& jt = dynamic_cast<Processor*>(this)->getMainController()->getJavascriptThreadPool();
+
+	jt.resume(n);
+
+
+}
+void JavascriptProcessor::onUriBreakpointEvent(const UriBreakpoint& resolvedBreakpoint, const UriError& breakpointEvent)
+{
+	if (breakpointEvent.errorType == UriError::Blink)
+	{
+		bool found = false;
+
+		for (auto& cp : errorProvider.currentBlinkEvents)
+		{
+			if (cp.first.matches(breakpointEvent))
+			{
+				cp.second++;
+				found = true;
+				break;
+			}
+		}
+
+		if (!found)
+			errorProvider.currentBlinkEvents.push_back({ breakpointEvent, 1 });
+	}
+	else
+	{
+		if (breakpointEvent.wasOk())
+		{
+			errorProvider.currentBreakpoint = { breakpointEvent, 0 };
+		}
+		else
+		{
+			if (breakpointEvent.matches(errorProvider.currentBreakpoint.first))
+				errorProvider.currentBreakpoint.second++;
+			else
+				errorProvider.currentBreakpoint = { breakpointEvent, 1 };
+		}
+	}
+
+	errorProvider.triggerAsyncUpdate();
 }
 #endif
 
@@ -2526,6 +2583,13 @@ JavascriptThreadPool::~JavascriptThreadPool()
 
 void JavascriptThreadPool::cancelAllJobs(bool shouldStopThread)
 {
+	if (isSleeping)
+	{
+		shouldWakeUp = true;
+		LockHelpers::waitUntil(getMainController(), [this]() { return this->isSleeping == false; });
+	}
+		
+
 	LockHelpers::SafeLock ss(getMainController(), LockHelpers::Type::ScriptLock);
 
 	if(shouldStopThread)
@@ -2581,20 +2645,34 @@ SimpleReadWriteLock& JavascriptThreadPool::getLookAndFeelRenderLock()
 GlobalServer* JavascriptThreadPool::getGlobalServer()
 { return globalServer.get(); }
 
-void JavascriptThreadPool::resume(bool stepToNext)
+void JavascriptThreadPool::resume(UriBreakpoint::Owner::NextBreakpointAction stepToNext_)
 {
-	if (auto jp = currentSleeper.get())
-		jp->getScriptEngine()->stopAtNextStatement(stepToNext);
-
+	stepToNext = stepToNext_;
 	shouldWakeUp = true;
+
+	notify();
 }
 
 void JavascriptThreadPool::deactivateSleepUntilCompilation()
 {
+	if (isSleeping)
+	{
+		resume(UriBreakpoint::Owner::NextBreakpointAction::Resume);
+		auto mm = MessageManager::getInstanceWithoutCreating();
+
+		if (mm->isThisTheMessageThread())
+		{
+			while (isSleeping)
+			{
+				mm->runDispatchLoopUntil(10);
+			}
+		}
+	}
+
 	allowSleep = false;
 }
 
-JavascriptThreadPool::ScopedSleeper::ScopedSleeper(JavascriptThreadPool& p_, JavascriptProcessor* jp, const UriLocation& loc):
+JavascriptThreadPool::ScopedSleeper::ScopedSleeper(JavascriptThreadPool& p_, JavascriptProcessor* jp, const UriError& loc):
 	p(p_),
 	wasSleeping(p.isSleeping),
 	location(loc),
@@ -2603,7 +2681,11 @@ JavascriptThreadPool::ScopedSleeper::ScopedSleeper(JavascriptThreadPool& p_, Jav
 	p.currentSleeper = jp;
 
 	if (!p.allowSleep)
+	{
+		sendMessage(false);
 		return;
+	}
+		
 
 	sendMessage(true);
 
@@ -2633,12 +2715,21 @@ JavascriptThreadPool::ScopedSleeper::ScopedSleeper(JavascriptThreadPool& p_, Jav
 
 	SimpleReadWriteLock::ScopedDisabler sd(p.getLookAndFeelRenderLock());
 
+	auto currentThread = p.getMainController()->getKillStateHandler().getCurrentThread();
+
 	while (p.allowSleep && !p.shouldWakeUp && !shouldExit())
 	{
 		PendingCompilationList l;
 		auto r = p.executeQueue(Task::ReplEvaluation, l);
-                
-		Thread::sleep(200);
+
+		if (currentThread == MainController::KillStateHandler::TargetThread::ScriptingThread)
+		{
+			p.wait(200);
+		}
+		else
+		{
+			Thread::sleep(200);
+		}
 	}
 
 	sendMessage(false);
@@ -2646,6 +2737,28 @@ JavascriptThreadPool::ScopedSleeper::ScopedSleeper(JavascriptThreadPool& p_, Jav
 
 void JavascriptThreadPool::ScopedSleeper::sendMessage(bool on)
 {
+	auto jp = p.currentSleeper;
+
+	if (messageSent || jp == nullptr)
+		return;
+
+	jassert(jp != nullptr);
+
+	if (on)
+	{
+		jp->sendUriBreakpointEvent(location);
+		
+		if (p.customOnBreakFunction)
+			p.customOnBreakFunction();
+	}
+		
+	else
+	{
+		jp->sendUriBreakpointEvent(UriError::ok());
+		jp->getScriptEngine()->stopAtNextStatement(p.stepToNext);
+		p.stepToNext = UriBreakpoint::Owner::NextBreakpointAction::Resume;
+	}
+
 	JavascriptThreadPool* p_ = &p;
 	auto l = location;
 
@@ -2663,14 +2776,18 @@ void JavascriptThreadPool::ScopedSleeper::sendMessage(bool on)
 	};
 
 	MessageManager::callAsync(f);
+
+	if(!on)
+		messageSent = true;
 }
 
 JavascriptThreadPool::ScopedSleeper::~ScopedSleeper()
 {
 	p.isSleeping = wasSleeping;
 	p.currentSleeper = prevJp;
-	p.lowPriorityQueue.clear();
-	p.highPriorityQueue.clear();
+	// These are deactivated so that other events are added to the queue, time will tell if that's a good idea...
+	//p.lowPriorityQueue.clear();
+	//p.highPriorityQueue.clear();
 			
 	sendMessage(false);
 }
@@ -2694,8 +2811,8 @@ void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Ta
 
 	auto currentThread = getMainController()->getKillStateHandler().getCurrentThread();
 
-	if (t != Task::Type::Compilation && t != Task::Type::ReplEvaluation && isSleeping)
-		return;
+	//if (t != Task::Type::Compilation && t != Task::Type::ReplEvaluation && isSleeping)
+	//	return;
 
 	switch (currentThread)
 	{
@@ -2754,7 +2871,7 @@ void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Ta
 		if (getMainController()->isInitialised() && !getMainController()->isFlakyThreadingAllowed())
 		{
 			pushToQueue(t, p, f);
-			notify();
+			notifyIfNotInBreakpoint();
 		}
 		else
 		{
@@ -3072,7 +3189,7 @@ void JavascriptThreadPool::pushToQueue(const Task::Type& t, JavascriptProcessor*
 		return;
 	}
 
-	notify();
+	notifyIfNotInBreakpoint();
 }
 
 UriError JavascriptThreadPool::executeNow(const Task::Type& t, JavascriptProcessor* p, const Task::Function& f)

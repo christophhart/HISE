@@ -319,6 +319,8 @@ struct WeakCallbackHolder : private ScriptingObject
 
 		virtual int getNumArguments() const = 0;
 
+		std::vector<UriLocation> callSites;
+
 	protected:
 
 		UriError lastResult;
@@ -519,6 +521,8 @@ struct WeakCallbackHolder : private ScriptingObject
 		anonymousFunctionRef = var();
 	}
 
+	void createAsyncCallstack();
+
 	void addAsSource(DebugableObjectBase* sourceObject, const String& callbackId, bool lookupVariableNameLater=true);
 
 	void addProfileSources(DebugInformationBase::Ptr p);
@@ -564,6 +568,11 @@ struct WeakCallbackHolder : private ScriptingObject
 #endif
 
 private:
+
+#if ENABLE_SCRIPTING_BREAKPOINTS
+	friend class JavascriptThreadPool;
+	std::vector<UriLocation::WithExpression> asyncCallstack;
+#endif
 
 	var getThisObject();
 

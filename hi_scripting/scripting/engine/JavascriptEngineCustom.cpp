@@ -617,27 +617,50 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			return location;
 		}
 
-        DynamicObject::Ptr createScope(RootObject* r) override
+		BlockStatement* getRootBlockStatement() const override
+		{
+			return body.get();
+		}
+
+        ScopeData createScope(RootObject* r) override
         {
             DynamicObject::Ptr n = new DynamicObject();
 
-            for (auto& v : *localProperties)
-                n->setProperty(v.name, v.value);
-            
-            auto fToUse = e.get();
-            
-            if(fToUse == nullptr)
-                fToUse = dynamicFunctionCall;
-            
-            if(fToUse != nullptr)
-            {
-                int index = 0;
+			LSC::ScopeData sd;
 
-                for (auto& p : parameterNames)
-                    n->setProperty(p, fToUse->parameterResults[index++]);
-            }
-            
-            return n;
+			auto fToUse = e.get();
+
+			if (fToUse == nullptr)
+				fToUse = dynamicFunctionCall;
+
+			if (fToUse != nullptr)
+			{
+				int index = 0;
+
+				for (auto& p : parameterNames)
+				{
+					LSC::Item item;
+					item.id = p;
+					item.value = fToUse->parameterResults[index++];
+					item.type = LSC::DataType::Parameter;
+					item.source = this;
+
+					sd.push_back(item);
+				}
+			}
+
+			for (const auto& nv : *localProperties)
+			{
+				LSC::Item item;
+				item.id = nv.name;
+				item.value = nv.value;
+				item.type = LSC::DataType::LocalVar;
+				item.source = this;
+
+				sd.push_back(item);
+			}
+
+			return sd;
         }
         
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("InlineFunction"); }
@@ -948,6 +971,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 				dynamicFunctionCall->parameterResults.setUnchecked(i, args[i]);
 			}
 
+			jassert(s.root->threadAwareLocalScopeCreator.get()->getRootBlockStatement() == body.get());
 			Statement::ResultCode c = body->perform(s, &lastReturnValue.get());
 
             for (int i = 0; i < numToSet; i++)
@@ -1150,6 +1174,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			return referenceToObject->name.toString() + "()";
 		}
 
+		bool isStepIntoTarget() const override { return true; }
+
 		var getResult(const Scope& s) const override
 		{
 #if HISE_SHADOW_PARSER_ENABLED
@@ -1238,6 +1264,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			}
 
 			RootObject::ScopedCallstackEntry sc(*s.root, f->name, &location);
+
+			jassert(s.root->threadAwareLocalScopeCreator.get()->getRootBlockStatement() == f->body.get());
 
 			ResultCode c = f->body->perform(s, &returnVar);
 

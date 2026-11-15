@@ -654,7 +654,8 @@ WeakCallbackHolder::WeakCallbackHolder(const WeakCallbackHolder& copy) :
 	capturedLocals(copy.capturedLocals),
 	trackIndex(copy.trackIndex),
 	pCall(copy.pCall),
-	pTrigger(copy.pTrigger)
+	pTrigger(copy.pTrigger),
+	asyncCallstack(copy.asyncCallstack)
 {
 	args.addArray(copy.args);
 }
@@ -672,7 +673,8 @@ WeakCallbackHolder::WeakCallbackHolder(WeakCallbackHolder&& other):
 	capturedLocals(other.capturedLocals),
 	trackIndex(other.trackIndex),
 	pCall(other.pCall),
-	pTrigger(other.pTrigger)
+	pTrigger(other.pTrigger),
+	asyncCallstack(other.asyncCallstack)
 {
 	args.swapWith(other.args);
 }
@@ -697,6 +699,7 @@ hise::WeakCallbackHolder& WeakCallbackHolder::operator=(WeakCallbackHolder&& oth
 	trackIndex = other.trackIndex;
 	pCall = other.pCall;
 	pTrigger = other.pTrigger;
+	asyncCallstack = other.asyncCallstack;
 	
 	return *this;
 }
@@ -705,6 +708,9 @@ void WeakCallbackHolder::incRefCount()
 {
 	if(weakCallback != nullptr && weakCallback->allowRefCount())
 		anonymousFunctionRef = var(dynamic_cast<ReferenceCountedObject*>(weakCallback.get()));
+
+	if (weakCallback != nullptr)
+		createAsyncCallstack();
 }
 
 hise::DebugInformationBase* WeakCallbackHolder::createDebugObject(const String& n) const
@@ -717,6 +723,18 @@ hise::DebugInformationBase* WeakCallbackHolder::createDebugObject(const String& 
 	{
 		return new DebugInformation(DebugInformation::Type::Constant);
 	}
+}
+
+void WeakCallbackHolder::createAsyncCallstack()
+{
+#if ENABLE_SCRIPTING_BREAKPOINTS
+	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
+	{
+		UriError e;
+		jp->getScriptEngine()->attachCallstack(e);
+		asyncCallstack = e.callstack;
+	}
+#endif
 }
 
 void WeakCallbackHolder::addAsSource(DebugableObjectBase* sourceObject, const String& callbackId, bool lookupVariableNameLater)
@@ -875,6 +893,7 @@ UriError WeakCallbackHolder::callSync(const var::NativeFunctionArgs& a, var* ret
 		if(!capturedLocals.isEmpty())
 			weakCallback->storeCapturedLocals(capturedLocals, false);
 
+		JavascriptThreadPool::ScopedAsyncCallstack sac(getScriptProcessor()->getMainController_()->getJavascriptThreadPool(), *this);
 		return weakCallback->call(engineToUse, a, returnValue);
 	}
 	else

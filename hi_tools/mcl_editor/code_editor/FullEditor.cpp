@@ -193,16 +193,6 @@ void FullEditor::sendBlinkMessage(int n)
 	editor.gutter.sendBlinkMessage(n);
 }
 
-void FullEditor::addBreakpointListener(GutterComponent::BreakpointListener* l)
-{
-	editor.gutter.addBreakpointListener(l);
-}
-
-void FullEditor::removeBreakpointListener(GutterComponent::BreakpointListener* l)
-{
-	editor.gutter.removeBreakpointListener(l);
-}
-
 void FullEditor::enableBreakpoints(bool shouldBeEnabled)
 {
 	editor.gutter.setBreakpointsEnabled(shouldBeEnabled);

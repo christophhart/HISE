@@ -354,10 +354,9 @@ using namespace snex;
 */
 class JavascriptProcessor :	public FileChangeListener,
 							public Dispatchable,
-							public DiagnosticBase::ShadowParseData::DependencyResolver,
+							public UriBreakpoint::Owner,
 							public ProcessorWithDynamicExternalData,
 							public ApiProviderBase::Holder,
-							public UriLocation::Owner,
 							public WeakCallbackHolder::CallableObjectManager,
 							public scriptnode::DspNetwork::Holder
 {
@@ -588,11 +587,32 @@ public:
 	void shadowParse(const DiagnosticBase::ShadowParseData& sd, const DiagnosticCallback& callback,
 						 NotificationType notificationType = sendNotificationAsync);
 
-	using DPItem = DiagnosticBase::ShadowParseData::Item;
+	void onUriBreakpointAttachTypeChange(const UriBreakpoint& bp, AttachState newAttachState) override;
+	
+	void onUriBreakpointChange(const UriBreakpoint& bp, UriBreakpointListener::ChangeType changeType) override 
+	{
+		getScriptEngine()->setRuntimeBreakpoint(bp, changeType);
+	}
 
-	void resolveDependencies(DPItem::Ptr item, DPItem::List& preDependencies, DPItem::List& postDependencies) override;
+	std::pair<AttachState, UriBreakpoint> attachBreakpoint(const UriBreakpoint& bp) override;
 
-	void stopAtBreakpoint(const UriLocation& loc);
+	/** Override this method and implement moving the instruction pointer to the given location.
+
+		If the instruction marker needs to be moved to another location (eg. clipped to the current
+		function, return the actual location of the new pointer.
+	*/
+	UriLocation moveInstructionPointer(const UriBreakpoint& newLocation) override
+	{
+		return getScriptEngine()->moveInstructionPointer(newLocation);
+	}
+
+	/** Override this method and implement the logic that handles the breakpoint suspension. */
+	void stopOnBreakpoint(const UriError& e) override;
+
+	/** Override this method and implement the logic that handles the resuming of the execution. */
+	void resumeExecution(NextBreakpointAction n) override;
+
+	void onUriBreakpointEvent(const UriBreakpoint& resolvedBreakpoint, const UriError& breakpointEvent) override;
 
 #endif
 
@@ -714,7 +734,8 @@ public:
 	WeakCallbackHolder::CallableObject::StrictnessLevel getStrictnessLevel() const;
 #endif
 
-	Array<UriBreakpoint> currentBreakpoints;
+	
+	
 
 protected:
 
@@ -886,9 +907,27 @@ public:
 
 	GlobalServer* getGlobalServer();
 
-	void resume(bool stepToNext);
+	void resume(UriBreakpoint::Owner::NextBreakpointAction stepToNext);
 
 	void deactivateSleepUntilCompilation();
+
+	struct ScopedCustomOnBreakFunction
+	{
+		ScopedCustomOnBreakFunction(JavascriptThreadPool& pool, const std::function<void()>& f):
+		  p(pool),
+		  prevFunction(p.customOnBreakFunction)
+		{
+			p.customOnBreakFunction = f;
+		}
+
+		~ScopedCustomOnBreakFunction()
+		{
+			p.customOnBreakFunction = prevFunction;
+		}
+
+		JavascriptThreadPool& p;
+		std::function<void()> prevFunction;
+	};
 
 	struct ScopedSleeper
 	{
@@ -902,7 +941,14 @@ public:
 		JavascriptThreadPool& p;
 		JavascriptProcessor* prevJp;
 		const bool wasSleeping;
+		bool messageSent = false;
 	};
+
+	void notifyIfNotInBreakpoint()
+	{
+		if (!isSleeping)
+			notify();
+	}
 
 	void addSleepListener(SleepListener* s);;
 
@@ -910,7 +956,41 @@ public:
 
 	bool  isCurrentlySleeping() const;;
 
+	struct ScopedAsyncCallstack
+	{
+		ScopedAsyncCallstack(JavascriptThreadPool& t, const WeakCallbackHolder& wh):
+		  p(t)
+		{
+			if (!wh.asyncCallstack.empty())
+			{
+				pushedSomething = true;
+				p.asyncCallstack.push_back(wh.asyncCallstack);
+			}
+		}
+
+		~ScopedAsyncCallstack()
+		{
+			if (pushedSomething)
+				p.asyncCallstack.pop_back();
+		}
+
+		JavascriptThreadPool& p;
+		bool pushedSomething = false;
+	};
+
+	void attachAsyncCallstack(UriError& event)
+	{
+		for (auto& csItem : asyncCallstack)
+		{
+			for(auto& as: csItem)
+				event.callstack.push_back({ "async: " + as.first, as.second });
+		}
+	}
+
 private:
+
+	std::vector<std::vector<UriLocation::WithExpression>> asyncCallstack;
+	std::function<void()> customOnBreakFunction;
 
 	void clearCounter(Task::Type t)
 	{
@@ -930,6 +1010,7 @@ private:
 
 	bool isSleeping = false;
 	bool shouldWakeUp = false;
+	UriBreakpoint::Owner::NextBreakpointAction stepToNext = UriBreakpoint::Owner::NextBreakpointAction::Resume;
 	bool allowSleep = true;
 
 	WeakReference<JavascriptProcessor> currentSleeper;

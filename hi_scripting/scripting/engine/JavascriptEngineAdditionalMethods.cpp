@@ -125,6 +125,16 @@ bool HiseJavascriptEngine::isInlineFunction(const var& v)
 	return false;
 }
 
+bool HiseJavascriptEngine::hasBreakpoints(const var& v)
+{
+	if (auto obj = dynamic_cast<RootObject::LocalScopeCreator*>(v.getObject()))
+	{
+		return obj->hasBreakpoints;
+	}
+
+	return false;
+}
+
 HiseJavascriptEngine::ExternalFileData::ExternalFileData(Type t_, const File& f_, const String& name_): t(t_), f(f_), r(Result::ok())
 {
 	switch (t_)
@@ -164,63 +174,7 @@ HiseJavascriptEngine::HiseJavascriptEngine(JavascriptProcessor *p, MainControlle
 	registerNativeObject(RootObject::IntegerClass::getClassName(), new RootObject::IntegerClass());
 }
 
-bool HiseJavascriptEngine::RootObject::forEachRuntimeBlockStatement(const std::function<bool(BlockStatement*)>& f)
-{
-	for (auto c : hiseSpecialData.callbackNEW)
-	{
-		if (auto bl = c->statements.get())
-		{
-			if (bl->callRecursive<BlockStatement>(f))
-				return true;
-		}
-	}
 
-	
-	
-	//for (auto ns : hiseSpecialData.namespaces)
-		//list.addArray(ns->collectAllFunctions());
-
-	for (const auto& v : breakpointFunctions)
-	{
-		if (auto ifo = dynamic_cast<InlineFunction::Object*>(v.getObject()))
-		{
-			if (ifo->body->callRecursive<BlockStatement>(f))
-				return true;
-		}
-
-		if (auto fo = dynamic_cast<FunctionObject*>(v.getObject()))
-		{
-			if (auto bl = dynamic_cast<BlockStatement*>(fo->body.get()))
-			{
-				if (bl->callRecursive<BlockStatement>(f))
-					return true;
-			}
-		}
-	}
-
-	return false;
-}
-
-Array<var> HiseJavascriptEngine::RootObject::JavascriptNamespace::collectAllFunctions() const
-{
-	Array<var> allFunctions;
-
-	for (auto f : inlineFunctions)
-		allFunctions.add(f);
-
-	for (auto& co : constObjects)
-	{
-		if (auto cso = dynamic_cast<ApiClass*>(co.value.getObject()))
-		{
-			auto fList = cso->getListOfOptimizableFunctions();
-
-			if (fList.isArray())
-				allFunctions.addArray(*fList.getArray());
-		}
-	}
-
-	return allFunctions;
-}
 
 bool HiseJavascriptEngine::RootObject::JavascriptNamespace::optimiseFunction(OptimizationPass::OptimizationResult& r, var function, OptimizationPass* p)
 {
@@ -1142,31 +1096,7 @@ DebugInformation* HiseJavascriptEngine::RootObject::JavascriptNamespace::createD
 	return nullptr;
 }
 
-void HiseJavascriptEngine::RootObject::HiseSpecialData::fillScopeTreeWithInlineFunctions(HiseJavascriptEngine::ScopeTree& scopeTree)
-{
-    auto rootProp = scopeTree.back().second;
-    
-    jassert(rootProp != nullptr);
-    
-    for(auto f: inlineFunctions)
-    {
-        auto typed = dynamic_cast<InlineFunction::Object*>(f);
-        rootProp->setProperty(typed->name, typed->getAutocompleteString());
-    }
-    
-    for(auto n: namespaces)
-    {
-        if(auto nProp = rootProp->getProperty(n->id).getDynamicObject())
-        {
-            for(auto f: n->inlineFunctions)
-            {
-                auto typed = dynamic_cast<InlineFunction::Object*>(f);
-                
-                nProp->setProperty(typed->name, typed->getAutocompleteString());
-            }
-        }
-    }
-}
+
 
 DynamicObject* HiseJavascriptEngine::RootObject::HiseSpecialData::getInlineFunction(const Identifier &inlineFunctionId)
 {
@@ -1481,15 +1411,33 @@ String HiseJavascriptEngine::RootObject::Callback::getDebugName() const
 
 HiseJavascriptEngine::RootObject::LocalScopeCreator::ScopeData HiseJavascriptEngine::RootObject::Callback::createScope(RootObject* r)
 {
-	DynamicObject::Ptr obj = new DynamicObject();
-                
+	using LSC = HiseJavascriptEngine::RootObject::LocalScopeCreator;
+	
+	LSC::ScopeData sd;
+
 	for (int i = 0; i < numArgs; i++)
-		obj->setProperty(parameters[i], parameterValues[i]);
+	{
+		LSC::Item item;
+		item.id = parameters[i];
+		item.value = parameterValues[i];
+		item.type = LSC::DataType::Parameter;
+		item.source = this;
 
-	for (int i = 0; i < localProperties.size(); i++)
-		obj->setProperty(localProperties.getName(i), localProperties.getValueAt(i));
+		sd.push_back(item);
+	}
 
-	return obj;
+	for (auto& nv : localProperties)
+	{
+		LSC::Item item;
+		item.id = nv.name;
+		item.value = nv.value;
+		item.type = LSC::DataType::LocalVar;
+		item.source = this;
+
+		sd.push_back(item);
+	}
+
+	return sd;
 }
 
 int HiseJavascriptEngine::RootObject::Callback::getNumChildElements() const
@@ -1608,6 +1556,7 @@ var HiseJavascriptEngine::RootObject::Callback::perform(RootObject *root)
 	RootObject::ScopedCallstackEntry sc(*root, callbackName, nullptr);
     LocalScopeCreator::ScopedSetter svs(root, this);
 
+	jassert(root->threadAwareLocalScopeCreator.get()->getRootBlockStatement() == statements.get());
 	statements->perform(s, &returnValue);
 
 	const double post = Time::getMillisecondCounterHiRes();
@@ -1951,28 +1900,16 @@ void ScriptingObject::reportScriptError(const String &errorMessage) const
 }
 
 
-void HiseJavascriptEngine::clearRuntimeBreakpoints()
+
+
+void HiseJavascriptEngine::attachCallstack(UriError& e) const
 {
-	root->forEachRuntimeBlockStatement([](RootObject::BlockStatement* bl)
-	{
-		bl->breakpoint = {};
-
-		for (auto s : bl->statements)
-			s->breakpoint = {};
-
-		return false;
-	});
+	root->attachCallstack(e);
 }
 
-bool HiseJavascriptEngine::addRuntimeBreakpoint(const UriBreakpoint& bp)
-{
-	return root->addRuntimeBreakpoint(bp);
-}
 
-void HiseJavascriptEngine::setOnInitBreakpoints(const Array<UriBreakpoint>& breakpoints)
-{
-	root->initBreakpoints = breakpoints;
-}
+
+
 
 #if USE_BACKEND
 

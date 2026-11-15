@@ -114,12 +114,13 @@ struct EditorBottomBar : public Component,
 	void timerCallback();
 
 	ScopedPointer<TextButton> compileButton;
-	ScopedPointer<TextButton> resumeButton;
+	ScopedPointer<HiseShapeButton> resumeButton;
+	ScopedPointer<HiseShapeButton> nextButton;
+	ScopedPointer<HiseShapeButton> overButton;
 
 	ScopedPointer<HiseShapeButton> errorButton;
 
 	bool isHalted = false;
-	bool lastCompileOk = false;
 	
 	void onLocationChange(const UriLocation& l)
 	{
@@ -244,7 +245,7 @@ public:
 
 	bool matchesUriLocation(const UriLocation& loc) const override;
 
-	bool sleepStateChanged(const UriLocation& location, bool on) override;
+	bool sleepStateChanged(const UriError& location, bool on) override;
 
 	void addEditor(CodeDocument& d, bool isJavascript);
 

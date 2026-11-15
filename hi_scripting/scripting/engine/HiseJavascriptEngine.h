@@ -300,11 +300,20 @@ public:
 
 	void setCallStackEnabled(bool shouldBeEnabled);
 
-	void stopAtNextStatement(bool value);
+	void stopAtNextStatement(UriBreakpoint::Owner::NextBreakpointAction value);
 
 	void clearRuntimeBreakpoints();
 
-	bool addRuntimeBreakpoint(const UriBreakpoint& loc);
+	void attachCallstack(UriError& e) const;
+
+	
+	
+
+	UriLocation moveInstructionPointer(const UriBreakpoint& newLocation);
+
+	std::pair<UriBreakpoint::Owner::AttachState, UriBreakpoint> attachBreakpoint(const UriBreakpoint& bp);
+
+	bool setRuntimeBreakpoint(const UriBreakpoint& loc, UriBreakpoint::Owner::UriBreakpointListener::ChangeType ct);
 
 	void setOnInitBreakpoints(const Array<UriBreakpoint>& breakpoints);
 
@@ -322,6 +331,8 @@ public:
 	static bool isJavascriptFunction(const var& v);
     
 	static bool isInlineFunction(const var& v);
+
+	static bool hasBreakpoints(const var& v);
 
 	struct ExternalFileData
 	{
@@ -350,7 +361,7 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ExternalFileData)
 	};
 
-	struct Breakpoint;
+	
 
 	struct CyclicReferenceCheckBase
 	{
@@ -443,7 +454,7 @@ public:
 
 			~ScopedWaker()
 			{
-				root.stopAtNextStatement = false;
+				root.breakpointState.clearBreakPosition();
 			}
 
 			RootObject& root;
@@ -518,8 +529,6 @@ public:
 
 			int getCharIndex() const;
 
-			using Helpers = mcl::TextEditor::Error::Helpers;
-
 			String getErrorMessage(const String& message) const;
 
 			void throwError(RootObject& r, const String& message) const;
@@ -572,7 +581,9 @@ public:
 
         HiseJavascriptPreprocessor::Ptr preprocessor;
 
-		bool addRuntimeBreakpoint(const UriBreakpoint& r);
+		
+
+		
 
 		void setEnableOnInitProfiling(bool shouldBeEnabled)
 		{
@@ -597,29 +608,7 @@ public:
 		DebugSession::ProfileDataSource::Ptr parseProfileSource;
 		DebugSession::ProfileDataSource::Ptr onInitProfileSource;
 
-        struct LocalScopeCreator
-        {
-            using Ptr = WeakReference<LocalScopeCreator>;
-            
-			struct ScopedSetter
-			{
-				ScopedSetter(ReferenceCountedObjectPtr<RootObject> r_, LocalScopeCreator::Ptr p);
-
-				~ScopedSetter();;
-
-				RootObject* r;
-				LocalScopeCreator::Ptr prevValue;
-				bool ok = false;
-			};
-
-            virtual ~LocalScopeCreator() {};
-            
-            virtual DynamicObject::Ptr createScope(RootObject* r) = 0;
-            
-            JUCE_DECLARE_WEAK_REFERENCEABLE(LocalScopeCreator);
-        };
         
-		ThreadLocalValue<LocalScopeCreator::Ptr> currentLocalScopeCreator;
         
 		struct Statement;
 		struct Expression;
@@ -779,7 +768,65 @@ public:
 		static var typeof_internal(Args a);
 		static var exec(Args a);
 		static var eval(Args a);
-                           
+                        
+		struct LocalScopeCreator
+		{
+			enum class DataType
+			{
+				Unknown = 0,
+				LocalVar,
+				Parameter
+			};
+
+			struct Item
+			{
+				DataType type = DataType::Unknown;
+				Identifier id;
+				var value;
+				LocalScopeCreator* source = nullptr;
+			};
+
+			using ScopeData = std::vector<Item>;
+
+			using Ptr = WeakReference<LocalScopeCreator>;
+
+			struct ScopedSetter
+			{
+				ScopedSetter(ReferenceCountedObjectPtr<RootObject> r_, LocalScopeCreator::Ptr p);
+
+				~ScopedSetter();;
+
+				RootObject* r;
+				LocalScopeCreator::Ptr prevValue;
+				bool ok = false;
+			};
+
+			virtual ~LocalScopeCreator() {};
+
+			virtual ScopeData createScope(RootObject* r) = 0;
+
+			virtual BlockStatement* getRootBlockStatement() const = 0;
+
+			bool hasBreakpoints = false;
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(LocalScopeCreator);
+		};
+
+		struct OnInitScopeCreator : public LocalScopeCreator
+		{
+			OnInitScopeCreator(BlockStatement* bl_) :
+				bl(bl_)
+			{};
+
+			ScopeData createScope(RootObject* r) override { return {}; }
+
+			BlockStatement* getRootBlockStatement() const override { return bl; }
+
+			BlockStatement* bl;
+		};
+
+		ThreadLocalValue<LocalScopeCreator::Ptr> threadAwareLocalScopeCreator;
+		
 		struct ScopedCallstackEntry
 		{
 			ScopedCallstackEntry(RootObject& r, const Identifier& id_, const CodeLocation* l):
@@ -813,7 +860,97 @@ public:
 			currentCallback = callbackId;
 		}
 
-		bool forEachRuntimeBlockStatement(const std::function<bool(BlockStatement*)> & f);
+		struct BreakpointState
+		{
+			BreakpointState() = default;
+
+			struct ScopedSetter
+			{
+				ScopedSetter(const Scope& s, const Statement* statementAfterBreak);
+
+				~ScopedSetter();
+
+				const Scope* prevScope;
+				RootObject& r;
+				LocalScopeCreator::Ptr prevCreator;
+				const Statement* prevStatement;
+			};
+
+			bool hasBreakpoint(const Statement* s) const
+			{
+				return resolvedBreakpoints.find(s) != resolvedBreakpoints.end();
+			}
+
+			const Statement* getStatementWithResolvedBreakpoint(const UriBreakpoint& bp) const
+			{
+				jassert(bp.getResolveState() & UriLocation::ResolveState::LineResolved);
+
+				auto lineNumber = bp.line;
+				auto uri = bp.uri;
+
+				for (const auto& item : resolvedBreakpoints)
+				{
+					jassert(item.second.getResolveState() & UriLocation::ResolveState::LineResolved);
+
+					if (item.second.uri == uri && item.second.line == lineNumber)
+						return item.first;
+				}
+
+				return nullptr;
+			}
+
+			const UriBreakpoint& getBreakpoint(const Statement* s) const
+			{
+				if (hasBreakpoint(s))
+				{
+					return resolvedBreakpoints.at(s);
+				}
+
+				jassertfalse;
+				static UriBreakpoint empty;
+				return empty;
+			}
+
+			void clearBreakPosition()
+			{
+				nextInstructionRoot = nullptr;
+				nextInstructionIndex = -1;
+				stopAtNextStatement = UriBreakpoint::Owner::NextBreakpointAction::Resume;
+			}
+
+			void resolveInitBreakpoints(BlockStatement* onInitBlock)
+			{
+				jassertfalse;
+			}
+
+			Array<UriBreakpoint> unresolvedBreakpoints;
+			std::map<const Statement*, UriBreakpoint> resolvedBreakpoints;
+
+			UriBreakpoint::Owner::NextBreakpointAction stopAtNextStatement = UriBreakpoint::Owner::NextBreakpointAction::Resume;
+			const BlockStatement* nextInstructionRoot = nullptr;
+			
+			int nextInstructionIndex = -1;
+
+			const Statement* statementAfterBreak = nullptr;
+			const Scope* currentBreakpointScope = nullptr;
+			LocalScopeCreator::Ptr currentLocalScopeCreator = nullptr;
+
+			JUCE_DECLARE_NON_COPYABLE(BreakpointState);
+		};
+
+		BreakpointState breakpointState;
+
+		Array<var> breakpointFunctions;
+
+		bool clearRuntimeBreakpoint(const UriBreakpoint& r);
+
+		const Statement* attachBreakpointInBlock(BlockStatement* bl, const UriBreakpoint& bp);
+
+		const Statement* updateRuntimeBreakpoint(const UriBreakpoint& r);
+		const Statement* addRuntimeBreakpoint(const UriBreakpoint& r);
+		const Statement* forEachRuntimeBlockStatement(const std::function<const Statement*(BlockStatement*)> & f);
+
+		UriLocation moveInstructionPointer(const UriBreakpoint& newLocation);
 
 		class Callback:  public DynamicObject,
 					     public DebugableObject,
@@ -858,6 +995,8 @@ public:
 
 			String getDebugValue() const override;
 
+			BlockStatement* getRootBlockStatement() const override { return statements.get(); }
+			
 			var createDynamicObjectForBreakpoint();
 
 			var invokeShadowParse(const Scope& s, const var::NativeFunctionArgs& args);
@@ -947,8 +1086,6 @@ public:
 
 			bool optimiseFunction(OptimizationPass::OptimizationResult& r, var function, OptimizationPass* p);
 
-			Array<var> collectAllFunctions() const;
-
 			DebugInformation* createDebugInformation(int index);
 
 			const Identifier id;
@@ -1013,11 +1150,7 @@ public:
 
 			void registerOptimisationPasses();
 
-            void fillScopeTreeWithInlineFunctions(ScopeTree& scopeTree);
-            
-			static bool initHiddenProperties;
-
-			
+            static bool initHiddenProperties;
 
 			ReferenceCountedArray<ApiClass> apiClasses;
 			Array<Identifier> apiIds;
@@ -1118,7 +1251,6 @@ public:
 
 		bool enableCallstack = false;
 		bool shouldUseCycleCheck = false;
-		
 
 		Identifier currentCallback;
 

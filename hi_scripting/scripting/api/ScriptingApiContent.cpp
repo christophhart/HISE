@@ -4781,16 +4781,22 @@ bool ScriptingApi::Content::ScriptPanel::internalRepaintIdle(bool forceRepaint, 
 		engine->maximumExecutionTime = HiseJavascriptEngine::getDefaultTimeOut();
 	}
 
-	engine->callExternalFunction(paintRoutine, args, &r);
+	auto dh = &graphics->getDrawHandler();
 
+	JavascriptThreadPool::ScopedCustomOnBreakFunction sd(p->getMainController()->getJavascriptThreadPool(), [dh]()
+	{
+		dh->flushWithoutClear();
+	});
+
+	engine->callExternalFunction(paintRoutine, args, &r);
+	
 	if (r.failed())
 	{
 		debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.toConsoleMessage());
 	}
 
 	auto idx = getScriptProcessor()->getScriptingContent()->contentProfile.openTrack(pPaintRoutine);
-
-	graphics->getDrawHandler().flush(lastId, idx);
+	dh->flush(lastId, idx);
 
 	return true;
 }

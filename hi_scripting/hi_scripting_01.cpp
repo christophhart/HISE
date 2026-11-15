@@ -90,6 +90,7 @@
 #include "scripting/engine/JavascriptEngineObjects.cpp"
 #include "scripting/engine/JavascriptEngineMathObject.cpp"
 #include "scripting/engine/JavascriptEngineAdditionalMethods.cpp"
+#include "scripting/engine/JavascriptEngineBreakpointFunctions.cpp"
 #include "scripting/engine/JavascriptEngineCyclicReferenceChecks.cpp"
 
 #include "scripting/engine/LightweightParserHelpers.cpp"

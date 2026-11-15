@@ -47,7 +47,7 @@ struct VoiceCpuBpmComponent::InternalSleepListener : public ControlledObject,
 		getMainController()->getJavascriptThreadPool().removeSleepListener(this);
 	}
 
-	bool sleepStateChanged(const UriLocation& loc, bool isSleeping) override
+	bool sleepStateChanged(const UriError& loc, bool isSleeping) override
 	{
 		if (isSleeping)
 		{
@@ -361,7 +361,7 @@ void VoiceCpuBpmComponent::mouseDown(const MouseEvent& e)
 {
 	if (il->sleepText.isNotEmpty())
 	{
-		getMainController()->getJavascriptThreadPool().resume(false);
+		getMainController()->getJavascriptThreadPool().resume(UriBreakpoint::Owner::NextBreakpointAction::Resume);
 	}
 }
 

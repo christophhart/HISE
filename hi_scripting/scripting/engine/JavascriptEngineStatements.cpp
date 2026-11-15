@@ -786,6 +786,277 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 
 	using ScopedBlockProfiler = DebugSession::ProfileDataSource::ScopedProfiler;
 
+	struct BreakpointHelpers
+	{
+		enum BreakReason
+		{
+			Continue,
+			BreakpointHit,
+			StepThrough,
+			Blink
+		};
+
+		static BreakReason shouldBreakAtStatement(const Scope& s, const Statement* st)
+		{
+			if (s.root->breakpointState.nextInstructionRoot != nullptr)
+			{
+				// perform the current statement, then stop on the next since
+				// we've moved the instruction pointer just here.
+				s.root->breakpointState.nextInstructionRoot = {};
+				s.root->breakpointState.nextInstructionIndex = -1;
+
+				return BreakReason::Continue;
+			}
+
+			if (s.root->breakpointState.hasBreakpoint(st))
+			{
+				const auto& bp = s.root->breakpointState.getBreakpoint(st);
+
+				auto use = bp.enabled;
+
+				if (use && bp.expression.isNotEmpty() && bp.expression != "true")
+					use = (bool)s.root->evaluate(bp.expression);
+
+				if ((use && bp.blinkOnHit) && !bp.breakOnHit)
+				{
+					jassert(st != nullptr);
+					createBreakpointEvent(s, BreakReason::Blink, st);
+					use = false;
+				}
+					
+
+				if (use)
+					return BreakReason::BreakpointHit;
+			}
+
+			auto ns = s.root->breakpointState.stopAtNextStatement;
+
+			if (ns != UriBreakpoint::Owner::NextBreakpointAction::Resume)
+				return BreakReason::StepThrough;
+
+			return BreakReason::Continue;
+		}
+
+		static ResultCode masterFunction(const Scope& s, var* returnedValue, BreakReason breakReason, const Statement* currentRoot, const Statement* breakStatement, CodeLocation* loc=nullptr)
+		{
+			jassert(loc != nullptr || breakStatement != nullptr);
+
+			auto e = createBreakpointEvent(s, breakReason, breakStatement, loc);
+			s.root->breakpointState.clearBreakPosition();
+
+			if (auto r = stopAtBreakpoint(s, currentRoot, breakStatement, returnedValue, e))
+				return r;
+
+			if (auto r = performStepOut(s, returnedValue, currentRoot, breakStatement))
+				return r;
+
+			// perform it here so that stopAtNextStatement doesn't trigger immediately
+			if (auto r = performStepOver(s, returnedValue, breakStatement))
+				return r;
+
+			return ResultCode::ok;
+		}
+
+	private:
+
+		static ResultCode performBlockAtInstructionIndex(const Scope& s, var* returnedValue, const BlockStatement* bl, int index)
+		{
+			ScopedValueSetter<int> svs(bl->instructionPointerIndex, index);
+			return bl->perform(s, returnedValue);
+		};
+
+		static ResultCode performInstructionPointerMove(const Scope& s, var* returnedValue, const Statement* oldStatement, const BlockStatement* newRoot, int indexInRoot)
+		{
+			// check if we need to jump to another block
+			if (newRoot != oldStatement)
+			{
+				auto rootBlock = s.root->breakpointState.currentLocalScopeCreator->getRootBlockStatement();
+				jassert(rootBlock != nullptr);
+
+				if (newRoot == rootBlock)
+				{
+					// no need to jump around, just set the instruction pointer and 
+					// execute the remaining statements in the root block
+					if (auto result = performBlockAtInstructionIndex(s, returnedValue, newRoot, indexInRoot))
+						return result;
+
+					return ResultCode::returnWasHit;
+				}
+				else
+				{
+					auto rootTree = Statement::Tree::create(rootBlock);
+
+					// build up the stack frame, then perform it starting with the inner block
+					auto stackFrame = rootTree->createStackPath(newRoot, indexInRoot);
+					jassert(stackFrame.size() > 1);
+
+					for (const auto& p : stackFrame)
+					{
+						if (!p.first->isValidJumpTarget())
+						{
+							// should never occur as the breakpoint attachment function
+							// should take care of moving the instruction marker to the
+							// jump target parent
+							jassertfalse;
+							oldStatement->location.throwError(*s.root, "Can't jump into " + p.first->getProfileName());
+						}
+					}
+
+					for (auto p : stackFrame)
+					{
+						if (auto parentBlock = dynamic_cast<const BlockStatement*>(p.first))
+						{
+							if (auto result = performBlockAtInstructionIndex(s, returnedValue, parentBlock, p.second))
+								return result;
+						}
+					}
+				}
+			}
+			else
+			{
+				if (auto result = performBlockAtInstructionIndex(s, returnedValue, newRoot, indexInRoot))
+					return result;
+			}
+
+			// return this so that the execution is aborted
+			return ResultCode::returnWasHit;
+		}
+
+
+		static ResultCode stopAtBreakpoint(const Scope& s, const Statement* currentRoot, const Statement* statementAfterBreak, var* returnedValue, const UriError& e)
+		{
+			BreakpointState::ScopedSetter ss(s, statementAfterBreak);
+			s.root->hiseSpecialData.processor->stopOnBreakpoint(e);
+
+			auto& bpState = s.root->breakpointState;
+
+			if (bpState.nextInstructionRoot != nullptr)
+				return performInstructionPointerMove(s, returnedValue, currentRoot, bpState.nextInstructionRoot, bpState.nextInstructionIndex);
+
+			return ResultCode::ok;
+		}
+
+		static ResultCode performStepOut(const Scope& s, var* returnedValue, const Statement* currentRoot, const Statement* st)
+		{
+			if (st == nullptr)
+				return ResultCode::ok;
+
+			using BPA = UriBreakpoint::Owner::NextBreakpointAction;
+
+			if (s.root->breakpointState.stopAtNextStatement == BPA::StepOut)
+			{
+				auto rootBlock = s.root->threadAwareLocalScopeCreator.get()->getRootBlockStatement();
+				
+				auto t = Tree::create(rootBlock);
+				auto idx = t->findRecursive(st)->indexInParent();
+
+				s.root->breakpointState.clearBreakPosition();
+
+				if (rootBlock == currentRoot)
+				{
+					st->perform(s, returnedValue);
+					auto bl = dynamic_cast<const BlockStatement*>(currentRoot);
+					jassert(bl != nullptr);
+					performBlockAtInstructionIndex(s, returnedValue, bl, idx+1);
+				}
+				else
+				{
+					auto stackFrame = t->createStackPath(currentRoot, idx+1);
+
+					for (auto p : stackFrame)
+					{
+						if (auto parentBlock = dynamic_cast<const BlockStatement*>(p.first))
+						{
+							if (auto result = performBlockAtInstructionIndex(s, returnedValue, parentBlock, p.second))
+								return result;
+						}
+					}
+				}
+
+				s.root->breakpointState.stopAtNextStatement = UriBreakpoint::Owner::NextBreakpointAction::StepInto;
+				return ResultCode::returnWasHit;
+			}
+
+			return ResultCode::ok;
+		}
+
+		static ResultCode performStepOver(const Scope& s, var* returnedValue, const Statement* st)
+		{
+			if (st == nullptr)
+				return ResultCode::ok;
+
+			using BPA = UriBreakpoint::Owner::NextBreakpointAction;
+
+			if (s.root->breakpointState.stopAtNextStatement == BPA::StepOver)
+			{
+				if (st->isStepIntoTarget())
+				{
+					s.root->breakpointState.stopAtNextStatement = BPA::Resume;
+					auto r = st->perform(s, returnedValue);
+					s.root->breakpointState.stopAtNextStatement = BPA::StepInto;
+					return r;
+				}
+			}
+
+			return st->perform(s, returnedValue);
+		}
+
+		static UriError createBreakpointEvent(const Scope& s, BreakReason reason, const Statement* st, CodeLocation* toUse = nullptr)
+		{
+			auto l = toUse != nullptr ? toUse : &st->location;
+			auto jp = s.root->hiseSpecialData.processor;
+			auto loc = l->createUriLocation();
+
+		
+			auto e = UriError::fail("x");
+			e.fillLocation(loc);
+			dynamic_cast<Processor*>(jp)->getMainController()->getJavascriptThreadPool().attachAsyncCallstack(e);
+			s.root->attachCallstack(e);
+			
+			e.sourceType = UriError::SourceType::Debug;
+			e.errorType = UriError::ErrorType::Breakpoint;
+
+			if (reason == BreakReason::StepThrough)
+			{
+				auto nextAction = s.root->breakpointState.stopAtNextStatement;
+				
+				switch (nextAction)
+				{
+				case UriBreakpoint::Owner::NextBreakpointAction::StepInto:
+					e.errorMessage = "Step into next statement";
+					break;
+				case UriBreakpoint::Owner::NextBreakpointAction::StepOver:
+					e.errorMessage = "Step over next statement";
+					break;
+				case UriBreakpoint::Owner::NextBreakpointAction::StepOut:
+					e.errorMessage = "Step out of current function";
+					break;
+				default:
+					jassertfalse;
+					break;
+				}
+			}
+			else if (reason == BreakReason::Blink)
+			{
+				e.errorType = UriError::Blink;
+				e.errorMessage = "Blink";
+
+			}
+			else
+			{
+				e.errorMessage = "Breakpoint hit";
+			}
+
+			auto attachState = jp->sendUriBreakpointEvent(e);
+
+			if (attachState == UriBreakpoint::Owner::AttachState::Stale)
+			{
+
+			}
+			return e;
+		}
+	};
+
 	ResultCode performWithinScope(const Scope& s, var* returnedValue) const
 	{
 #if HISE_INCLUDE_PROFILING_TOOLKIT
@@ -835,9 +1106,11 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 		}
 #endif
 
+		using BPA = UriBreakpoint::Owner::NextBreakpointAction;
+
 		ScopedBlockProfiler b(blockData, s.root->hiseSpecialData.processor);
 
-		for (int i = 0; i < statements.size(); ++i)
+		for (int i = instructionPointerIndex; i < statements.size(); ++i)
 		{
 #if HISE_INCLUDE_PROFILING_TOOLKIT
 			if(currentProfileRoot != nullptr)
@@ -849,42 +1122,25 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 			ScopedBlockProfiler sp2(statementData[i], s.root->hiseSpecialData.processor);
 #endif
 			
-			if (statements[i]->breakpoint)
+			if(auto breakReason = BreakpointHelpers::shouldBreakAtStatement(s, statements[i]))
 			{
-				const auto& bp = statements[i]->breakpoint;
-
-				auto use = bp.enabled;
-
-				if (use && bp.expression.isNotEmpty() && bp.expression != "true")
-					use = (bool)s.root->evaluate(bp.expression);
-
-				if(use)
-				{
-					s.root->stopAtNextStatement = false;
-
-					if (bp.blinkOnHit)
-					{
-						auto p = dynamic_cast<Processor*>(s.root->hiseSpecialData.processor);
-						PopupIncludeEditor::blink(p->getMainController(), bp);
-					}
-
-					if (bp.breakOnHit)
-						s.root->hiseSpecialData.processor->stopAtBreakpoint(bp);
-				}
+				if (auto r = BreakpointHelpers::masterFunction(s, returnedValue, breakReason, this, statements[i]))
+					return r;
 			}
-
-			if (s.root->stopAtNextStatement)
-			{
-				s.root->stopAtNextStatement = false;
-				auto jp = dynamic_cast<JavascriptProcessor*>(s.root->hiseSpecialData.processor);
-				auto loc = statements[i]->location.createUriLocation();
-				jp->stopAtBreakpoint(loc);
-			}
-
-			if (ResultCode r = statements.getUnchecked(i)->perform(s, returnedValue))
+			else if (ResultCode r = statements.getUnchecked(i)->perform(s, returnedValue))
 				return r;
 		}
 		
+		if (s.root->breakpointState.stopAtNextStatement != BPA::Resume)
+		{
+			CodeLocation cl = location;
+			cl.location = closeLocation;
+			auto reason = BreakpointHelpers::BreakReason::StepThrough;
+
+			if (auto r = BreakpointHelpers::masterFunction(s, returnedValue, reason, this, nullptr, &cl))
+				return r;
+		}
+
 		return ok;
 	}
 
@@ -1054,6 +1310,8 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 	String::CharPointerType closeLocation;
 
 	mutable int scopedBlockCounter = 0;
+
+	mutable int instructionPointerIndex = 0;
 
 	// set by the shadow parser to avoid using the real namespace data structure
 	Identifier namespaceId;
@@ -1338,15 +1596,18 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 
 	LoopStatement(const CodeLocation& l, bool isDo, bool isIterator_ = false) noexcept : Statement(l), isDoLoop(isDo), isIterator(isIterator_) {}
 
+	bool isValidJumpTarget() const override { return false; }
+
 	ResultCode perform(const Scope& s, var* returnedValue) const override
 	{
+		auto checkBreakpoint = dynamic_cast<BlockStatement*>(body.get()) == nullptr;
+
 		if (isIterator)
 		{
 			CHECK_CONDITION_WITH_LOCATION((currentIterator != nullptr), "Iterator does not exist");
 			currentObject = currentIterator->getResult(s);
 
 #if HISE_SHADOW_PARSER_ENABLED
-
 			if (auto sp = s.getShadowParser())
 			{
 				ScopedValueSetter<void*> loopScoper(s.currentLoopStatement, (void*)this);
@@ -1364,7 +1625,6 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 				ObjectTypeMap::TypeScope ts(*sp, charIndex);
 					
 				auto pwsc = sp->getProcessor();
-
 				auto firstObject = LightweightDiagnostics::Helpers::getTypeForLoopIterator(pwsc, currentObject);
 
 				if (!firstObject.isUndefined() && !firstObject.isVoid())
@@ -1382,7 +1642,11 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 
 #endif
 
-			ScopedValueSetter<void*> loopScoper(s.currentLoopStatement, (void*)this);
+			RootObject* sr = s.root.get();
+
+			Scope loopScope(&s, sr, s.scope.get());
+			loopScope.currentLoopStatement = (void*)this;
+
 			index = 0;
 
 			int size = 0;
@@ -1401,25 +1665,45 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 			{
 				throwError(s, "Cannot iterate over this type. for...in loops support Arrays, Buffers, and Objects.");
 			}
+	
+			auto checkBreakpoint = dynamic_cast<BlockStatement*>(body.get()) == nullptr;
 
-
-				
 			while (index < size)
 			{
-				ResultCode r = body->perform(s, returnedValue);
-
-				index++;
-
-				if (r == returnWasHit)
+				try
 				{
-					currentObject = var();
-					return r;
+					ResultCode r = ResultCode::ok;
+					bool runBody = true;
+
+					if (checkBreakpoint)
+					{
+						if (auto reason = BlockStatement::BreakpointHelpers::shouldBreakAtStatement(s, body.get()))
+						{
+							runBody = false;
+							r = BlockStatement::BreakpointHelpers::masterFunction(loopScope, returnedValue, reason, this, body);
+						}
+					}
+
+					if (runBody)
+						r = body->perform(loopScope, returnedValue);
+
+					index++;
+
+					if (r == returnWasHit)
+					{
+						currentObject = var();
+						return r;
+					}
+					if (r == breakWasHit)    break;
 				}
-				if (r == breakWasHit)    break;
+				catch (UriError& e)
+				{
+					e.callstack.push_back({ "loop[" + String(index) + "]", location.createUriLocation() });
+					throw e;
+				}
 			}
 
 			currentObject = var();
-
 			return ok;
 		}
 		else
@@ -1439,14 +1723,39 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 
 #endif
 
+			int loopIteration = 0;
+
 			while (isDoLoop || condition->getResult(s))
 			{
 				s.checkTimeOut(location);
-				ResultCode r = body->perform(s, returnedValue);
 
-				if (r == returnWasHit)   return r;
-				if (r == breakWasHit)    break;
+				ResultCode r = ResultCode::ok;
+				bool runBody = true;
 
+				try
+				{
+					if (checkBreakpoint)
+					{
+						if (auto reason = BlockStatement::BreakpointHelpers::shouldBreakAtStatement(s, body.get()))
+						{
+							runBody = false;
+							r = BlockStatement::BreakpointHelpers::masterFunction(s, returnedValue, reason, this, body);
+						}
+					}
+
+					if (runBody)
+						r = body->perform(s, returnedValue);
+
+					if (r == returnWasHit)   return r;
+					if (r == breakWasHit)    break;
+				}
+				catch (UriError& e)
+				{
+					e.callstack.push_back({ "loop[" + String(loopIteration) + "]", location.createUriLocation()});
+					throw e;
+				}
+				
+				loopIteration++;
 				iterator->perform(s, nullptr);
 
 				if (isDoLoop && r != continueWasHit && !condition->getResult(s))
@@ -1495,17 +1804,12 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 	ScopedPointer<Statement> initialiser, iterator, body;
 
 	ExpPtr condition;
-
 	ExpPtr currentIterator;
 
 	bool isDoLoop;
-
 	Identifier iteratorId;
-
 	bool isIterator;
-
 	mutable int index;
-
 	mutable var currentObject;
 };
 

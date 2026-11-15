@@ -367,6 +367,11 @@ TooltipWithArea::Data TextEditor::getTooltip(Point<float> position)
 	return {};
 }
 
+void TextEditor::refreshBreakpoints()
+{
+	gutter.setCurrentBreakline({}, nullptr);
+}
+
 bool TextEditor::gotoDefinition(Selection s1)
 {
 	if (gotoFunction)
@@ -3118,7 +3123,7 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 		{
 			if (auto e = getFirstError())
 			{
-				document.setSelections({ currentError->getSelection() }, true);
+				document.setSelections({ e->getSelection() }, true);
 				return true;
 			}
 		}

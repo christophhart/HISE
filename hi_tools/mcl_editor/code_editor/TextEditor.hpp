@@ -165,7 +165,7 @@ public:
         autocompleteSelection = document.getSelection(0);
     }
     
-	bool gotoDefinition(Selection s1 = {});
+	void refreshBreakpoints();
 
 	bool gotoDefinition(Selection s1 = {});
 
@@ -223,6 +223,11 @@ public:
 	TokenCollection::Ptr tokenCollection;
 
 	void setTokenTooltipFunction(const TokenTooltipFunction& f);
+
+	void clearTooltip()
+	{
+		tooltipManager.clearDisplay();
+	}
 
 	void grabKeyboardFocusAndActivateTokenBuilding();
 

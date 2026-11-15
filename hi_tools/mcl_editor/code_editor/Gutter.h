@@ -21,21 +21,16 @@ using namespace juce;
 
 //==============================================================================
 class GutterComponent : public juce::Component,
-							 public FoldableLineRange::Listener,
-							 public Value::Listener
+						public FoldableLineRange::Listener,
+						public UriBreakpoint::Owner::UriBreakpointListener,
+						public TooltipWithArea::Client,
+						public CodeDocument::Listener,
+						public Timer
 {
 public:
 
-	struct BreakpointListener
-	{
-		virtual ~BreakpointListener();;
-
-		virtual void breakpointsChanged(GutterComponent& g);
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(BreakpointListener);
-	};
-
 	GutterComponent(TextDocument& document);
+	~GutterComponent();
 	void setViewTransform(const juce::AffineTransform& transformToUse);
 	void updateSelections();
 
@@ -43,7 +38,17 @@ public:
 
 	void foldStateChanged(FoldableLineRange::WeakPtr rangeThatHasChanged) override;
 
+	void timerCallback() override;
+
+	void triggerBreakpointUpdate();
+
+	void codeDocumentTextInserted(const String& newText, int insertIndex) override;
+
+	void codeDocumentTextDeleted(int startIndex, int endIndex) override;
+
 	void rootWasRebuilt(FoldableLineRange::WeakPtr newRoot) override;
+
+	TooltipWithArea::Data getTooltip(Point<float> pos) override;
 
 	Rectangle<float> getRowBounds(const TextDocument::RowData& r) const;
 
@@ -51,21 +56,15 @@ public:
 
 	void mouseDown(const MouseEvent& e) override;
 
-	bool hitTest(int x, int y) override;
+	void mouseDrag(const MouseEvent& e) override;
 
-	void valueChanged(Value& value) override;
+	void mouseUp(const MouseEvent& e) override;
+
+	bool hitTest(int x, int y) override;
 
 	void sendBlinkMessage(int n);
 
-	void setActiveBreakpoints(const Array<int> activeBreakpoints);
-
-	void setBreakpointsFromJSON(const var& breakpointData, const String& processorId, const String& uri);
-
-	var getBreakpointsAsJSON(const String& processorId, const String& uri) const;
-
 	void setBreakpointsEnabled(bool shouldBeEnabled);
-
-	void sendBreakpointChangeMessage();
 
 	Path createArrow();
 
@@ -76,30 +75,58 @@ public:
 
 	void setError(int lineNumber, const String& error);
 
-	void setDiagnostics(const DiagnosticLines& dl)
+	void setDiagnostics(const DiagnosticLines& dl);
+
+	void setExternalCallstackMatches(const std::vector<UriLocation::WithExpression>& newExternalCallstack);
+
+	void setCurrentBreakline(const UriError& breakPosition, UriLocationTree::Ptr currentScope);
+
+	bool isBreakLineActive() const { return currentBreakLine.getOwner() != nullptr; }
+
+	void onUriBreakpointAttachTypeChange(const UriBreakpoint& bp, UriBreakpoint::Owner::AttachState newState) override;
+
+	void onUriBreakpointChange(const UriBreakpoint& bp, ChangeType changeType) override;
+
+	void onUriBreakpointClear() 
 	{
-		diagnosticLines = dl;
+		breakpoints.clear();
 		repaint();
-	}
+	};
 
-	void addBreakpointListener(BreakpointListener* l);
-
-	Array<UriBreakpoint> getBreakpointLocations(const String& processorId, const String& uri) const;
-
-	void removeBreakpointListener(BreakpointListener* l);
-
-	void setCurrentBreakline(int n);
+	bool matchesUriLocation(const UriLocation& location) const override;
 
 private:
 
+	std::vector<UriLocation::WithExpression> externalCallstack;
 	DiagnosticLines diagnosticLines;
 
-	struct Breakpoint: public ReferenceCountedObject
+	struct Breakpoint: public ReferenceCountedObject,
+					   public Value::Listener,
+					   public AsyncUpdater
 	{
 		using Ptr = ReferenceCountedObjectPtr<Breakpoint>;
 		using List = ReferenceCountedArray<Breakpoint>;
 
-		Breakpoint(Value::Listener* listener, int l, bool profiling, CodeDocument& doc);;
+		Breakpoint(GutterComponent& parent_, const UriBreakpoint& bp, CodeDocument& doc);;
+
+		void valueChanged(Value& value) override
+		{
+			if (skipUpdate)
+				return;
+
+			triggerAsyncUpdate();
+		}
+
+		void handleAsyncUpdate() override
+		{
+			parent.owner->modifyUriBreakpoint(toUriBreakpoint(), sendNotification);
+		}
+
+		UriBreakpoint toUriBreakpoint() const;
+
+		void copyPropertiesFrom(const UriBreakpoint& bp);
+
+		bool skipUpdate = false;
 
 		String processLine(const String& s);
 
@@ -114,6 +141,10 @@ private:
 
 		String getCondition() const;
 
+		GutterComponent& parent;
+
+		UriBreakpoint up;
+
 		Value condition;
 		Value useCondition;
 		Value enabled;
@@ -125,10 +156,29 @@ private:
 
 		CodeDocument::Position pos;
 
+		using State = UriBreakpoint::Owner::AttachState;
+
+		State currentState = State::Unresolved;
+
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Breakpoint);
 	};
 
 	bool breakpointsEnabled = false;
+
+	struct BreaklineDragger
+	{
+		BreaklineDragger(GutterComponent& g);;
+		~BreaklineDragger();
+
+		void startDragging(const MouseEvent& e);
+
+		void dragInstructionMarker(const MouseEvent& e);
+
+		UriLocation originalLocation;
+		GutterComponent& parent;
+	};
+
+	ScopedPointer<BreaklineDragger> breaklineDragger;
 
 	struct BlinkState
 	{
@@ -164,10 +214,9 @@ private:
 
 	bool createProfilingBreakpoints = false;
 	
-
+	UriError currentBreakPosition;
 	CodeDocument::Position currentBreakLine;
-
-	Array<WeakReference<BreakpointListener>> listeners;
+	UriLocationTree::Ptr currentBreakpointScope;
 
 	Breakpoint::List breakpoints;
 
