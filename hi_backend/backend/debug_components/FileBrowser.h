@@ -78,6 +78,7 @@ class FileBrowser : public Component,
 					public ProjectHandler::Listener,
 					public ExpansionHandler::Listener,
 					public FileBrowserListener,
+					public hise::GlobalScriptCompileListener,
 					public ChangeListener,
 					public Timer
 {
@@ -228,9 +229,15 @@ private:
 
 	void setViewMode(ViewMode mode);
 
+	void scriptWasCompiled(JavascriptProcessor* processor) override { rebuildIncludeTree(); }
+
+	
+
 	void showGitChangesMenu();
 
 	void rebuildGitChangesTree();
+
+	void rebuildIncludeTree();
 
 	void setShowChangedOnly(bool shouldShowChangedOnly);
 
@@ -520,8 +527,9 @@ private:
 	ScopedPointer<HiseShapeButton> gitChangesModeButton;
 	ScopedPointer<HiseShapeButton> includeTreeModeButton;
 	ScopedPointer<TreeViewItem> gitChangesRoot;
+	ScopedPointer<TreeViewItem> includeRoot;
 	ScopedPointer<TreeView> gitChangesView;
-	ScopedPointer<Component> includeTreeView;
+	ScopedPointer<TreeView> includeTreeView;
 	bool gitChangesFlat = false;
 	ViewModePathFactory viewModePathFactory;
 	ViewMode currentViewMode = ViewMode::FileBrowser;

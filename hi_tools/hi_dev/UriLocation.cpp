@@ -1,3 +1,4 @@
+#include "UriLocation.h"
 /*  ===========================================================================
 *
 *   This file is part of HISE.
@@ -1182,6 +1183,24 @@ UriLocationTree::Ptr UriLocationTree::getInnerTree(const UriLocation& l) const
 	}
 
 	return nullptr;
+}
+
+Colour UriLocationTree::getIconColour() const
+{
+	auto c = category.toString().toUpperCase()[0];
+
+	switch (c)
+	{
+	case 'R': return Colour(0xFF00AEFF);
+	case 'V': return Colour(0xFF0FEF88);
+	case 'N': return Colour(0xFF3E55FF);
+	case 'F': return Colour(0xFFDF6469);
+	case 'C': return Colour(0xFF0FEFDD);
+	case 'I': return Colour(0xFFE44C7D);
+	case 'P': return Colour(0xFFC2BE00);
+	case 'L': return Colour(0xFF7EEF0F);
+	default:  return Colours::grey;
+	}
 }
 
 UriLocationTree::Ptr UriLocationTree::getChild(int index) const

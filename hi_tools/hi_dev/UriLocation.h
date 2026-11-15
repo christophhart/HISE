@@ -404,6 +404,8 @@ struct UriLocationTree : public UriLocation,
 		return nullptr;
 	}
 
+	Colour getIconColour() const;
+
 	UriLocationTree::Ptr getChild(int index) const;
 	UriError checkSanity() const;
 

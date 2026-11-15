@@ -338,17 +338,17 @@ struct LocationTreeToken : public mcl::TokenCollection::Token
 
 		codeToInsert << c.id.toString();
 
+		this->c = c.getIconColour();
+
 		if (c.category == Identifier("namespace"))
 		{
-			this->c = Colour(0xFF9922AA);
+			
 			kind = mcl::TokenCollection::Token::CompletionItemKind::Namespace;
 
 			markdownDescription << "> `" << c.category.toString() << " " << c.id;
 		}
 		else
 		{
-			this->c = Colour(0xFF9922AA);
-
 			auto isFunction = c.hasRange();
 			auto parentId = c.getParent()->id;
 

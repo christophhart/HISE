@@ -627,6 +627,8 @@ public:
 	virtual const SnippetDocument *getSnippet(int c) const = 0;
 	virtual int getNumSnippets() const = 0;
 
+	std::pair<UriLocationTree::Ptr, UriLocationTree::Ptr> getIncludeAndScopeTree();
+
 	const CodeDocument* getSnippetOrExternalFile(const UriLocation& location) const
 	{
 		if (location.getUriType() == UriLocation::UriType::ExternalFile)

@@ -59,6 +59,209 @@ private:
 	String text;
 };
 
+class IncludeTreeItem : public TreeViewItem
+{
+public:
+
+	IncludeTreeItem(JavascriptProcessor* jp_, UriLocationTree::Ptr node_, const String& searchTerm_):
+	  jp(jp_),
+	  node(node_),
+	  searchTerm(searchTerm_)
+	{
+		setLinesDrawnForSubItems(node->line != 0);
+	}
+
+	bool mightContainSubItems() override
+	{
+		return node != nullptr && node->getNumChildren() > 0;
+	}
+
+	String getUniqueName() const override
+	{
+		return node->toLocationString(UriLocation::UriFormat::Compact);
+	}
+
+	static bool matchesSearchTerm(UriLocationTree::Ptr nodeToCheck, const String& searchTerm)
+	{
+		if (nodeToCheck->id == Identifier("anonymousFunction"))
+			return false;
+
+		if(nodeToCheck->category == Identifier("loop") ||
+		   nodeToCheck->category == Identifier("this"))
+			return false;
+
+		if (searchTerm.isEmpty())
+			return true;
+
+		return nodeToCheck->forEach([searchTerm](const UriLocationTree& c)
+		{
+			if (c.id.toString().toLowerCase().contains(searchTerm))
+				return true;
+
+			if (auto wt = getType(c))
+				return VarTypeChecker::getTypeName(wt).toString().toLowerCase().contains(searchTerm);
+
+			return false;
+		});
+	}
+
+	
+	void itemOpennessChanged(bool isNowOpen) override
+	{
+		clearSubItems();
+
+		if (isNowOpen && mightContainSubItems())
+		{
+			for (auto c : *node)
+			{
+				if (matchesSearchTerm(c, searchTerm))
+				{
+					auto ni = new IncludeTreeItem(jp, c, searchTerm);
+
+					if (c->category == Identifier("namespace") || c->category == Identifier("scope"))
+						ni->setOpenness(TreeViewItem::Openness::opennessOpen);
+					else
+						ni->setOpenness(TreeViewItem::Openness::opennessClosed);
+
+					addSubItem(ni);
+				}
+			}
+		}
+	}
+
+	
+
+	void paintItem(Graphics& g, int width, int height) override
+	{
+		if (isSelected())
+		{
+			g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.3f));
+			g.fillRect(0, 0, width, height);
+		}
+
+		Rectangle<float> b(0.0f, 0.0f, width, height);
+
+		b.removeFromLeft(5.0f);
+
+		if (node->getParent() == nullptr)
+		{
+			Path p;
+			p.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, HiBinaryData::SpecialSymbols::scriptProcessor_Size);
+			PathFactory::scalePath(p, b.removeFromLeft(b.getHeight()).reduced(3.0f));
+
+			g.setColour(Colours::white);
+			g.fillPath(p);
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText(jp->getUriProcessorId(), b, Justification::left);
+		}
+		else if (node->category == Identifier("scope"))
+		{
+			g.setColour(Colours::white.withAlpha(0.9f));
+
+			if (node->line == 0)
+			{
+				Path p;
+				p.loadPathFromData(SampleMapIcons::newSampleMap, SampleMapIcons::newSampleMap_Size);
+				PathFactory::scalePath(p, b.removeFromLeft(b.getHeight()).reduced(3.0f));
+				g.fillPath(p);
+			}
+			
+			g.setFont(GLOBAL_FONT());
+			g.drawText(node->toLocationString(UriLocation::UriFormat::Compact), b, Justification::left);
+		}
+		else
+		{
+			g.setColour(node->getIconColour());
+			g.setFont(GLOBAL_BOLD_FONT());
+			auto c = node->category.toString().toUpperCase().substring(0, 1);
+
+			g.drawText(c, b.removeFromLeft(b.getHeight() - 3.0f), Justification::centredLeft);
+
+			g.setColour(Colours::white.withAlpha(0.8f));
+
+			auto f = GLOBAL_MONOSPACE_FONT();
+
+			g.setFont(f);
+
+			std::pair<String, String> label;
+
+			label.first = node->id.toString();
+
+			if (node->category == Identifier("inline") ||
+				node->category == Identifier("function"))
+			{
+				label.second = "()";
+			}
+			else
+			{
+				if (auto wt = getType(*node))
+					label.second = ":" + VarTypeChecker::getTypeName(wt);
+			}
+
+			g.setColour(Colour(0xffDDDDFF));
+			g.drawText(label.first, b.removeFromLeft(f.getStringWidthFloat(label.first) + 2.0f), Justification::centredLeft);
+			g.setColour(Colour(0xffbbbbff));
+			g.setColour(Colours::white.withAlpha(0.5f));
+			g.drawText(label.second, b, Justification::centredLeft);
+		}
+	}
+
+	static VarTypeChecker::WrappedType getType(const UriLocationTree& v)
+	{
+		return VarTypeChecker::getType(v.data->getProperty("typeInfo"));
+	}
+
+	void itemClicked(const MouseEvent& e) override
+	{
+		PopupIncludeEditor::gotoUriLocation(jp.get(), nullptr, *node);
+	}
+
+	UriLocationTree::Ptr node;
+	String searchTerm;
+	WeakReference<JavascriptProcessor> jp;
+};
+
+class IncludeTreeRootItem : public TreeViewItem,
+							public ControlledObject
+{
+public:
+
+	IncludeTreeRootItem(MainController* mc, const String& searchTerm_):
+	  ControlledObject(mc),
+	  searchTerm(searchTerm_)
+	{
+		
+	}
+
+	void itemOpennessChanged(bool isNowOpen) override
+	{
+		if (isNowOpen && getNumSubItems() == 0)
+		{
+			Processor::Iterator<JavascriptProcessor> iter(getMainController()->getMainSynthChain(), false);
+
+			while (auto jp = iter.getNextProcessor())
+			{
+				auto [includeTree, scopeTree] = jp->getIncludeAndScopeTree();
+				addSubItem(new IncludeTreeItem(jp, scopeTree, searchTerm));
+			}
+		}
+	}
+
+	bool mightContainSubItems() override
+	{
+		return true;
+	}
+
+	String getUniqueName() const override
+	{
+		return "root";
+	}
+
+	String searchTerm;
+};
+
+
+
 class GitChangesTreeItem : public TreeViewItem
 {
 public:
@@ -370,7 +573,8 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
 	rootWindow(rootWindow_),
 	directorySearcher("Directory Scanner")
 {
-    
+	rootWindow->getMainController()->addScriptListener(this);
+
     loadFavoriteFile();
     
 	GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).addListener(this);
@@ -412,11 +616,24 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
 	gitChangesView->setColour(TreeView::linesColourId, Colours::white.withAlpha(0.3f));
 	gitChangesView->setColour(TreeView::selectedItemBackgroundColourId, Colours::black.withAlpha(0.4f));
 	addAndMakeVisible(gitChangesView.get());
-
-	includeTreeView = new FileBrowserModeStub("Include tree view (stub)");
-	addAndMakeVisible(includeTreeView.get());
 	gitChangesView->setVisible(false);
+
+	includeTreeView = new TreeView("Include tree view (stub)");
+	addAndMakeVisible(includeTreeView.get());
+	
 	includeTreeView->setVisible(false);
+	includeTreeView->setRootItemVisible(false);
+	includeTreeView->setDefaultOpenness(true);
+	includeTreeView->setIndentSize(12);
+	includeTreeView->setColour(TreeView::backgroundColourId, Colours::transparentBlack);
+	includeTreeView->setColour(TreeView::linesColourId, Colours::white.withAlpha(0.3f));
+	includeTreeView->setColour(TreeView::selectedItemBackgroundColourId, Colours::black.withAlpha(0.4f));
+
+	sf.addScrollBarToAnimate(includeTreeView->getViewport()->getVerticalScrollBar());
+	sf.addScrollBarToAnimate(gitChangesView->getViewport()->getVerticalScrollBar());
+
+	includeTreeView->getViewport()->setScrollBarThickness(13);
+	gitChangesView->getViewport()->setScrollBarThickness(13);
 
 	addKeyListener(browserCommandManager->getKeyMappings());
 
@@ -1030,6 +1247,7 @@ void FileBrowser::resetToRoot()
 
 FileBrowser::~FileBrowser()
 {
+	rootWindow->getMainController()->removeScriptListener(this);
 	//GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).removeListener(this);
 
 	rootWindow->getMainController()->getExpansionHandler().removeListener(this);
@@ -1836,6 +2054,26 @@ void FileBrowser::rebuildGitChangesTree()
 		gitChangesView->restoreOpennessState(*opennessState, false);
 }
 
+void FileBrowser::rebuildIncludeTree()
+{
+	std::unique_ptr<XmlElement> opennessState;
+
+	if (includeTreeView->getRootItem() != nullptr)
+		opennessState = includeTreeView->getOpennessState(false);
+
+	auto mc = rootWindow->getMainController();
+
+	auto searchTerm = textEditor->getText().trim().toLowerCase();
+
+	auto nr = new IncludeTreeRootItem(mc, searchTerm);
+	nr->setLinesDrawnForSubItems(false);
+	
+	includeTreeView->setRootItem(nr);
+
+	if (opennessState != nullptr)
+		includeTreeView->restoreOpennessState(*opennessState, false);
+}
+
 void FileBrowser::showBrowseOptionsMenu()
 {
 	auto ff = dynamic_cast<HiseFileBrowserFilter*>(fileFilter.get());
@@ -2069,14 +2307,25 @@ void FileBrowser::textEditorTextChanged(TextEditor& editor)
 {
 	if (&editor == textEditor)
 	{
-		if (auto filter = dynamic_cast<HiseFileBrowserFilter*>(fileFilter.get()))
+		if (gitChangesModeButton->getToggleState())
 		{
-			fileTreeComponent->setDefaultOpenness(!editor.getText().isEmpty() || filter->isChangedOnly());
-
-			filter->setWildcard(editor.getText());
-			directoryList->refresh();
 			rebuildGitChangesTree();
 		}
+		else if (includeTreeModeButton->getToggleState())
+		{
+			rebuildIncludeTree();
+		}
+		else
+		{
+			if (auto filter = dynamic_cast<HiseFileBrowserFilter*>(fileFilter.get()))
+			{
+				fileTreeComponent->setDefaultOpenness(!editor.getText().isEmpty() || filter->isChangedOnly());
+				filter->setWildcard(editor.getText());
+				directoryList->refresh();
+			}
+		}
+
+		
 	}
 }
 
@@ -2114,6 +2363,7 @@ bool FileBrowser::keyPressed(const KeyPress& key)
 			item->setOpen(!item->isOpen());
 		}
 		else if (dynamic_cast<HiseFileBrowserFilter*>(fileFilter.get())->isCodeEditorFile(f))
+
 			openInCodeEditor(f);
 		else
 			fileDoubleClicked(f);

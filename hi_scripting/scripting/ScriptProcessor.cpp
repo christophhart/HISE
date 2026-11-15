@@ -1739,6 +1739,11 @@ void JavascriptProcessor::registerCallbacks()
 	}
 }
 
+std::pair<UriLocationTree::Ptr, UriLocationTree::Ptr> JavascriptProcessor::getIncludeAndScopeTree()
+{
+	return { lastIncludeTree, lastScopeTree };
+}
+
 
 JavascriptProcessor::SnippetDocument * JavascriptProcessor::getSnippet(const Identifier& id)
 {
