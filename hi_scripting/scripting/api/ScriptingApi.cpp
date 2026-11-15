@@ -1993,6 +1993,7 @@ void ScriptingApi::Engine::showYesNoWindow(String title, String markdownMessage,
 
 	WeakCallbackHolder cb(p, this, callback, 1);
 	cb.incRefCount();
+	cb.createAsyncCallstack();
 
 	auto f = [markdownMessage, title, cb]() mutable
 	{
@@ -6735,14 +6736,24 @@ void ScriptingApi::Console::stop(bool condition)
 
 	auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
 
-	jp->stopAtBreakpoint(debugLocation);
+	UriError e;
+	e.fillLocation(debugLocation);
+	e.errorType = UriError::ErrorType::Breakpoint;
+	e.errorMessage = "Console.stop breakpoint hit";
+	jp->stopOnBreakpoint(e);
 
 }
 
 void ScriptingApi::Console::blink()
 {
-	auto mc = getProcessor()->getMainController();
-	PopupIncludeEditor::blink(mc, debugLocation);
+	UriError e;
+	e.errorType = UriError::ErrorType::Blink;
+	e.fillLocation(debugLocation);
+	
+	auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
+
+	jp->getScriptEngine()->attachCallstack(e);
+	jp->sendUriBreakpointEvent(e);
 }
 
 void ScriptingApi::Console::clear()

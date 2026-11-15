@@ -609,6 +609,29 @@ namespace ScriptingObjects
 		static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("Graphics"); }
 		Identifier getObjectName() const override { return getClassName(); }
 
+		enum DebugChildObjects
+		{
+			ColourOrGradient,
+			FontName,
+			FontSize,
+			Opacity,
+			numDebugObjects
+		};
+
+		virtual int getNumChildElements() const { return DebugChildObjects::numDebugObjects; };
+
+		virtual DebugInformationBase* getChildElement(int index) 
+		{ 
+			Array<Identifier> ids({
+				"Colour",
+				"Font",
+				"FontSize",
+				"Opacity"
+			});
+
+			return new LambdaValueInformation([this, index]() { return debugData[index]; }, ids[index], {}, DebugInformation::Type::Constant, {});
+		}
+
 		// ============================================================================================================ API Methods
 
 		/** Starts a new Layer. */

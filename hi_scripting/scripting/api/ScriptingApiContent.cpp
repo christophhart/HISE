@@ -1855,7 +1855,7 @@ void ScriptComponent::handleScriptPropertyChange(const Identifier& id)
 		}
 		if (searchedProperty == id)
 		{
-			throw String("Here...");
+			throw getScriptObjectProperty(id).toString();
 		}
 	}
 }
@@ -9707,14 +9707,21 @@ void ScriptingApi::Content::Helpers::recompileAndSearchForPropertyChange(ScriptC
 
 	auto jp = dynamic_cast<JavascriptProcessor*>(const_cast<ProcessorWithScriptingContent*>(sc->getScriptProcessor()));
 
-	auto f = [jp, sc](const JavascriptProcessor::SnippetResult& result)
-	{
-		DebugableObject::Helpers::gotoLocation(dynamic_cast<Processor*>(jp)->getMainController()->getMainSynthChain(), result.r.getErrorMessage());
-		sc->setPropertyToLookFor(Identifier());
-		jp->compileScript();
-	};
+	auto sd = jp->createFullShadowParseData();
 
-	jp->compileScript(f);
+	jp->shadowParse(sd, [jp](const Array<UriError>& errors)
+	{
+		for(const auto& e: errors)
+			jp->errorProvider.logUriError(UriError::SourceType::Debug, e, sendNotificationAsync);
+
+		if (!errors.isEmpty())
+			PopupIncludeEditor::gotoUriLocation(jp, nullptr, errors.getFirst());
+
+	}, sendNotificationSync);
+
+	sc->setPropertyToLookFor({});
+
+
 }
 
 String ScriptingApi::Content::Helpers::createLocalLookAndFeelForComponents(ReferenceCountedArray<ScriptComponent> selection)

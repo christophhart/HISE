@@ -67,14 +67,7 @@ struct EditorBottomBar : public Component,
 
 	struct Factory : public PathFactory
 	{
-		Path createPath(const String& url) const override
-		{
-			Path p;
-
-			LOAD_EPATH_IF_URL("error", ColumnIcons::errorIcon);
-
-			return p;
-		}
+		Path createPath(const String& url) const override;
 	} factory;
 
 	void paint(Graphics& g);

@@ -2047,6 +2047,7 @@ void ScriptingObjects::GraphicsObject::drawVerticalLine(int x, float y1, float y
 
 void ScriptingObjects::GraphicsObject::setOpacity(float alphaValue)
 {
+	debugData[DebugChildObjects::Opacity] = alphaValue;
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::setOpacity(alphaValue));
 }
 
@@ -2058,12 +2059,17 @@ void ScriptingObjects::GraphicsObject::drawLine(float x1, float x2, float y1, fl
 
 void ScriptingObjects::GraphicsObject::setColour(var colour)
 {
+	debugData[DebugChildObjects::ColourOrGradient] = colour;
+	
 	auto c = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::setColour(c));
 }
 
 void ScriptingObjects::GraphicsObject::setFont(String fontName, float fontSize)
 {
+	debugData[DebugChildObjects::FontName] = fontName;
+	debugData[DebugChildObjects::FontSize] = fontSize;
+
 	MainController *mc = getScriptProcessor()->getMainController_();
 	auto f = mc->getFontFromString(fontName, SANITIZED(fontSize));
 	currentFont = f;
@@ -2077,6 +2083,9 @@ void ScriptingObjects::GraphicsObject::setFontWithSpacing(String fontName, float
 {
 	MainController *mc = getScriptProcessor()->getMainController_();
 	auto f = mc->getFontFromString(fontName, SANITIZED(fontSize));
+
+	debugData[DebugChildObjects::FontName] = fontName;
+	debugData[DebugChildObjects::FontSize] = fontSize;
 
 	f.setExtraKerningFactor(spacing);
 	currentFont = f;
