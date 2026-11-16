@@ -41,7 +41,7 @@ struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 
 		auto v = s.findSymbolInParentScopes(name); 
 
-		resolveTypeDefinitionInScopeTree(s, v, "reference", false);
+		resolveTypeDefinitionInScopeTree(s, v, "reference", ReferenceType::Reference);
 
 		if (v.isUndefined() && name == this_)
 		{
@@ -87,7 +87,7 @@ struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 		{
 			if (s.isShadowParsing())
 			{
-				resolveTypeDefinitionInScopeTree(s, newValue, name.toString(), false);
+				resolveTypeDefinitionInScopeTree(s, newValue, name.toString(), Statement::ReferenceType::Assignment);
 				s.getRootScope()->scope->setProperty(name, newValue);
 				return;
 			}
@@ -134,7 +134,7 @@ struct HiseJavascriptEngine::RootObject::ConstReference : public Expression
 			if (ns != nullptr)
 				v = s.getShadowParserRootObject(ns->id)->getProperty(getVariableName());
 
-			resolveTypeDefinitionInScopeTree(s, v, "reference", false);
+			resolveTypeDefinitionInScopeTree(s, v, "reference", ReferenceType::Reference);
 			return v;
 		}
 #endif
@@ -180,7 +180,7 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 
 		auto returnWithLocation = [&](const var& v)
 		{
-			resolveTypeDefinitionInScopeTree(s, v, "reference[]", false);
+			resolveTypeDefinitionInScopeTree(s, v, "reference[]", ReferenceType::Reference);
 			return v;
 		};
 
@@ -327,7 +327,7 @@ struct HiseJavascriptEngine::RootObject::DotOperator : public Expression
 #if HISE_SHADOW_PARSER_ENABLED
 		if (s.isShadowParsing())
 		{
-			resolveTypeDefinitionInScopeTree(s, p, "object." + child.toString(), false);
+			resolveTypeDefinitionInScopeTree(s, p, "object." + child.toString(), ReferenceType::Reference);
 
 			if (auto ptr = dynamic_cast<LightweightDiagnostics*>(p.getObject()))
 			{

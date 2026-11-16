@@ -28,7 +28,7 @@ std::pair<var, DiagnosticBase::DiagnosticResult> HiseJavascriptEngine::RootObjec
 
 		if (args.thisObject.isObject())
 		{
-			body->resolveTypeDefinitionInScopeTree(s, args.thisObject, "this", true);
+			body->resolveTypeDefinitionInScopeTree(s, args.thisObject, "this", Statement::ReferenceType::Definition);
 			obj->setProperty("this", args.thisObject);
 		}
 			
@@ -59,7 +59,7 @@ std::pair<var, DiagnosticBase::DiagnosticResult> HiseJavascriptEngine::RootObjec
 				}
 
 				obj->setProperty(id, args.arguments[i]);
-				body->resolveTypeDefinitionInScopeTree(s, args.arguments[i], id.toString(), true);
+				body->resolveTypeDefinitionInScopeTree(s, args.arguments[i], id.toString(), Statement::ReferenceType::Definition);
 			}
 				
 		}
@@ -83,7 +83,7 @@ struct HiseJavascriptEngine::RootObject::RegisterVarStatement : public Statement
 		if (s.isShadowParsing())
 		{
 			auto v = initialiser->getResult(s);
-			resolveTypeDefinitionInScopeTree(s, v, name.toString(), true);
+			resolveTypeDefinitionInScopeTree(s, v, name.toString(), ReferenceType::Definition);
 			s.getShadowParserRootObject()->setProperty(name, v);
 			return ok;
 		}
@@ -132,7 +132,7 @@ struct HiseJavascriptEngine::RootObject::RegisterName : public Expression
 		if (s.isShadowParsing())
 		{
 			auto v = s.getShadowParserRootObject(namespaceId)->getProperty(name);
-			resolveTypeDefinitionInScopeTree(s, v, "reference", false);
+			resolveTypeDefinitionInScopeTree(s, v, "reference", ReferenceType::Reference);
 			return v;
 		}
 #endif
@@ -278,7 +278,12 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 			Array<var> thisArgs;
 
 			for (int i = 0; i < expectedNumArguments; i++)
-				thisArgs.add(argumentList[i]->getResult(s));
+			{
+				auto v = argumentList[i]->getResult(s);
+				argumentList[i]->resolveTypeDefinitionInScopeTree(s, v, "API call argument", ReferenceType::Reference);
+				thisArgs.add(v);
+			}
+				
 
 			if (auto ptr = sp->getApiClassFromMap(apiClass->getObjectName()))
 			{
@@ -942,7 +947,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 				if (args.thisObject.isObject())
 				{
 					obj->setProperty("this", args.thisObject);
-					body->resolveTypeDefinitionInScopeTree(s, args.thisObject, "this", true);
+					body->resolveTypeDefinitionInScopeTree(s, args.thisObject, "this", Statement::ReferenceType::Definition);
 				}
 					
 
@@ -955,7 +960,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 					if (isPositiveAndBelow(i, args.numArguments))
 					{
 						obj->setProperty(id, args.arguments[i]);
-						body->resolveTypeDefinitionInScopeTree(s, args.arguments[i], id.toString(), true);
+						body->resolveTypeDefinitionInScopeTree(s, args.arguments[i], id.toString(), Statement::ReferenceType::Definition);
 					}
 				}
 
@@ -973,6 +978,9 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 #if ENABLE_SCRIPTING_BREAKPOINTS
 
+			if(s.isShadowParsing())
+				dynamicFunctionCall->resolveTypeDefinitionInScopeTree(s, var(this), "function call", Statement::ReferenceType::FunctionCall);
+
 			RootObject::ScopedCallstackEntry sc(*s.root, name, &body->location);
 
 			if(numArgs != dynamicFunctionCall->parameterResults.size())
@@ -989,6 +997,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			{
 				dynamicFunctionCall->parameterResults.setUnchecked(i, args[i]);
 			}
+
+			
 
 			jassert(s.root->threadAwareLocalScopeCreator.get()->getRootBlockStatement() == body.get());
 			Statement::ResultCode c = body->perform(s, &lastReturnValue.get());
@@ -1203,6 +1213,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 				Array<var> args;
 
 				bool skipBodyCheck = false;
+
+				resolveTypeDefinitionInScopeTree(s, var(f), "function call", Statement::ReferenceType::FunctionCall);
 
 				auto numActualArgs = parameterExpressions.size();
 
@@ -1437,7 +1449,7 @@ struct HiseJavascriptEngine::RootObject::LocalVarStatement : public Expression
 		if (s.isShadowParsing())
 		{
 			auto v = initialiser->getResult(s);
-			resolveTypeDefinitionInScopeTree(s, v, name.toString(), true);
+			resolveTypeDefinitionInScopeTree(s, v, name.toString(), ReferenceType::Definition);
 			s.scope->setProperty(name, v);
 			return ok;
 		}

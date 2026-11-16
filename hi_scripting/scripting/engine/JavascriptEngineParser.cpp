@@ -3256,6 +3256,19 @@ Array<UriError> HiseJavascriptEngine::shadowParse(const DiagnosticBase::ShadowPa
 
 			if (sl != nullptr)
 			{
+				if (auto scopeTree = sd.options.scopeTree)
+				{
+					for (auto& f : tb.functionsForBreakpoints)
+					{
+						if (auto ifo = dynamic_cast<RootObject::InlineFunction::Object*>(f.getObject()))
+						{
+							if (auto match = scopeTree->getSubTreeWithId(ifo->name, true))
+								match->data->setProperty("callableObject", f);
+						}
+					}
+				}
+
+
 				prepareTimeout();
 				analyzer->shadowParse(sl);
 

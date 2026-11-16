@@ -345,14 +345,18 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 		{
 			auto parentValue = dot->parent->getResult(s);
 
-			dot->parent->resolveTypeDefinitionInScopeTree(s, parentValue, dot->child.toString() + "()", false);
+			dot->parent->resolveTypeDefinitionInScopeTree(s, parentValue, dot->child.toString() + "()", ReferenceType::FunctionCall);
 
 			if(auto lb = s.getShadowParser()->createTypeInfoObject(parentValue, ""))
 			{
 				Array<var> thisArgs;
 
 				for (auto a : arguments)
-					thisArgs.add(a->getResult(s));
+				{
+					auto v = a->getResult(s);
+					a->resolveTypeDefinitionInScopeTree(s, v, "function argument", ReferenceType::Reference);
+					thisArgs.add(v);
+				}
 
 				ObjectTypeMap::ScopedLocationSetter sp(*s.getShadowParser(), this);
 				logDiagnostics(s, lb->runTests(s.currentShadowParser, dot->child, thisArgs));
@@ -364,7 +368,7 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 		{
 			auto f = object->getResult(s);
 
-			object->resolveTypeDefinitionInScopeTree(s, f, "function call", false);
+			object->resolveTypeDefinitionInScopeTree(s, f, "function call", ReferenceType::FunctionCall);
 
 			if (auto fo = dynamic_cast<FunctionObject*>(f.getObject()))
 			{
@@ -403,8 +407,12 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 				Array<var> args;
 
 				for (auto a : arguments)
-					args.add(a->getResult(s));
-
+				{
+					auto v = a->getResult(s);
+					a->resolveTypeDefinitionInScopeTree(s, v, "function argument", ReferenceType::Reference);
+					args.add(v);
+				}
+				
 				logDiagnostics(s, nf->runTests(s.getShadowParser(), nf->getObjectName(), args));
 				
 				return nf->getReturnType(nf->getObjectName(), { var("") });

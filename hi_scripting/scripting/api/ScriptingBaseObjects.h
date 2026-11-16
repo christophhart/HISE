@@ -319,7 +319,7 @@ struct WeakCallbackHolder : private ScriptingObject
 
 		virtual int getNumArguments() const = 0;
 
-		std::vector<UriLocation> callSites;
+		std::vector<UriLocation::WithExpression> callSites;
 
 	protected:
 

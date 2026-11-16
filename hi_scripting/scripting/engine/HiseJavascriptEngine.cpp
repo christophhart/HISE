@@ -787,27 +787,62 @@ struct HiseJavascriptEngine::RootObject::Statement
 		}
 	}
 
-	void resolveTypeDefinitionInScopeTree(const Scope& s, const var& possibleDiagnosticObject, const String& locationName, bool isDefinition) const
+	enum class ReferenceType
 	{
+		Definition,
+		Assignment,
+		Reference,
+		FunctionCall,
+		numReferenceTypes
+	};
+
+	void resolveTypeDefinitionInScopeTree(const Scope& s, const var& value, const String& locationName, ReferenceType rt) const
+	{
+		auto sp = s.getShadowParser();
+
+		if (sp == nullptr)
+			return;
+		
+		auto scopeTree = sp->options.scopeTree.get();
+
+		if (scopeTree == nullptr)
+			return;
+
+		auto inner = scopeTree->getInnerTree(location.createUriLocation());
+
+		if (inner == nullptr)
+			return;
+
+		Identifier idToLookFor(locationName);
+
+		auto isDefinition = rt == ReferenceType::Definition;
+
+		if (rt == ReferenceType::Assignment)
+		{
+			// JS functions will come through as assignment
+			if (inner->hasRange() && inner->id == idToLookFor)
+			{
+				if (auto fo = dynamic_cast<WeakCallbackHolder::CallableObject*>(value.getObject()))
+				{
+					inner->data->setProperty("callableObject", value);
+					return;
+				}
+			}
+		}
+
 		if (isDefinition)
 		{
-			Identifier idToLookFor(locationName);
-
-			if (auto sp = s.getShadowParser())
+			for (auto c : *inner)
 			{
-				if (auto scopeTree = sp->options.scopeTree.get())
+				if (c->id == idToLookFor)
 				{
-					if (auto inner = scopeTree->getInnerTree(location.createUriLocation()))
-					{
-						for (auto c : *inner)
-						{
-							if (c->id == idToLookFor)
-							{
-								if (auto lb = sp->createTypeInfoObject(possibleDiagnosticObject, locationName))
-									c->data->setProperty("typeInfo", var(lb.get()));
-							}
-						}
-					}
+					if (auto lb = sp->createTypeInfoObject(value, locationName))
+						c->data->setProperty("typeInfo", var(lb.get()));
+
+					if (auto fo = dynamic_cast<WeakCallbackHolder::CallableObject*>(value.getObject()))
+						c->data->setProperty("callableObject", value);
+
+					return;
 				}
 			}
 		}
@@ -816,28 +851,26 @@ struct HiseJavascriptEngine::RootObject::Statement
 			UriLocation l;
 			location.fillLocation(l, true);
 
-			if (auto lb = dynamic_cast<LightweightDiagnostics*>(possibleDiagnosticObject.getObject()))
+			auto updateOrPush = [](UriLocation::Callstack& occurrences, const UriLocation::WithExpression& l)
 			{
-				for (auto& b : lb->occurrences)
+				for (auto& b : occurrences)
 				{
-					if (b.second.matches(l))
+					if (b.second.matches(l.second))
 					{
-						b.first = locationName;
+						b.first = l.first;
 						return;
 					}
 				}
 
-				lb->occurrences.push_back({ locationName, l });
-			}
+				occurrences.push_back(l);
+			};
 
-			if (auto fo = dynamic_cast<WeakCallbackHolder::CallableObject*>(possibleDiagnosticObject.getObject()))
-			{
-				if (std::find(fo->callSites.begin(), fo->callSites.end(), l) == fo->callSites.end())
-					fo->callSites.push_back(l);
-			}
+			if (auto lb = dynamic_cast<LightweightDiagnostics*>(value.getObject()))
+				updateOrPush(lb->occurrences, { locationName, l });
+
+			if (auto fo = dynamic_cast<WeakCallbackHolder::CallableObject*>(value.getObject()))
+				updateOrPush(fo->callSites, { locationName, l });
 		}
-
-		
 	}
 #endif
 

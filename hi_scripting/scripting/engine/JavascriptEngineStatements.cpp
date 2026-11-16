@@ -1458,7 +1458,7 @@ struct HiseJavascriptEngine::RootObject::VarStatement : public Expression
 	ResultCode perform(const Scope& s, var*) const override
 	{
 		auto v = initialiser->getResult(s);
-		resolveTypeDefinitionInScopeTree(s, v, name.toString(), true);
+		resolveTypeDefinitionInScopeTree(s, v, name.toString(), ReferenceType::Definition);
 		s.scope->setProperty(name, v);
 		return ok;
 	}
@@ -1488,7 +1488,7 @@ struct HiseJavascriptEngine::RootObject::ConstVarStatement : public Statement
 		if (s.isShadowParsing())
 		{
 			auto v = initialiser->getResult(s);
-			resolveTypeDefinitionInScopeTree(s, v, name.toString(), true);
+			resolveTypeDefinitionInScopeTree(s, v, name.toString(), ReferenceType::Definition);
 			s.getShadowParserRootObject(ns->id)->setProperty(name, v);
 			return ok;
 		}
@@ -1628,7 +1628,7 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 
 				if (!firstObject.isUndefined() && !firstObject.isVoid())
 				{
-					resolveTypeDefinitionInScopeTree(s, firstObject, iteratorId.toString(), true);
+					resolveTypeDefinitionInScopeTree(s, firstObject, iteratorId.toString(), ReferenceType::Definition);
 
 					index = 0;
 					ts.getCurrentScopeObject()->setProperty(iteratorId, firstObject);
