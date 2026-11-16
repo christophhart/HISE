@@ -75,6 +75,7 @@ namespace TokenTypes
 HiseJavascriptPreprocessor::ScopedBackendDeactivator::ScopedBackendDeactivator(JavascriptProcessor* jp_):
   jp(jp_)
 {
+#if USE_BACKEND
 	auto& list = jp->getScriptEngine()->preprocessor->definitions;
 
 	for (auto& d : list)
@@ -85,10 +86,12 @@ HiseJavascriptPreprocessor::ScopedBackendDeactivator::ScopedBackendDeactivator(J
 			break;
 		}
 	}
+#endif
 }
 
 HiseJavascriptPreprocessor::ScopedBackendDeactivator::~ScopedBackendDeactivator()
 {
+#if USE_BACKEND
 	auto& list = jp->getScriptEngine()->preprocessor->definitions;
 
 	for (auto& d : list)
@@ -99,6 +102,7 @@ HiseJavascriptPreprocessor::ScopedBackendDeactivator::~ScopedBackendDeactivator(
 			break;
 		}
 	}
+#endif
 }
 
 HiseJavascriptEngine::~HiseJavascriptEngine()
