@@ -417,6 +417,10 @@
  //#define HISE_USE_SCRIPT_RECTANGLE_OBJECT 0
 #endif
 
+#ifndef    HISE_SHADOW_PARSER_ENABLED
+ //#define HISE_SHADOW_PARSER_ENABLED 1
+#endif
+
 //==============================================================================
 // hi_snex flags:
 

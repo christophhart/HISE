@@ -3389,7 +3389,7 @@
                     "scripting"
                 ],
                 "summary": "Run a diagnostic-only shadow parse on a script file or raw code string",
-                "description": "Returns structured diagnostics (API hallucinations, type mismatches, language rule violations, audio-thread safety warnings) without modifying runtime state - no recompilation, no execution. Two modes: (file) pass moduleId and/or filePath to read a real file from disk and parse it against its owning processor - requires a prior compile, save pending edits first; (code) pass a raw code string to parse it directly against the first interface processor's API context, ideal for unsaved or in-progress code.",
+                "description": "Returns structured diagnostics without modifying runtime state. File mode reads a compiled file against its owning processor; code without filePath uses the first interface processor's API context. When code and filePath are both provided, code overrides the file contents while retaining the owning processor's include and scope context.",
                 "operationId": "diagnose_script",
                 "requestBody": {
                     "required": true,
@@ -3408,12 +3408,7 @@
                                     },
                                     "code": {
                                         "type": "string",
-                                        "description": "Raw HISEScript source to parse directly (standalone code mode). When present and the filePath is not specified, the code is shadow-parsed against the first interface processor's API context without reading any file from disk or executing. When used in combination with filePath the supplied code string takes precedent over the file content and can be used to diagnose unsaved changes but keep the include structure from the file."
-                                    },
-                                    "async": {
-                                        "type": "boolean",
-                                        "description": "If true, defer the shadow parse to the scripting thread (slower, blocks audio). Default is false: runs directly on the HTTP thread with a read lock.",
-                                        "default": "false"
+                                        "description": "Raw HISEScript source to parse directly (standalone code mode). When present and the filePath is not specified, the code is shadow-parsed against the first interface processor's API context without reading any file from disk or executing. When used in combination with filePath the supplied code string takes overrides the file contents while retaining the owning processor's include and scope context."
                                     },
                                     "autocompletePosition": {
                                         "type": "object",
@@ -3497,7 +3492,8 @@
                                                             "api-validation",
                                                             "type-check",
                                                             "language",
-                                                            "callscope"
+                                                            "callscope",
+                                                            "deprecation"
                                                         ],
                                                         "description": "Diagnostic category"
                                                     },
@@ -4068,7 +4064,47 @@
                                         },
                                         "diagnostics": {
                                             "type": "array",
-                                            "description": "Array of diagnostic entries"
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "line": {
+                                                        "type": "integer",
+                                                        "description": "Diagnostic line"
+                                                    },
+                                                    "column": {
+                                                        "type": "integer",
+                                                        "description": "Diagnostic column"
+                                                    },
+                                                    "severity": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "error",
+                                                            "warning"
+                                                        ],
+                                                        "description": "Diagnostic severity"
+                                                    },
+                                                    "source": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "css"
+                                                        ],
+                                                        "description": "Diagnostic source"
+                                                    },
+                                                    "message": {
+                                                        "type": "string",
+                                                        "description": "Parser error or warning message"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "line",
+                                                    "column",
+                                                    "severity",
+                                                    "source",
+                                                    "message"
+                                                ],
+                                                "description": "CSS diagnostic"
+                                            },
+                                            "description": "Array of structured CSS diagnostics"
                                         },
                                         "filePath": {
                                             "type": "string",
