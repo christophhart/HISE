@@ -50,6 +50,7 @@ struct UriLocation
 	};
 
 	using WithExpression = std::pair<String, UriLocation>;
+	using Callstack = std::vector<WithExpression>;
 
 	enum ResolveState
 	{
@@ -169,7 +170,7 @@ struct UriError : public UriLocation
 
 	String errorMessage;
 	var metadata;
-	std::vector<UriLocation::WithExpression> callstack;
+	UriLocation::Callstack callstack;
 };
 
 /** An extension to the location that contains information / data about a breakpoint.

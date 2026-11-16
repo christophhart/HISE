@@ -215,6 +215,37 @@ struct JavascriptLanguageManager : public mcl::LanguageManager
 			}
 		}
 
+		auto [includeTree, scopeTree] = jp->getIncludeAndScopeTree();
+
+		if (scopeTree != nullptr)
+		{
+			scopeTree->forEach([&](const UriLocationTree& t)
+			{
+				auto isFunction = t.category == Identifier("function") ||
+								  t.category == Identifier("inline");
+
+				if (location.sameUriAndProcessorId(t) && isFunction)
+				{
+					UriLocationTree::Ptr p(const_cast<UriLocationTree*>(&t));
+					InplaceDebugValue::Ptr idv = new InplaceDebugValue();
+					idv->info = new UriLocationTreeDebugInformation(p);
+
+					auto lineNumber = t.line - 1;
+					idv->originalLineNumber = lineNumber;
+					idv->location = CodeDocument::Position(*sn, lineNumber, sn->getLine(lineNumber).length());
+					idv->location.setPositionMaintained(true);
+					idv->initialised = true;
+					idv->type = InplaceDebugValue::Type::CodeLens;
+
+					auto occurrences = JavascriptLocationTreeHelpers::getOccurrences(t);
+					idv->value = String(occurrences.size()) + " call site(s)";
+					values.add(idv);
+				}
+
+				return false;
+			});
+		}
+
         return true;
     }
     

@@ -51,6 +51,12 @@ public:
 
     struct InplaceDebugValue: public ReferenceCountedObject
     {
+        enum class Type
+        {
+            Value,
+            CodeLens
+        };
+
         InplaceDebugValue() = default;
 
         using List = ReferenceCountedArray<InplaceDebugValue>;
@@ -63,6 +69,8 @@ public:
         CodeDocument::Position location;
         String value;
         DebugInformationBase::Ptr info;
+
+        Type type = Type::Value;
 
     private:
 

@@ -1,3 +1,4 @@
+#include "GitChangeTracker.h"
 /*  ===========================================================================
 *
 *   This file is part of HISE.
@@ -74,18 +75,13 @@ GitChangeTracker::GitChangeTracker(BackendRootWindow* rw) :
 {
 	snapshot = new Snapshot();
 
-	ThreadStarters::startLow(this);
-	startTimer(500);
+	setActive(false);
 }
 
 GitChangeTracker::~GitChangeTracker()
 {
-	stopTimer();
-	cancelPendingUpdate();
-
-	signalThreadShouldExit();
-	notify();
-	stopThread(5000);
+	setActive(false);
+	
 }
 
 String GitChangeTracker::getKey(const File& f)
@@ -145,6 +141,29 @@ File GitChangeTracker::getCallbackFile(ModulatorSynthChain* chain, JavascriptPro
 
 	auto backupDirectory = XmlBackupFunctions::getScriptDirectoryFor(chain);
 	return XmlBackupFunctions::getScriptFileFor(chain, backupDirectory, p->getId());
+}
+
+void GitChangeTracker::setActive(bool shouldBeActive)
+{
+	auto isActive = isThreadRunning();
+
+	if (isActive != shouldBeActive)
+	{
+		if (isActive)
+		{
+			stopTimer();
+			cancelPendingUpdate();
+			signalThreadShouldExit();
+			notify();
+			stopThread(5000);
+		}
+		else
+		{
+			startTimer(500);
+			ThreadStarters::startLow(this);
+			timerCallback();
+		}
+	}
 }
 
 bool GitChangeTracker::isRepository() const
@@ -671,19 +690,22 @@ GitChangeTracker::Snapshot::Ptr GitChangeTracker::createSnapshot(const File& pro
 				if (currentKey.isEmpty() || hunkHeader.isEmpty())
 					return;
 
-				StringArray previewLines;
-				const int maxPreviewLines = 3;
+				
 
-				for (int i = 0; i < jmin(maxPreviewLines, changedLines.size()); i++)
-					previewLines.add(changedLines[i].substring(1).trim().substring(0, 72));
+				String preview = hunkHeader;
 
-				String preview = previewLines.joinIntoString(" | ");
+				int added = 0;
+				int removed = 0;
 
-				if (changedLines.size() > maxPreviewLines)
-					preview << " ...";
+				for (const auto& p : changedLines)
+				{
+					if (p.startsWithChar('+'))
+						added++;
+					if (p.startsWithChar('-'))
+						removed++;
+				}
 
-				if (preview.isEmpty())
-					preview = "Changed lines";
+				preview << "|+" << String(added) << ",-" << String(removed);
 
 				auto newRange = hunkHeader.fromFirstOccurrenceOf("+", false, false).upToFirstOccurrenceOf("@@", false, false).trim();
 				auto lineText = newRange.upToFirstOccurrenceOf(",", false, false);

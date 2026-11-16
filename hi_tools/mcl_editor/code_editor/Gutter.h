@@ -75,8 +75,6 @@ public:
 
 	void setError(int lineNumber, const String& error);
 
-	void setDiagnostics(const DiagnosticLines& dl);
-
 	void setExternalCallstackMatches(const std::vector<UriLocation::WithExpression>& newExternalCallstack);
 
 	void setCurrentBreakline(const UriError& breakPosition, UriLocationTree::Ptr currentScope);
@@ -98,7 +96,6 @@ public:
 private:
 
 	std::vector<UriLocation::WithExpression> externalCallstack;
-	DiagnosticLines diagnosticLines;
 
 	struct Breakpoint: public ReferenceCountedObject,
 					   public Value::Listener,

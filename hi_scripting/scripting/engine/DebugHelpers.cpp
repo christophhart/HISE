@@ -743,6 +743,39 @@ struct UriLocationTreeDebugInformation : public UriLocationDebugInformation
 		return nullptr;
 	}
 
+	void doubleClickCallback(const MouseEvent& e, Component* toNotify) override
+	{
+		auto occurrences = JavascriptLocationTreeHelpers::getOccurrences(*node);
+
+		if (occurrences.size() == 1)
+		{
+			PopupIncludeEditor::gotoUriLocation(nullptr, toNotify, occurrences[0].second);
+		}
+		else
+		{
+			PopupLookAndFeel plaf;
+			PopupMenu m;
+			m.setLookAndFeel(&plaf);
+			m.addSectionHeader("Goto call site");
+			
+			int idx = 1;
+
+			for (const auto& c : occurrences)
+			{
+				String s;
+				s << c.second.toLocationString(UriLocation::UriFormat::Compact) << ": ";
+				s << c.first;
+				m.addItem(idx++, s);
+			}
+
+			if (auto r = m.show())
+			{
+				auto l = occurrences[r - 1].second;
+				PopupIncludeEditor::gotoUriLocation(nullptr, toNotify, l);
+			}
+		}
+	}
+
 	LightweightDiagnostics* getDiagnosticObject() const
 	{
 		return dynamic_cast<LightweightDiagnostics*>(node->data->getProperty("typeInfo").getObject());

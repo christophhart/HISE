@@ -201,22 +201,6 @@ struct DiagnosticLines
 
 	operator bool() const { return !(errorLines.isEmpty() && warningLines.isEmpty() && hintLines.isEmpty()); }
 
-	void addUriError(const UriError& e)
-	{
-		switch (e.errorType)
-		{
-		case UriError::ErrorType::Error:
-			errorLines.addIfNotAlreadyThere(e.line - 1);
-			break;
-		case UriError::ErrorType::Warning:
-			warningLines.addIfNotAlreadyThere(e.line - 1);
-			break;
-		case UriError::ErrorType::Hint:
-			hintLines.addIfNotAlreadyThere(e.line - 1);
-			break;
-		}
-	}
-
 	juce::Array<int> errorLines;
 	juce::Array<int> warningLines;
 	juce::Array<int> hintLines;

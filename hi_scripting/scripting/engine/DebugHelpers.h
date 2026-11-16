@@ -38,6 +38,52 @@ namespace hise { using namespace juce;
 class DebugInformation;
 class HiseJavascriptEngine;
 
+struct JavascriptLocationTreeHelpers
+{
+	static bool isFunction(const UriLocationTree& n)
+	{
+		return n.category == Identifier("inline") ||
+			   n.category == Identifier("function");
+	}
+
+	static std::vector<UriLocation::WithExpression> getOccurrences(const UriLocationTree& t)
+	{
+		if (isFunction(t))
+		{
+			auto co = t.data->getProperty("callableObject");
+
+			if (auto fo = dynamic_cast<WeakCallbackHolder::CallableObject*>(co.getObject()))
+			{
+				return fo->callSites;
+			}
+		}
+		else if (!t.hasRange())
+		{
+			auto ti = t.data->getProperty("typeInfo");
+
+			if (auto lb = dynamic_cast<LightweightDiagnostics*>(ti.getObject()))
+			{
+				return lb->occurrences;
+			}
+		}
+
+		return {};
+	}
+
+	static VarTypeChecker::WrappedType getType(const UriLocationTree& t)
+	{
+		return VarTypeChecker::getType(t.data->getProperty("typeInfo"));
+	}
+
+	static String getTypeAnnotation(const UriLocationTree& t)
+	{
+		if (auto wt = getType(t))
+			return ":" + VarTypeChecker::getTypeName(wt);
+
+		return {};
+	}
+};
+
 /** Overwrite this method if you want to add debugging functionality to a object. */
 class DebugableObject: public DebugableObjectBase,
 					   public ObjectWithJSONConverter	

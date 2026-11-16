@@ -44,6 +44,14 @@ class TextEditor : public juce::Component,
 {
 public:
 
+	enum class LineHighlightMode
+	{
+		None,
+		DiffLines,
+		Errors,
+		numLineHighlightMode
+	};
+
 	using TokenTooltipFunction = std::function<void(TooltipWithArea::Data&)>;
 	using GotoFunction = std::function<bool(const UriLocation::WithExpression&)>;
 
@@ -291,10 +299,21 @@ public:
 
 	void setCodeTokeniser(juce::CodeTokeniser* ownedTokeniser);
 
+	void setLineHighlightMode(LineHighlightMode newMode)
+	{
+		if (lineHighlightMode != newMode)
+		{
+			lineHighlightMode = newMode;
+			rebuildDiagnosticLines();
+		}
+	}
+
 	void setEnableAutocomplete(bool shouldBeEnabled);
 
-	struct DiffLine
+	struct DiffLine: public ReferenceCountedObject
 	{
+		using List = ReferenceCountedArray<DiffLine>;
+
 		DiffLine(const CodeDocument::Position& p, LineDiff::ChangeType t, int l) :
 		  pos(p),
 		  type(t),
@@ -363,6 +382,10 @@ public:
 	}
 
 private:
+
+	std::map<UriError::ErrorType, RectangleList<float>> createLineHighlights() const;
+
+	DiagnosticLines createDiagnosticLines() const;
 
 	struct InplaceDebugValueComponent: public Component,
 									   public PathFactory	
@@ -436,6 +459,10 @@ private:
 					auto area = tc->getLocalArea(this, getLocalBounds());
 
 					CallOutBox::launchAsynchronously(WrapperComponent::wrap(c), area, tc);
+				}
+				else
+				{
+					value->info->doubleClickCallback(e, this);
 				}
 			}
 		}
@@ -604,7 +631,7 @@ private:
     
     struct DeactivatedRange;
     
-	OwnedArray<DiffLine> difflines;
+	DiffLine::List difflines;
     
     OwnedArray<DeactivatedRange> deactivatedLines;
     
@@ -625,6 +652,7 @@ private:
 	
 	Selection currentClosure[2];
 
+	LineHighlightMode lineHighlightMode = LineHighlightMode::DiffLines;
 	
 	// just used in order to send a scrollbar notification
 	bool scrollBarRecursion = false;

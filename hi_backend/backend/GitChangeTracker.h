@@ -116,7 +116,11 @@ public:
 		or the file that "Save as XML" writes to Scripts/ScriptProcessors/{rootId}/{processorId}.js. */
 	static File getCallbackFile(ModulatorSynthChain* chain, JavascriptProcessor* jp);
 
+	void setActive(bool shouldBeActive);
+
 private:
+
+
 
 	struct Snapshot : public ReferenceCountedObject
 	{

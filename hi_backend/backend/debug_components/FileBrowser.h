@@ -208,6 +208,12 @@ public:
 		script processor are opened as detached file. */
 	void openInCodeEditor(const File& f, const UriLocation* location = nullptr);
 
+	static Image getFileIconFromCache(const File& file)
+	{
+		auto hashCode = (file.getFullPathName() + "_iconCacheSalt").hashCode();
+		return ImageCache::getFromHashCode(hashCode);
+	}
+
 private:
 
 	FloatingTabComponent* getScriptEditorTabs();
@@ -478,9 +484,17 @@ private:
         }
     }
 
+	static Image getFromCache(const File& file)
+	{
+		auto hashCode = (file.getFullPathName() + "_iconCacheSalt").hashCode();
+		return ImageCache::getFromHashCode(hashCode);
+	}
+
 	/** Colours the rows with the git state and highlights files that just changed. */
 	struct GitAwareLookAndFeel : public FileBrowserLookAndFeel
 	{
+		
+
 		void drawFileBrowserRow(Graphics& g, int width, int height, const File& file, const String& filename, Image* icon,
 								const String& fileSizeDescription, const String& fileTimeDescription, bool isDirectory,
 								bool isItemSelected, int itemIndex, DirectoryContentsDisplayComponent& dcc) override;

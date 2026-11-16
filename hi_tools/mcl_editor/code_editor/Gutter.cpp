@@ -21,7 +21,10 @@ float GutterComponent::getGutterWidth() const
 
 	auto w = document.getCharacterRectangle().getWidth() * (digits+4);
 
-	w += breakpoints.isEmpty() ? 0.0f : (document.getCharacterRectangle().getHeight() * 0.6f);
+	if(breakpointsEnabled)
+		w += document.getCharacterRectangle().getHeight() * 0.6f + 5;
+	
+	w += 3;
 
 	return w * scaleFactor;
 }
@@ -163,12 +166,6 @@ void GutterComponent::setError(int lineNumber, const String& error)
 		errorLine = -1;
         
 	errorMessage = error;
-	repaint();
-}
-
-void GutterComponent::setDiagnostics(const DiagnosticLines& dl)
-{
-	diagnosticLines = dl;
 	repaint();
 }
 
@@ -582,11 +579,6 @@ void mcl::GutterComponent::paint(Graphics& g)
 
 	for (const auto& r : rowData)
 	{
-		bool isErrorLine = r.rowNumber == errorLine;
-		bool isWarningLine = diagnosticLines.warningLines.contains(r.rowNumber);
-		isErrorLine |= diagnosticLines.errorLines.contains(r.rowNumber);
-		bool isHintLine = !isErrorLine && !isWarningLine && diagnosticLines.hintLines.contains(r.rowNumber);
-
 		auto b = getRowBounds(r);
 		bool showFoldRange = false;
 
@@ -621,35 +613,6 @@ void mcl::GutterComponent::paint(Graphics& g)
 					}
 				}
 			}
-		}
-
-
-		if ((r.isRowSelected || isErrorLine || isWarningLine || isHintLine) && !showFoldRange)
-		{
-			auto b2 = b.withHeight(jmax(b.getHeight(), document.getRowHeight() * scaleFactor));
-
-			Colour c = ln.contrasting(0.1f);
-
-			if (isHintLine)
-			{
-				c = UriError::getColour(UriError::Hint);
-				b2 = b2.removeFromRight(2.0f);
-			}
-
-			if (isErrorLine)
-			{
-				c = UriError::getColour(UriError::Error);
-				b2 = b2.removeFromRight(2.0f);
-			}
-			
-			if (isWarningLine)
-			{
-				c = UriError::getColour(UriError::Warning);
-				b2 = b2.removeFromRight(2.0f);
-			}
-
-			g.setColour(c);
-			g.fillRect(b2);
 		}
 
 		auto lfb = b;
@@ -751,8 +714,10 @@ void mcl::GutterComponent::paint(Graphics& g)
 		g.drawText(String(r.rowNumber + 1), A.reduced(5.0f, 0.0f), Justification::right, false);
 	}
 
-	
-	
+	Array<int> drawnBreakpoints;
+	drawnBreakpoints.ensureStorageAllocated(breakpoints.size());
+
+	float BREAKPOINT_OFFSET = JUCE_LIVE_CONSTANT(1.0f);
 
 	for (auto bp : breakpoints)
 	{
@@ -760,7 +725,12 @@ void mcl::GutterComponent::paint(Graphics& g)
 		{
 			auto b = getRowBounds(*r).withHeight(document.getRowHeight() * scaleFactor);
 
+
+			drawnBreakpoints.add(r->rowNumber);
+
 			b = b.withWidth(b.getHeight()).reduced(JUCE_LIVE_CONSTANT_OFF(6.0f) * scaleFactor);
+
+			b.translate(BREAKPOINT_OFFSET, 0.0);
 
 			auto t = h.getLineType(*bp);
 
@@ -796,6 +766,20 @@ void mcl::GutterComponent::paint(Graphics& g)
 			g.setColour(Colours::white.withAlpha(0.4f));
 			g.strokePath(bPath, PathStrokeType(1.0f));
 		}
+	}
+
+	auto pos = getMouseXYRelative();
+
+	if (hoveredData.rowNumber != -1 && !drawnBreakpoints.contains(hoveredData.rowNumber) && hitTest(pos.x, pos.y))
+	{
+		auto b = getRowBounds(hoveredData).withHeight(document.getRowHeight() * scaleFactor);
+		b = b.withWidth(b.getHeight()).reduced(JUCE_LIVE_CONSTANT_OFF(7.0f) * scaleFactor);
+		b.translate(BREAKPOINT_OFFSET, 0.0);
+
+		g.setColour(Colours::white.withAlpha(0.05f));
+		g.fillEllipse(b);
+		g.setColour(Colours::white.withAlpha(0.1f));
+		g.drawEllipse(b, 1.0f);
 	}
 
 	if (currentBreakpointScope != nullptr)

@@ -98,7 +98,7 @@ public:
 			if (c.id.toString().toLowerCase().contains(searchTerm))
 				return true;
 
-			if (auto wt = getType(c))
+			if (auto wt = JavascriptLocationTreeHelpers::getType(c))
 				return VarTypeChecker::getTypeName(wt).toString().toLowerCase().contains(searchTerm);
 
 			return false;
@@ -194,8 +194,7 @@ public:
 			}
 			else
 			{
-				if (auto wt = getType(*node))
-					label.second = ":" + VarTypeChecker::getTypeName(wt);
+				label.second = JavascriptLocationTreeHelpers::getTypeAnnotation(*node);
 			}
 
 			g.setColour(Colour(0xffDDDDFF));
@@ -206,10 +205,7 @@ public:
 		}
 	}
 
-	static VarTypeChecker::WrappedType getType(const UriLocationTree& v)
-	{
-		return VarTypeChecker::getType(v.data->getProperty("typeInfo"));
-	}
+	
 
 	void itemClicked(const MouseEvent& e) override
 	{
@@ -265,9 +261,23 @@ public:
 class GitChangesTreeItem : public TreeViewItem
 {
 public:
-	GitChangesTreeItem(FileBrowser* browser_, const File& file_, const String& name_, GitChangeTracker::Status status_, bool isFolder_, const Drawable* folderIcon_ = nullptr, bool isHunk_ = false, const UriLocation& location_ = {}) :
-		browser(browser_), file(file_), name(name_), status(status_), isFolder(isFolder_), folderIcon(folderIcon_), isHunk(isHunk_), location(location_)
-	{}
+	GitChangesTreeItem(FileBrowser* browser_, const File& file_, const String& name_, GitChangeTracker::Status status_, bool isFolder_, const Image& folderIcon_, bool isHunk_ = false, const UriLocation& location_ = {}) :
+		browser(browser_), 
+		file(file_), 
+		name(name_), 
+		status(status_), 
+		isFolder(isFolder_), 
+		folderIcon(folderIcon_), 
+		isHunk(isHunk_), 
+		location(location_)
+	{
+		if (isFolder)
+			setOpenness(TreeViewItem::Openness::opennessOpen);
+		else
+			setOpenness(TreeViewItem::Openness::opennessClosed);
+
+		setLinesDrawnForSubItems(!isFolder);
+	}
 
 	String getUniqueName() const override
 	{
@@ -302,6 +312,7 @@ public:
 			g.fillRect(0, 0, width, height);
 		}
 
+		
 		auto colour = isHunk ? Colours::white.withAlpha(0.65f) :
 			(status == GitChangeTracker::Status::Clean ? Colours::white.withAlpha(0.8f) : GitChangeTracker::getColour(status));
 
@@ -311,17 +322,32 @@ public:
 		b.removeFromRight(3.0f);
 		g.setColour(colour);
 		g.setFont(GLOBAL_MONOSPACE_FONT());
-		g.drawText(isHunk ? "H" : GitChangeTracker::getLetter(status), b.removeFromRight(b.getHeight()), Justification::right);
+
+		String s;
+
+		if (status == GitChangeTracker::Status::Modified)
+		{
+			g.setColour(Colour(HISE_WARNING_COLOUR));
+			s = "•";
+		}
+			
+		if (status == GitChangeTracker::Status::Untracked)
+		{
+			g.setColour(Colour(HISE_OK_COLOUR));
+			s = "+";
+		}
+			
+
+		if(!isHunk)
+			g.drawText(s, b.removeFromRight(b.getHeight()), Justification::right);
 
 		g.setColour(Colours::white.withAlpha(0.8f));
 
 		int textX = 4;
 
-		if (isFolder && folderIcon != nullptr)
+		if (isFolder)
 		{
-			folderIcon->drawWithin(g, b.removeFromLeft(height).reduced(2.0f),
-				RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize, 1.0f);
-			textX = 26;
+			g.drawImage(folderIcon, b.removeFromLeft(height).reduced(2.0f), RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize);
 			b.removeFromLeft(3.0f);
 		}
 		if (!isFolder && !isHunk)
@@ -334,8 +360,45 @@ public:
 
 		b.removeFromRight(2.0f);
 
-		g.setFont(isHunk ? GLOBAL_MONOSPACE_FONT() : GLOBAL_FONT());
-		g.drawText(name, b, Justification::centredLeft, true);
+		auto n = getLabel();
+
+		if (isHunk)
+		{
+			auto f = GLOBAL_MONOSPACE_FONT();
+			g.setFont(f);
+
+			auto lineLabel = "Line " + String(location.line);
+
+			g.setColour(Colours::white.withAlpha(0.4f));
+			g.drawText(lineLabel, b.removeFromLeft(f.getStringWidthFloat(lineLabel) + 3.0f), Justification::centredLeft);
+			
+			auto plus = n.upToFirstOccurrenceOf("-", false, false).trim();
+			auto minus = n.fromFirstOccurrenceOf("-", true, false).trim();
+
+			g.setColour(Colour(HISE_OK_COLOUR));
+			g.drawText(plus, b.removeFromLeft(f.getStringWidthFloat(plus) + 3.0f), Justification::centredLeft, true);
+			g.setColour(Colour(HISE_ERROR_COLOUR));
+			g.drawText(minus, b, Justification::centredLeft, true);
+
+		}
+		else
+		{
+			g.setFont(isFolder ? GLOBAL_BOLD_FONT() : GLOBAL_FONT());
+			g.drawText(n, b, Justification::centredLeft, true);
+		}
+
+		
+	}
+
+	String getLabel() const
+	{
+		if (isHunk)
+		{
+			return name.fromLastOccurrenceOf("|", false, false).trim();
+		}
+		else
+			return name;
+		
 	}
 
 	FileBrowser* browser;
@@ -343,7 +406,7 @@ public:
 	String name;
 	GitChangeTracker::Status status;
 	bool isFolder;
-	const Drawable* folderIcon;
+	const Image folderIcon;
 	bool isHunk;
 	UriLocation location;
 };
@@ -365,7 +428,6 @@ public:
 
 static void sortGitChangesTree(TreeViewItem* item)
 {
-	item->setLinesDrawnForSubItems(true);
 	GitChangesTreeItemComparator comparator;
 	item->sortSubItems(comparator);
 
@@ -658,6 +720,9 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
 	fileTreeComponent->setDragAndDropDescription("Internal File Browser");
 
 	fileTreeComponent->setMultiSelectEnabled(true);
+
+	gitChangesView->setLookAndFeel(&laf);
+	includeTreeView->setLookAndFeel(&laf);
 
 	laf.rootWindow = rootWindow;
 	laf.browser = this;
@@ -1863,19 +1928,6 @@ float FileBrowser::getHighlightAlpha(const File& f) const
 
 void FileBrowser::timerCallback()
 {
-	if (!highlightStart.empty())
-	{
-		for (auto it = highlightStart.begin(); it != highlightStart.end();)
-		{
-			if (getHighlightAlpha(File(it->first)) <= 0.0f)
-				it = highlightStart.erase(it);
-			else
-				++it;
-		}
-
-		fileTreeComponent->repaint();
-	}
-
 	if (numOpennessRestoreTicks > 0)
 	{
 		if (prevState != nullptr)
@@ -1932,17 +1984,40 @@ void FileBrowser::buttonClicked(Button* button)
 
 void FileBrowser::setViewMode(ViewMode mode)
 {
-	currentViewMode = mode;
-	fileTreeComponent->setVisible(mode == ViewMode::FileBrowser);
-	gitChangesView->setVisible(mode == ViewMode::GitChanges);
-	includeTreeView->setVisible(mode == ViewMode::IncludeTree);
+	if (currentViewMode != mode)
+	{
+		auto shouldShowDiffs = mode == ViewMode::GitChanges;
+		auto showDiffs = currentViewMode == ViewMode::GitChanges;
 
-	fileBrowserModeButton->setToggleStateAndUpdateIcon(mode == ViewMode::FileBrowser, true);
-	gitChangesModeButton->setToggleStateAndUpdateIcon(mode == ViewMode::GitChanges, true);
-	includeTreeModeButton->setToggleStateAndUpdateIcon(mode == ViewMode::IncludeTree, true);
+		if (showDiffs != shouldShowDiffs)
+		{
+			rootWindow->getGitChangeTracker()->setActive(shouldShowDiffs);
 
-	if (mode == ViewMode::GitChanges)
-		rebuildGitChangesTree();
+			auto tc = getTopLevelComponent();
+
+			Component::callRecursive<mcl::TextEditor>(tc, [shouldShowDiffs](mcl::TextEditor* te)
+			{
+				te->setLineHighlightMode(shouldShowDiffs ? mcl::TextEditor::LineHighlightMode::DiffLines :
+														   mcl::TextEditor::LineHighlightMode::Errors);
+
+				return false;
+			});
+		}
+
+		currentViewMode = mode;
+		fileTreeComponent->setVisible(mode == ViewMode::FileBrowser);
+		gitChangesView->setVisible(mode == ViewMode::GitChanges);
+		includeTreeView->setVisible(mode == ViewMode::IncludeTree);
+
+		fileBrowserModeButton->setToggleStateAndUpdateIcon(mode == ViewMode::FileBrowser, true);
+		gitChangesModeButton->setToggleStateAndUpdateIcon(mode == ViewMode::GitChanges, true);
+		includeTreeModeButton->setToggleStateAndUpdateIcon(mode == ViewMode::IncludeTree, true);
+
+		if (mode == ViewMode::GitChanges)
+			rebuildGitChangesTree();
+	}
+
+	
 }
 
 void FileBrowser::showGitChangesMenu()
@@ -1969,23 +2044,41 @@ void FileBrowser::rebuildGitChangesTree()
 		opennessState = gitChangesView->getOpennessState(false);
 
 	gitChangesView->setRootItem(nullptr);
-	auto folderIcon = laf.getDefaultFolderImage();
-	gitChangesRoot = new GitChangesTreeItem(this, File(), "GitChangesRoot", GitChangeTracker::Status::Clean, true, folderIcon);
+
+	
+	auto rootFolder = rootWindow->getMainController()->getActiveFileHandler()->getRootFolder();
+	auto rootFolderIcon = getFileIconFromCache(rootFolder);
+
+	if (!rootFolderIcon.isValid())
+	{
+		for (auto f : rootFolder.findChildFiles(File::findDirectories, false, "*"))
+		{
+			rootFolderIcon = getFileIconFromCache(f);
+			if (rootFolderIcon.isValid())
+				break;
+		}
+	}
+
+	jassert(rootFolderIcon.isValid());
+
+	gitChangesRoot = new GitChangesTreeItem(this, File(), "GitChangesRoot", GitChangeTracker::Status::Clean, true, rootFolderIcon);
 
 	auto rootDirectory = GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).getWorkDirectory();
 	auto tracker = rootWindow->getGitChangeTracker();
 	auto changedFiles = tracker != nullptr && tracker->isRepository() ? tracker->getChangedFilePaths() : std::vector<File>();
 
+	
+
 	auto addHunkItems = [this, tracker](GitChangesTreeItem* fileItem, const File& file)
 	{
+		if (fileItem->status != GitChangeTracker::Status::Modified)
+			return;
+
 		if (tracker == nullptr)
 			return;
 
 		for (const auto& hunk : tracker->getDiffHunks(file))
-			fileItem->addSubItem(new GitChangesTreeItem(this, file, hunk.first, GitChangeTracker::Status::Clean, false, nullptr, true, hunk.second));
-
-		if (fileItem->getNumSubItems() > 0)
-			fileItem->setOpen(false);
+			fileItem->addSubItem(new GitChangesTreeItem(this, file, hunk.first, GitChangeTracker::Status::Clean, false, {}, true, hunk.second));
 	};
 
 	for (const auto& file : changedFiles)
@@ -1998,7 +2091,7 @@ void FileBrowser::rebuildGitChangesTree()
 
 		if (gitChangesFlat)
 		{
-			auto fileItem = new GitChangesTreeItem(this, file, file.getFileName(), tracker->getStatus(file), false);
+			auto fileItem = new GitChangesTreeItem(this, file, file.getFileName(), tracker->getStatus(file), false, {});
 			addHunkItems(fileItem, file);
 			gitChangesRoot->addSubItem(fileItem);
 			continue;
@@ -2026,14 +2119,14 @@ void FileBrowser::rebuildGitChangesTree()
 
 			if (folderItem == nullptr)
 			{
-				folderItem = new GitChangesTreeItem(this, currentDirectory, pathParts[i], tracker->getStatus(currentDirectory), true, folderIcon);
+				folderItem = new GitChangesTreeItem(this, currentDirectory, pathParts[i], tracker->getStatus(currentDirectory), true, rootFolderIcon);
 				parentItem->addSubItem(folderItem);
 			}
 
 			parentItem = folderItem;
 		}
 
-		auto fileItem = new GitChangesTreeItem(this, file, file.getFileName(), tracker->getStatus(file), false);
+		auto fileItem = new GitChangesTreeItem(this, file, file.getFileName(), tracker->getStatus(file), false, {});
 		addHunkItems(fileItem, file);
 		parentItem->addSubItem(fileItem);
 	}
@@ -2044,7 +2137,7 @@ void FileBrowser::rebuildGitChangesTree()
 		filterGitChangesTree(gitChangesRoot.get(), searchTerm);
 
 	if (gitChangesRoot->getNumSubItems() == 0)
-		gitChangesRoot->addSubItem(new GitChangesTreeItem(this, File(), searchTerm.isEmpty() ? "No changed files" : "No matching files", GitChangeTracker::Status::Clean, false));
+		gitChangesRoot->addSubItem(new GitChangesTreeItem(this, File(), searchTerm.isEmpty() ? "No changed files" : "No matching files", GitChangeTracker::Status::Clean, false, {}));
 
 	sortGitChangesTree(gitChangesRoot.get());
 	gitChangesView->setRootItem(gitChangesRoot.get());

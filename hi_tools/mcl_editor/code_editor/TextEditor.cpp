@@ -648,25 +648,29 @@ void TextEditor::setEnableAutocomplete(bool shouldBeEnabled)
 
 void TextEditor::setDiffLines(const std::map<int, LineDiff::ChangeType>& diffLineIndexes)
 {
-	difflines.clear();
+	lineHighlightMode = LineHighlightMode::DiffLines;
+
+	DiffLine::List newList;
 
 	int lastLine = -2;
 	auto lastType = LineDiff::ChangeType::Unchanged;
 
 	for (const auto& a : diffLineIndexes)
 	{
-		if (a.first == lastLine + 1 && !difflines.isEmpty() && lastType == a.second)
-			difflines.getLast()->length++;
+		if (a.first == lastLine + 1 && !newList.isEmpty() && lastType == a.second)
+			newList.getLast()->length++;
 		else
 		{
 			auto t = a.second;
 			auto np = new DiffLine(CodeDocument::Position(getDocument(), a.first - 1, 0), t, 1);
 			np->pos.setPositionMaintained(true);
-			difflines.add(np);
+			newList.add(np);
 			lastLine = a.first;
 			lastType = t;
 		}
 	}
+
+	newList.swapWith(difflines);
 
 	repaint();
 }
@@ -682,14 +686,7 @@ void TextEditor::rebuildDiagnosticLines()
 	if (languageManager == nullptr)
 		return;
 
-	mcl::DiagnosticLines lines;
-
-	auto loc = languageManager->createUriLocation({});
-
-	for (auto e : errors)
-		lines.addUriError(e->toUriError(loc));
-
-	gutter.setDiagnostics(lines);
+	auto lines = createDiagnosticLines();
 
 	if (auto p = dynamic_cast<FullEditor*>(getParentComponent()))
 		p->codeMap.setDiagnostics(lines);
@@ -743,29 +740,54 @@ void TextEditor::InplaceDebugValueComponent::updatePosition()
 
 void TextEditor::InplaceDebugValueComponent::paint(Graphics& g)
 {
+	auto codeLens = value->type == LanguageManager::InplaceDebugValue::Type::CodeLens;
+
 	g.setFont(vf);
 
-	float alpha = 0.05f;
+	
 
-	if(value->info != nullptr && isMouseOver(true))
-		alpha += 0.05f;
-
-	g.setColour(Colours::white.withAlpha(alpha));
-            
 	auto area = getLocalBounds().toFloat();
 	auto r = area;
 	r = r.removeFromLeft(vf.getStringWidthFloat(value->value) + 20.0f);
-            
-	g.fillRoundedRectangle(r, r.getHeight() / 2.0f);
-            
-	g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
-	g.drawText(value->value, area.reduced(10.0f, 0.0f), Justification::left);
 
-	if(!p.isEmpty())
+	if(codeLens)
 	{
-		g.setColour(Colours::white.withAlpha(alpha * 6.0f));
+		if (isMouseOver(true))
+			g.setColour(Colour(SIGNAL_COLOUR));
+		else
+			g.setColour(Colours::white.withAlpha(0.3f));
+
+		Path p;
+		p.loadPathFromData(EditorIcons::redoIcon, EditorIcons::redoIcon_Size);
+		PathFactory::scalePath(p, area.removeFromLeft(20.0f).reduced(4.0f));
+		g.drawText(value->value, area, Justification::left);
 		g.fillPath(p);
 	}
+	else
+	{
+		float alpha = 0.05f;
+
+		if (value->info != nullptr && isMouseOver(true))
+			alpha += 0.05f;
+
+		g.setColour(Colours::white.withAlpha(alpha));
+		g.fillRoundedRectangle(r, r.getHeight() / 2.0f);
+
+		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
+		g.drawText(value->value, area.reduced(10.0f, 0.0f), Justification::left);
+
+		if (!p.isEmpty())
+		{
+			g.setColour(Colours::white.withAlpha(alpha * 6.0f));
+			g.fillPath(p);
+		}
+	}
+
+	
+
+	
+
+	
 		
 }
 
@@ -785,6 +807,123 @@ void TextEditor::rebuildInplaceDebugValues()
 	}
 
 	repaint();
+}
+
+std::map<UriError::ErrorType, RectangleList<float>> TextEditor::createLineHighlights() const
+{
+	std::map<UriError::ErrorType, RectangleList<float>> rv;
+
+	auto getLineBounds = [this](int row, int numRows=1, bool removed=false)
+	{
+		auto x = document.getBoundsOnRow(row, { 0, 1 }, GlyphArrangementArray::OutOfBoundsMode::ReturnLastCharacter).getRectangle(0);
+		x = x.withHeight(document.getRowHeight() * numRows).reduced(0.0f, 2.0f);
+		x = x.transformedBy(transform).withWidth(getWidth());
+		x = x.withX(0.0f);
+		x = x.expanded(0.0f, 2.0);
+
+		if (removed)
+			x = x.removeFromTop(5.0).translated(0.0f, -2.5f);
+
+		return x;
+	};
+
+	std::map<LineDiff::ChangeType, UriError::ErrorType> diffMap;
+	diffMap[LineDiff::ChangeType::Removed] = UriError::ErrorType::Error;
+	diffMap[LineDiff::ChangeType::Added] = UriError::ErrorType::OK;
+	diffMap[LineDiff::ChangeType::Modified] = UriError::ErrorType::Warning;
+
+	switch (lineHighlightMode)
+	{
+	case LineHighlightMode::DiffLines:
+	{
+		for (auto df : difflines)
+		{
+			auto r = getLineBounds(df->pos.getLineNumber(), df->length, df->type == LineDiff::ChangeType::Removed);
+			auto er = diffMap[df->type];
+			rv[er].addWithoutMerging(r);
+		}
+
+		break;
+	}
+	case LineHighlightMode::Errors:
+	{
+		for (auto e : this->errors)
+		{
+			auto r = getLineBounds(e->start.getLineNumber(), 1);
+			rv[e->originalError.errorType].addWithoutMerging(r);
+		}
+
+		break;
+	}
+	}
+
+	return rv;
+}
+
+DiagnosticLines TextEditor::createDiagnosticLines() const
+{
+	DiagnosticLines dl;
+
+	auto addDiffLine = [&](DiffLine* df)
+	{
+		Array<int>* listToUse;
+
+		switch (df->type)
+		{
+		case LineDiff::ChangeType::Added:
+			listToUse = &dl.hintLines;
+			break;
+		case LineDiff::ChangeType::Modified:
+			listToUse = &dl.warningLines;
+			break;
+		case LineDiff::ChangeType::Removed:
+			listToUse = &dl.errorLines;
+			break;
+		default:
+			jassertfalse;
+			listToUse = &dl.errorLines;
+		}
+
+		for (int i = 0; i < df->length; i++)
+			listToUse->addIfNotAlreadyThere(df->pos.getLineNumber() + i);
+	};
+
+	switch (lineHighlightMode)
+	{
+	case LineHighlightMode::DiffLines:
+	{
+		for (auto df : difflines)
+			addDiffLine(df);
+
+		break;
+	}
+	case LineHighlightMode::Errors:
+	{
+		dl.errorLines.ensureStorageAllocated(errors.size());
+		dl.warningLines.ensureStorageAllocated(errors.size());
+		dl.hintLines.ensureStorageAllocated(errors.size());
+
+		for (auto e : errors)
+		{
+			switch (e->originalError.errorType)
+			{
+			case UriError::ErrorType::Error:
+				dl.errorLines.addIfNotAlreadyThere(e->start.getLineNumber());
+				break;
+			case UriError::ErrorType::Warning:
+				dl.warningLines.addIfNotAlreadyThere(e->start.getLineNumber());
+				break;
+			case UriError::ErrorType::Hint:
+				dl.hintLines.addIfNotAlreadyThere(e->start.getLineNumber());
+				break;
+			}
+		}
+
+		break;
+	}
+	}
+
+	return dl;
 }
 
 TextEditor::AutocompleteTimer::AutocompleteTimer(TextEditor& p):
@@ -2224,6 +2363,21 @@ void mcl::TextEditor::paintOverChildren (Graphics& g)
         g.fillRect(titleArea.removeFromTop(10.0f));
     }
 
+	for (const auto& [type, lines] : createLineHighlights())
+	{
+		auto c = UriError::getColour(type);
+
+		g.setColour(c.withAlpha(0.05f));
+		g.fillRectList(lines);
+
+		for (auto& r : lines)
+			const_cast<Rectangle<float>*>(&r)->setWidth(4.0f);
+
+		g.setColour(c);
+		g.fillRectList(lines);
+	}
+
+#if 0
 	for (const auto df : difflines)
 	{
 		auto row = df->pos.getLineNumber();
@@ -2255,6 +2409,7 @@ void mcl::TextEditor::paintOverChildren (Graphics& g)
 		g.setColour(c);
 		g.fillRoundedRectangle(x.removeFromLeft(3.0f), 1.5f);
 	}
+#endif
 }
 
 void mcl::TextEditor::mouseDown (const MouseEvent& e)
