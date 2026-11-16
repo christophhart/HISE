@@ -120,7 +120,7 @@ public:
         testDiagnoseScriptFilePath();
         testDiagnoseScriptCodeClean();
         testDiagnoseScriptCodeWithDiagnostics();
-        testDiagnoseScriptCodeFilePathConflict();
+        testDiagnoseScriptCodeWithFilePath();
         testTestingProfileRecord();
         testTestingProfileGetAfterRecord();
         testTestingProfileSummary();
@@ -3355,7 +3355,7 @@ private:
 
         auto completionList = json["completionList"];
         expect(completionList.isObject(), "Should include an LSP completionList when position is supplied");
-        expect((bool)completionList["isIncomplete"], "Completion list should be marked incomplete until generation is implemented");
+        expect(!(bool)completionList["isIncomplete"], "Completion list should be marked complete");
         expect(completionList["items"].isArray(), "Completion items should be an array");
     }
     
@@ -3403,26 +3403,30 @@ private:
         }
     }
     
-    void testDiagnoseScriptCodeFilePathConflict()
+    void testDiagnoseScriptCodeWithFilePath()
     {
-        /** Setup: Compiled interface
-         *  Scenario: POST /api/diagnose_script with both code and filePath
-         *  Expected: Failure (400) - the two modes are mutually exclusive
+        /** Setup: Compiled interface including an external script file
+         *  Scenario: Diagnose supplied code using the file's owning processor context
+         *  Expected: Success; supplied code is used instead of file contents
          */
-        beginTest("POST /api/diagnose_script (code + filePath conflict)");
+        beginTest("POST /api/diagnose_script (code overrides file contents)");
         
         ctx->reset();
-        ctx->compile("Content.makeFrontInterface(600, 400);");
+        auto tempFile = createTempScriptFile("_test_diagnose_code_override.js", "Console.prnt(1);\n");
+        ctx->compile("Content.makeFrontInterface(600, 400);\ninclude(\"_test_diagnose_code_override.js\");");
         
         DynamicObject::Ptr bodyObj = new DynamicObject();
         bodyObj->setProperty("code", "Console.print(\"x\");\n");
-        bodyObj->setProperty("filePath", "SomeFile.js");
+        bodyObj->setProperty("filePath", tempFile.getFullPathName());
         
         auto response = ctx->httpPost("/api/diagnose_script",
                                       JSON::toString(var(bodyObj.get())));
         var json = ctx->parseJson(response);
         
-        expect(!(bool)json["success"], "Should fail when both code and filePath are set");
+        expect((bool)json["success"], "Should accept code with filePath context: " + response);
+        expect(json["moduleId"].toString() == "Interface", "Should resolve the owning processor");
+        expectEquals<int>(json["diagnostics"].size(), 0, "Should diagnose supplied code, not file contents");
+        tempFile.deleteFile();
     }
     
     //==========================================================================

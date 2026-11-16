@@ -328,7 +328,7 @@ public:
 		if (status == GitChangeTracker::Status::Modified)
 		{
 			g.setColour(Colour(HISE_WARNING_COLOUR));
-			s = "•";
+			s = "*";
 		}
 			
 		if (status == GitChangeTracker::Status::Untracked)

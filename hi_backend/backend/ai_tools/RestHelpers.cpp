@@ -2865,7 +2865,162 @@ static JavascriptProcessor* findProcessorForFile(MainController* mc, const File&
 
 RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestServer::AsyncRequest::Ptr req)
 {
-	return req->fail(400, "redesign this API when the internal parser is done");
+	auto obj = req->getRequest().getJsonBody();
+	auto code = obj.getProperty(RestApiIds::code, "").toString();
+	auto filePath = obj.getProperty(RestApiIds::filePath, "").toString();
+	auto moduleId = obj.getProperty(RestApiIds::moduleId, "").toString();
+	auto hasPosition = obj.hasProperty(RestApiIds::autocompletePosition);
+	int line = -1;
+	int character = -1;
+
+	if (hasPosition)
+	{
+		auto position = obj[RestApiIds::autocompletePosition];
+		if (!position.isObject()
+			|| !position.hasProperty(RestApiIds::line)
+			|| !position.hasProperty(RestApiIds::character)
+			|| !position[RestApiIds::line].isInt()
+			|| !position[RestApiIds::character].isInt())
+			return req->fail(400, "autocompletePosition must contain integer line and character fields");
+
+		line = (int)position[RestApiIds::line];
+		character = (int)position[RestApiIds::character];
+		if (line < 0 || character < 0)
+			return req->fail(400, "autocompletePosition line and character must be non-negative integers");
+	}
+
+	if (code.isEmpty() && filePath.isEmpty() && moduleId.isEmpty())
+		return req->fail(400, "Either code, moduleId, or filePath must be provided");
+
+	auto getFile = [mc](const String& path)
+	{
+		if (path.isEmpty()) return File();
+		if (File::isAbsolutePath(path)) return File(path);
+		return mc->getSampleManager().getProjectHandler()
+			.getSubDirectory(FileHandlerBase::Scripts).getChildFile(path);
+	};
+
+	JavascriptProcessor* jp = nullptr;
+	File targetFile = getFile(filePath);
+	if (filePath.isNotEmpty() && code.isEmpty() && !targetFile.existsAsFile())
+		return req->fail(404, "File not found: " + targetFile.getFullPathName());
+
+	if (code.isNotEmpty() && filePath.isEmpty())
+	{
+		jp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(mc);
+		if (jp == nullptr || jp->getScriptEngine() == nullptr)
+			return req->fail(404, "No compiled interface processor available to host the shadow parse. Compile the interface first (F5).");
+	}
+	else if (moduleId.isNotEmpty())
+	{
+		jp = getScriptProcessor(mc, req);
+		if (jp == nullptr) return req->fail(404, "moduleId is not a valid script processor");
+	}
+	else if (filePath.isNotEmpty())
+	{
+		jp = findProcessorForFile(mc, targetFile);
+		if (jp == nullptr)
+			return req->fail(404, "No script processor includes this file. Has it been compiled at least once (F5)?");
+	}
+	else
+	{
+		jp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(mc);
+		if (jp == nullptr || jp->getScriptEngine() == nullptr)
+			return req->fail(404, "No compiled interface processor available to host the shadow parse. Compile the interface first (F5).");
+	}
+
+	if (code.isEmpty() && filePath.isEmpty())
+	{
+		if (jp->getNumWatchedFiles() == 0)
+			return req->fail(400, "filePath is required (this processor has no external files)");
+		targetFile = jp->getWatchedFile(0);
+		if (!targetFile.existsAsFile()) return req->fail(404, "File not found: " + targetFile.getFullPathName());
+	}
+
+	auto sd = jp->createFullShadowParseData();
+	if (sd.options.includeTree == nullptr || sd.codeToParse.empty())
+		return req->fail(400, "The script processor has no compiled parse context. Compile it first.");
+
+	UriLocation parseLocation;
+	parseLocation.processorId = dynamic_cast<Processor*>(jp)->getId();
+	String responsePath;
+	if (code.isNotEmpty() && filePath.isNotEmpty())
+	{
+		if (!targetFile.existsAsFile())
+			return req->fail(404, "File not found: " + targetFile.getFullPathName());
+		parseLocation.uri = targetFile.getFullPathName();
+		responsePath = parseLocation.uri.replace("\\", "/");
+		sd.codeToParse.clear();
+		sd.codeToParse.push_back({ code, parseLocation });
+	}
+	else if (code.isNotEmpty())
+	{
+		sd.codeToParse.clear();
+		sd.codeToParse.push_back({ code, parseLocation });
+	}
+	else
+	{
+		parseLocation.uri = targetFile.getFullPathName();
+		responsePath = parseLocation.uri.replace("\\", "/");
+		sd.codeToParse.clear();
+		sd.codeToParse.push_back({ targetFile.loadFileAsString(), parseLocation });
+	}
+
+	Array<UriError> parseErrors;
+	jp->shadowParse(sd, [&parseErrors](const Array<UriError>& found)
+	{
+		parseErrors = found;
+	}, sendNotificationSync);
+
+	Array<var> diagnostics;
+	for (const auto& d : parseErrors)
+	{
+		auto full = d.toJSON();
+		DynamicObject::Ptr entry = new DynamicObject();
+		entry->setProperty(RestApiIds::line, full[RestApiIds::line]);
+		entry->setProperty(RestApiIds::column, full[RestApiIds::column]);
+		entry->setProperty(RestApiIds::severity, full[RestApiIds::severity]);
+		entry->setProperty(RestApiIds::source, full[RestApiIds::source]);
+		entry->setProperty(RestApiIds::message, full[RestApiIds::message]);
+		entry->setProperty(RestApiIds::suggestions, full[RestApiIds::suggestions]);
+		diagnostics.add(var(entry.get()));
+	}
+
+	DynamicObject::Ptr result = new DynamicObject();
+	result->setProperty(RestApiIds::success, true);
+	result->setProperty(RestApiIds::moduleId, dynamic_cast<Processor*>(jp)->getId());
+	result->setProperty(RestApiIds::filePath, responsePath);
+	result->setProperty(RestApiIds::diagnostics, var(diagnostics));
+
+	if (hasPosition)
+	{
+		mcl::TokenCollection::ExpressionParser expressionParser(code.isNotEmpty() ? code : targetFile.loadFileAsString(), line, character);
+		auto prevExpression = expressionParser.getExpression();
+		mcl::TokenCollection::List tokens;
+		auto provider = std::make_unique<HiseJavascriptEngine::TokenProvider>(jp);
+		UriLocation location = parseLocation;
+		location.line = line;
+		location.col = 0;
+		location.charIndex = expressionParser.getCharIndex();
+		provider->addTokens(tokens);
+		provider->addTokensWithContext(tokens, location, prevExpression.first);
+		Array<var> items;
+		for (auto token : tokens)
+		{
+			if (!token->matches(prevExpression.second, prevExpression.first, line)) continue;
+			auto item = token->getLspDiagnosticObject(prevExpression.first);
+			expressionParser.addLspLocation(item, prevExpression.second);
+			items.add(var(item.get()));
+		}
+		DynamicObject::Ptr completionList = new DynamicObject();
+		completionList->setProperty(RestApiIds::isIncomplete, false);
+		completionList->setProperty(RestApiIds::items, var(items));
+		result->setProperty(RestApiIds::completionList, var(completionList.get()));
+	}
+
+	result->setProperty(RestApiIds::logs, Array<var>());
+	result->setProperty(RestApiIds::errors, Array<var>());
+	return RestServer::Response::ok(var(result.get()));
 
 #if 0
 	auto obj = req->getRequest().getJsonBody();
@@ -3932,28 +4087,24 @@ RestServer::Response RestHelpers::handleParseCSS(MainController* mc,
 	Array<var> diagArray;
 	bool parseOk = parseResult.wasOk();
 	
+	auto appendCssDiagnostic = [&diagArray](const UriError& error)
+	{
+		auto location = error.toJSON();
+		DynamicObject::Ptr entry = new DynamicObject();
+		entry->setProperty(RestApiIds::line, location[RestApiIds::line]);
+		entry->setProperty(RestApiIds::column, location[RestApiIds::column]);
+		entry->setProperty(RestApiIds::severity, error.errorType == UriError::Warning ? "warning" : "error");
+		entry->setProperty(RestApiIds::source, "css");
+		entry->setProperty(RestApiIds::message, error.errorMessage);
+		diagArray.add(var(entry.get()));
+	};
+
 	if (!parseOk)
-	{
-		DynamicObject::Ptr d = new DynamicObject();
-		d->setProperty(RestApiIds::line, parseResult.line);
-		d->setProperty(RestApiIds::column, parseResult.col);
-		d->setProperty(RestApiIds::severity, "error");
-		d->setProperty(RestApiIds::source, "css");
-		d->setProperty(RestApiIds::message, parseResult.errorMessage);
-		diagArray.add(var(d.get()));
-	}
-	
-	// Add warnings (present even on partial parse failure)
-	for (const auto& w : parser.getWarnings())
-	{
-		DynamicObject::Ptr d = new DynamicObject();
-		d->setProperty(RestApiIds::line, parseResult.line);
-		d->setProperty(RestApiIds::column, parseResult.col);
-		d->setProperty(RestApiIds::severity, "warning");
-		d->setProperty(RestApiIds::source, "css");
-		d->setProperty(RestApiIds::message, parseResult.errorMessage);
-		diagArray.add(var(d.get()));
-	}
+		appendCssDiagnostic(parseResult);
+
+	// Warnings have their own source locations and messages.
+	for (const auto& warning : parser.getWarnings())
+		appendCssDiagnostic(warning);
 	
 	// Build response
 	DynamicObject::Ptr result = new DynamicObject();

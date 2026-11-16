@@ -653,7 +653,7 @@ struct RestApiEndpoints
 			.withProperty(RouteParameter(RestApiIds::severity, "Diagnostic severity")
 				.withEnumValues({ "error", "warning", "info", "hint" }))
 			.withProperty(RouteParameter(RestApiIds::source, "Diagnostic category")
-				.withEnumValues({ "syntax", "api-validation", "type-check", "language", "callscope" }))
+				.withEnumValues({ "syntax", "api-validation", "type-check", "language", "callscope", "deprecation" }))
 			.withProperty(RouteParameter(RestApiIds::message, "Human-readable diagnostic message"))
 			.withProperty(RouteParameter(RestApiIds::suggestions, "Did-you-mean suggestions from fuzzy matching")
 				.withType(ParamType::Array).asOptional());
@@ -662,13 +662,7 @@ struct RestApiEndpoints
 			.withMethod(RestServer::Method::Post)
 			.withCategory("scripting")
 			.withSummary("Run a diagnostic-only shadow parse on a script file or raw code string")
-			.withDescription("Returns structured diagnostics (API hallucinations, type mismatches, "
-				"language rule violations, audio-thread safety warnings) without modifying runtime "
-				"state - no recompilation, no execution. Two modes: (file) pass moduleId and/or "
-				"filePath to read a real file from disk and parse it against its owning processor - "
-				"requires a prior compile, save pending edits first; (code) pass a raw code string to "
-				"parse it directly against the first interface processor's API context, ideal for "
-				"unsaved or in-progress code.")
+			.withDescription("Returns structured diagnostics without modifying runtime state. File mode reads a compiled file against its owning processor; code without filePath uses the first interface processor's API context. When code and filePath are both provided, code overrides the file contents while retaining the owning processor's include and scope context.")
 			.withReturns("Array of diagnostics with line, column, severity, source, message, and suggestions")
 			.withBodyParam(RouteParameter(RestApiIds::moduleId,
 				"The script processor's module ID (file mode). Required if filePath is not provided. "
@@ -681,11 +675,7 @@ struct RestApiEndpoints
 				"Raw HISEScript source to parse directly (standalone code mode). When present and the filePath is not specified, the "
 				"code is shadow-parsed against the first interface processor's API context without "
 				"reading any file from disk or executing. When used in combination with filePath the supplied code string takes "
-				"precedent over the file content and can be used to diagnose unsaved changes but keep the include structure from the file.").asOptional())
-			.withBodyParam(RouteParameter(RestApiIds::async,
-				"If true, defer the shadow parse to the scripting thread (slower, blocks audio). "
-				"Default is false: runs directly on the HTTP thread with a read lock.")
-				.withType(ParamType::Bool).withDefault("false"))
+				"overrides the file contents while retaining the owning processor's include and scope context.").asOptional())
 			.withBodyParam(RouteParameter(RestApiIds::autocompletePosition,
 				"Optional zero-based LSP cursor position. When supplied, the response includes a completionList.")
 				.withType(ParamType::Object)
@@ -832,6 +822,14 @@ struct RestApiEndpoints
 	/* POST /api/parse_css */
 	static void parseCss(Array<RouteMetadata>& m)
 	{
+		auto diagnostic = RouteParameter(Identifier("diagnostic"), "CSS diagnostic")
+			.withType(ParamType::Object)
+			.withProperty(RouteParameter(RestApiIds::line, "Diagnostic line").withType(ParamType::Int))
+			.withProperty(RouteParameter(RestApiIds::column, "Diagnostic column").withType(ParamType::Int))
+			.withProperty(RouteParameter(RestApiIds::severity, "Diagnostic severity").withEnumValues({ "error", "warning" }))
+			.withProperty(RouteParameter(RestApiIds::source, "Diagnostic source").withEnumValues({ "css" }))
+			.withProperty(RouteParameter(RestApiIds::message, "Parser error or warning message"));
+
 		m.add(RouteMetadata(ApiRoute::ParseCSS, "api/parse_css")
 			.withMethod(RestServer::Method::Post)
 			.withCategory("scripting")
@@ -874,8 +872,8 @@ struct RestApiEndpoints
 				"Reference height in pixels for resolving percentage and relative units. "
 				"Defaults to the component's bounds height in component mode")
 				.withType(ParamType::Int).asOptional())
-			.withResponseField(RouteParameter(RestApiIds::diagnostics, "Array of diagnostic entries")
-				.withType(ParamType::Array))
+			.withResponseField(RouteParameter(RestApiIds::diagnostics, "Array of structured CSS diagnostics")
+				.withArrayItems(diagnostic))
 			.withResponseField(RouteParameter(RestApiIds::filePath, "The resolved CSS file path (when file was used)")
 				.asOptional())
 			.withResponseField(RouteParameter(RestApiIds::selectors, "List of parsed selectors")
