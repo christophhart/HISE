@@ -1379,46 +1379,19 @@ void TextEditor::updateAutocomplete(bool forceShow /*= false*/)
 		return;
 	}
 
-	auto p = o;
-	auto s = p;
+	AutocompleteTokenData data;
+	
+	// Reuse the editor's TextDocument; REST uses the same extraction with a temporary one.
+	data = document.createAutocompleteData(o);
 
-	document.navigate(s, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::backwardCol);
-	document.navigate(p, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::forwardCol);
-
-
-	auto lineStart = o;
-	document.navigate(lineStart, mcl::TextDocument::Target::firstnonwhitespace, mcl::TextDocument::Direction::backwardCol);
-
-	auto lineContent = document.getSelectionContent({ lineStart, o });
-
-	auto isCommentLine = lineContent.contains("//") || lineContent.startsWith("/*");
-
-	if (isCommentLine)
+	if (data.isCommentLine)
 	{
 		closeAutocomplete(true, {}, {});
 		return;
 	}
 
-	autocompleteSelection = { s.x, s.y, p.x, p.y };
-	auto input = document.getSelectionContent(autocompleteSelection);
-
-	auto te = s;
-	auto ts = s;
-
-	document.navigate(ts, TextDocument::Target::cppToken, TextDocument::Direction::backwardCol);
-
-	Selection beforeToken = { ts.x, ts.y, te.x, te.y };
-
-	auto tokenBefore = document.getSelectionContent(beforeToken);
-
-	tokenBefore = tokenBefore.removeCharacters("!");
-
-	auto hasDotAndNotFloat = !CharacterFunctions::isDigit(tokenBefore[0]) && tokenBefore.endsWith(".");
-
-	auto lineNumber = o.x;
-
-	auto charIndex = CodeDocument::Position(getDocument(), lineNumber, o.y).getPosition();
-
+	autocompleteSelection = data.autocompleteSelection;
+	auto hasDotAndNotFloat = !CharacterFunctions::isDigit(data.tokenBefore[0]) && data.tokenBefore.endsWith(".");
 	auto parent = TopLevelWindowWithOptionalOpenGL::findRoot(this); 
 
 	if(parent == nullptr)
@@ -1430,7 +1403,7 @@ void TextEditor::updateAutocomplete(bool forceShow /*= false*/)
 	if(tokenCollection != nullptr)
 		tokenCollection->updateIfSync();
 
-	if (forceShow || ((input.isNotEmpty() && tokenCollection != nullptr && tokenCollection->hasEntries(input, tokenBefore, lineNumber)) || hasDotAndNotFloat))
+	if (forceShow || ((data.input.isNotEmpty() && tokenCollection != nullptr && tokenCollection->hasEntries(data.input, data.tokenBefore, data.lineNumber)) || hasDotAndNotFloat))
 	{
 		if (!hasKeyboardFocus(true))
 		{
@@ -1439,17 +1412,17 @@ void TextEditor::updateAutocomplete(bool forceShow /*= false*/)
 		}
 
 		if (currentAutoComplete != nullptr)
-			currentAutoComplete->setInput(input, tokenBefore, lineNumber);
+			currentAutoComplete->setInput(data.input, data.tokenBefore, data.lineNumber);
 		else if(tokenCollection != nullptr)
 		{
-			parent->addAndMakeVisible(currentAutoComplete = new Autocomplete(tokenCollection, input, tokenBefore, lineNumber, charIndex, this));
+			parent->addAndMakeVisible(currentAutoComplete = new Autocomplete(tokenCollection, data.input, data.tokenBefore, data.lineNumber, data.charIndex, this));
 			addKeyListener(currentAutoComplete);
 		}
 
         if(currentAutoComplete == nullptr)
             return;
         
-		auto sToUse = input.isEmpty() ? o.translated(0, 1) : s;
+		auto sToUse = data.input.isEmpty() ? o.translated(0, 1) : data.autocompletePosition;
 
 		auto cBounds = document.getBoundsOnRow(sToUse.x, { sToUse.y, sToUse.y + 1 }, GlyphArrangementArray::ReturnLastCharacter).getRectangle(0);
 		auto topLeft = cBounds.getBottomLeft();

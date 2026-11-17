@@ -1,3 +1,4 @@
+#include "TextDocument.h"
 /** ============================================================================
  *
  * MCL Text Editor JUCE module 
@@ -1247,18 +1248,27 @@ juce::Array<juce::Line<float>> mcl::TextDocument::getUnderlines(const Selection&
 	return underlines;
 }
 
-mcl::TextDocument::TextDocument(CodeDocument& doc_) :
+TextDocument::TextDocument(CodeDocument& doc_, TextDocument::InitialisationMode m) :
 	CoallescatedCodeDocumentListener(doc_),
 	doc(doc_),
 	foldManager(doc_)
 {
-	addFoldListener(this);
+	if (m == InitialisationMode::FullGlyphs)
+	{
+		addFoldListener(this);
 
-	if (doc.getNumCharacters() > 0)
-    {
-        lineRangeChanged({0, doc.getNumLines()}, true);
-		codeChanged(true, 0, doc.getNumCharacters());
-    }
+		if (doc.getNumCharacters() > 0)
+		{
+			lineRangeChanged({ 0, doc.getNumLines() }, true);
+			codeChanged(true, 0, doc.getNumCharacters());
+		}
+	}
+	else
+	{
+		// Navigation and token extraction only need the text of each CodeDocument line.
+		for (int i = 0; i < doc.getNumLines(); ++i)
+			lines.setLineContentOnly(i, doc.getLine(i));
+	}
 }
 
 
@@ -1993,6 +2003,49 @@ bool TextDocument::matchesLocation(const UriLocation& l) const
 {
 	jassert(baseLocation.processorId.isNotEmpty());
 	return baseLocation.sameUriAndProcessorId(l);
+}
+
+AutocompleteTokenData TextDocument::createAutocompleteData(Point<int> lineAndCol) const
+{
+	AutocompleteTokenData data;
+
+	auto p = lineAndCol;
+	auto s = p;
+
+	navigate(s, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::backwardCol);
+	navigate(p, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::forwardCol);
+
+	auto lineStart = lineAndCol;
+	navigate(lineStart, mcl::TextDocument::Target::firstnonwhitespace, mcl::TextDocument::Direction::backwardCol);
+
+	auto lineContent = getSelectionContent({ lineStart, lineAndCol });
+
+	data.isCommentLine = lineContent.contains("//") || lineContent.startsWith("/*");
+
+	if (data.isCommentLine)
+	{
+		return data;
+	}
+
+	data.autocompleteSelection = { s.x, s.y, p.x, p.y };
+	data.input = getSelectionContent(data.autocompleteSelection);
+
+	auto te = s;
+	auto ts = s;
+	
+	data.autocompletePosition = s;
+
+	navigate(ts, TextDocument::Target::cppToken, TextDocument::Direction::backwardCol);
+
+	Selection beforeToken = { ts.x, ts.y, te.x, te.y };
+
+	data.tokenBefore = getSelectionContent(beforeToken);
+	data.tokenBefore = data.tokenBefore.removeCharacters("!");
+
+
+	data.lineNumber = lineAndCol.x;
+	data.charIndex = CodeDocument::Position(doc, data.lineNumber, lineAndCol.y).getPosition();
+	return data;
 }
 
 mcl::Bookmark FoldableLineRange::getBookmark() const

@@ -40,6 +40,9 @@ public:
 
 	void set(int index, const juce::String& string);
 
+	/** Store line text without building glyphs for navigation-only documents. */
+	void setLineContentOnly(int index, const juce::String& string);
+
 	void insert(int index, const String& string);
 
 	void removeRange(Range<int> r);

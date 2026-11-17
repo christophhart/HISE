@@ -51,6 +51,17 @@ struct Bookmark
 	int lineNumber;
 };
 
+struct AutocompleteTokenData
+{
+	int charIndex = 0;
+	String tokenBefore;
+	String input;
+	int lineNumber = 0;
+	bool isCommentLine = false;
+	Point<int> autocompletePosition;
+	Selection autocompleteSelection;
+};
+
 class FoldableLineRange : public ReferenceCountedObject
 {
 public:
@@ -220,6 +231,13 @@ public:
 		bottom,
 	};
 
+	enum class InitialisationMode
+	{
+		LineContentOnly,
+		FullGlyphs,
+		numInitialisationModes
+	};
+
 	/**
 	 Text categories the caret may be targeted to. For forward jumps,
 	 the caret is moved to be immediately in front of the first character
@@ -272,7 +290,7 @@ public:
 
 	Array<Bookmark> getBookmarks() const;
 
-	TextDocument(CodeDocument& doc_);;
+	TextDocument(CodeDocument& doc_, InitialisationMode m=InitialisationMode::FullGlyphs);
 
 	void setBaseLocation(const UriLocation& location) { baseLocation = location; }
 
@@ -472,6 +490,8 @@ public:
 	Array<Selection> getSearchResults() const;
 
 	bool matchesLocation(const UriLocation& l) const;
+
+	AutocompleteTokenData createAutocompleteData(Point<int> lineAndCol) const;
 
 private:
 

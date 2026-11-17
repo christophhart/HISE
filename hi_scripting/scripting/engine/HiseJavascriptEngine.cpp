@@ -2350,7 +2350,12 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 
 void HiseJavascriptEngine::TokenProvider::addTokensWithContext(mcl::TokenCollection::List& tokens, const UriLocation& location, const String& prevExpression)
 {
-	jp->getScriptEngine()->addTokensWithContext(tokens, location, prevExpression);
+	if(jp != nullptr && jp->getScriptEngine() != nullptr)
+		jp->getScriptEngine()->addTokensWithContext(tokens, location, prevExpression);
+	else
+	{
+		jassertfalse;
+	}
 }
 
 void HiseJavascriptEngine::TokenProvider::precompileCallback(TokenProvider& p, bool unused)

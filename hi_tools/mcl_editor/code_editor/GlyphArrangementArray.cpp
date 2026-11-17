@@ -22,9 +22,13 @@ void GlyphArrangementArray::clear()
 
 void GlyphArrangementArray::set(int index, const juce::String& string)
 {
-	auto newItem = new Entry(string.removeCharacters("\r\n"), maxLineWidth);
-	lines.set(index, newItem);
+	setLineContentOnly(index, string);
 	ensureValid(index);
+}
+
+void GlyphArrangementArray::setLineContentOnly(int index, const juce::String& string)
+{
+	lines.set(index, new Entry(string.removeCharacters("\r\n"), maxLineWidth));
 }
 
 void GlyphArrangementArray::insert(int index, const String& string)

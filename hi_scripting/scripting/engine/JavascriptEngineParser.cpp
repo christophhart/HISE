@@ -3258,7 +3258,7 @@ Array<UriError> HiseJavascriptEngine::shadowParse(const DiagnosticBase::ShadowPa
 			{
 				if (auto scopeTree = sd.options.scopeTree)
 				{
-					for (auto& f : tb.functionsForBreakpoints)
+					for (auto& f : tb.functionsToShadowParse)
 					{
 						if (auto ifo = dynamic_cast<RootObject::InlineFunction::Object*>(f.getObject()))
 						{
