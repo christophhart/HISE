@@ -64,6 +64,7 @@
 #include "backend/debug_components/ModuleBrowser.cpp"
 #include "backend/debug_components/PatchBrowser.cpp"
 #include "backend/debug_components/FileBrowser.cpp"
+#include "backend/GitChangeTracker.cpp"
 
 #include "backend/PostDebugComponents.cpp"
 

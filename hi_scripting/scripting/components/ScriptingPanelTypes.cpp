@@ -207,6 +207,52 @@ CodeEditorPanel* CodeEditorPanel::showOrCreateTab(FloatingTabComponent* parentTa
 	return ed;
 }
 
+CodeEditorPanel* CodeEditorPanel::showOrCreateTab(FloatingTabComponent* parentTab, JavascriptProcessor* jp, const File& f)
+{
+	for (int tabIndex = 0; tabIndex < parentTab->getNumTabs(); tabIndex++)
+	{
+		if (auto tc = dynamic_cast<FloatingTile*>(parentTab->getTabContentComponent(tabIndex)))
+		{
+			if (auto cep = dynamic_cast<CodeEditorPanel*>(tc->getCurrentFloatingPanel()))
+			{
+				if (auto pe = cep->getContent<PopupIncludeEditor>())
+				{
+					if (pe->getFile() == f)
+					{
+						parentTab->setCurrentTabIndex(tabIndex);
+						return cep;
+					}
+				}
+			}
+		}
+	}
+
+	for (int i = 0; i < jp->getNumWatchedFiles(); i++)
+	{
+		if (jp->getWatchedFile(i) == f)
+			return showOrCreateTab(parentTab, jp, jp->getNumSnippets() + i);
+	}
+
+	auto p = dynamic_cast<Processor*>(jp);
+	auto scriptFolder = GET_PROJECT_HANDLER(p).getSubDirectory(FileHandlerBase::Scripts);
+
+	FloatingInterfaceBuilder ib(parentTab->getParentShell());
+
+	auto newEditor = ib.addChild<CodeEditorPanel>(0);
+	auto ed = ib.getContent<CodeEditorPanel>(newEditor);
+
+	ib.finalizeAndReturnRoot();
+
+	// An index past the snippets and watched files is never matched by the index-based lookup,
+	// createContentComponent() picks the file from scriptPath instead
+	ed->setScriptFile(f.getRelativePathFrom(scriptFolder));
+	ed->setContentWithUndo(p, jp->getNumSnippets() + jp->getNumWatchedFiles());
+	ed->setDynamicTitle(f.getFileName() + " (detached)");
+
+	parentTab->setCurrentTabIndex(parentTab->getNumTabs() - 1);
+	return ed;
+}
+
 void CodeEditorPanel::scriptWasCompiled(JavascriptProcessor *processor)
 {
 	if (getProcessor() == dynamic_cast<Processor*>(processor))

@@ -51,6 +51,7 @@ namespace hise { using namespace juce;
 
 class FloatingTile;
 class FloatingTileContainer;
+class FloatingTabComponent;
 
 #define RETURN_DEFAULT_PROPERTY_ID(idToCheck, name, id) if(idToCheck == (int)name) { static const Identifier i(id); return i;}
 #define RETURN_DEFAULT_PROPERTY(idToCheck, name, value) if(idToCheck == (int)name) { return value; }
@@ -615,6 +616,9 @@ struct FloatingPanelTemplates
 	static Component* createScriptingWorkspace(FloatingTile* root);
 	static Component* createSamplerWorkspace(FloatingTile* root);
 	static Component* createCodeEditorPanel(FloatingTile* root);
+
+	/** Adds the three dot menu (Save all, Close all, ...) to the tab bar of the code editor tabs. */
+	static void addCodeEditorTabMenu(FloatingTabComponent* tabs);
 	static Component* createScriptnodeEditorPanel(FloatingTile* root);
 	static var createSettingsWindow(MainController* mc);
 	static void create2x2Matrix(FloatingTile* parent);

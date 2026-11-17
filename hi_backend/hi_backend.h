@@ -83,6 +83,7 @@ If true, then the patch browser will display global modulator connections.
 #include "backend/HiseCliLauncher.h"
 #include "backend/BackendApplicationCommands.h"
 #include "backend/BackendEditor.h"
+#include "backend/GitChangeTracker.h"
 #include "backend/BackendRootWindow.h"
 #include "backend/CompileExporter.h"
 

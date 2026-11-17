@@ -85,6 +85,10 @@ public:
 
 	static CodeEditorPanel* showOrCreateTab(FloatingTabComponent* parentTab, JavascriptProcessor* jp, int index);
 
+	/** Focuses the tab that shows the given file or creates a new one. If the file is not included by the
+		processor it will be opened as detached file. */
+	static CodeEditorPanel* showOrCreateTab(FloatingTabComponent* parentTab, JavascriptProcessor* jp, const File& f);
+
 	void scriptWasCompiled(JavascriptProcessor *processor) override;
 
 	void mouseDown(const MouseEvent& event) override;
