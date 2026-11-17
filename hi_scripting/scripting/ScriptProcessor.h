@@ -445,6 +445,41 @@ public:
 	
 	// ================================================================================================================
 
+	/** Shared callback splitting and whole-file spans for legacy loads, LSP, and the file watcher. */
+	struct MergedCallbackDocument
+	{
+		String text;
+		Array<String> snippets;
+		Array<int> starts;
+
+		/** Split without changing any snippet. On failure, the previous result remains usable. */
+		Result parse(const JavascriptProcessor& processor, const String& newText);
+
+#if USE_BACKEND
+		/** Convert between whole-file and callback-relative CodeDocument character indices. */
+		int getSnippetIndex(int wholeFileIndex) const;
+		int toSnippetIndex(int snippetIndex, int wholeFileIndex) const;
+		int toFileIndex(int snippetIndex, int snippetCharIndex) const;
+
+		/** Convert between LSP zero-based UTF-16 positions and CodeDocument indices. */
+		static int toCharacterIndex(const String& content, int line, int utf16Column);
+		static std::pair<int, int> toLspPosition(const String& content, int characterIndex);
+#endif
+	};
+
+#if USE_BACKEND
+	/** Apply a complete merged file without compiling; must be called on the message thread. */
+	Result applyMergedCallbackDocument(const String& text);
+	const MergedCallbackDocument& getMergedCallbackDocument() const { return mergedCallbackDocument; }
+	bool ensureMergedCallbackMapping();
+
+	/** Resolved connected or XML-exported callback-file path. */
+	File getMergedCallbackFile() const;
+
+	/** An open LSP editor owns this file's contents until its last lease closes. */
+	void setMergedCallbackFileOpen(bool isOpen);
+#endif
+
 	using ResultFunction = std::function<void(const UriError& result)>;
 
 	enum ScriptContextActions
@@ -578,6 +613,8 @@ public:
 #if USE_BACKEND
 	using DiagnosticList = Array<UriError>;
 	using DiagnosticCallback = std::function<void(const DiagnosticList&)>;
+
+	bool isShadowParseReady() const { return engineInitialised && scriptEngine != nullptr; }
 
 	DiagnosticBase::ShadowParseData createFullShadowParseData();
 
@@ -815,6 +852,23 @@ private:
 
 	UriLocationTree::Ptr lastIncludeTree;
 	UriLocationTree::Ptr lastScopeTree;
+
+#if USE_BACKEND
+	struct MergedCallbackReloader : public Timer
+	{
+		explicit MergedCallbackReloader(JavascriptProcessor& owner);
+		void timerCallback() override;
+		JavascriptProcessor& owner;
+		File lastFile;
+		String lastDiskText;
+		bool hasBaseline = false;
+		bool sawMissingFile = false;
+		bool lspOpen = false;
+	};
+
+	MergedCallbackDocument mergedCallbackDocument;
+	MergedCallbackReloader mergedCallbackReloader { *this };
+#endif
 
 	void initialiseEngine();
 

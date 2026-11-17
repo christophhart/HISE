@@ -112,6 +112,14 @@ struct RestHelpers
         ProjectPreprocessorList,///< GET  /api/project/preprocessor/list - List preprocessor defines
         ProjectPreprocessorSet, ///< POST /api/project/preprocessor/set - Set or clear a preprocessor define
         SnippetBrowser,         ///< POST /api/snippet_browser - Control the snippet browser instance (launch/shutdown/enable/disable)
+        LspDocumentOpen,
+        LspDocumentChange,
+        LspDocumentSave,
+        LspDocumentClose,
+        LspCompletion,
+        LspHover,
+        LspDefinition,
+        LspReferences,
         numRoutes
     };
     
@@ -867,6 +875,8 @@ struct RestHelpers
     
     //==========================================================================
     // Route handlers (static methods called from BackendProcessor::onAsyncRequest)
+
+    static RestServer::Response handleLsp(BackendProcessor* bp, RestServer::AsyncRequest::Ptr req, ApiRoute route);
     
     /** Handler for GET / - List all available API methods. */
     static RestServer::Response handleListMethods(MainController* mc, 
@@ -1053,7 +1063,7 @@ struct RestHelpers
     };
 
     /** Inject one MIDI message into keyboard state.
-     *  No timing logic — caller handles scheduling.
+     *  No timing logic - caller handles scheduling.
      *  Designed to be callable from InteractionDispatcher in the future.
      *
      *  @param mc          MainController to inject into

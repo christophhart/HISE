@@ -112,6 +112,8 @@ public:
         testGetIncludedFilesGlobal();
         testGetIncludedFilesForModule();
         testGetIncludedFilesUnknownModule();
+        testLspDocumentLifecycle();
+        testLspMergedCallbacks();
         testDiagnoseScriptErrorMissingParams();
         testDiagnoseScriptErrorUnknownModule();
         testDiagnoseScriptErrorNoExternalFiles();
@@ -3123,7 +3125,7 @@ private:
         
         ctx->reset();
         
-        // No moduleId or filePath — should fail with 400
+        // No moduleId or filePath - should fail with 400
         DynamicObject::Ptr bodyObj = new DynamicObject();
         
         auto response = ctx->httpPost("/api/diagnose_script", 
@@ -3155,10 +3157,10 @@ private:
         
         ctx->reset();
         
-        // Compile a script without any include() — no external files
+        // Compile a script without any include() - no external files
         ctx->compile("Content.makeFrontInterface(600, 400);");
         
-        // Request diagnose with moduleId only — should fail since no external files
+        // Request diagnose with moduleId only - should fail since no external files
         DynamicObject::Ptr bodyObj = new DynamicObject();
         bodyObj->setProperty("moduleId", "Interface");
         
@@ -3221,7 +3223,7 @@ private:
         
         // Create a temp .js file with a known bad API call
         auto tempFile = createTempScriptFile("_test_diagnose_errors.js",
-            "Console.prnt(\"hello\");\n");  // 'prnt' should trigger fuzzy → 'print'
+            "Console.prnt(\"hello\");\n");  // 'prnt' should trigger fuzzy -> 'print'
         
         // First compile with a valid include to register the file
         auto cleanFile = createTempScriptFile("_test_diagnose_errors.js",
@@ -3286,6 +3288,171 @@ private:
         tempFile.deleteFile();
     }
     
+    void testLspDocumentLifecycle()
+    {
+        /** Setup: A compiled processor includes a temporary script file.
+         *  Scenario: Open, change, save, query, and close the document over REST.
+         *  Expected: Full-text changes update the shared document without compilation;
+         *            stale versions fail and all LSP routes respond.
+         */
+        beginTest("POST /api/lsp document lifecycle and language routes");
+        ctx->reset();
+
+        auto file = createTempScriptFile("_test_lsp_rest.js", "inline function lspValue() { return 1; }\n");
+        ctx->compile("Content.makeFrontInterface(600, 400);\ninclude(\"_test_lsp_rest.js\");");
+        auto jp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(
+            ctx->bp->getMainSynthChain(), "Interface"));
+        expect(jp != nullptr, "The compiled interface processor must exist");
+        if (jp == nullptr)
+        {
+            file.deleteFile();
+            return;
+        }
+
+        auto request = new DynamicObject();
+        request->setProperty("uri", URL(file).toString(false));
+        request->setProperty("sessionId", "unit-test-lsp");
+        request->setProperty("version", 1);
+        request->setProperty("text", "inline function lspValue() { return 1; }\n");
+        auto post = [&](const String& route)
+        {
+            return ctx->parseJson(ctx->httpPost(route, JSON::toString(var(request), false)));
+        };
+
+        auto opened = post("/api/lsp/document/open");
+        expect((bool)opened["success"], "Opening an included file must succeed");
+        expectEquals(opened["documentKind"].toString(), String("included"));
+        auto epoch = opened["epoch"];
+        request->setProperty("epoch", epoch);
+        request->setProperty("version", 2);
+        request->setProperty("text", "inline function lspValue() { return 2; }\n");
+        auto changed = post("/api/lsp/document/change");
+        expect((bool)changed["success"], "Full-text change must succeed");
+        auto included = ctx->bp->getExternalScriptFile(file, false);
+        expect(included != nullptr && included->getFileDocument().getAllContent().contains("return 2"),
+            "The shared include document must receive the new text");
+        request->setProperty("version", 1);
+        auto stale = post("/api/lsp/document/change");
+        expect(!(bool)stale["success"], "Older versions must be rejected");
+        request->setProperty("version", 2);
+        expect((bool)post("/api/lsp/document/save")["success"], "Save must succeed");
+        expect(file.loadFileAsString().contains("return 1"),
+            "LSP change and save must not write the editor buffer to disk");
+
+        auto pos = new DynamicObject();
+        pos->setProperty("line", 0);
+        pos->setProperty("character", 18);
+        request->setProperty("position", var(pos));
+        auto completion = post("/api/lsp/completion");
+        expect((bool)completion["success"] && completion["items"].isArray(),
+            "Completion must return an LSP item list");
+        auto hover = post("/api/lsp/hover");
+        expect((bool)hover["success"], "Hover must respond");
+        auto definition = post("/api/lsp/definition");
+        expect((bool)definition["success"], "Definition must respond");
+        if (!definition["locations"].isVoid())
+        {
+            auto target = definition["locations"].isArray() ? definition["locations"][0] :
+                definition["locations"];
+            expectEquals(target["uri"].toString(), URL(file).toString(false),
+                "Definition locations must use file URIs");
+        }
+        auto context = new DynamicObject();
+        context->setProperty("includeDeclaration", true);
+        request->setProperty("context", var(context));
+        expect((bool)post("/api/lsp/references")["success"], "References must respond");
+        expect((bool)post("/api/lsp/document/close")["success"], "Close must succeed");
+        request->setProperty("version", 0);
+        auto reopened = post("/api/lsp/document/open");
+        expect((bool)reopened["success"], "A fresh epoch may restart at version zero");
+        expect((int)reopened["epoch"] > (int)epoch, "The reopened document must have a new epoch");
+        request->setProperty("epoch", epoch);
+        expect(!(bool)post("/api/lsp/document/close")["success"], "Old epochs must be rejected");
+        request->setProperty("epoch", reopened["epoch"]);
+        expect((bool)post("/api/lsp/document/close")["success"], "The new epoch must close");
+        file.deleteFile();
+    }
+
+    void testLspMergedCallbacks()
+    {
+        /** Setup: Compiled interface processor with an XML-export-style callback file URI.
+         *  Scenario: Open merged text, insert lines before later callbacks, and change it.
+         *  Expected: Snippets and whole-file callback origins update without compilation.
+         */
+        beginTest("POST /api/lsp merged callback file");
+        String unicode = "a" + String::charToString(0x1f600) + "b";
+        expectEquals(JavascriptProcessor::MergedCallbackDocument::toCharacterIndex(unicode, 0, 3), 2,
+            "LSP columns must count a non-BMP code point as two UTF-16 units");
+        ctx->reset();
+        ctx->compile("Content.makeFrontInterface(600, 400);");
+        auto jp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(
+            ctx->bp->getMainSynthChain(), "Interface"));
+        expect(jp != nullptr, "The interface processor must exist");
+        if (jp == nullptr || jp->getNumSnippets() < 2)
+            return;
+
+        String merged;
+        jp->mergeCallbacksToScript(merged);
+        expect(jp->getUriContent(jp->getSnippet(1)->getCallbackName().toString() + "()").first,
+            "Callback UriLocations must resolve to their snippet content");
+        JavascriptProcessor::MergedCallbackDocument commentCheck;
+        auto fakeMarker = "// function " + jp->getSnippet(1)->getCallbackName().toString() + "(\n";
+        expect(commentCheck.parse(*jp, fakeMarker + merged).wasOk(),
+            "The shared splitter must choose the last marker in the remaining prefix");
+        if (commentCheck.snippets.size() == jp->getNumSnippets())
+            expect(commentCheck.snippets[0].startsWith(fakeMarker),
+                "Earlier duplicate markers stay in the preceding snippet");
+
+        JavascriptProcessor::MergedCallbackDocument legacySplit;
+        auto legacyText = String("var sharedSplit = 1;\n") + merged;
+        expect(legacySplit.parse(*jp, merged + "\nvar unfinished = (\n").wasOk(),
+            "A syntax error within a callback must still reach shadow diagnostics");
+        auto legacyValid = legacySplit.parse(*jp, legacyText).wasOk();
+        expect(legacyValid, "The shared split must accept legacy source");
+        if (legacyValid)
+        {
+            expect(jp->parseSnippetsFromString(legacyText, true), "Legacy loading must use the shared split");
+            MessageManager::getInstance()->runDispatchLoopUntil(50);
+            for (int i = 0; i < jp->getNumSnippets(); ++i)
+                expectEquals(jp->getSnippet(i)->getAllContent(), legacySplit.snippets[i],
+                    "Legacy loading and LSP must produce identical callback text");
+        }
+
+        auto request = new DynamicObject();
+        request->setProperty("uri", URL(jp->getMergedCallbackFile()).toString(false));
+        request->setProperty("sessionId", "unit-test-merged-lsp");
+        request->setProperty("version", 1);
+        request->setProperty("text", merged);
+        auto post = [&](const String& route)
+        {
+            return ctx->parseJson(ctx->httpPost(route, JSON::toString(var(request), false)));
+        };
+
+        auto opened = post("/api/lsp/document/open");
+        expect((bool)opened["success"], "Opening the XML-exported callback path must succeed");
+        expectEquals(opened["documentKind"].toString(), String("callbacks"));
+        auto before = jp->getMergedCallbackDocument().starts[1];
+        request->setProperty("epoch", opened["epoch"]);
+        request->setProperty("version", 2);
+        request->setProperty("text", String("var lspRestTest = 1;\n") + merged);
+        auto changed = post("/api/lsp/document/change");
+        expect((bool)changed["success"], "An edit to onInit must update callback snippets");
+        if ((bool)changed["success"])
+        {
+            expect(jp->getSnippet(0)->getAllContent().startsWith("var lspRestTest"),
+                "The onInit snippet must receive the new text");
+            expectEquals(jp->getMergedCallbackDocument().starts[1], before + 21,
+                "Later callback whole-file offsets must move with onInit");
+        }
+        request->setProperty("version", 3);
+        request->setProperty("text", "var lspRestTest = 2;\n");
+        auto malformed = post("/api/lsp/document/change");
+        expect(!(bool)malformed["success"], "Missing callbacks must reject the entire change");
+        expect(jp->getSnippet(0)->getAllContent().startsWith("var lspRestTest = 1"),
+            "Malformed merged text must not partially replace snippets");
+        expect((bool)post("/api/lsp/document/close")["success"], "Merged document close must succeed");
+    }
+
     void testDiagnoseScriptFilePath()
     {
         /** Setup: External .js file, diagnosed using filePath only (no moduleId)
@@ -3303,7 +3470,7 @@ private:
         ctx->compile("Content.makeFrontInterface(600, 400);\n"
                      "include(\"_test_diagnose_filepath.js\");");
         
-        // Diagnose using filePath only — HISE should resolve the processor
+        // Diagnose using filePath only - HISE should resolve the processor
         DynamicObject::Ptr bodyObj = new DynamicObject();
         bodyObj->setProperty("filePath", tempFile.getFullPathName().replace("\\", "/"));
         

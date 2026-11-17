@@ -38,6 +38,7 @@ namespace hise { using namespace juce;
 
 
 class BackendProcessor;
+struct LspRestState;
 class InteractionTester;
 class MidiInjector;
 
@@ -575,6 +576,9 @@ public:
 	
 	RestServer& getRestServer() { return restServer; }
 
+	/** Owns LSP document leases and analysis state for this backend instance. */
+	LspRestState& getLspRestState();
+
 	ControlledObject* getRestWizardRunner();
 
 	simple_css::Animator& getCssParseAnimator() { return restServerAnimator; }
@@ -697,6 +701,7 @@ private:
 	ScopedPointer<ControlledObject> buildUndoManager;
 
 	RestServer restServer;
+	std::unique_ptr<LspRestState> lspRestState;
 	simple_css::Animator restServerAnimator;
 	
 	std::unique_ptr<InteractionTester> interactionTester;

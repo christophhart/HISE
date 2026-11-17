@@ -355,6 +355,16 @@ RestServer::Response BackendProcessor::onAsyncRequest(RestServer::AsyncRequest::
 			
 		case RestHelpers::ApiRoute::GetIncludedFiles:
 			return RestHelpers::handleGetIncludedFiles(active, req);
+
+		case RestHelpers::ApiRoute::LspDocumentOpen:
+		case RestHelpers::ApiRoute::LspDocumentChange:
+		case RestHelpers::ApiRoute::LspDocumentSave:
+		case RestHelpers::ApiRoute::LspDocumentClose:
+		case RestHelpers::ApiRoute::LspCompletion:
+		case RestHelpers::ApiRoute::LspHover:
+		case RestHelpers::ApiRoute::LspDefinition:
+		case RestHelpers::ApiRoute::LspReferences:
+			return RestHelpers::handleLsp(active, req, route);
 			
 		case RestHelpers::ApiRoute::TestingProfile:
 			return RestHelpers::handleTestingProfile(active, req);
@@ -672,6 +682,7 @@ BackendProcessor::~BackendProcessor()
 {
 	restServer.removeListener(this);
 	restServer.stop();
+	lspRestState.reset();
 
 	interactionTester = nullptr;
 

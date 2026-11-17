@@ -93,10 +93,19 @@ public:
 
 	CodeDocument& getFileDocument();
 
+	void setLspDocumentOpen(bool isOpen)
+	{
+#if USE_BACKEND
+		lspDocumentOpen = isOpen;
+#else
+		ignoreUnused(isOpen);
+#endif
+	}
+
 	bool reloadIfChanged(bool force=false)
 	{
 #if USE_BACKEND
-		if(resourceType == ResourceType::EmbeddedInSnippet)
+		if(resourceType == ResourceType::EmbeddedInSnippet || lspDocumentOpen)
 			return false;
 
 		auto thisLast = getFile().getLastModificationTime();
@@ -146,6 +155,10 @@ public:
 private:
 
 	Time lastEditTime;
+
+#if USE_BACKEND
+	bool lspDocumentOpen = false;
+#endif
 
 	ResourceType resourceType;
 

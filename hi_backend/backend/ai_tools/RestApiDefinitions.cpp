@@ -2247,6 +2247,91 @@ struct RestApiEndpoints
 			.withRequestExample(R"({"action": "launch"})")
 			.withResponseExample(R"({"success": true, "exists": true, "active": "snippet", "logs": [], "errors": []})"));
 	}
+
+	static void lsp(Array<RouteMetadata>& m)
+	{
+		const std::pair<ApiRoute, const char*> routes[] = {
+			{ ApiRoute::LspDocumentOpen, "api/lsp/document/open" },
+			{ ApiRoute::LspDocumentChange, "api/lsp/document/change" },
+			{ ApiRoute::LspDocumentSave, "api/lsp/document/save" },
+			{ ApiRoute::LspDocumentClose, "api/lsp/document/close" },
+			{ ApiRoute::LspCompletion, "api/lsp/completion" },
+			{ ApiRoute::LspHover, "api/lsp/hover" },
+			{ ApiRoute::LspDefinition, "api/lsp/definition" },
+			{ ApiRoute::LspReferences, "api/lsp/references" }
+		};
+
+		for (const auto& route : routes)
+		{
+			auto entry = RouteMetadata(route.first, route.second)
+				.withMethod(RestServer::Method::Post)
+				.withCategory("scripting")
+				.withSummary("Analyze an LSP document or query HISEScript symbols")
+				.withDescription("Full-text, versioned editor buffer synchronization and language queries. "
+					"Neither document changes nor saves compile a processor.")
+				.withReturns("Versioned document diagnostics or LSP language feature data")
+				.withBodyParam(RouteParameter(Identifier("uri"), "Absolute local file URI"))
+				.withBodyParam(RouteParameter(Identifier("sessionId"), "Unique proxy session identifier"))
+				.withBodyParam(RouteParameter(Identifier("version"), "Non-negative full-text document version")
+					.withType(ParamType::Int).asOptional())
+				.withBodyParam(RouteParameter(Identifier("epoch"), "Open-document epoch from HISE")
+					.withType(ParamType::Int).asOptional())
+				.withBodyParam(RouteParameter(Identifier("text"), "Full editor buffer for open, change, or optional save")
+					.asOptional())
+				.withBodyParam(RouteParameter(RestApiIds::moduleId, "Optional processor context for included files")
+					.asOptional())
+				.withBodyParam(RouteParameter(Identifier("position"), "Zero-based UTF-16 LSP cursor position")
+					.withType(ParamType::Object)
+					.withProperty(RouteParameter(Identifier("line"), "Zero-based line").withType(ParamType::Int))
+					.withProperty(RouteParameter(Identifier("character"), "UTF-16 column").withType(ParamType::Int))
+					.asOptional())
+				.withBodyParam(RouteParameter(Identifier("context"), "References context")
+					.withType(ParamType::Object)
+					.withProperty(RouteParameter(Identifier("includeDeclaration"), "Include the declaration")
+						.withType(ParamType::Bool))
+					.asOptional())
+				.withResponseField(RouteParameter(Identifier("diagnosticsByUri"), "Affected document diagnostics")
+					.withType(ParamType::Array).asOptional())
+				.withResponseField(RouteParameter(Identifier("uri"), "Canonical document file URI").asOptional())
+				.withResponseField(RouteParameter(Identifier("version"), "Current document version")
+					.withType(ParamType::Int).asOptional())
+				.withResponseField(RouteParameter(Identifier("epoch"), "Open-document epoch")
+					.withType(ParamType::Int).asOptional())
+				.withResponseField(RouteParameter(Identifier("processors"), "Processors watching the document")
+					.withType(ParamType::Array).asOptional())
+				.withResponseField(RouteParameter(Identifier("analyzedProcessors"), "Updated processor contexts")
+					.withType(ParamType::Array).asOptional())
+				.withResponseField(RouteParameter(RestApiIds::moduleId, "Resolved callback processor")
+					.asOptional())
+				.withErrorCodes({ 400, 404, 409, 422 });
+
+			if (route.first == ApiRoute::LspDocumentOpen || route.first == ApiRoute::LspDocumentChange ||
+				route.first == ApiRoute::LspDocumentSave)
+			{
+				entry = entry.withResponseField(RouteParameter(Identifier("documentKind"), "Included or merged callbacks")
+						.withEnumValues({ "included", "callbacks" }).asOptional());
+			}
+			else if (route.first == ApiRoute::LspCompletion)
+			{
+				entry = entry.withResponseField(RouteParameter(Identifier("isIncomplete"), "Incomplete completion list")
+					.withType(ParamType::Bool))
+					.withResponseField(RouteParameter(Identifier("items"), "LSP CompletionItem array")
+						.withType(ParamType::Array));
+			}
+			else if (route.first == ApiRoute::LspHover)
+				entry = entry.withResponseField(RouteParameter(Identifier("hover"), "LSP Hover or null")
+					.withType(ParamType::Object).asOptional());
+			else if (route.first == ApiRoute::LspDefinition)
+				entry = entry.withResponseField(RouteParameter(Identifier("locations"), "LSP Location or location array")
+					.withType(ParamType::Object).asOptional());
+			else if (route.first == ApiRoute::LspReferences)
+				entry = entry.withResponseField(RouteParameter(Identifier("references"), "LSP Location array")
+					.withType(ParamType::Array));
+
+			entry.rejectInSnippetBrowser = true;
+			m.add(entry);
+		}
+	}
 };
 
 const Array<RestHelpers::RouteMetadata>& RestHelpers::getRouteMetadata()
@@ -2315,6 +2400,7 @@ const Array<RestHelpers::RouteMetadata>& RestHelpers::getRouteMetadata()
 			RestApiEndpoints::projectPreprocessorList(m);
 			RestApiEndpoints::projectPreprocessorSet(m);
 			RestApiEndpoints::snippetBrowser(m);
+			RestApiEndpoints::lsp(m);
 
 			// Verify count matches enum
 			jassert(m.size() == (int)ApiRoute::numRoutes);

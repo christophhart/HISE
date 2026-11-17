@@ -2995,21 +2995,24 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 	if (hasPosition)
 	{
 		mcl::TokenCollection::ExpressionParser expressionParser(code.isNotEmpty() ? code : targetFile.loadFileAsString(), line, character);
-		auto prevExpression = expressionParser.getExpression();
+		auto autocomplete = expressionParser.createTokenData();
 		mcl::TokenCollection::List tokens;
 		auto provider = std::make_unique<HiseJavascriptEngine::TokenProvider>(jp);
 		UriLocation location = parseLocation;
 		location.line = line;
 		location.col = 0;
-		location.charIndex = expressionParser.getCharIndex();
-		provider->addTokens(tokens);
-		provider->addTokensWithContext(tokens, location, prevExpression.first);
+		location.charIndex = autocomplete.charIndex;
+		if (!autocomplete.isCommentLine)
+		{
+			provider->addTokens(tokens);
+			provider->addTokensWithContext(tokens, location, autocomplete.tokenBefore);
+		}
 		Array<var> items;
 		for (auto token : tokens)
 		{
-			if (!token->matches(prevExpression.second, prevExpression.first, line)) continue;
-			auto item = token->getLspDiagnosticObject(prevExpression.first);
-			expressionParser.addLspLocation(item, prevExpression.second);
+			if (!token->matches(autocomplete.input, autocomplete.tokenBefore, autocomplete.lineNumber)) continue;
+			auto item = token->getLspDiagnosticObject(autocomplete.tokenBefore);
+			expressionParser.addLspLocation(item, autocomplete);
 			items.add(var(item.get()));
 		}
 		DynamicObject::Ptr completionList = new DynamicObject();
@@ -3232,9 +3235,9 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 		{
 			mcl::TokenCollection::List tokens;
 
-			auto prevExpression = expressionParser->getExpression();
+			auto autocomplete = expressionParser->createTokenData();
 
-			auto charIndex = expressionParser->getCharIndex();
+			auto charIndex = autocomplete.charIndex;
 
 			auto tp = std::make_unique<HiseJavascriptEngine::TokenProvider>(jp);
 
@@ -3245,8 +3248,11 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 			loc.col = 0;
 			loc.charIndex = charIndex;
 
-			tp->addTokens(tokens);
-			tp->addTokensWithContext(tokens, loc, prevExpression.first);
+			if (!autocomplete.isCommentLine)
+			{
+				tp->addTokens(tokens);
+				tp->addTokensWithContext(tokens, loc, autocomplete.tokenBefore);
+			}
 
 			tp.reset();
 
@@ -3254,11 +3260,11 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 
 			for (auto t : tokens)
 			{
-				if (!t->matches(prevExpression.second, prevExpression.first, autocompleteLine))
+				if (!t->matches(autocomplete.input, autocomplete.tokenBefore, autocomplete.lineNumber))
 					continue;
 
-				auto lspObject = t->getLspDiagnosticObject(prevExpression.first);
-				expressionParser->addLspLocation(lspObject, prevExpression.second);
+				auto lspObject = t->getLspDiagnosticObject(autocomplete.tokenBefore);
+				expressionParser->addLspLocation(lspObject, autocomplete);
 				lspList.add(var(lspObject.get()));
 			}
 

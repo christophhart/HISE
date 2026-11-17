@@ -1045,8 +1045,13 @@ std::pair<bool, String> JavascriptProcessor::getUriContent(const String& uri) co
 	l.processorId = getUriProcessorId();
 	l.uri = uri;
 
-	if (l.getUriType() == UriLocation::UriType::onInit)
-		return { true, getSnippet(0)->getAllContent() };
+	if (l.getUriType() != UriLocation::UriType::ExternalFile)
+	{
+		if (auto snippet = getSnippet(Identifier(l.toLocationString(UriLocation::UriFormat::CallbackId))))
+			return { true, snippet->getAllContent() };
+
+		return { false, "Unknown callback: " + uri };
+	}
 
 	for (int i = 0; i < getNumWatchedFiles(); i++)
 	{
@@ -2250,41 +2255,315 @@ void JavascriptProcessor::mergeCallbacksToScript(String &x, const String& sepStr
 	}
 }
 
-bool JavascriptProcessor::parseSnippetsFromString(const String &x, bool clearUndoHistory /*= false*/)
+Result JavascriptProcessor::MergedCallbackDocument::parse(const JavascriptProcessor& processor, const String& newText)
 {
-	String codeToCut = String(x);
+	const int numSnippets = processor.getNumSnippets();
+	if (numSnippets == 0)
+		return Result::fail("The processor has no callback snippets");
 
-	for (int i = getNumSnippets(); i > 1; i--)
+	Array<int> newStarts;
+	Array<String> newSnippets;
+	for (int i = 0; i < numSnippets; ++i)
 	{
-		SnippetDocument *s = getSnippet(i-1);
-		
-		const String filter = "function " + s->getCallbackName().toString() + "(";
-
-		if (!x.contains(filter))
-		{
-            if(MessageManager::getInstance()->isThisTheMessageThread())
-            {
-                PresetHandler::showMessageWindow("Invalid script", "The script you are trying to load is not a valid HISE script file.\nThe callback " + filter + " is not defined.", PresetHandler::IconType::Error);
-            }
-            
-            debugError(dynamic_cast<Processor*>(this), s->getCallbackName().toString() + " could not be parsed!");
-			
-			return false;
-		}
-
-		String code = codeToCut.fromLastOccurrenceOf(filter, true, false);
-
-        // If this is true, we're loading the preset and don't care about multithreading
-        auto shouldBeAsync = !clearUndoHistory;
-        
-		s->replaceContentAsync(code, shouldBeAsync);
-
-		codeToCut = codeToCut.upToLastOccurrenceOf(filter, false, false);
-        
+		newStarts.add(0);
+		newSnippets.add(String());
 	}
 
-	getSnippet(0)->replaceContentAsync(codeToCut);
+	// Match the legacy reverse split: each callback starts at the last marker
+	// in the remaining prefix. Validate every split before mutating a document.
+	String remaining = newText;
+	for (int i = numSnippets - 1; i > 0; --i)
+	{
+		const auto marker = "function " + processor.getSnippet(i)->getCallbackName().toString() + "(";
+		const int start = remaining.lastIndexOf(marker);
+		if (start < 0)
+			return Result::fail("The callback " + marker + " is not defined.");
 
+		newStarts.set(i, start);
+		newSnippets.set(i, remaining.substring(start));
+		remaining = remaining.substring(0, start);
+	}
+
+	newSnippets.set(0, remaining);
+	text = newText;
+	starts.swapWith(newStarts);
+	snippets.swapWith(newSnippets);
+	return Result::ok();
+}
+
+#if USE_BACKEND
+int JavascriptProcessor::MergedCallbackDocument::getSnippetIndex(int wholeFileIndex) const
+{
+	if (starts.isEmpty() || wholeFileIndex < 0 || wholeFileIndex > text.length())
+		return -1;
+
+	for (int i = starts.size(); --i >= 0;)
+		if (wholeFileIndex >= starts[i])
+			return i;
+
+	return -1;
+}
+
+int JavascriptProcessor::MergedCallbackDocument::toSnippetIndex(int snippetIndex, int wholeFileIndex) const
+{
+	if (!isPositiveAndBelow(snippetIndex, starts.size()) || getSnippetIndex(wholeFileIndex) != snippetIndex)
+		return -1;
+
+	return wholeFileIndex - starts[snippetIndex];
+}
+
+int JavascriptProcessor::MergedCallbackDocument::toFileIndex(int snippetIndex, int snippetCharIndex) const
+{
+	if (!isPositiveAndBelow(snippetIndex, snippets.size())
+		|| snippetCharIndex < 0 || snippetCharIndex > snippets[snippetIndex].length())
+		return -1;
+
+	return starts[snippetIndex] + snippetCharIndex;
+}
+
+int JavascriptProcessor::MergedCallbackDocument::toCharacterIndex(const String& content, int line, int utf16Column)
+{
+	if (line < 0 || utf16Column < 0)
+		return -1;
+
+	int currentLine = 0;
+	int column = 0;
+	const int length = content.length();
+	auto cursor = content.getCharPointer();
+
+	for (int i = 0; i < length; ++i, ++cursor)
+	{
+		const auto c = *cursor;
+
+		if (currentLine == line)
+		{
+			if (column == utf16Column)
+				return i;
+
+			if (c == '\n' || c == '\r')
+				return -1;
+
+			column += c > 0xffff ? 2 : 1;
+			if (column > utf16Column)
+				return -1; // Do not split a surrogate pair.
+		}
+
+		if (c == '\r' || c == '\n')
+		{
+			++currentLine;
+			column = 0;
+			if (c == '\r' && i + 1 < length && cursor[1] == '\n')
+			{
+				++i;
+				++cursor;
+			}
+		}
+	}
+
+	return currentLine == line && column == utf16Column ? length : -1;
+}
+
+std::pair<int, int> JavascriptProcessor::MergedCallbackDocument::toLspPosition(
+	const String& content, int characterIndex)
+{
+	if (characterIndex < 0 || characterIndex > content.length())
+		return { -1, -1 };
+
+	int line = 0;
+	int column = 0;
+	auto cursor = content.getCharPointer();
+
+	for (int i = 0; i < characterIndex; ++i, ++cursor)
+	{
+		const auto c = *cursor;
+		if (c == '\r' || c == '\n')
+		{
+			if (c == '\r' && i + 1 < characterIndex && cursor[1] == '\n')
+			{
+				++i;
+				++cursor;
+			}
+			++line;
+			column = 0;
+		}
+		else
+			column += c > 0xffff ? 2 : 1;
+	}
+
+	return { line, column };
+}
+
+Result JavascriptProcessor::applyMergedCallbackDocument(const String& text)
+{
+	jassert(MessageManager::getInstance()->currentThreadHasLockedMessageManager());
+
+	MergedCallbackDocument next;
+	auto valid = next.parse(*this, text);
+	if (valid.failed())
+		return valid;
+
+	for (int i = 0; i < next.snippets.size(); ++i)
+		getSnippet(i)->replaceContentAsync(next.snippets[i], false);
+
+	mergedCallbackDocument = std::move(next);
+	return Result::ok();
+}
+
+bool JavascriptProcessor::ensureMergedCallbackMapping()
+{
+	if (mergedCallbackReloader.lspOpen && !mergedCallbackDocument.starts.isEmpty())
+		return true; // The accepted editor buffer, not disk, owns the open file.
+
+	String current;
+	for (int i = 0; i < getNumSnippets(); ++i)
+		current << getSnippet(i)->getAllContent();
+
+	if (mergedCallbackDocument.text == current && !mergedCallbackDocument.starts.isEmpty())
+		return true;
+
+	const auto file = getMergedCallbackFile();
+	if (!file.existsAsFile())
+		return false;
+
+	MergedCallbackDocument candidate;
+	if (candidate.parse(*this, file.loadFileAsString()).failed()
+		|| candidate.snippets.size() != getNumSnippets())
+		return false;
+
+	for (int i = 0; i < candidate.snippets.size(); ++i)
+		if (candidate.snippets[i] != getSnippet(i)->getAllContent())
+			return false;
+
+	mergedCallbackDocument = std::move(candidate);
+	return true;
+}
+
+File JavascriptProcessor::getMergedCallbackFile() const
+{
+	const auto* p = dynamic_cast<const Processor*>(this);
+	if (connectedFileReference.isNotEmpty())
+	{
+		if (connectedFileReference.endsWithIgnoreCase(".cjs"))
+			return {};
+
+		if (connectedFileReference.contains("{GLOBAL_SCRIPT_FOLDER}"))
+		{
+			const auto folder = PresetHandler::getGlobalScriptFolder(const_cast<Processor*>(p));
+			const auto relative = connectedFileReference.fromFirstOccurrenceOf("{GLOBAL_SCRIPT_FOLDER}", false, false);
+			return folder.getChildFile(relative);
+		}
+
+		return GET_PROJECT_HANDLER(p).getFilePath(connectedFileReference, ProjectHandler::SubDirectories::Scripts);
+	}
+
+	const auto scripts = GET_PROJECT_HANDLER(p).getSubDirectory(ProjectHandler::SubDirectories::Scripts);
+	const auto chainId = mainController->getMainSynthChain()->getId().removeCharacters(" .()");
+	const auto processorId = p->getId().removeCharacters(" .()");
+	return scripts.getChildFile("ScriptProcessors/" + chainId + "/" + processorId + ".js");
+}
+
+JavascriptProcessor::MergedCallbackReloader::MergedCallbackReloader(JavascriptProcessor& owner_) : owner(owner_)
+{
+	startTimer(3000);
+}
+
+void JavascriptProcessor::MergedCallbackReloader::timerCallback()
+{
+	if (lspOpen)
+		return;
+
+	const auto file = owner.getMergedCallbackFile();
+	if (file != lastFile)
+	{
+		lastFile = file;
+		lastDiskText.clear();
+		hasBaseline = false;
+		sawMissingFile = false;
+	}
+
+	if (!file.existsAsFile())
+	{
+		sawMissingFile = true;
+		return;
+	}
+
+	const auto diskText = file.loadFileAsString();
+	if (!hasBaseline)
+	{
+		hasBaseline = true;
+		if (!sawMissingFile)
+		{
+			lastDiskText = diskText;
+			return;
+		}
+	}
+
+	if (diskText == lastDiskText)
+		return;
+
+	lastDiskText = diskText;
+	String currentSnippets;
+	for (int i = 0; i < owner.getNumSnippets(); ++i)
+		currentSnippets << owner.getSnippet(i)->getAllContent();
+
+	if (diskText == currentSnippets)
+		return; // XML export of the current snippets is not an external edit.
+
+	const auto result = owner.applyMergedCallbackDocument(diskText);
+	if (result.failed())
+	{
+		debugError(dynamic_cast<Processor*>(&owner), result.getErrorMessage());
+		return;
+	}
+
+	if (owner.engineInitialised)
+	{
+		auto data = owner.createFullShadowParseData();
+		if (data.options.includeTree != nullptr && !data.codeToParse.empty())
+			owner.shadowParse(data, [](const JavascriptProcessor::DiagnosticList&) {}, sendNotificationSync);
+	}
+}
+
+void JavascriptProcessor::setMergedCallbackFileOpen(bool isOpen)
+{
+	jassert(MessageManager::getInstance()->currentThreadHasLockedMessageManager());
+	if (isOpen && !mergedCallbackReloader.hasBaseline)
+	{
+		mergedCallbackReloader.lastFile = getMergedCallbackFile();
+		mergedCallbackReloader.sawMissingFile = !mergedCallbackReloader.lastFile.existsAsFile();
+		if (!mergedCallbackReloader.sawMissingFile)
+		{
+			mergedCallbackReloader.lastDiskText = mergedCallbackReloader.lastFile.loadFileAsString();
+			mergedCallbackReloader.hasBaseline = true;
+		}
+	}
+
+	mergedCallbackReloader.lspOpen = isOpen;
+	if (!isOpen)
+		mergedCallbackReloader.timerCallback();
+}
+#endif
+
+bool JavascriptProcessor::parseSnippetsFromString(const String& x, bool clearUndoHistory /*= false*/)
+{
+	MergedCallbackDocument parsed;
+	const auto result = parsed.parse(*this, x);
+	if (result.failed())
+	{
+		if (MessageManager::getInstance()->isThisTheMessageThread())
+			PresetHandler::showMessageWindow("Invalid script",
+				"The script you are trying to load is not a valid HISE script file.\n" + result.getErrorMessage(),
+				PresetHandler::IconType::Error);
+
+		debugError(dynamic_cast<Processor*>(this), result.getErrorMessage());
+		return false;
+	}
+
+	for (int i = getNumSnippets() - 1; i > 0; --i)
+		getSnippet(i)->replaceContentAsync(parsed.snippets[i], !clearUndoHistory);
+
+	// Preserve the legacy onInit notification behavior.
+	getSnippet(0)->replaceContentAsync(parsed.snippets[0]);
 	return true;
 }
 

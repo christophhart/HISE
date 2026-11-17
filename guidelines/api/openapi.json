@@ -10228,6 +10228,1498 @@
                     }
                 }
             }
+        },
+        "/api/lsp/document/open": {
+            "post": {
+                "tags": [
+                    "scripting"
+                ],
+                "summary": "Analyze an LSP document or query HISEScript symbols",
+                "description": "Full-text, versioned editor buffer synchronization and language queries. Neither document changes nor saves compile a processor.",
+                "operationId": "lsp_document_open",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "uri": {
+                                        "type": "string",
+                                        "description": "Absolute local file URI"
+                                    },
+                                    "sessionId": {
+                                        "type": "string",
+                                        "description": "Unique proxy session identifier"
+                                    },
+                                    "version": {
+                                        "type": "integer",
+                                        "description": "Non-negative full-text document version"
+                                    },
+                                    "epoch": {
+                                        "type": "integer",
+                                        "description": "Open-document epoch from HISE"
+                                    },
+                                    "text": {
+                                        "type": "string",
+                                        "description": "Full editor buffer for open, change, or optional save"
+                                    },
+                                    "moduleId": {
+                                        "type": "string",
+                                        "description": "Optional processor context for included files"
+                                    },
+                                    "position": {
+                                        "type": "object",
+                                        "properties": {
+                                            "line": {
+                                                "type": "integer",
+                                                "description": "Zero-based line"
+                                            },
+                                            "character": {
+                                                "type": "integer",
+                                                "description": "UTF-16 column"
+                                            }
+                                        },
+                                        "required": [
+                                            "line",
+                                            "character"
+                                        ],
+                                        "description": "Zero-based UTF-16 LSP cursor position"
+                                    },
+                                    "context": {
+                                        "type": "object",
+                                        "properties": {
+                                            "includeDeclaration": {
+                                                "type": "boolean",
+                                                "description": "Include the declaration"
+                                            }
+                                        },
+                                        "required": [
+                                            "includeDeclaration"
+                                        ],
+                                        "description": "References context"
+                                    }
+                                },
+                                "required": [
+                                    "uri",
+                                    "sessionId"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "description": "Whether the request completed successfully"
+                                        },
+                                        "apiVersion": {
+                                            "type": "string",
+                                            "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
+                                            "example": "0.13.0"
+                                        },
+                                        "diagnosticsByUri": {
+                                            "type": "array",
+                                            "description": "Affected document diagnostics"
+                                        },
+                                        "uri": {
+                                            "type": "string",
+                                            "description": "Canonical document file URI"
+                                        },
+                                        "version": {
+                                            "type": "integer",
+                                            "description": "Current document version"
+                                        },
+                                        "epoch": {
+                                            "type": "integer",
+                                            "description": "Open-document epoch"
+                                        },
+                                        "processors": {
+                                            "type": "array",
+                                            "description": "Processors watching the document"
+                                        },
+                                        "analyzedProcessors": {
+                                            "type": "array",
+                                            "description": "Updated processor contexts"
+                                        },
+                                        "moduleId": {
+                                            "type": "string",
+                                            "description": "Resolved callback processor"
+                                        },
+                                        "documentKind": {
+                                            "type": "string",
+                                            "enum": [
+                                                "included",
+                                                "callbacks"
+                                            ],
+                                            "description": "Included or merged callbacks"
+                                        },
+                                        "logs": {
+                                            "type": "array",
+                                            "description": "Console.print() output captured during request processing",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "errors": {
+                                            "type": "array",
+                                            "description": "Script errors captured during request processing",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "errorMessage": {
+                                                        "type": "string",
+                                                        "description": "The error message"
+                                                    },
+                                                    "callstack": {
+                                                        "type": "array",
+                                                        "description": "Call stack frames (e.g. \"myFunction() at Scripts/main.js:15:8\")",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "errorMessage",
+                                                    "callstack"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "apiVersion",
+                                        "logs",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid or missing parameters"
+                    },
+                    "404": {
+                        "description": "Not found - unknown module or resource"
+                    },
+                    "409": {
+                        "description": "Conflict - operation conflicts with current state"
+                    },
+                    "422": {
+                        "description": "Error"
+                    }
+                }
+            }
+        },
+        "/api/lsp/document/change": {
+            "post": {
+                "tags": [
+                    "scripting"
+                ],
+                "summary": "Analyze an LSP document or query HISEScript symbols",
+                "description": "Full-text, versioned editor buffer synchronization and language queries. Neither document changes nor saves compile a processor.",
+                "operationId": "lsp_document_change",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "uri": {
+                                        "type": "string",
+                                        "description": "Absolute local file URI"
+                                    },
+                                    "sessionId": {
+                                        "type": "string",
+                                        "description": "Unique proxy session identifier"
+                                    },
+                                    "version": {
+                                        "type": "integer",
+                                        "description": "Non-negative full-text document version"
+                                    },
+                                    "epoch": {
+                                        "type": "integer",
+                                        "description": "Open-document epoch from HISE"
+                                    },
+                                    "text": {
+                                        "type": "string",
+                                        "description": "Full editor buffer for open, change, or optional save"
+                                    },
+                                    "moduleId": {
+                                        "type": "string",
+                                        "description": "Optional processor context for included files"
+                                    },
+                                    "position": {
+                                        "type": "object",
+                                        "properties": {
+                                            "line": {
+                                                "type": "integer",
+                                                "description": "Zero-based line"
+                                            },
+                                            "character": {
+                                                "type": "integer",
+                                                "description": "UTF-16 column"
+                                            }
+                                        },
+                                        "required": [
+                                            "line",
+                                            "character"
+                                        ],
+                                        "description": "Zero-based UTF-16 LSP cursor position"
+                                    },
+                                    "context": {
+                                        "type": "object",
+                                        "properties": {
+                                            "includeDeclaration": {
+                                                "type": "boolean",
+                                                "description": "Include the declaration"
+                                            }
+                                        },
+                                        "required": [
+                                            "includeDeclaration"
+                                        ],
+                                        "description": "References context"
+                                    }
+                                },
+                                "required": [
+                                    "uri",
+                                    "sessionId"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "description": "Whether the request completed successfully"
+                                        },
+                                        "apiVersion": {
+                                            "type": "string",
+                                            "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
+                                            "example": "0.13.0"
+                                        },
+                                        "diagnosticsByUri": {
+                                            "type": "array",
+                                            "description": "Affected document diagnostics"
+                                        },
+                                        "uri": {
+                                            "type": "string",
+                                            "description": "Canonical document file URI"
+                                        },
+                                        "version": {
+                                            "type": "integer",
+                                            "description": "Current document version"
+                                        },
+                                        "epoch": {
+                                            "type": "integer",
+                                            "description": "Open-document epoch"
+                                        },
+                                        "processors": {
+                                            "type": "array",
+                                            "description": "Processors watching the document"
+                                        },
+                                        "analyzedProcessors": {
+                                            "type": "array",
+                                            "description": "Updated processor contexts"
+                                        },
+                                        "moduleId": {
+                                            "type": "string",
+                                            "description": "Resolved callback processor"
+                                        },
+                                        "documentKind": {
+                                            "type": "string",
+                                            "enum": [
+                                                "included",
+                                                "callbacks"
+                                            ],
+                                            "description": "Included or merged callbacks"
+                                        },
+                                        "logs": {
+                                            "type": "array",
+                                            "description": "Console.print() output captured during request processing",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "errors": {
+                                            "type": "array",
+                                            "description": "Script errors captured during request processing",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "errorMessage": {
+                                                        "type": "string",
+                                                        "description": "The error message"
+                                                    },
+                                                    "callstack": {
+                                                        "type": "array",
+                                                        "description": "Call stack frames (e.g. \"myFunction() at Scripts/main.js:15:8\")",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "errorMessage",
+                                                    "callstack"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "apiVersion",
+                                        "logs",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid or missing parameters"
+                    },
+                    "404": {
+                        "description": "Not found - unknown module or resource"
+                    },
+                    "409": {
+                        "description": "Conflict - operation conflicts with current state"
+                    },
+                    "422": {
+                        "description": "Error"
+                    }
+                }
+            }
+        },
+        "/api/lsp/document/save": {
+            "post": {
+                "tags": [
+                    "scripting"
+                ],
+                "summary": "Analyze an LSP document or query HISEScript symbols",
+                "description": "Full-text, versioned editor buffer synchronization and language queries. Neither document changes nor saves compile a processor.",
+                "operationId": "lsp_document_save",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "uri": {
+                                        "type": "string",
+                                        "description": "Absolute local file URI"
+                                    },
+                                    "sessionId": {
+                                        "type": "string",
+                                        "description": "Unique proxy session identifier"
+                                    },
+                                    "version": {
+                                        "type": "integer",
+                                        "description": "Non-negative full-text document version"
+                                    },
+                                    "epoch": {
+                                        "type": "integer",
+                                        "description": "Open-document epoch from HISE"
+                                    },
+                                    "text": {
+                                        "type": "string",
+                                        "description": "Full editor buffer for open, change, or optional save"
+                                    },
+                                    "moduleId": {
+                                        "type": "string",
+                                        "description": "Optional processor context for included files"
+                                    },
+                                    "position": {
+                                        "type": "object",
+                                        "properties": {
+                                            "line": {
+                                                "type": "integer",
+                                                "description": "Zero-based line"
+                                            },
+                                            "character": {
+                                                "type": "integer",
+                                                "description": "UTF-16 column"
+                                            }
+                                        },
+                                        "required": [
+                                            "line",
+                                            "character"
+                                        ],
+                                        "description": "Zero-based UTF-16 LSP cursor position"
+                                    },
+                                    "context": {
+                                        "type": "object",
+                                        "properties": {
+                                            "includeDeclaration": {
+                                                "type": "boolean",
+                                                "description": "Include the declaration"
+                                            }
+                                        },
+                                        "required": [
+                                            "includeDeclaration"
+                                        ],
+                                        "description": "References context"
+                                    }
+                                },
+                                "required": [
+                                    "uri",
+                                    "sessionId"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "description": "Whether the request completed successfully"
+                                        },
+                                        "apiVersion": {
+                                            "type": "string",
+                                            "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
+                                            "example": "0.13.0"
+                                        },
+                                        "diagnosticsByUri": {
+                                            "type": "array",
+                                            "description": "Affected document diagnostics"
+                                        },
+                                        "uri": {
+                                            "type": "string",
+                                            "description": "Canonical document file URI"
+                                        },
+                                        "version": {
+                                            "type": "integer",
+                                            "description": "Current document version"
+                                        },
+                                        "epoch": {
+                                            "type": "integer",
+                                            "description": "Open-document epoch"
+                                        },
+                                        "processors": {
+                                            "type": "array",
+                                            "description": "Processors watching the document"
+                                        },
+                                        "analyzedProcessors": {
+                                            "type": "array",
+                                            "description": "Updated processor contexts"
+                                        },
+                                        "moduleId": {
+                                            "type": "string",
+                                            "description": "Resolved callback processor"
+                                        },
+                                        "documentKind": {
+                                            "type": "string",
+                                            "enum": [
+                                                "included",
+                                                "callbacks"
+                                            ],
+                                            "description": "Included or merged callbacks"
+                                        },
+                                        "logs": {
+                                            "type": "array",
+                                            "description": "Console.print() output captured during request processing",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "errors": {
+                                            "type": "array",
+                                            "description": "Script errors captured during request processing",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "errorMessage": {
+                                                        "type": "string",
+                                                        "description": "The error message"
+                                                    },
+                                                    "callstack": {
+                                                        "type": "array",
+                                                        "description": "Call stack frames (e.g. \"myFunction() at Scripts/main.js:15:8\")",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "errorMessage",
+                                                    "callstack"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "apiVersion",
+                                        "logs",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid or missing parameters"
+                    },
+                    "404": {
+                        "description": "Not found - unknown module or resource"
+                    },
+                    "409": {
+                        "description": "Conflict - operation conflicts with current state"
+                    },
+                    "422": {
+                        "description": "Error"
+                    }
+                }
+            }
+        },
+        "/api/lsp/document/close": {
+            "post": {
+                "tags": [
+                    "scripting"
+                ],
+                "summary": "Analyze an LSP document or query HISEScript symbols",
+                "description": "Full-text, versioned editor buffer synchronization and language queries. Neither document changes nor saves compile a processor.",
+                "operationId": "lsp_document_close",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "uri": {
+                                        "type": "string",
+                                        "description": "Absolute local file URI"
+                                    },
+                                    "sessionId": {
+                                        "type": "string",
+                                        "description": "Unique proxy session identifier"
+                                    },
+                                    "version": {
+                                        "type": "integer",
+                                        "description": "Non-negative full-text document version"
+                                    },
+                                    "epoch": {
+                                        "type": "integer",
+                                        "description": "Open-document epoch from HISE"
+                                    },
+                                    "text": {
+                                        "type": "string",
+                                        "description": "Full editor buffer for open, change, or optional save"
+                                    },
+                                    "moduleId": {
+                                        "type": "string",
+                                        "description": "Optional processor context for included files"
+                                    },
+                                    "position": {
+                                        "type": "object",
+                                        "properties": {
+                                            "line": {
+                                                "type": "integer",
+                                                "description": "Zero-based line"
+                                            },
+                                            "character": {
+                                                "type": "integer",
+                                                "description": "UTF-16 column"
+                                            }
+                                        },
+                                        "required": [
+                                            "line",
+                                            "character"
+                                        ],
+                                        "description": "Zero-based UTF-16 LSP cursor position"
+                                    },
+                                    "context": {
+                                        "type": "object",
+                                        "properties": {
+                                            "includeDeclaration": {
+                                                "type": "boolean",
+                                                "description": "Include the declaration"
+                                            }
+                                        },
+                                        "required": [
+                                            "includeDeclaration"
+                                        ],
+                                        "description": "References context"
+                                    }
+                                },
+                                "required": [
+                                    "uri",
+                                    "sessionId"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "description": "Whether the request completed successfully"
+                                        },
+                                        "apiVersion": {
+                                            "type": "string",
+                                            "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
+                                            "example": "0.13.0"
+                                        },
+                                        "diagnosticsByUri": {
+                                            "type": "array",
+                                            "description": "Affected document diagnostics"
+                                        },
+                                        "uri": {
+                                            "type": "string",
+                                            "description": "Canonical document file URI"
+                                        },
+                                        "version": {
+                                            "type": "integer",
+                                            "description": "Current document version"
+                                        },
+                                        "epoch": {
+                                            "type": "integer",
+                                            "description": "Open-document epoch"
+                                        },
+                                        "processors": {
+                                            "type": "array",
+                                            "description": "Processors watching the document"
+                                        },
+                                        "analyzedProcessors": {
+                                            "type": "array",
+                                            "description": "Updated processor contexts"
+                                        },
+                                        "moduleId": {
+                                            "type": "string",
+                                            "description": "Resolved callback processor"
+                                        },
+                                        "logs": {
+                                            "type": "array",
+                                            "description": "Console.print() output captured during request processing",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "errors": {
+                                            "type": "array",
+                                            "description": "Script errors captured during request processing",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "errorMessage": {
+                                                        "type": "string",
+                                                        "description": "The error message"
+                                                    },
+                                                    "callstack": {
+                                                        "type": "array",
+                                                        "description": "Call stack frames (e.g. \"myFunction() at Scripts/main.js:15:8\")",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "errorMessage",
+                                                    "callstack"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "apiVersion",
+                                        "logs",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid or missing parameters"
+                    },
+                    "404": {
+                        "description": "Not found - unknown module or resource"
+                    },
+                    "409": {
+                        "description": "Conflict - operation conflicts with current state"
+                    },
+                    "422": {
+                        "description": "Error"
+                    }
+                }
+            }
+        },
+        "/api/lsp/completion": {
+            "post": {
+                "tags": [
+                    "scripting"
+                ],
+                "summary": "Analyze an LSP document or query HISEScript symbols",
+                "description": "Full-text, versioned editor buffer synchronization and language queries. Neither document changes nor saves compile a processor.",
+                "operationId": "lsp_completion",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "uri": {
+                                        "type": "string",
+                                        "description": "Absolute local file URI"
+                                    },
+                                    "sessionId": {
+                                        "type": "string",
+                                        "description": "Unique proxy session identifier"
+                                    },
+                                    "version": {
+                                        "type": "integer",
+                                        "description": "Non-negative full-text document version"
+                                    },
+                                    "epoch": {
+                                        "type": "integer",
+                                        "description": "Open-document epoch from HISE"
+                                    },
+                                    "text": {
+                                        "type": "string",
+                                        "description": "Full editor buffer for open, change, or optional save"
+                                    },
+                                    "moduleId": {
+                                        "type": "string",
+                                        "description": "Optional processor context for included files"
+                                    },
+                                    "position": {
+                                        "type": "object",
+                                        "properties": {
+                                            "line": {
+                                                "type": "integer",
+                                                "description": "Zero-based line"
+                                            },
+                                            "character": {
+                                                "type": "integer",
+                                                "description": "UTF-16 column"
+                                            }
+                                        },
+                                        "required": [
+                                            "line",
+                                            "character"
+                                        ],
+                                        "description": "Zero-based UTF-16 LSP cursor position"
+                                    },
+                                    "context": {
+                                        "type": "object",
+                                        "properties": {
+                                            "includeDeclaration": {
+                                                "type": "boolean",
+                                                "description": "Include the declaration"
+                                            }
+                                        },
+                                        "required": [
+                                            "includeDeclaration"
+                                        ],
+                                        "description": "References context"
+                                    }
+                                },
+                                "required": [
+                                    "uri",
+                                    "sessionId"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "description": "Whether the request completed successfully"
+                                        },
+                                        "apiVersion": {
+                                            "type": "string",
+                                            "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
+                                            "example": "0.13.0"
+                                        },
+                                        "diagnosticsByUri": {
+                                            "type": "array",
+                                            "description": "Affected document diagnostics"
+                                        },
+                                        "uri": {
+                                            "type": "string",
+                                            "description": "Canonical document file URI"
+                                        },
+                                        "version": {
+                                            "type": "integer",
+                                            "description": "Current document version"
+                                        },
+                                        "epoch": {
+                                            "type": "integer",
+                                            "description": "Open-document epoch"
+                                        },
+                                        "processors": {
+                                            "type": "array",
+                                            "description": "Processors watching the document"
+                                        },
+                                        "analyzedProcessors": {
+                                            "type": "array",
+                                            "description": "Updated processor contexts"
+                                        },
+                                        "moduleId": {
+                                            "type": "string",
+                                            "description": "Resolved callback processor"
+                                        },
+                                        "isIncomplete": {
+                                            "type": "boolean",
+                                            "description": "Incomplete completion list"
+                                        },
+                                        "items": {
+                                            "type": "array",
+                                            "description": "LSP CompletionItem array"
+                                        },
+                                        "logs": {
+                                            "type": "array",
+                                            "description": "Console.print() output captured during request processing",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "errors": {
+                                            "type": "array",
+                                            "description": "Script errors captured during request processing",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "errorMessage": {
+                                                        "type": "string",
+                                                        "description": "The error message"
+                                                    },
+                                                    "callstack": {
+                                                        "type": "array",
+                                                        "description": "Call stack frames (e.g. \"myFunction() at Scripts/main.js:15:8\")",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "errorMessage",
+                                                    "callstack"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "apiVersion",
+                                        "logs",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid or missing parameters"
+                    },
+                    "404": {
+                        "description": "Not found - unknown module or resource"
+                    },
+                    "409": {
+                        "description": "Conflict - operation conflicts with current state"
+                    },
+                    "422": {
+                        "description": "Error"
+                    }
+                }
+            }
+        },
+        "/api/lsp/hover": {
+            "post": {
+                "tags": [
+                    "scripting"
+                ],
+                "summary": "Analyze an LSP document or query HISEScript symbols",
+                "description": "Full-text, versioned editor buffer synchronization and language queries. Neither document changes nor saves compile a processor.",
+                "operationId": "lsp_hover",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "uri": {
+                                        "type": "string",
+                                        "description": "Absolute local file URI"
+                                    },
+                                    "sessionId": {
+                                        "type": "string",
+                                        "description": "Unique proxy session identifier"
+                                    },
+                                    "version": {
+                                        "type": "integer",
+                                        "description": "Non-negative full-text document version"
+                                    },
+                                    "epoch": {
+                                        "type": "integer",
+                                        "description": "Open-document epoch from HISE"
+                                    },
+                                    "text": {
+                                        "type": "string",
+                                        "description": "Full editor buffer for open, change, or optional save"
+                                    },
+                                    "moduleId": {
+                                        "type": "string",
+                                        "description": "Optional processor context for included files"
+                                    },
+                                    "position": {
+                                        "type": "object",
+                                        "properties": {
+                                            "line": {
+                                                "type": "integer",
+                                                "description": "Zero-based line"
+                                            },
+                                            "character": {
+                                                "type": "integer",
+                                                "description": "UTF-16 column"
+                                            }
+                                        },
+                                        "required": [
+                                            "line",
+                                            "character"
+                                        ],
+                                        "description": "Zero-based UTF-16 LSP cursor position"
+                                    },
+                                    "context": {
+                                        "type": "object",
+                                        "properties": {
+                                            "includeDeclaration": {
+                                                "type": "boolean",
+                                                "description": "Include the declaration"
+                                            }
+                                        },
+                                        "required": [
+                                            "includeDeclaration"
+                                        ],
+                                        "description": "References context"
+                                    }
+                                },
+                                "required": [
+                                    "uri",
+                                    "sessionId"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "description": "Whether the request completed successfully"
+                                        },
+                                        "apiVersion": {
+                                            "type": "string",
+                                            "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
+                                            "example": "0.13.0"
+                                        },
+                                        "diagnosticsByUri": {
+                                            "type": "array",
+                                            "description": "Affected document diagnostics"
+                                        },
+                                        "uri": {
+                                            "type": "string",
+                                            "description": "Canonical document file URI"
+                                        },
+                                        "version": {
+                                            "type": "integer",
+                                            "description": "Current document version"
+                                        },
+                                        "epoch": {
+                                            "type": "integer",
+                                            "description": "Open-document epoch"
+                                        },
+                                        "processors": {
+                                            "type": "array",
+                                            "description": "Processors watching the document"
+                                        },
+                                        "analyzedProcessors": {
+                                            "type": "array",
+                                            "description": "Updated processor contexts"
+                                        },
+                                        "moduleId": {
+                                            "type": "string",
+                                            "description": "Resolved callback processor"
+                                        },
+                                        "hover": {
+                                            "type": "object",
+                                            "description": "LSP Hover or null"
+                                        },
+                                        "logs": {
+                                            "type": "array",
+                                            "description": "Console.print() output captured during request processing",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "errors": {
+                                            "type": "array",
+                                            "description": "Script errors captured during request processing",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "errorMessage": {
+                                                        "type": "string",
+                                                        "description": "The error message"
+                                                    },
+                                                    "callstack": {
+                                                        "type": "array",
+                                                        "description": "Call stack frames (e.g. \"myFunction() at Scripts/main.js:15:8\")",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "errorMessage",
+                                                    "callstack"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "apiVersion",
+                                        "logs",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid or missing parameters"
+                    },
+                    "404": {
+                        "description": "Not found - unknown module or resource"
+                    },
+                    "409": {
+                        "description": "Conflict - operation conflicts with current state"
+                    },
+                    "422": {
+                        "description": "Error"
+                    }
+                }
+            }
+        },
+        "/api/lsp/definition": {
+            "post": {
+                "tags": [
+                    "scripting"
+                ],
+                "summary": "Analyze an LSP document or query HISEScript symbols",
+                "description": "Full-text, versioned editor buffer synchronization and language queries. Neither document changes nor saves compile a processor.",
+                "operationId": "lsp_definition",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "uri": {
+                                        "type": "string",
+                                        "description": "Absolute local file URI"
+                                    },
+                                    "sessionId": {
+                                        "type": "string",
+                                        "description": "Unique proxy session identifier"
+                                    },
+                                    "version": {
+                                        "type": "integer",
+                                        "description": "Non-negative full-text document version"
+                                    },
+                                    "epoch": {
+                                        "type": "integer",
+                                        "description": "Open-document epoch from HISE"
+                                    },
+                                    "text": {
+                                        "type": "string",
+                                        "description": "Full editor buffer for open, change, or optional save"
+                                    },
+                                    "moduleId": {
+                                        "type": "string",
+                                        "description": "Optional processor context for included files"
+                                    },
+                                    "position": {
+                                        "type": "object",
+                                        "properties": {
+                                            "line": {
+                                                "type": "integer",
+                                                "description": "Zero-based line"
+                                            },
+                                            "character": {
+                                                "type": "integer",
+                                                "description": "UTF-16 column"
+                                            }
+                                        },
+                                        "required": [
+                                            "line",
+                                            "character"
+                                        ],
+                                        "description": "Zero-based UTF-16 LSP cursor position"
+                                    },
+                                    "context": {
+                                        "type": "object",
+                                        "properties": {
+                                            "includeDeclaration": {
+                                                "type": "boolean",
+                                                "description": "Include the declaration"
+                                            }
+                                        },
+                                        "required": [
+                                            "includeDeclaration"
+                                        ],
+                                        "description": "References context"
+                                    }
+                                },
+                                "required": [
+                                    "uri",
+                                    "sessionId"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "description": "Whether the request completed successfully"
+                                        },
+                                        "apiVersion": {
+                                            "type": "string",
+                                            "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
+                                            "example": "0.13.0"
+                                        },
+                                        "diagnosticsByUri": {
+                                            "type": "array",
+                                            "description": "Affected document diagnostics"
+                                        },
+                                        "uri": {
+                                            "type": "string",
+                                            "description": "Canonical document file URI"
+                                        },
+                                        "version": {
+                                            "type": "integer",
+                                            "description": "Current document version"
+                                        },
+                                        "epoch": {
+                                            "type": "integer",
+                                            "description": "Open-document epoch"
+                                        },
+                                        "processors": {
+                                            "type": "array",
+                                            "description": "Processors watching the document"
+                                        },
+                                        "analyzedProcessors": {
+                                            "type": "array",
+                                            "description": "Updated processor contexts"
+                                        },
+                                        "moduleId": {
+                                            "type": "string",
+                                            "description": "Resolved callback processor"
+                                        },
+                                        "locations": {
+                                            "type": "object",
+                                            "description": "LSP Location or location array"
+                                        },
+                                        "logs": {
+                                            "type": "array",
+                                            "description": "Console.print() output captured during request processing",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "errors": {
+                                            "type": "array",
+                                            "description": "Script errors captured during request processing",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "errorMessage": {
+                                                        "type": "string",
+                                                        "description": "The error message"
+                                                    },
+                                                    "callstack": {
+                                                        "type": "array",
+                                                        "description": "Call stack frames (e.g. \"myFunction() at Scripts/main.js:15:8\")",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "errorMessage",
+                                                    "callstack"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "apiVersion",
+                                        "logs",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid or missing parameters"
+                    },
+                    "404": {
+                        "description": "Not found - unknown module or resource"
+                    },
+                    "409": {
+                        "description": "Conflict - operation conflicts with current state"
+                    },
+                    "422": {
+                        "description": "Error"
+                    }
+                }
+            }
+        },
+        "/api/lsp/references": {
+            "post": {
+                "tags": [
+                    "scripting"
+                ],
+                "summary": "Analyze an LSP document or query HISEScript symbols",
+                "description": "Full-text, versioned editor buffer synchronization and language queries. Neither document changes nor saves compile a processor.",
+                "operationId": "lsp_references",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "uri": {
+                                        "type": "string",
+                                        "description": "Absolute local file URI"
+                                    },
+                                    "sessionId": {
+                                        "type": "string",
+                                        "description": "Unique proxy session identifier"
+                                    },
+                                    "version": {
+                                        "type": "integer",
+                                        "description": "Non-negative full-text document version"
+                                    },
+                                    "epoch": {
+                                        "type": "integer",
+                                        "description": "Open-document epoch from HISE"
+                                    },
+                                    "text": {
+                                        "type": "string",
+                                        "description": "Full editor buffer for open, change, or optional save"
+                                    },
+                                    "moduleId": {
+                                        "type": "string",
+                                        "description": "Optional processor context for included files"
+                                    },
+                                    "position": {
+                                        "type": "object",
+                                        "properties": {
+                                            "line": {
+                                                "type": "integer",
+                                                "description": "Zero-based line"
+                                            },
+                                            "character": {
+                                                "type": "integer",
+                                                "description": "UTF-16 column"
+                                            }
+                                        },
+                                        "required": [
+                                            "line",
+                                            "character"
+                                        ],
+                                        "description": "Zero-based UTF-16 LSP cursor position"
+                                    },
+                                    "context": {
+                                        "type": "object",
+                                        "properties": {
+                                            "includeDeclaration": {
+                                                "type": "boolean",
+                                                "description": "Include the declaration"
+                                            }
+                                        },
+                                        "required": [
+                                            "includeDeclaration"
+                                        ],
+                                        "description": "References context"
+                                    }
+                                },
+                                "required": [
+                                    "uri",
+                                    "sessionId"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "description": "Whether the request completed successfully"
+                                        },
+                                        "apiVersion": {
+                                            "type": "string",
+                                            "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
+                                            "example": "0.13.0"
+                                        },
+                                        "diagnosticsByUri": {
+                                            "type": "array",
+                                            "description": "Affected document diagnostics"
+                                        },
+                                        "uri": {
+                                            "type": "string",
+                                            "description": "Canonical document file URI"
+                                        },
+                                        "version": {
+                                            "type": "integer",
+                                            "description": "Current document version"
+                                        },
+                                        "epoch": {
+                                            "type": "integer",
+                                            "description": "Open-document epoch"
+                                        },
+                                        "processors": {
+                                            "type": "array",
+                                            "description": "Processors watching the document"
+                                        },
+                                        "analyzedProcessors": {
+                                            "type": "array",
+                                            "description": "Updated processor contexts"
+                                        },
+                                        "moduleId": {
+                                            "type": "string",
+                                            "description": "Resolved callback processor"
+                                        },
+                                        "references": {
+                                            "type": "array",
+                                            "description": "LSP Location array"
+                                        },
+                                        "logs": {
+                                            "type": "array",
+                                            "description": "Console.print() output captured during request processing",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "errors": {
+                                            "type": "array",
+                                            "description": "Script errors captured during request processing",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "errorMessage": {
+                                                        "type": "string",
+                                                        "description": "The error message"
+                                                    },
+                                                    "callstack": {
+                                                        "type": "array",
+                                                        "description": "Call stack frames (e.g. \"myFunction() at Scripts/main.js:15:8\")",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "errorMessage",
+                                                    "callstack"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "apiVersion",
+                                        "logs",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid or missing parameters"
+                    },
+                    "404": {
+                        "description": "Not found - unknown module or resource"
+                    },
+                    "409": {
+                        "description": "Conflict - operation conflicts with current state"
+                    },
+                    "422": {
+                        "description": "Error"
+                    }
+                }
+            }
         }
     },
     "logs": [],
