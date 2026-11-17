@@ -703,12 +703,18 @@ RestServer::Response RestHelpers::handleLsp(BackendProcessor* bp, RestServer::As
 		if (route == Route::LspCompletion)
 		{
 			mcl::TokenCollection::List tokens;
-			auto provider = std::make_unique<HiseJavascriptEngine::TokenProvider>(jp);
-			provider->addTokens(tokens);
+
+			if (autocomplete.tokenBefore.isEmpty())
+			{
+				auto provider = std::make_unique<HiseJavascriptEngine::TokenProvider>(jp);
+				provider->addTokens(tokens);
+			}
+
 			auto scopeTokens = HiseJavascriptEngine::SimpleExpressionData::parse(
 				jp->getScriptEngine(), { autocomplete.tokenBefore, location });
-			scopeTokens = scopeTokens.evaluate(jp->getScriptEngine(),
-				HiseJavascriptEngine::SimpleExpressionData::EvaluationType::TypeInfo);
+
+			scopeTokens = scopeTokens.evaluate(jp->getScriptEngine(), HiseJavascriptEngine::SimpleExpressionData::EvaluationType::TypeInfo);
+
 			if (scopeTokens.getType() != HiseJavascriptEngine::SimpleExpressionData::Type::NeedsEvaluation &&
 				scopeTokens.getType() != HiseJavascriptEngine::SimpleExpressionData::Type::Function)
 				scopeTokens.addAutocompleteTokens(tokens);

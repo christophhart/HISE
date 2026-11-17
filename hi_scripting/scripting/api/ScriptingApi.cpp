@@ -6699,9 +6699,17 @@ void ScriptingApi::Console::print(var x)
 #endif
 
     auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
+
+	UriError e;
+	e.errorType = UriError::ErrorType::Info;
+	e.fillLocation(debugLocation);
+	e.errorMessage = x.toString();
+
+	jp->errorProvider.logUriError(UriErrorLogger::SourceType::Debug, e, sendNotificationAsync);
+
     jp->addInplaceDebugValue(debugLocation, x.toString(), nullptr);
-    
 	debugToConsole(getProcessor(), x);
+
 #else
 	DBG(x.toString());
 #endif
