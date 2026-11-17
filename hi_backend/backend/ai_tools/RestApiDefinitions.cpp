@@ -2248,6 +2248,41 @@ struct RestApiEndpoints
 			.withResponseExample(R"({"success": true, "exists": true, "active": "snippet", "logs": [], "errors": []})"));
 	}
 
+	static void dap(Array<RouteMetadata>& m)
+	{
+		const std::pair<ApiRoute, const char*> routes[] = {
+			{ ApiRoute::DapSessionOpen, "api/dap/session/open" },
+			{ ApiRoute::DapSessionClose, "api/dap/session/close" },
+			{ ApiRoute::DapBreakpointsSet, "api/dap/breakpoints/set" },
+			{ ApiRoute::DapBreakpointsList, "api/dap/breakpoints/list" },
+			{ ApiRoute::DapState, "api/dap/state" },
+			{ ApiRoute::DapEvents, "api/dap/events" },
+			{ ApiRoute::DapContinue, "api/dap/continue" },
+			{ ApiRoute::DapStep, "api/dap/step" },
+			{ ApiRoute::DapStackTrace, "api/dap/stackTrace" },
+			{ ApiRoute::DapScopes, "api/dap/scopes" },
+			{ ApiRoute::DapVariables, "api/dap/variables" },
+			{ ApiRoute::DapEvaluate, "api/dap/evaluate" }
+		};
+		for (const auto& route : routes)
+		{
+			const bool get = route.first == ApiRoute::DapBreakpointsList ||
+				route.first == ApiRoute::DapState || route.first == ApiRoute::DapEvents;
+			auto entry = RouteMetadata(route.first, route.second)
+				.withMethod(get ? RestServer::Method::Get : RestServer::Method::Post)
+				.withCategory("scripting")
+				.withSummary("Inspect or control a HiseScript debugging session")
+				.withErrorCodes({ 400, 404, 409, 501 });
+			entry = get ? entry.withQueryParam(RouteParameter(Identifier("sessionId"), "DAP session identifier"))
+				: entry.withBodyParam(RouteParameter(Identifier("sessionId"), "DAP session identifier"));
+			if (route.first == ApiRoute::DapEvents)
+				entry = entry.withQueryParam(RouteParameter(Identifier("afterSequence"), "Last consumed event sequence")
+					.asOptional());
+			entry.rejectInSnippetBrowser = true;
+			m.add(entry);
+		}
+	}
+
 	static void lsp(Array<RouteMetadata>& m)
 	{
 		const std::pair<ApiRoute, const char*> routes[] = {
@@ -2401,6 +2436,7 @@ const Array<RestHelpers::RouteMetadata>& RestHelpers::getRouteMetadata()
 			RestApiEndpoints::projectPreprocessorSet(m);
 			RestApiEndpoints::snippetBrowser(m);
 			RestApiEndpoints::lsp(m);
+			RestApiEndpoints::dap(m);
 
 			// Verify count matches enum
 			jassert(m.size() == (int)ApiRoute::numRoutes);

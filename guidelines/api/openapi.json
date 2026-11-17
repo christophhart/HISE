@@ -11720,6 +11720,1207 @@
                     }
                 }
             }
+        },
+        "/api/dap/session/open": {
+            "post": {
+                "tags": [
+                    "scripting"
+                ],
+                "summary": "Inspect or control a HiseScript debugging session",
+                "description": "",
+                "operationId": "dap_session_open",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "sessionId": {
+                                        "type": "string",
+                                        "description": "DAP session identifier"
+                                    }
+                                },
+                                "required": [
+                                    "sessionId"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "description": "Whether the request completed successfully"
+                                        },
+                                        "apiVersion": {
+                                            "type": "string",
+                                            "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
+                                            "example": "0.13.0"
+                                        },
+                                        "logs": {
+                                            "type": "array",
+                                            "description": "Console.print() output captured during request processing",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "errors": {
+                                            "type": "array",
+                                            "description": "Script errors captured during request processing",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "errorMessage": {
+                                                        "type": "string",
+                                                        "description": "The error message"
+                                                    },
+                                                    "callstack": {
+                                                        "type": "array",
+                                                        "description": "Call stack frames (e.g. \"myFunction() at Scripts/main.js:15:8\")",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "errorMessage",
+                                                    "callstack"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "apiVersion",
+                                        "logs",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid or missing parameters"
+                    },
+                    "404": {
+                        "description": "Not found - unknown module or resource"
+                    },
+                    "409": {
+                        "description": "Conflict - operation conflicts with current state"
+                    },
+                    "501": {
+                        "description": "Error"
+                    }
+                }
+            }
+        },
+        "/api/dap/session/close": {
+            "post": {
+                "tags": [
+                    "scripting"
+                ],
+                "summary": "Inspect or control a HiseScript debugging session",
+                "description": "",
+                "operationId": "dap_session_close",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "sessionId": {
+                                        "type": "string",
+                                        "description": "DAP session identifier"
+                                    }
+                                },
+                                "required": [
+                                    "sessionId"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "description": "Whether the request completed successfully"
+                                        },
+                                        "apiVersion": {
+                                            "type": "string",
+                                            "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
+                                            "example": "0.13.0"
+                                        },
+                                        "logs": {
+                                            "type": "array",
+                                            "description": "Console.print() output captured during request processing",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "errors": {
+                                            "type": "array",
+                                            "description": "Script errors captured during request processing",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "errorMessage": {
+                                                        "type": "string",
+                                                        "description": "The error message"
+                                                    },
+                                                    "callstack": {
+                                                        "type": "array",
+                                                        "description": "Call stack frames (e.g. \"myFunction() at Scripts/main.js:15:8\")",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "errorMessage",
+                                                    "callstack"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "apiVersion",
+                                        "logs",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid or missing parameters"
+                    },
+                    "404": {
+                        "description": "Not found - unknown module or resource"
+                    },
+                    "409": {
+                        "description": "Conflict - operation conflicts with current state"
+                    },
+                    "501": {
+                        "description": "Error"
+                    }
+                }
+            }
+        },
+        "/api/dap/breakpoints/set": {
+            "post": {
+                "tags": [
+                    "scripting"
+                ],
+                "summary": "Inspect or control a HiseScript debugging session",
+                "description": "",
+                "operationId": "dap_breakpoints_set",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "sessionId": {
+                                        "type": "string",
+                                        "description": "DAP session identifier"
+                                    }
+                                },
+                                "required": [
+                                    "sessionId"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "description": "Whether the request completed successfully"
+                                        },
+                                        "apiVersion": {
+                                            "type": "string",
+                                            "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
+                                            "example": "0.13.0"
+                                        },
+                                        "logs": {
+                                            "type": "array",
+                                            "description": "Console.print() output captured during request processing",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "errors": {
+                                            "type": "array",
+                                            "description": "Script errors captured during request processing",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "errorMessage": {
+                                                        "type": "string",
+                                                        "description": "The error message"
+                                                    },
+                                                    "callstack": {
+                                                        "type": "array",
+                                                        "description": "Call stack frames (e.g. \"myFunction() at Scripts/main.js:15:8\")",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "errorMessage",
+                                                    "callstack"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "apiVersion",
+                                        "logs",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid or missing parameters"
+                    },
+                    "404": {
+                        "description": "Not found - unknown module or resource"
+                    },
+                    "409": {
+                        "description": "Conflict - operation conflicts with current state"
+                    },
+                    "501": {
+                        "description": "Error"
+                    }
+                }
+            }
+        },
+        "/api/dap/breakpoints/list": {
+            "get": {
+                "tags": [
+                    "scripting"
+                ],
+                "summary": "Inspect or control a HiseScript debugging session",
+                "description": "",
+                "operationId": "dap_breakpoints_list",
+                "parameters": [
+                    {
+                        "name": "sessionId",
+                        "in": "query",
+                        "description": "DAP session identifier",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "DAP session identifier"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "description": "Whether the request completed successfully"
+                                        },
+                                        "apiVersion": {
+                                            "type": "string",
+                                            "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
+                                            "example": "0.13.0"
+                                        },
+                                        "logs": {
+                                            "type": "array",
+                                            "description": "Console.print() output captured during request processing",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "errors": {
+                                            "type": "array",
+                                            "description": "Script errors captured during request processing",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "errorMessage": {
+                                                        "type": "string",
+                                                        "description": "The error message"
+                                                    },
+                                                    "callstack": {
+                                                        "type": "array",
+                                                        "description": "Call stack frames (e.g. \"myFunction() at Scripts/main.js:15:8\")",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "errorMessage",
+                                                    "callstack"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "apiVersion",
+                                        "logs",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid or missing parameters"
+                    },
+                    "404": {
+                        "description": "Not found - unknown module or resource"
+                    },
+                    "409": {
+                        "description": "Conflict - operation conflicts with current state"
+                    },
+                    "501": {
+                        "description": "Error"
+                    }
+                }
+            }
+        },
+        "/api/dap/state": {
+            "get": {
+                "tags": [
+                    "scripting"
+                ],
+                "summary": "Inspect or control a HiseScript debugging session",
+                "description": "",
+                "operationId": "dap_state",
+                "parameters": [
+                    {
+                        "name": "sessionId",
+                        "in": "query",
+                        "description": "DAP session identifier",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "DAP session identifier"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "description": "Whether the request completed successfully"
+                                        },
+                                        "apiVersion": {
+                                            "type": "string",
+                                            "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
+                                            "example": "0.13.0"
+                                        },
+                                        "logs": {
+                                            "type": "array",
+                                            "description": "Console.print() output captured during request processing",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "errors": {
+                                            "type": "array",
+                                            "description": "Script errors captured during request processing",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "errorMessage": {
+                                                        "type": "string",
+                                                        "description": "The error message"
+                                                    },
+                                                    "callstack": {
+                                                        "type": "array",
+                                                        "description": "Call stack frames (e.g. \"myFunction() at Scripts/main.js:15:8\")",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "errorMessage",
+                                                    "callstack"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "apiVersion",
+                                        "logs",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid or missing parameters"
+                    },
+                    "404": {
+                        "description": "Not found - unknown module or resource"
+                    },
+                    "409": {
+                        "description": "Conflict - operation conflicts with current state"
+                    },
+                    "501": {
+                        "description": "Error"
+                    }
+                }
+            }
+        },
+        "/api/dap/events": {
+            "get": {
+                "tags": [
+                    "scripting"
+                ],
+                "summary": "Inspect or control a HiseScript debugging session",
+                "description": "",
+                "operationId": "dap_events",
+                "parameters": [
+                    {
+                        "name": "sessionId",
+                        "in": "query",
+                        "description": "DAP session identifier",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "DAP session identifier"
+                        }
+                    },
+                    {
+                        "name": "afterSequence",
+                        "in": "query",
+                        "description": "Last consumed event sequence",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "description": "Last consumed event sequence"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "description": "Whether the request completed successfully"
+                                        },
+                                        "apiVersion": {
+                                            "type": "string",
+                                            "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
+                                            "example": "0.13.0"
+                                        },
+                                        "logs": {
+                                            "type": "array",
+                                            "description": "Console.print() output captured during request processing",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "errors": {
+                                            "type": "array",
+                                            "description": "Script errors captured during request processing",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "errorMessage": {
+                                                        "type": "string",
+                                                        "description": "The error message"
+                                                    },
+                                                    "callstack": {
+                                                        "type": "array",
+                                                        "description": "Call stack frames (e.g. \"myFunction() at Scripts/main.js:15:8\")",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "errorMessage",
+                                                    "callstack"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "apiVersion",
+                                        "logs",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid or missing parameters"
+                    },
+                    "404": {
+                        "description": "Not found - unknown module or resource"
+                    },
+                    "409": {
+                        "description": "Conflict - operation conflicts with current state"
+                    },
+                    "501": {
+                        "description": "Error"
+                    }
+                }
+            }
+        },
+        "/api/dap/continue": {
+            "post": {
+                "tags": [
+                    "scripting"
+                ],
+                "summary": "Inspect or control a HiseScript debugging session",
+                "description": "",
+                "operationId": "dap_continue",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "sessionId": {
+                                        "type": "string",
+                                        "description": "DAP session identifier"
+                                    }
+                                },
+                                "required": [
+                                    "sessionId"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "description": "Whether the request completed successfully"
+                                        },
+                                        "apiVersion": {
+                                            "type": "string",
+                                            "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
+                                            "example": "0.13.0"
+                                        },
+                                        "logs": {
+                                            "type": "array",
+                                            "description": "Console.print() output captured during request processing",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "errors": {
+                                            "type": "array",
+                                            "description": "Script errors captured during request processing",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "errorMessage": {
+                                                        "type": "string",
+                                                        "description": "The error message"
+                                                    },
+                                                    "callstack": {
+                                                        "type": "array",
+                                                        "description": "Call stack frames (e.g. \"myFunction() at Scripts/main.js:15:8\")",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "errorMessage",
+                                                    "callstack"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "apiVersion",
+                                        "logs",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid or missing parameters"
+                    },
+                    "404": {
+                        "description": "Not found - unknown module or resource"
+                    },
+                    "409": {
+                        "description": "Conflict - operation conflicts with current state"
+                    },
+                    "501": {
+                        "description": "Error"
+                    }
+                }
+            }
+        },
+        "/api/dap/step": {
+            "post": {
+                "tags": [
+                    "scripting"
+                ],
+                "summary": "Inspect or control a HiseScript debugging session",
+                "description": "",
+                "operationId": "dap_step",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "sessionId": {
+                                        "type": "string",
+                                        "description": "DAP session identifier"
+                                    }
+                                },
+                                "required": [
+                                    "sessionId"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "description": "Whether the request completed successfully"
+                                        },
+                                        "apiVersion": {
+                                            "type": "string",
+                                            "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
+                                            "example": "0.13.0"
+                                        },
+                                        "logs": {
+                                            "type": "array",
+                                            "description": "Console.print() output captured during request processing",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "errors": {
+                                            "type": "array",
+                                            "description": "Script errors captured during request processing",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "errorMessage": {
+                                                        "type": "string",
+                                                        "description": "The error message"
+                                                    },
+                                                    "callstack": {
+                                                        "type": "array",
+                                                        "description": "Call stack frames (e.g. \"myFunction() at Scripts/main.js:15:8\")",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "errorMessage",
+                                                    "callstack"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "apiVersion",
+                                        "logs",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid or missing parameters"
+                    },
+                    "404": {
+                        "description": "Not found - unknown module or resource"
+                    },
+                    "409": {
+                        "description": "Conflict - operation conflicts with current state"
+                    },
+                    "501": {
+                        "description": "Error"
+                    }
+                }
+            }
+        },
+        "/api/dap/stackTrace": {
+            "post": {
+                "tags": [
+                    "scripting"
+                ],
+                "summary": "Inspect or control a HiseScript debugging session",
+                "description": "",
+                "operationId": "dap_stackTrace",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "sessionId": {
+                                        "type": "string",
+                                        "description": "DAP session identifier"
+                                    }
+                                },
+                                "required": [
+                                    "sessionId"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "description": "Whether the request completed successfully"
+                                        },
+                                        "apiVersion": {
+                                            "type": "string",
+                                            "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
+                                            "example": "0.13.0"
+                                        },
+                                        "logs": {
+                                            "type": "array",
+                                            "description": "Console.print() output captured during request processing",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "errors": {
+                                            "type": "array",
+                                            "description": "Script errors captured during request processing",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "errorMessage": {
+                                                        "type": "string",
+                                                        "description": "The error message"
+                                                    },
+                                                    "callstack": {
+                                                        "type": "array",
+                                                        "description": "Call stack frames (e.g. \"myFunction() at Scripts/main.js:15:8\")",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "errorMessage",
+                                                    "callstack"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "apiVersion",
+                                        "logs",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid or missing parameters"
+                    },
+                    "404": {
+                        "description": "Not found - unknown module or resource"
+                    },
+                    "409": {
+                        "description": "Conflict - operation conflicts with current state"
+                    },
+                    "501": {
+                        "description": "Error"
+                    }
+                }
+            }
+        },
+        "/api/dap/scopes": {
+            "post": {
+                "tags": [
+                    "scripting"
+                ],
+                "summary": "Inspect or control a HiseScript debugging session",
+                "description": "",
+                "operationId": "dap_scopes",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "sessionId": {
+                                        "type": "string",
+                                        "description": "DAP session identifier"
+                                    }
+                                },
+                                "required": [
+                                    "sessionId"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "description": "Whether the request completed successfully"
+                                        },
+                                        "apiVersion": {
+                                            "type": "string",
+                                            "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
+                                            "example": "0.13.0"
+                                        },
+                                        "logs": {
+                                            "type": "array",
+                                            "description": "Console.print() output captured during request processing",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "errors": {
+                                            "type": "array",
+                                            "description": "Script errors captured during request processing",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "errorMessage": {
+                                                        "type": "string",
+                                                        "description": "The error message"
+                                                    },
+                                                    "callstack": {
+                                                        "type": "array",
+                                                        "description": "Call stack frames (e.g. \"myFunction() at Scripts/main.js:15:8\")",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "errorMessage",
+                                                    "callstack"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "apiVersion",
+                                        "logs",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid or missing parameters"
+                    },
+                    "404": {
+                        "description": "Not found - unknown module or resource"
+                    },
+                    "409": {
+                        "description": "Conflict - operation conflicts with current state"
+                    },
+                    "501": {
+                        "description": "Error"
+                    }
+                }
+            }
+        },
+        "/api/dap/variables": {
+            "post": {
+                "tags": [
+                    "scripting"
+                ],
+                "summary": "Inspect or control a HiseScript debugging session",
+                "description": "",
+                "operationId": "dap_variables",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "sessionId": {
+                                        "type": "string",
+                                        "description": "DAP session identifier"
+                                    }
+                                },
+                                "required": [
+                                    "sessionId"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "description": "Whether the request completed successfully"
+                                        },
+                                        "apiVersion": {
+                                            "type": "string",
+                                            "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
+                                            "example": "0.13.0"
+                                        },
+                                        "logs": {
+                                            "type": "array",
+                                            "description": "Console.print() output captured during request processing",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "errors": {
+                                            "type": "array",
+                                            "description": "Script errors captured during request processing",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "errorMessage": {
+                                                        "type": "string",
+                                                        "description": "The error message"
+                                                    },
+                                                    "callstack": {
+                                                        "type": "array",
+                                                        "description": "Call stack frames (e.g. \"myFunction() at Scripts/main.js:15:8\")",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "errorMessage",
+                                                    "callstack"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "apiVersion",
+                                        "logs",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid or missing parameters"
+                    },
+                    "404": {
+                        "description": "Not found - unknown module or resource"
+                    },
+                    "409": {
+                        "description": "Conflict - operation conflicts with current state"
+                    },
+                    "501": {
+                        "description": "Error"
+                    }
+                }
+            }
+        },
+        "/api/dap/evaluate": {
+            "post": {
+                "tags": [
+                    "scripting"
+                ],
+                "summary": "Inspect or control a HiseScript debugging session",
+                "description": "",
+                "operationId": "dap_evaluate",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "sessionId": {
+                                        "type": "string",
+                                        "description": "DAP session identifier"
+                                    }
+                                },
+                                "required": [
+                                    "sessionId"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "description": "Whether the request completed successfully"
+                                        },
+                                        "apiVersion": {
+                                            "type": "string",
+                                            "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
+                                            "example": "0.13.0"
+                                        },
+                                        "logs": {
+                                            "type": "array",
+                                            "description": "Console.print() output captured during request processing",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "errors": {
+                                            "type": "array",
+                                            "description": "Script errors captured during request processing",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "errorMessage": {
+                                                        "type": "string",
+                                                        "description": "The error message"
+                                                    },
+                                                    "callstack": {
+                                                        "type": "array",
+                                                        "description": "Call stack frames (e.g. \"myFunction() at Scripts/main.js:15:8\")",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "errorMessage",
+                                                    "callstack"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "apiVersion",
+                                        "logs",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid or missing parameters"
+                    },
+                    "404": {
+                        "description": "Not found - unknown module or resource"
+                    },
+                    "409": {
+                        "description": "Conflict - operation conflicts with current state"
+                    },
+                    "501": {
+                        "description": "Error"
+                    }
+                }
+            }
         }
     },
     "logs": [],

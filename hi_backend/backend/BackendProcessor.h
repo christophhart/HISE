@@ -578,6 +578,8 @@ public:
 
 	/** Owns LSP document leases and analysis state for this backend instance. */
 	LspRestState& getLspRestState();
+	struct DapRestState;
+	DapRestState& getDapRestState();
 
 	ControlledObject* getRestWizardRunner();
 
@@ -702,6 +704,7 @@ private:
 
 	RestServer restServer;
 	std::unique_ptr<LspRestState> lspRestState;
+	std::unique_ptr<DapRestState> dapRestState;
 	simple_css::Animator restServerAnimator;
 	
 	std::unique_ptr<InteractionTester> interactionTester;

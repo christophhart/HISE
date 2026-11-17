@@ -90,6 +90,7 @@
 #include "backend/ai_tools/RestApiDefinitions.cpp"
 #include "backend/ai_tools/RestHelpers.cpp"
 #include "backend/ai_tools/LspRest.cpp"
+#include "backend/ai_tools/DapRest.cpp"
 
 #if HI_RUN_UNIT_TESTS
 #include "backend/ai_tools/tests/ServerUnitTests.cpp"

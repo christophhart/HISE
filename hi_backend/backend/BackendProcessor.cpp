@@ -366,6 +366,20 @@ RestServer::Response BackendProcessor::onAsyncRequest(RestServer::AsyncRequest::
 		case RestHelpers::ApiRoute::LspReferences:
 			return RestHelpers::handleLsp(active, req, route);
 			
+		case RestHelpers::ApiRoute::DapSessionOpen:
+		case RestHelpers::ApiRoute::DapSessionClose:
+		case RestHelpers::ApiRoute::DapBreakpointsSet:
+		case RestHelpers::ApiRoute::DapBreakpointsList:
+		case RestHelpers::ApiRoute::DapState:
+		case RestHelpers::ApiRoute::DapEvents:
+		case RestHelpers::ApiRoute::DapContinue:
+		case RestHelpers::ApiRoute::DapStep:
+		case RestHelpers::ApiRoute::DapStackTrace:
+		case RestHelpers::ApiRoute::DapScopes:
+		case RestHelpers::ApiRoute::DapVariables:
+		case RestHelpers::ApiRoute::DapEvaluate:
+			return RestHelpers::handleDap(active, req, route);
+
 		case RestHelpers::ApiRoute::TestingProfile:
 			return RestHelpers::handleTestingProfile(active, req);
 			
@@ -682,6 +696,7 @@ BackendProcessor::~BackendProcessor()
 {
 	restServer.removeListener(this);
 	restServer.stop();
+	dapRestState.reset();
 	lspRestState.reset();
 
 	interactionTester = nullptr;

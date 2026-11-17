@@ -2830,10 +2830,9 @@ JavascriptThreadPool::ScopedSleeper::ScopedSleeper(JavascriptThreadPool& p_, Jav
 	}
 		
 
-	sendMessage(true);
-
 	p.isSleeping = true;
 	p.shouldWakeUp = false;
+	sendMessage(true);
 
 	auto cThread = Thread::getCurrentThread();
 	std::function<bool()> shouldExit;

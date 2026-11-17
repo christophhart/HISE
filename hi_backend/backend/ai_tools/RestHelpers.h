@@ -120,6 +120,18 @@ struct RestHelpers
         LspHover,
         LspDefinition,
         LspReferences,
+        DapSessionOpen,
+        DapSessionClose,
+        DapBreakpointsSet,
+        DapBreakpointsList,
+        DapState,
+        DapEvents,
+        DapContinue,
+        DapStep,
+        DapStackTrace,
+        DapScopes,
+        DapVariables,
+        DapEvaluate,
         numRoutes
     };
     
@@ -877,6 +889,7 @@ struct RestHelpers
     // Route handlers (static methods called from BackendProcessor::onAsyncRequest)
 
     static RestServer::Response handleLsp(BackendProcessor* bp, RestServer::AsyncRequest::Ptr req, ApiRoute route);
+    static RestServer::Response handleDap(BackendProcessor* bp, RestServer::AsyncRequest::Ptr req, ApiRoute route);
     
     /** Handler for GET / - List all available API methods. */
     static RestServer::Response handleListMethods(MainController* mc, 
