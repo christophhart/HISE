@@ -724,8 +724,6 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
 	gitChangesView->setLookAndFeel(&laf);
 	includeTreeView->setLookAndFeel(&laf);
 
-	laf.rootWindow = rootWindow;
-	laf.browser = this;
 	fileTreeComponent->setLookAndFeel(&laf);
 
 	if (auto tracker = rootWindow->getGitChangeTracker())
@@ -1761,64 +1759,6 @@ void FileBrowser::changeListenerCallback(ChangeBroadcaster*)
 	repaint();
 }
 
-void FileBrowser::GitAwareLookAndFeel::drawFileBrowserRow(Graphics& g, int width, int height, const File& file,
-	const String& filename, Image* icon, const String&, const String&, bool isDirectory, bool isItemSelected, int,
-	DirectoryContentsDisplayComponent& dcc)
-{
-	using Status = GitChangeTracker::Status;
-
-	auto tracker = rootWindow != nullptr ? rootWindow->getGitChangeTracker() : nullptr;
-	auto status = tracker != nullptr ? tracker->getStatus(file) : Status::Clean;
-
-	if (isItemSelected)
-	{
-		g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.1f), 0.0f, 0.0f,
-										 Colours::black.withAlpha(0.05f), 0.0f, (float)height, false));
-		g.fillRoundedRectangle(0.0f, 0.0f, (float)width - 1.0f, (float)height - 1.0f, 2.0f);
-	}
-
-	if (auto alpha = browser != nullptr ? browser->getHighlightAlpha(file) : 0.0f)
-	{
-		auto c = status != Status::Clean ? GitChangeTracker::getColour(status) : Colour(SIGNAL_COLOUR);
-		g.setColour(c.withAlpha(0.25f * alpha));
-		g.fillRoundedRectangle(0.0f, 0.0f, (float)width - 1.0f, (float)height - 1.0f, 2.0f);
-	}
-
-	const int x = 32;
-
-	if (icon != nullptr && icon->isValid())
-	{
-		g.drawImageWithin(*icon, 2, 2, x - 4, height - 4,
-						  RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize, false);
-	}
-	else if (auto d = isDirectory ? getDefaultFolderImage() : getDefaultDocumentFileImage())
-	{
-		d->drawWithin(g, Rectangle<float>(2.0f, 2.0f, x - 4.0f, height - 4.0f),
-					  RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize, 1.0f);
-	}
-
-	auto textColour = dynamic_cast<Component*>(&dcc)->findColour(DirectoryContentsDisplayComponent::textColourId);
-
-	if (status != Status::Clean)
-		textColour = GitChangeTracker::getColour(status);
-
-	Rectangle<int> b(x, 0, jmax(0, width - x - 4), height);
-
-	g.setColour(textColour);
-	g.setFont(GLOBAL_BOLD_FONT());
-
-	auto letter = GitChangeTracker::getLetter(status);
-
-	if (!isDirectory && letter.isNotEmpty())
-		g.drawText(letter, b.removeFromRight(14), Justification::centred);
-	else if (isDirectory && (int)status > (int)Status::Ignored)
-		g.fillEllipse(b.removeFromRight(14).toFloat().withSizeKeepingCentre(5.0f, 5.0f));
-
-	g.setColour(textColour);
-	g.setFont(!isDirectory ? GLOBAL_BOLD_FONT() : GLOBAL_FONT());
-	g.drawFittedText(filename, b, Justification::centredLeft, 1);
-}
-
 void FileBrowser::refresh()
 {
 	if (auto tracker = rootWindow->getGitChangeTracker())
@@ -2059,15 +1999,11 @@ void FileBrowser::rebuildGitChangesTree()
 		}
 	}
 
-	jassert(rootFolderIcon.isValid());
-
 	gitChangesRoot = new GitChangesTreeItem(this, File(), "GitChangesRoot", GitChangeTracker::Status::Clean, true, rootFolderIcon);
 
 	auto rootDirectory = GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).getWorkDirectory();
 	auto tracker = rootWindow->getGitChangeTracker();
 	auto changedFiles = tracker != nullptr && tracker->isRepository() ? tracker->getChangedFilePaths() : std::vector<File>();
-
-	
 
 	auto addHunkItems = [this, tracker](GitChangesTreeItem* fileItem, const File& file)
 	{

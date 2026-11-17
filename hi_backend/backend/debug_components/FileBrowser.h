@@ -490,30 +490,16 @@ private:
 		return ImageCache::getFromHashCode(hashCode);
 	}
 
-	/** Colours the rows with the git state and highlights files that just changed. */
-	struct GitAwareLookAndFeel : public FileBrowserLookAndFeel
-	{
-		
+	
 
-		void drawFileBrowserRow(Graphics& g, int width, int height, const File& file, const String& filename, Image* icon,
-								const String& fileSizeDescription, const String& fileTimeDescription, bool isDirectory,
-								bool isItemSelected, int itemIndex, DirectoryContentsDisplayComponent& dcc) override;
-
-		Component::SafePointer<BackendRootWindow> rootWindow;
-		FileBrowser* browser = nullptr;
-	};
-
-    GitAwareLookAndFeel laf;
+    FileBrowserLookAndFeel laf;
     PopupLookAndFeel plaf;
     
     TimeSliceThread directorySearcher;
     
 	File currentlyPreviewFile;
-    
 
 	friend class FileBrowserToolbarFactory;
-
-	
 
 	ScopedPointer<DirectoryContentsList> directoryList;
 
@@ -557,7 +543,6 @@ private:
 	Rectangle<float> pathArea;
 
 	Rectangle<float> searchIcon;
-
 
 	std::unique_ptr<XmlElement> prevState;
 

@@ -666,8 +666,7 @@ struct RestApiEndpoints
 			.withDescription("Returns structured diagnostics without modifying runtime state. File mode reads a compiled file against its owning processor; code without filePath uses the first interface processor's API context. When code and filePath are both provided, code overrides the file contents while retaining the owning processor's include and scope context.")
 			.withReturns("Array of full UriError diagnostics with location, errorType, sourceType, and suggestions")
 			.withBodyParam(RouteParameter(RestApiIds::moduleId,
-				"The script processor's module ID (file mode). Required if filePath is not provided. "
-				"Ignored when code is used.").asOptional())
+				"The script processor's module ID (file mode). With code alone, the first interface processor is used.").asOptional())
 			.withBodyParam(RouteParameter(RestApiIds::filePath,
 				"Path to the external .js file (file mode, absolute or relative to Scripts folder). "
 				"Required if moduleId is not provided. When used alone, HISE resolves the owning "
@@ -675,37 +674,12 @@ struct RestApiEndpoints
 			.withBodyParam(RouteParameter(RestApiIds::code,
 				"Raw HISEScript source to parse directly (standalone code mode). When present and the filePath is not specified, the "
 				"code is shadow-parsed against the first interface processor's API context without "
-				"reading any file from disk or executing. When used in combination with filePath the supplied code string takes "
-				"overrides the file contents while retaining the owning processor's include and scope context.").asOptional())
-			.withBodyParam(RouteParameter(RestApiIds::autocompletePosition,
-				"Optional zero-based LSP cursor position. When supplied, the response includes a completionList.")
-				.withType(ParamType::Object)
-				.withProperty(RouteParameter(RestApiIds::line, "Zero-based LSP line")
-					.withType(ParamType::Int))
-				.withProperty(RouteParameter(RestApiIds::character, "Zero-based LSP character")
-					.withType(ParamType::Int))
-				.asOptional())
+				"reading any file from disk or executing. With filePath, code overrides the file contents "
+				"while retaining the owning processor's include and scope context.").asOptional())
 			.withResponseField(RouteParameter(RestApiIds::moduleId, "The resolved script processor's module ID"))
 			.withResponseField(RouteParameter(RestApiIds::filePath, "The resolved file path"))
 			.withResponseField(RouteParameter(RestApiIds::diagnostics, "Array of diagnostic entries")
 				.withArrayItems(diagnosticEntry))
-			.withResponseField(RouteParameter(RestApiIds::completionList, "LSP CompletionList, included when autocompletePosition is supplied")
-				.withType(ParamType::Object)
-				.withProperty(RouteParameter(RestApiIds::isIncomplete, "Whether more completion items may be available")
-					.withType(ParamType::Bool))
-				.withProperty(RouteParameter(RestApiIds::items, "LSP CompletionItem entries")
-					.withType(ParamType::Array)
-					.withArrayItems(RouteParameter(Identifier("completionItem"), "LSP CompletionItem")
-						.withType(ParamType::Object)
-						.withProperty(RouteParameter(Identifier("label"), "Completion label"))
-						.withProperty(RouteParameter(Identifier("kind"), "LSP CompletionItemKind")
-							.withType(ParamType::Int).asOptional())
-						.withProperty(RouteParameter(Identifier("detail"), "Short completion detail").asOptional())
-						.withProperty(RouteParameter(Identifier("documentation"), "Completion documentation").asOptional())
-						.withProperty(RouteParameter(Identifier("insertText"), "Text to insert").asOptional())
-						.withProperty(RouteParameter(Identifier("insertTextFormat"), "LSP InsertTextFormat")
-							.withType(ParamType::Int).asOptional())
-						.withProperty(RouteParameter(Identifier("textEdit"), "Text edit for the completion").asOptional()))))
 			.withErrorCodes({ 400, 404 })
 			.withRequestExample(R"({"moduleId": "Interface", "filePath": "Scripts/UI.js"})")
 			.withResponseExample("{\"success\": true, \"moduleId\": \"Interface\", \"filePath\": \"\", \"diagnostics\": [{\"line\": 1, \"column\": 13, \"filePath\": \"onInit()\", \"processorId\": \"Interface\", \"errorMessage\": \"Function / constant not found: Console.prnt\", \"errorType\": \"error\", \"sourceType\": \"none\", \"suggestions\": [\"print\"]}], \"logs\": [], \"errors\": []}"));

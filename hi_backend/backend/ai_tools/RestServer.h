@@ -40,7 +40,7 @@
     runtime field. Consumers read it off any response (or `/api/status`) to
     verify they are talking to a HISE build that matches their expected schema.
 */
-#define HISE_REST_API_VERSION "0.14.0"  // 0.14.0: Script errors preserve full UriError JSON
+#define HISE_REST_API_VERSION "0.15.0"  // 0.15.0: diagnose_script no longer returns LSP completions
 
 namespace hise { using namespace juce;
 
@@ -184,21 +184,13 @@ namespace RestApiIds
     DECLARE_ID(itemId);               // Menu item ID
 
     // diagnose_script response
-    DECLARE_ID(diagnostics);          // Array of diagnostic objects
-    DECLARE_ID(autocompletePosition); // Optional LSP position for completion {line, character}
-    DECLARE_ID(completionList);       // Optional LSP CompletionList response
-    DECLARE_ID(character);            // Zero-based LSP character position
-    DECLARE_ID(includeDeclaration);   // Include navigational LSP information to the current expression
-    DECLARE_ID(items);                // CompletionItem array
-    DECLARE_ID(occurrences);          // Occurrences array
-    DECLARE_ID(isIncomplete);         // LSP CompletionList incompleteness flag
+    DECLARE_ID(diagnostics);          // Array of UriError diagnostic objects
     DECLARE_ID(line);                 // Diagnostic line number
     DECLARE_ID(column);               // Diagnostic column number
     DECLARE_ID(severity);             // "error", "warning", "info", "hint"
     DECLARE_ID(source);               // "syntax", "api-validation", "type-check", "language", "callscope"
     DECLARE_ID(message);              // Diagnostic message text
     DECLARE_ID(suggestions);          // Array of "did you mean?" suggestion strings
-    DECLARE_ID(async);                // If true, defer shadow parse to scripting thread (default: false)
 
     // get_included_files
     DECLARE_ID(files);                // Array of included file entries

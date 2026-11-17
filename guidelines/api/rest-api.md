@@ -1134,99 +1134,24 @@ curl -X POST http://localhost:1900/api/testing/e2e \
 
 ### POST /api/diagnose_script
 
-Run a diagnostic-only shadow parse. Returns structured diagnostics (API hallucinations, type mismatches, language rule violations, audio-thread safety warnings) **without modifying runtime state** - no recompilation, no execution.
+Shadow-parse HISEScript without compiling or executing it. Findings are full `UriError` JSON objects in `diagnostics`; REST-level failures appear in `errors`.
 
-There are two modes:
+Requires a compiled script processor for the API context. Use one of these modes:
 
-- **File mode** (default): pass `moduleId` and/or `filePath` to read a real `.js` file from disk and parse it against its owning processor.
-- **Code mode** (standalone): pass a `code` string to parse it directly against the first interface processor's API context. Never reads disk, never executes. Use it to validate unsaved or in-progress code. `code` is mutually exclusive with `filePath`.
+- `code` alone: parse supplied text against the first compiled interface processor without reading a file.
+- `filePath` alone: read the file and find its owning processor among watched external files.
+- `moduleId` alone: parse the processor's first watched external file.
+- `moduleId` with `filePath`: read that file using the specified processor's context.
+- `code` with `filePath`: parse supplied text instead of file contents, using the processor that owns the file (or the supplied `moduleId`). The file must exist, but its contents are not parsed.
 
-Requires at least one prior successful compile (F5 or `/api/set_script` with `compile: true`) so that API objects are resolved.
+Paths can be absolute or relative to the project's Scripts folder. File modes require the file to exist and an owning processor to have compiled at least once. The request does not recompile or execute script code.
 
-**Parameters** (JSON body):
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `code` | string | optional | Raw HISEScript source to parse directly (code mode). When present, it is shadow-parsed against the first interface processor's API context without reading any file from disk or executing. Mutually exclusive with `filePath` (400 if both are set). |
-| `moduleId` | string | conditional | The script processor's module ID (file mode). If `filePath` is omitted, uses the processor's first external file. Ignored in code mode. |
-| `filePath` | string | conditional | Path to the `.js` file (file mode, absolute, or relative to Scripts folder). If `moduleId` is omitted, HISE resolves the owning processor automatically. Mutually exclusive with `code`. |
-| `async` | bool | optional | If `true`, defer the shadow parse to the scripting thread (slower, blocks audio). Default `false`: runs directly on the HTTP thread with a read lock. |
-| `autocompletePosition` | object | optional | Zero-based LSP cursor position `{ "line": N, "character": N }`. When supplied, the response includes an LSP-shaped `completionList`. |
-
-**Request**:
+**Request (raw code)**:
 ```json
-{
-  "moduleId": "Interface",
-  "filePath": "Scripts/UI.js"
-}
+{"code": "Console.prnt(1);"}
 ```
 
-**Response (clean file)**:
-```json
-{
-  "success": true,
-  "moduleId": "Interface",
-  "filePath": "D:/Projects/MyPlugin/Scripts/UI.js",
-  "diagnostics": [],
-  "logs": [],
-  "errors": []
-}
-```
-
-The `completionList` field is present only when `autocompletePosition` is supplied.
-
-**Response (with diagnostics)**:
-```json
-{
-  "success": true,
-  "moduleId": "Interface",
-  "filePath": "D:/Projects/MyPlugin/Scripts/UI.js",
-  "diagnostics": [
-    {
-      "line": 15,
-      "column": 5,
-      "severity": "error",
-      "source": "api-validation",
-      "message": "Function / constant not found: Console.prnt (did you mean: print?)",
-      "suggestions": ["print"]
-    },
-    {
-      "line": 23,
-      "column": 8,
-      "severity": "error",
-      "source": "type-check",
-      "message": "Message.setNoteNumber() parameter 1 expects int, got String"
-    },
-    {
-      "line": 31,
-      "column": 3,
-      "severity": "warning",
-      "source": "callscope",
-      "message": "[CallScope] cable.sendData (unsafe) in audio-thread context"
-    }
-  ],
-  "logs": [],
-  "errors": []
-}
-```
-
-**Code mode - Request** (raw string, no file):
-```json
-{
-  "code": "Console.prnt(\"hello\");"
-}
-```
-
-**Request with an autocomplete position**:
-```json
-{
-  "code": "Content.getComponents(\".*\")[0].",
-  "autocompletePosition": { "line": 0, "character": 35 }
-}
-```
-When `autocompletePosition` is supplied, the response also contains `completionList` with the LSP `CompletionList` shape (`isIncomplete` and `items`). Completion item generation will be added in a follow-up implementation step; for now the list is empty and marked incomplete.
-
-**Code mode - Response** (`filePath` is empty; `moduleId` is the interface processor used as the API context):
+**Response**:
 ```json
 {
   "success": true,
@@ -1235,10 +1160,13 @@ When `autocompletePosition` is supplied, the response also contains `completionL
   "diagnostics": [
     {
       "line": 1,
-      "column": 1,
-      "severity": "error",
-      "source": "api-validation",
-      "message": "Function / constant not found: Console.prnt (did you mean: print?)",
+      "column": 13,
+      "charIndex": 12,
+      "filePath": "onInit()",
+      "processorId": "Interface",
+      "errorMessage": "Function / constant not found: Console.prnt. Use: print",
+      "errorType": "error",
+      "sourceType": "diagnostics",
       "suggestions": ["print"]
     }
   ],
@@ -1247,43 +1175,9 @@ When `autocompletePosition` is supplied, the response also contains `completionL
 }
 ```
 
-**Diagnostic Fields**:
+`diagnostics` contains all fields from `UriError::toJSON()`, including optional diagnostic metadata. `success: true` means the shadow parse ran, not that the code has no diagnostics. Invalid parameters and missing files or processors produce HTTP 400 or 404 responses.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `line` | int | 1-based line number in the file |
-| `column` | int | 1-based column number |
-| `severity` | string | `"error"`, `"warning"`, `"info"`, or `"hint"` |
-| `source` | string | Diagnostic category (see table below) |
-| `message` | string | Human-readable diagnostic message |
-| `suggestions` | string[] | Optional "did you mean?" suggestions from fuzzy matching |
-
-**Source Categories**:
-
-| Source | What it catches |
-|--------|----------------|
-| `syntax` | Parse errors, preprocessor errors |
-| `api-validation` | Unknown methods/constants, wrong argument count |
-| `type-check` | Literal type mismatches (String where int expected, etc.) |
-| `language` | HISEScript rule violations (const var in function, nested inline, undefined literal) |
-| `callscope` | Unsafe API calls in audio-thread callbacks |
-
-**Error Cases**:
-
-| Status | Condition |
-|--------|-----------|
-| 400 | Neither `moduleId` nor `filePath` provided |
-| 400 | `moduleId` provided but processor has no external files and `filePath` is omitted |
-| 404 | Unknown `moduleId` |
-| 404 | `filePath` not found on disk |
-| 404 | No processor includes the specified file (never compiled) |
-
-**Notes**:
-- `success: true` means the shadow parse completed — diagnostics are in the `diagnostics` array, not in `errors`
-- The `errors` array is for REST-level errors (captured console output), not diagnostics
-- Always reads the file from disk — save pending edits before calling
-- The shadow parse takes ~50ms (audio is briefly suspended via `killVoicesAndCall`)
-- Does not modify any runtime state — safe to call repeatedly during editing
+For editor completion, use the separate `/api/lsp/completion` route. This endpoint does not accept an autocomplete position or return a completion list.
 
 ---
 
