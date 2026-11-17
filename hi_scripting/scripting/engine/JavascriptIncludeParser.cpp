@@ -208,18 +208,44 @@ private:
 
 		match(TokenTypes::closeParen);
 
+		auto createIterator = [&]()
+		{
+			UriLocationTree::Ptr iterator = new UriLocationTree(currentScope);
+
+			iteratorLocation.fillLocation(*iterator);
+			iterator->id = iteratorId;
+			setCategory(iterator.get(), Category::Iterator);
+		};
+
 		if (currentType == TokenTypes::openBrace)
 		{
 			parseScope();
 			setCategory(currentScope, Category::Loop);
 			
 			blockStart.fillLocation(*currentScope);
+			createIterator();
+			
+		}
+		else
+		{
+			// create a dummy scope for the next non-block statement
+			auto scopeLocation = location.createUriLocation();
 
-			UriLocationTree::Ptr iterator = new UriLocationTree(currentScope);
+			currentScope = new UriLocationTree(currentScope.get());
+			setCategory(currentScope, Category::Loop);
+			blockStart.fillLocation(*currentScope);
 
-			iteratorLocation.fillLocation(*iterator);
-			iterator->id = iteratorId;
-			setCategory(iterator.get(), Category::Iterator);
+			createIterator();
+
+			while (!matchesAny(TokenTypes::semicolon, TokenTypes::eof))
+			{
+				skip();
+			}
+
+			matchIf(TokenTypes::semicolon);
+
+			currentScope->closeLocation = location.createUriLocation();
+			currentScope = currentScope->getParent();
 		}
 	}
 
@@ -255,6 +281,8 @@ private:
 
 		auto wt = matchVarType();
 
+		UriLocation tokenLocation;
+
 		if (isFunction)
 		{
 			if (matchIf(TokenTypes::openBracket))
@@ -265,16 +293,18 @@ private:
 				match(TokenTypes::closeBracket);
 			}
 
+			location.fillLocation(tokenLocation);
+
 			if (currentType == TokenTypes::identifier)
 				id = parseIdentifier();
 			else
 				id = "anonymousFunction"; // allow anonymous functions as callback parameter
 		}
 		else
+		{
+			location.fillLocation(tokenLocation);
 			id = parseIdentifier();
-
-
-		
+		}
 
 		if (isFunction)
 		{
@@ -355,6 +385,8 @@ private:
 
 		thisDef->id = id;
 		thisDef->category = category;
+
+		thisDef->setTokenLocation(tokenLocation);
 	}
 
 	void parseInclude()

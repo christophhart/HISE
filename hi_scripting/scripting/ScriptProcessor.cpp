@@ -1027,7 +1027,7 @@ bool JavascriptProcessor::jumpToDefinition(const UriLocation::WithExpression& lo
 	auto data = HiseJavascriptEngine::SimpleExpressionData::parse(getScriptEngine(), locationAndToken);
 
 	if (auto t = data.getResolvedNode())
-		return PopupIncludeEditor::gotoUriLocation(this, nullptr, *t);
+		return PopupIncludeEditor::gotoUriLocation(this, nullptr, t->getTokenLocation());
 
 	return false;
 }

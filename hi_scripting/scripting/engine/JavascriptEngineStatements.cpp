@@ -1047,12 +1047,6 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 				e.errorMessage = "Breakpoint hit";
 			}
 
-			auto attachState = jp->sendUriBreakpointEvent(e);
-
-			if (attachState == UriBreakpoint::Owner::AttachState::Stale)
-			{
-
-			}
 			return e;
 		}
 	};

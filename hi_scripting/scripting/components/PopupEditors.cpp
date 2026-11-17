@@ -834,14 +834,14 @@ struct BreakpointDebugTooltip : public mcl::TooltipWithArea::ComponentWithData,
 	};
 
 	struct Content : public Component,
-					 public UriErrorLogger::Listener
+					 public UriBreakpoint::Owner::UriBreakpointListener
 	{
 		Content(BreakpointDebugTooltip& parent, JavascriptProcessor* jp_) :
 			data(parent.data),
 			jp(jp_),
 			r(Result::ok())
 		{
-			jp->errorProvider.addListener(this, false);
+			jp->addUriBreakpointListener(this);
 
 			triggerEvaluation();
 			setSize(150, 24);
@@ -851,7 +851,7 @@ struct BreakpointDebugTooltip : public mcl::TooltipWithArea::ComponentWithData,
 
 		~Content()
 		{
-			jp->errorProvider.removeListener(this);
+			jp->removeUriBreakpointListener(this);
 		}
 
 		void triggerEvaluation()
@@ -901,21 +901,22 @@ struct BreakpointDebugTooltip : public mcl::TooltipWithArea::ComponentWithData,
 			}
 		}
 
-		void onError(const UriError& e, int numOccurrences) override
+		void onUriBreakpointChange(const UriBreakpoint& bp, ChangeType changeType) override {};
+		void onUriBreakpointClear() override {};
+		void onUriBreakpointAttachTypeChange(const UriBreakpoint& bp, UriBreakpoint::Owner::AttachState newAttachState) override {};
+		void onUriBreakpointEvent(const UriBreakpoint& knownBreakpoint, const UriError& breakpointEvent) 
 		{
-			if (e.sourceType == UriError::SourceType::Debug &&
-				e.errorType == UriError::ErrorType::Breakpoint)
-			{
-				triggerEvaluation();
-			}
+			triggerEvaluation();
+		};
+
+		bool matchesUriLocation(const UriLocation& bp) const override
+		{
+			return bp.processorId == jp->getUriProcessorId();
 		}
 
-		void onClear(UriError::SourceType s) override
+		bool matchesUriBreakpointEvent(const UriError& e) const override
 		{
-			if (s == UriError::SourceType::Debug)
-			{
-				triggerEvaluation();
-			}
+			return e.processorId == jp->getUriProcessorId();
 		}
 
 		void resized() override

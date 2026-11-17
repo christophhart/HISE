@@ -424,7 +424,22 @@ struct UriLocationTree : public UriLocation,
 	UriLocationTree** begin() const { return const_cast<UriLocationTree**>(children.begin()); }
 	UriLocationTree** end() const { return begin() + children.size(); }
 
+	UriLocation getTokenLocation() const
+	{
+		if (tokenLocation)
+			return tokenLocation;
+
+		return *this;
+	}
+
+	void setTokenLocation(const UriLocation& tk)
+	{
+		tokenLocation = tk;
+	}
+
 private:
+
+	UriLocation tokenLocation;
 
 	UriError createError(const UriLocation& errorLocation, const String& errorMessage) const;
 
