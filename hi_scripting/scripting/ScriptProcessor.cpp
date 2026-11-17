@@ -3268,13 +3268,8 @@ void JavascriptThreadPool::run()
 			Array<WeakReference<JavascriptProcessor>> compiledProcessors;
 			compiledProcessors.ensureStorageAllocated(16);
 
-			auto r = executeQueue(Task::LowPriorityCallbackExecution, compiledProcessors);
+			executeQueue(Task::LowPriorityCallbackExecution, compiledProcessors);
 			
-			if (!r.wasOk() && r.toConsoleMessage() != "Engine is dangling")
-			{
-				debugError(getMainController()->getMainSynthChain(), r.toConsoleMessage());
-			}
-
 			PROFILE_ONLY(checkRecording());
 		}
 

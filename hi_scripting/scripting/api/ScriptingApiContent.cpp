@@ -4790,10 +4790,7 @@ bool ScriptingApi::Content::ScriptPanel::internalRepaintIdle(bool forceRepaint, 
 
 	engine->callExternalFunction(paintRoutine, args, &r);
 	
-	if (r.failed())
-	{
-		debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.toConsoleMessage());
-	}
+	LOG_RUNTIME_ERROR(r, dynamic_cast<JavascriptProcessor*>(getScriptProcessor()));
 
 	auto idx = getScriptProcessor()->getScriptingContent()->contentProfile.openTrack(pPaintRoutine);
 	dh->flush(lastId, idx);

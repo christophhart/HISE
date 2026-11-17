@@ -644,17 +644,18 @@ struct RestApiEndpoints
 	/* POST /api/diagnose_script */
 	static void diagnoseScript(Array<RouteMetadata>& m)
 	{
-		auto diagnosticEntry = RouteParameter(Identifier("entry"), "Diagnostic entry")
+		auto diagnosticEntry = RouteParameter(Identifier("entry"), "UriError diagnostic")
 			.withType(ParamType::Object)
 			.withProperty(RouteParameter(RestApiIds::line, "1-based line number")
-				.withType(ParamType::Int))
+				.withType(ParamType::Int).asOptional())
 			.withProperty(RouteParameter(RestApiIds::column, "1-based column number")
-				.withType(ParamType::Int))
-			.withProperty(RouteParameter(RestApiIds::severity, "Diagnostic severity")
-				.withEnumValues({ "error", "warning", "info", "hint" }))
-			.withProperty(RouteParameter(RestApiIds::source, "Diagnostic category")
-				.withEnumValues({ "syntax", "api-validation", "type-check", "language", "callscope", "deprecation" }))
-			.withProperty(RouteParameter(RestApiIds::message, "Human-readable diagnostic message"))
+				.withType(ParamType::Int).asOptional())
+			.withProperty(RouteParameter(RestApiIds::filePath, "Source file or callback"))
+			.withProperty(RouteParameter(RestApiIds::processorId, "Script processor ID"))
+			.withProperty(RouteParameter(RestApiIds::errorMessage, "Human-readable diagnostic message"))
+			.withProperty(RouteParameter(RestApiIds::errorType, "Diagnostic severity")
+				.withEnumValues({ "error", "warning", "info", "hint", "unknown" }))
+			.withProperty(RouteParameter(RestApiIds::sourceType, "UriError source channel"))
 			.withProperty(RouteParameter(RestApiIds::suggestions, "Did-you-mean suggestions from fuzzy matching")
 				.withType(ParamType::Array).asOptional());
 
@@ -663,7 +664,7 @@ struct RestApiEndpoints
 			.withCategory("scripting")
 			.withSummary("Run a diagnostic-only shadow parse on a script file or raw code string")
 			.withDescription("Returns structured diagnostics without modifying runtime state. File mode reads a compiled file against its owning processor; code without filePath uses the first interface processor's API context. When code and filePath are both provided, code overrides the file contents while retaining the owning processor's include and scope context.")
-			.withReturns("Array of diagnostics with line, column, severity, source, message, and suggestions")
+			.withReturns("Array of full UriError diagnostics with location, errorType, sourceType, and suggestions")
 			.withBodyParam(RouteParameter(RestApiIds::moduleId,
 				"The script processor's module ID (file mode). Required if filePath is not provided. "
 				"Ignored when code is used.").asOptional())
@@ -707,7 +708,7 @@ struct RestApiEndpoints
 						.withProperty(RouteParameter(Identifier("textEdit"), "Text edit for the completion").asOptional()))))
 			.withErrorCodes({ 400, 404 })
 			.withRequestExample(R"({"moduleId": "Interface", "filePath": "Scripts/UI.js"})")
-			.withResponseExample("{\"success\": true, \"moduleId\": \"Interface\", \"filePath\": \"D:/Projects/Scripts/UI.js\", \"diagnostics\": [{\"line\": 15, \"column\": 5, \"severity\": \"error\", \"source\": \"api-validation\", \"message\": \"Function / constant not found: Console.prnt (did you mean: print?)\", \"suggestions\": [\"print\"]}], \"logs\": [], \"errors\": []}"));
+			.withResponseExample("{\"success\": true, \"moduleId\": \"Interface\", \"filePath\": \"\", \"diagnostics\": [{\"line\": 1, \"column\": 13, \"filePath\": \"onInit()\", \"processorId\": \"Interface\", \"errorMessage\": \"Function / constant not found: Console.prnt\", \"errorType\": \"error\", \"sourceType\": \"none\", \"suggestions\": [\"print\"]}], \"logs\": [], \"errors\": []}"));
 	}
 
 	/* GET /api/get_included_files */

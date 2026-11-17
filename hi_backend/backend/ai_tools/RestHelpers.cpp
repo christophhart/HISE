@@ -181,6 +181,64 @@ void RestHelpers::ScopedConsoleHandler::handleError(const String& message, const
 }
 
 //==============================================================================
+// UriError capture preserves location and diagnostic metadata.
+
+void RestServer::AsyncRequest::appendError(const UriError& error)
+{
+	auto json = error.toJSON();
+	Array<var> callstack;
+
+	for (int i = (int)error.callstack.size() - 1; i >= 0; --i)
+	{
+		const auto& frame = error.callstack[(size_t)i];
+		auto location = frame.second;
+		location.processorId = error.processorId;
+		callstack.add(frame.first.upToFirstOccurrenceOf("(", false, false) + "() at "
+			+ location.toLocationString(UriLocation::UriFormat::LineAndCol));
+	}
+
+	json.getDynamicObject()->setProperty(RestApiIds::callstack, var(callstack));
+	appendErrorJson(json);
+}
+
+//==============================================================================
+// ScopedJavascriptConsoleHandler implementation
+
+RestHelpers::ScopedJavascriptConsoleHandler::ScopedJavascriptConsoleHandler(
+	MainController* mc, RestServer::AsyncRequest::Ptr request_, JavascriptProcessor* processor_) :
+	ScopedConsoleHandler(mc, request_), processor(processor_), request(*request_)
+{
+	processor_->errorProvider.addListener(this, false);
+}
+
+RestHelpers::ScopedJavascriptConsoleHandler::~ScopedJavascriptConsoleHandler()
+{
+	finish();
+}
+
+void RestHelpers::ScopedJavascriptConsoleHandler::finish()
+{
+	if (auto* jp = processor.get())
+		jp->errorProvider.removeListener(this);
+
+	processor = nullptr;
+}
+
+void RestHelpers::ScopedJavascriptConsoleHandler::onError(const UriError& error, int)
+{
+	if (error.wasOk() || (error.errorType & (UriError::Breakpoint | UriError::Blink)))
+		return;
+
+	if (error.errorType == UriError::Info || error.errorType == UriError::Hint)
+	{
+		request.appendLog(error.errorMessage);
+		return;
+	}
+
+	request.appendError(error);
+}
+
+//==============================================================================
 // ReplayConsoleHandler implementation
 
 RestHelpers::ReplayConsoleHandler::ReplayConsoleHandler(MainController* mc, InteractionTestWindow* window_, bool enabled) :
@@ -541,7 +599,10 @@ RestServer::Response RestHelpers::handleEvaluateREPL(MainController* mc, RestSer
 	res->setProperty(RestApiIds::value, v);
 
 	if (!r.wasOk())
+	{
+		req->appendError(r.getErrorMessage());
 		debugError(dynamic_cast<Processor*>(jp), r.getErrorMessage());
+	}
 
 	req->complete(RestServer::Response::ok(var(res.get())));
 	return req->waitForResponse();
@@ -2973,17 +3034,10 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 	}, sendNotificationSync);
 
 	Array<var> diagnostics;
-	for (const auto& d : parseErrors)
+	for (auto& d : parseErrors)
 	{
-		auto full = d.toJSON();
-		DynamicObject::Ptr entry = new DynamicObject();
-		entry->setProperty(RestApiIds::line, full[RestApiIds::line]);
-		entry->setProperty(RestApiIds::column, full[RestApiIds::column]);
-		entry->setProperty(RestApiIds::severity, full[RestApiIds::severity]);
-		entry->setProperty(RestApiIds::source, full[RestApiIds::source]);
-		entry->setProperty(RestApiIds::message, full[RestApiIds::message]);
-		entry->setProperty(RestApiIds::suggestions, full[RestApiIds::suggestions]);
-		diagnostics.add(var(entry.get()));
+		d.sourceType = UriError::SourceType::Diagnostics;
+		diagnostics.add(d.toJSON());
 	}
 
 	DynamicObject::Ptr result = new DynamicObject();

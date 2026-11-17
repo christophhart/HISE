@@ -277,8 +277,14 @@ void MainController::CodeHandler::writeToConsole(const String &t, int warningLev
 
 	if (customLogger)
 	{
-		customLogger(t, warningLevel, p);
-		return;
+		// messages from a UriLocation::Owner are handled through the UriLocationLogger system
+		auto hasSpecialLogger = dynamic_cast<const UriLocation::Owner*>(p) != nullptr;
+
+		if (!hasSpecialLogger)
+		{
+			customLogger(t, warningLevel, p);
+			return;
+		}
 	}
 
 #endif

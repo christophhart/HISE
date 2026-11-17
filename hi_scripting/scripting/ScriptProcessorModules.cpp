@@ -1019,7 +1019,7 @@ void JavascriptMasterEffect::prepareToPlay(double sampleRate, int samplesPerBloc
 		scriptEngine->setCallbackParameter((int)Callback::prepareToPlay, 1, samplesPerBlock);
 		scriptEngine->executeCallback((int)Callback::prepareToPlay, &lastResult);
 
-		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.toConsoleMessage()));
+		LOG_RUNTIME_ERROR(lastResult, this);
 	}
 
 	extraModSources.prepareToPlay(sampleRate, samplesPerBlock);
@@ -1117,7 +1117,7 @@ void JavascriptMasterEffect::renderWholeBuffer(AudioSampleBuffer &buffer)
 			scriptEngine->setCallbackParameter((int)Callback::processBlock, 0, channelData);
 			scriptEngine->executeCallback((int)Callback::processBlock, &lastResult);
 
-			BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.toConsoleMessage()));
+			LOG_RUNTIME_ERROR(lastResult, this);
 		}
 	}
 }
@@ -1169,7 +1169,7 @@ void JavascriptMasterEffect::applyEffect(AudioSampleBuffer &b, int startSample, 
 		scriptEngine->setCallbackParameter((int)Callback::processBlock, 0, channelData);
 		scriptEngine->executeCallback((int)Callback::processBlock, &lastResult);
 
-		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.toConsoleMessage()));
+		LOG_RUNTIME_ERROR(lastResult, this);
 	}
 }
 
@@ -1287,14 +1287,14 @@ void JavascriptVoiceStartModulator::handleHiseEvent(const HiseEvent& m)
 			scriptEngine->setCallbackParameter(onVoiceStop, 0, 0);
 			scriptEngine->executeCallback(onVoiceStop, &lastResult);
 
-			BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.toConsoleMessage()));
+			LOG_RUNTIME_ERROR(lastResult, this);
 		}
 	}
 	else if (m.isController() && !onControllerCallback->isSnippetEmpty())
 	{
 		scriptEngine->executeCallback(onController, &lastResult);
 
-		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.toConsoleMessage()));
+		LOG_RUNTIME_ERROR(lastResult, this);
 	}
 }
 
@@ -1484,20 +1484,20 @@ void JavascriptTimeVariantModulator::handleHiseEvent(const HiseEvent &m)
 		if (!onNoteOnCallback->isSnippetEmpty())
 			scriptEngine->executeCallback(onNoteOn, &lastResult);
 
-		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.toConsoleMessage()));
+		LOG_RUNTIME_ERROR(lastResult, this);
 	}
 	else if (m.isNoteOff())
 	{
 		if (!onNoteOffCallback->isSnippetEmpty())
 			scriptEngine->executeCallback(onNoteOff, &lastResult);
 
-		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.toConsoleMessage()));
+		LOG_RUNTIME_ERROR(lastResult, this);
 	}
 	else if (m.isController() && !onControllerCallback->isSnippetEmpty())
 	{
 		scriptEngine->executeCallback(onController, &lastResult);
 
-		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.toConsoleMessage()));
+		LOG_RUNTIME_ERROR(lastResult, this);
 	}
 
 
@@ -1524,7 +1524,7 @@ void JavascriptTimeVariantModulator::prepareToPlay(double sampleRate, int sample
 		scriptEngine->setCallbackParameter(Callback::prepare, 1, samplesPerBlock);
 		scriptEngine->executeCallback(Callback::prepare, &lastResult);
 
-		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.toConsoleMessage()));
+		LOG_RUNTIME_ERROR(lastResult, this);
 	}
 }
 
@@ -1552,7 +1552,7 @@ void JavascriptTimeVariantModulator::calculateBlock(int startSample, int numSamp
 		scriptEngine->setCallbackParameter(Callback::processBlock, 0, bufferVar);
 		scriptEngine->executeCallback(Callback::processBlock, &lastResult);
 
-		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.toConsoleMessage()));
+		LOG_RUNTIME_ERROR(lastResult, this);
 	}
 
 #if ENABLE_ALL_PEAK_METERS

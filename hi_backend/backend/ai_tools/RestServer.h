@@ -40,9 +40,11 @@
     runtime field. Consumers read it off any response (or `/api/status`) to
     verify they are talking to a HISE build that matches their expected schema.
 */
-#define HISE_REST_API_VERSION "0.13.0"  // 0.13.0: Timed E2E interactions support screenshot and REPL interleaving
+#define HISE_REST_API_VERSION "0.14.0"  // 0.14.0: Script errors preserve full UriError JSON
 
 namespace hise { using namespace juce;
+
+struct UriError;
 
 //==============================================================================
 /** Identifiers for REST API parameter names and JSON response keys.
@@ -227,6 +229,7 @@ namespace RestApiIds
     DECLARE_ID(events);               // Array of profiled events in a thread
     DECLARE_ID(duration);             // Event duration in ms
     DECLARE_ID(sourceType);           // Event source type name
+    DECLARE_ID(errorType);            // Severity of a captured script error
     DECLARE_ID(children);             // Nested child events
     DECLARE_ID(start);                // Event start time in ms
     DECLARE_ID(mode);                 // "record" or "get"
@@ -572,6 +575,7 @@ public:
             String errorMessage;
             StringArray callstack;
             int64 hash = 0;  // For internal deduplication (not serialized)
+            var uriErrorJson;
         };
 
         /** Creates an AsyncRequest wrapping the given HTTP request. */
@@ -591,6 +595,9 @@ public:
         */
         void appendError(const String& errorMessage, const StringArray& callstack = {});
 
+        /** Append a script error with its full UriError JSON (thread-safe). */
+        void appendError(const UriError& error);
+
         /** Call this from the target thread when work is complete.
             
             This will merge any collected logs and errors into the response body
@@ -600,6 +607,9 @@ public:
         */
         void complete(const Response& r)
         {
+            if (consoleCapture != nullptr)
+                consoleCapture->finish();
+
             response = r;
             mergeLogsIntoResponse();
             completed.store(true);
@@ -658,6 +668,7 @@ public:
         */
         struct IConsoleCapture {
             virtual ~IConsoleCapture() = default;
+            virtual void finish() {}
         };
         using ConsoleCapturePtr = std::unique_ptr<IConsoleCapture>;
         
@@ -681,6 +692,9 @@ public:
 
     private:
         ConsoleCapturePtr consoleCapture;
+        /** Store a serialized UriError without coupling the REST transport to HISE types. */
+        void appendErrorJson(const var& errorJson);
+
         /** Merges collected logs and errors into the response body as JSON. */
         void mergeLogsIntoResponse();
 

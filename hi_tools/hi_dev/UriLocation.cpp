@@ -401,6 +401,36 @@ var UriError::toJSON() const
 {
 	auto obj = UriLocation::toJSON();
 
+	obj.getDynamicObject()->setProperty("errorMessage", errorMessage);
+
+	const char* errorTypeName = "unknown";
+	switch (errorType)
+	{
+	case ErrorType::OK: errorTypeName = "ok"; break;
+	case ErrorType::Unknown: break;
+	case ErrorType::Error: errorTypeName = "error"; break;
+	case ErrorType::Warning: errorTypeName = "warning"; break;
+	case ErrorType::Info: errorTypeName = "info"; break;
+	case ErrorType::Hint: errorTypeName = "hint"; break;
+	case ErrorType::Breakpoint: errorTypeName = "breakpoint"; break;
+	case ErrorType::Blink: errorTypeName = "blink"; break;
+	case ErrorType::BreakBlink: errorTypeName = "breakblink"; break;
+	}
+	obj.getDynamicObject()->setProperty("errorType", errorTypeName);
+
+	const char* sourceTypeName = "unknown";
+	switch (sourceType)
+	{
+	case SourceType::None: sourceTypeName = "none"; break;
+	case SourceType::Compilation: sourceTypeName = "compilation"; break;
+	case SourceType::Runtime: sourceTypeName = "runtime"; break;
+	case SourceType::Diagnostics: sourceTypeName = "diagnostics"; break;
+	case SourceType::Debug: sourceTypeName = "debug"; break;
+	case SourceType::Include: sourceTypeName = "include"; break;
+	case SourceType::All: sourceTypeName = "all"; break;
+	}
+	obj.getDynamicObject()->setProperty("sourceType", sourceTypeName);
+
 	if (auto m = metadata.getDynamicObject())
 	{
 		for (const auto& nv : m->getProperties())

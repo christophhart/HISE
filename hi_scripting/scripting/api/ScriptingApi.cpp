@@ -7921,10 +7921,7 @@ bool ScriptingApi::Threads::killVoicesAndCall(const var& functionToExecute)
 			LockHelpers::SafeLock sl(p->getMainController(), LockId::ScriptLock);
 			auto ok = copy.callSync(nullptr, 0, nullptr);
 
-			if(!ok.wasOk())
-			{
-				debugError(p, ok.toConsoleMessage());
-			}
+			LOG_RUNTIME_ERROR(ok, dynamic_cast<JavascriptProcessor*>(p));
 
 			return SafeFunctionCall::OK;
 		}
@@ -8259,10 +8256,7 @@ void ScriptingApi::TransportHandler::Callback::callSync()
 {
 	auto ok = callback.callSync(args, numArgs);
 
-#if USE_BACKEND
-	if(!ok.wasOk())
-		debugError(dynamic_cast<Processor*>(jp), ok.toConsoleMessage());
-#endif
+	LOG_RUNTIME_ERROR(ok, jp);
 }
 
 struct ScriptingApi::TransportHandler::Wrapper

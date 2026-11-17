@@ -285,11 +285,26 @@ RestServer::Response BackendProcessor::onAsyncRequest(RestServer::AsyncRequest::
 
 	debugToConsole(active->getMainSynthChain(), "\tincoming HTTP request: " + req->getRequest().url.toString(true));
 
-	// Attach console handler to request (lifetime tied to request, not stack frame)
-	req->setConsoleCapture(std::make_unique<RestHelpers::ScopedConsoleHandler>(active, req));
-
 	auto subURL = req->getRequest().url.getSubPath(false);
 	auto route = RestHelpers::findRoute(subURL);
+
+	// DAP captures Console.print through the processor's UriErrorLogger listener.
+	// Installing a request-scoped console handler for polling routes can race
+	// with script-thread output after the HTTP request has completed.
+	if (route < RestHelpers::ApiRoute::DapSessionOpen || route > RestHelpers::ApiRoute::DapEvaluate)
+	{
+		const bool executesScript = route == RestHelpers::ApiRoute::SetScript
+			|| route == RestHelpers::ApiRoute::Recompile
+			|| route == RestHelpers::ApiRoute::EvaluateREPL
+			|| route == RestHelpers::ApiRoute::SetComponentValue;
+
+		auto* jp = executesScript ? RestHelpers::getScriptProcessor(active, req) : nullptr;
+
+		if (jp != nullptr)
+			req->setConsoleCapture(std::make_unique<RestHelpers::ScopedJavascriptConsoleHandler>(active, req, jp));
+		else
+			req->setConsoleCapture(std::make_unique<RestHelpers::ScopedConsoleHandler>(active, req));
+	}
 
 	// Reject project/wizard mutations while the snippet browser drives audio,
 	// so the user's real project cannot be modified by accident.

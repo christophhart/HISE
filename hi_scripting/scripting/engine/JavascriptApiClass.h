@@ -655,7 +655,7 @@ struct DiagnosticBase: public ReferenceCountedObject
             }
         }
 
-        var createMetadata() const
+        var createMetadata(bool excludeBasicProperties) const
         {
             DynamicObject* d = new DynamicObject();
 
@@ -664,13 +664,19 @@ struct DiagnosticBase: public ReferenceCountedObject
             for (const auto& s : suggestions)
                 sug.add(s);
 
-            d->setProperty("message", message);
+            if(!excludeBasicProperties)
+                d->setProperty("message", message);
+
+            d->setProperty("errorCode", (int)getErrorCode());
             d->setProperty("wrongToken", wrongToken);
             d->setProperty("rightToken", rightToken);
             d->setProperty("suggestions", var(sug));
-            d->setProperty("severity", getSeverityString(severity));
-            d->setProperty("source", getClassificationString(getClassification()));
-            d->setProperty("errorCode", (int)getErrorCode());
+
+            if (!excludeBasicProperties)
+            {
+                d->setProperty("severity", getSeverityString(severity));
+                d->setProperty("source", getClassificationString(getClassification()));
+            }
 
             return var(d);
         }
@@ -695,7 +701,7 @@ struct DiagnosticBase: public ReferenceCountedObject
             }
 
             e.errorMessage = getEditorString();
-            e.metadata = createMetadata();
+            e.metadata = createMetadata(true);
             return e;
         }
 

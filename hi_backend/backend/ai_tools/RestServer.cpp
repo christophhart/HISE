@@ -277,7 +277,7 @@ void RestServer::AsyncRequest::appendLog(const String& message)
 void RestServer::AsyncRequest::appendError(const String& errorMessage, const StringArray& callstack)
 {
     ScopedLock sl(logLock);
-    
+
     int64 hash = errorMessage.hashCode64();
     
     // Check for duplicate
@@ -288,6 +288,21 @@ void RestServer::AsyncRequest::appendError(const String& errorMessage, const Str
     }
     
     errors.add({ errorMessage, callstack, hash });
+}
+
+void RestServer::AsyncRequest::appendErrorJson(const var& errorJson)
+{
+    ScopedLock sl(logLock);
+    auto hash = JSON::toString(errorJson).hashCode64();
+
+    for (const auto& existing : errors)
+        if (existing.hash == hash)
+            return;
+
+    ErrorEntry entry;
+    entry.hash = hash;
+    entry.uriErrorJson = errorJson;
+    errors.add(entry);
 }
 
 void RestServer::AsyncRequest::mergeLogsIntoResponse()
@@ -344,6 +359,12 @@ void RestServer::AsyncRequest::mergeLogsIntoResponse()
     {
 		for (const auto& err : errors)
 		{
+			if (err.uriErrorJson.isObject())
+			{
+				mergedErrors.add(err.uriErrorJson);
+				continue;
+			}
+
 			DynamicObject::Ptr errObj = new DynamicObject();
 			errObj->setProperty(RestApiIds::errorMessage, err.errorMessage);
 

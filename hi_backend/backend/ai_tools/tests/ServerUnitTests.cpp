@@ -54,6 +54,7 @@ public:
         ctx = std::make_unique<TestContext>(*this);
         
         testServerStartStop();
+        testUriErrorEnvelope();
         testListMethods();
         testStatusEndpoint();
         testStatusPreprocessors();
@@ -467,6 +468,46 @@ private:
         
         expect(ctx->bp->getRestServer().isRunning(), "Server should be running");
         expect(ctx->bp->getRestServer().getPort() == TEST_PORT, "Should use test port");
+    }
+
+    void testUriErrorEnvelope()
+    {
+        /** Setup: A diagnostic UriError with a source location
+         *  Scenario: Append it to an async REST request
+         *  Expected: The response preserves the complete UriError JSON
+         */
+        beginTest("UriError response envelope");
+
+        UriError error;
+        error.sourceType = UriError::Diagnostics;
+        error.errorType = UriError::Warning;
+        error.errorMessage = "Diagnostic warning";
+        error.processorId = "Interface";
+        error.uri = "onInit()";
+        error.line = 7;
+        error.col = 19;
+        error.charIndex = 42;
+
+        RestServer::Request request;
+        RestServer::AsyncRequest::Ptr async = new RestServer::AsyncRequest(request);
+        async->appendError(error);
+        async->complete(RestServer::Response::ok(var(new DynamicObject())));
+        auto json = JSON::parse(async->waitForResponse().body);
+        auto entry = json["errors"][0];
+
+        expectEquals(entry["sourceType"].toString(), String("diagnostics"));
+        expectEquals(entry["errorType"].toString(), String("warning"));
+        expectEquals(entry["errorMessage"].toString(), String("Diagnostic warning"));
+        expectEquals((int)entry["line"], 7);
+        expectEquals((int)entry["column"], 19);
+        expectEquals(entry["processorId"].toString(), String("Interface"));
+        expect(entry["callstack"].isArray(), "Callstack should be an array");
+
+        error.sourceType = UriError::Debug;
+        error.errorType = UriError::Hint;
+        auto debugJson = error.toJSON();
+        expectEquals(debugJson["sourceType"].toString(), String("debug"));
+        expectEquals(debugJson["errorType"].toString(), String("hint"));
     }
     
     //==========================================================================
@@ -3215,7 +3256,7 @@ private:
     {
         /** Setup: External .js file with a known API hallucination
          *  Scenario: Diagnose the file
-         *  Expected: Diagnostic with error severity, api-validation source, and suggestion
+         *  Expected: Full UriError JSON with location, error type, and suggestion
          */
         beginTest("POST /api/diagnose_script (with API error)");
         
@@ -3255,17 +3296,14 @@ private:
             auto d = diagnostics[0];
             expect(d.hasProperty("line"), "Diagnostic should have line");
             expect(d.hasProperty("column"), "Diagnostic should have column");
-            expect(d.hasProperty("severity"), "Diagnostic should have severity");
-            expect(d.hasProperty("source"), "Diagnostic should have source");
-            expect(d.hasProperty("message"), "Diagnostic should have message");
+            expect(d.hasProperty("errorType"), "Diagnostic should have errorType");
+            expect(d.hasProperty("sourceType"), "Diagnostic should have sourceType");
+            expect(d["errorMessage"].toString().isNotEmpty(), "Diagnostic should have errorMessage");
             expect((int)d["line"] >= 1, "Line should be >= 1");
-            
-            auto severity = d["severity"].toString();
-            expect(severity == "error" || severity == "warning", 
-                   "Severity should be error or warning, got: " + severity);
-            
-            auto source = d["source"].toString();
-            expect(source.isNotEmpty(), "Source should not be empty");
+
+            auto errorType = d["errorType"].toString();
+            expect(errorType == "error" || errorType == "warning",
+                   "Error type should be error or warning, got: " + errorType);
             
             // Check for suggestions (fuzzy match should suggest 'print')
             if (d.hasProperty("suggestions"))
@@ -3554,10 +3592,11 @@ private:
         if (diagnostics.size() > 0)
         {
             auto d = diagnostics[0];
-            auto severity = d["severity"].toString();
-            expect(severity == "error" || severity == "warning",
-                   "Severity should be error or warning, got: " + severity);
-            
+            auto errorType = d["errorType"].toString();
+            expect(errorType == "error" || errorType == "warning",
+                   "Error type should be error or warning, got: " + errorType);
+            expect(d["errorMessage"].toString().isNotEmpty(), "Diagnostic should include errorMessage");
+
             if (d.hasProperty("suggestions"))
             {
                 auto suggestions = d["suggestions"];

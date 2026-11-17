@@ -155,8 +155,7 @@ void ScriptUserPresetHandler::loadCustomUserPreset(const var& dataObject)
 		var args = dataObject;
 		auto ok = customLoadCallback.callSync(&args, 1, nullptr);
 
-		if (!ok.wasOk())
-			debugError(getMainController()->getMainSynthChain(), ok.toConsoleMessage());
+		LOG_RUNTIME_ERROR(ok, dynamic_cast<JavascriptProcessor*>(getScriptProcessor()));
 	}
 }
 
@@ -194,8 +193,7 @@ var ScriptUserPresetHandler::saveCustomUserPreset(const String& presetName)
 		var args = presetName;
 		auto ok = customSaveCallback.callSync(&args, 1, &rv);
 
-		if (!ok.wasOk())
-			debugError(getMainController()->getMainSynthChain(), ok.toConsoleMessage());
+		LOG_RUNTIME_ERROR(ok, dynamic_cast<JavascriptProcessor*>(getScriptProcessor()));
 
 		return rv;
 	}

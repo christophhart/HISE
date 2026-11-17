@@ -517,9 +517,9 @@ struct RestHelpers
     
     /** Scoped handler that captures console output during request processing.
         
-        While this object exists, any Console.print() calls or error messages
-        will be captured and added to the AsyncRequest's logs/errors arrays,
-        which are then merged into the JSON response.
+        While this object exists, non-script CodeHandler messages are captured
+        in the AsyncRequest's logs/errors arrays and merged into the response.
+        Script processor output requires ScopedJavascriptConsoleHandler.
         
         Inherits from IConsoleCapture so it can be attached to AsyncRequest
         with proper lifetime management (destroyed when request completes).
@@ -539,6 +539,25 @@ struct RestHelpers
         RestServer::AsyncRequest& request;
     };
     
+    //==========================================================================
+
+    /** Adds output from one script processor to request-scoped console capture. */
+    struct ScopedJavascriptConsoleHandler : public ScopedConsoleHandler,
+                                            public UriErrorLogger::Listener
+    {
+        ScopedJavascriptConsoleHandler(MainController* mc, RestServer::AsyncRequest::Ptr request,
+                                       JavascriptProcessor* processor);
+        ~ScopedJavascriptConsoleHandler() override;
+
+        void finish() override;
+        void onError(const UriError& error, int numOccurrences) override;
+        void onClear(UriError::SourceType) override {}
+
+    private:
+        WeakReference<JavascriptProcessor> processor;
+        RestServer::AsyncRequest& request;
+    };
+
     //==========================================================================
     
     /** Console handler for replay that captures to StatusBar log.

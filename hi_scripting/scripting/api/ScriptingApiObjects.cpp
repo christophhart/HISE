@@ -8250,8 +8250,7 @@ bool ScriptingObjects::ScriptBackgroundTask::killVoicesAndCall(var loadingFuncti
 
 				safeThis->currentTask.clear();
 
-				if (!r.wasOk())
-					debugError(p, r.toConsoleMessage());
+				LOG_RUNTIME_ERROR(r, dynamic_cast<JavascriptProcessor*>(p));
 			}
 				
 			return SafeFunctionCall::OK;
@@ -8359,8 +8358,7 @@ void ScriptingObjects::ScriptBackgroundTask::ChildProcessData::callLog(var* a)
 	{
 		auto ok = processLogFunction.callSync(a, 3);
 
-		if (!ok.wasOk())
-			debugError(dynamic_cast<Processor*>(parent.getScriptProcessor()), ok.toConsoleMessage());
+		LOG_RUNTIME_ERROR(ok, dynamic_cast<JavascriptProcessor*>(parent.getScriptProcessor()));
 	}
 }
 
@@ -8438,10 +8436,7 @@ void ScriptingObjects::ScriptBackgroundTask::run()
 
 			auto r = currentTask.callSync(&t, 1);
 
-#if USE_BACKEND
-			if (!r.wasOk())
-				getScriptProcessor()->getMainController_()->writeToConsole(r.toConsoleMessage(), 1, dynamic_cast<Processor*>(getScriptProcessor()));
-#endif
+			LOG_RUNTIME_ERROR(r, dynamic_cast<JavascriptProcessor*>(getScriptProcessor()));
 		}
 
 		currentTask.clear();

@@ -3285,7 +3285,7 @@ Array<UriError> HiseJavascriptEngine::shadowParse(const DiagnosticBase::ShadowPa
 				.withClassification(ApiClass::DiagnosticResult::Classification::Syntax);
 
 			e.errorType = UriError::ErrorType::Error;
-			e.metadata = dr.createMetadata();
+			e.metadata = dr.createMetadata(true);
 			e.errorMessage = dr.getEditorString();
 
 			tb.getDiagnostics().add(e);
