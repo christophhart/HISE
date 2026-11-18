@@ -503,6 +503,55 @@ static void addLafRenderWarningIfNeeded(MainController* mc,
 #endif
 }
 
+struct BreakpointAborter : public UriBreakpoint::Owner::UriBreakpointListener
+{
+	BreakpointAborter(JavascriptProcessor* jp_, RestServer::AsyncRequest::Ptr req_) :
+		jp(jp_),
+		req(req_)
+	{
+		// adding the listener might call this with an existing breakpoint that is wiped
+		// in the upcoming compilation
+		setOwner(jp);
+		ready = true;
+	};
+
+	~BreakpointAborter()
+	{
+		setOwner(nullptr);
+	}
+
+	void onUriBreakpointChange(const UriBreakpoint& bp, ChangeType changeType) override {};
+	void onUriBreakpointClear() override {};
+	void onUriBreakpointAttachTypeChange(const UriBreakpoint& bp, UriBreakpoint::Owner::AttachState newAttachState) override {};
+	void onUriBreakpointEvent(const UriBreakpoint& knownBreakpoint, const UriError& breakpointEvent) override
+	{
+		if (ready)
+		{
+			if (!breakpointEvent.wasOk() && breakpointEvent.errorType == UriError::ErrorType::Breakpoint)
+			{
+				req->appendError(breakpointEvent);
+
+				DynamicObject::Ptr body = new DynamicObject();
+				body->setProperty(RestApiIds::success, false);
+				body->setProperty(RestApiIds::result, "breakpoint interrupted compilation");
+
+				auto response = RestServer::Response::ok(var(body.get()));
+				response.statusCode = 400;
+				req->complete(response);
+			}
+		}
+	};
+
+	bool matchesUriLocation(const UriLocation& bp) const override
+	{
+		return bp.processorId == jp->getUriProcessorId();
+	};
+
+	WeakReference<JavascriptProcessor> jp;
+	RestServer::AsyncRequest::Ptr req;
+	bool ready = false;
+};
+
 RestServer::Response RestHelpers::handleRecompile(MainController* mc, RestServer::AsyncRequest::Ptr req)
 {
 	auto obj = req->getRequest().getJsonBody();
@@ -525,42 +574,42 @@ RestServer::Response RestHelpers::handleRecompile(MainController* mc, RestServer
 	{
 		mc->refreshExternalFiles(true);
 
-		mc->getKillStateHandler().killVoicesAndCall(dynamic_cast<Processor*>(jp), [req, forceSync, mc](Processor* p)
+		auto breakpointChecker = std::make_unique<BreakpointAborter>(jp, req);
+
+		JavascriptProcessor::ResultFunction rf = [req, forceSync, mc, jp](const UriError& result)
 		{
-			JavascriptProcessor::ResultFunction rf = [req, forceSync, mc, p](const UriError& result)
+			DynamicObject::Ptr r = new DynamicObject();
+			r->setProperty(RestApiIds::success, result.wasOk());
+			r->setProperty(RestApiIds::result, result.wasOk() ? "Recompiled OK" : "Compilation / Runtime Error");
+			r->setProperty(RestApiIds::forceSynchronousExecution, forceSync);
+
+			if (forceSync)
+				r->setProperty(RestApiIds::warning, "Executed in unsafe synchronous mode - threading checks bypassed");
+
+			// Check for LAF render warnings on successful compilation
+			if (result.wasOk())
 			{
-				DynamicObject::Ptr r = new DynamicObject();
-				r->setProperty(RestApiIds::success, result.wasOk());
-				r->setProperty(RestApiIds::result, result.wasOk() ? "Recompiled OK" : "Compilation / Runtime Error");
-				r->setProperty(RestApiIds::forceSynchronousExecution, forceSync);
-				
-				if (forceSync)
-					r->setProperty(RestApiIds::warning, "Executed in unsafe synchronous mode - threading checks bypassed");
-				
-				// Check for LAF render warnings on successful compilation
-				if (result.wasOk())
+				if (auto ps = dynamic_cast<ProcessorWithScriptingContent*>(jp))
 				{
-					if (auto ps = dynamic_cast<ProcessorWithScriptingContent*>(p))
-					{
-						if (auto content = ps->getScriptingContent())
-							addLafRenderWarningIfNeeded(mc, content, r.get());
-					}
+					if (auto content = ps->getScriptingContent())
+						addLafRenderWarningIfNeeded(mc, content, r.get());
 				}
+			}
 
-				addExternalFilesToResponse(p, r.get());
+			addExternalFilesToResponse(dynamic_cast<Processor*>(jp), r.get());
+
+			if(!req->isCompleted())
 				req->complete(RestServer::Response::ok(var(r.get())));
-			};
+		};
 
-			dynamic_cast<JavascriptProcessor*>(p)->compileScript(rf);
-			return SafeFunctionCall::OK;
-		}, MainController::KillStateHandler::TargetThread::ScriptingThread);
+		jp->compileScript(rf);
+
+		return req->waitForResponse();
 	}
 	else
 	{
-		req->fail(404, "moduleId is not a valid script processor");
+		return req->fail(404, "moduleId is not a valid script processor");
 	}
-
-	return req->waitForResponse();
 }
 
 RestServer::Response RestHelpers::handleEvaluateREPL(MainController* mc, RestServer::AsyncRequest::Ptr req)

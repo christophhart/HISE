@@ -682,6 +682,11 @@ public:
             usesCustomErrors = shouldUseCustomErrors;
         }
 
+        bool isCompleted() const
+        {
+            return completed.load();
+        }
+
     private:
         ConsoleCapturePtr consoleCapture;
         /** Store a serialized UriError without coupling the REST transport to HISE types. */

@@ -1845,7 +1845,7 @@
                     "scripting"
                 ],
                 "summary": "Recompile a processor without changing its script",
-                "description": "Recompile a processor, restoring preset values and triggering callbacks for saveInPreset components. Use after editing external .js files on disk, or to re-run initialization code. Optionally starts a profiling session alongside compilation. The response includes the externalFiles list which may have changed.",
+                "description": "Recompile a processor, restoring preset values and triggering callbacks for saveInPreset components. Use after editing external .js files on disk, or to re-run initialization code. Optionally starts a profiling session alongside compilation. The response includes the externalFiles list which may have changed. If compilation hits a breakpoint, HTTP 400 returns promptly with success=false, result=\"breakpoint interrupted compilation\", and the structured breakpoint event in errors. The script remains paused until resumed through DAP or the UI; its eventual compilation result is not included in this response.",
                 "operationId": "recompile",
                 "requestBody": {
                     "required": true,
@@ -1968,6 +1968,9 @@
                                 }
                             }
                         }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid or missing parameters"
                     },
                     "404": {
                         "description": "Not found - unknown module or resource"

@@ -685,6 +685,8 @@ var UriBreakpoint::toJSON() const
 UriBreakpoint::Owner::~Owner()
 {
 	clearBreakpoints(sendNotificationSync);
+
+	ScopedWriteLock sl(listenerLock);
 	listeners.clear();
 }
 
@@ -780,6 +782,8 @@ void UriBreakpoint::Owner::clearBreakpoints(NotificationType n)
 	{
 		onBreakpointClear();
 
+		ScopedReadLock sl(listenerLock);
+
 		for (auto l : listeners)
 			l->onUriBreakpointClear();
 	}
@@ -807,6 +811,8 @@ UriBreakpoint::Owner::AttachState UriBreakpoint::Owner::sendUriBreakpointEvent(c
 			return AttachState::Unresolved;
 
 		onUriBreakpointEvent(resolvedBreakpoint, breakpointEvent);
+
+		ScopedReadLock sl(listenerLock);
 
 		for (auto l : listeners)
 			l->onUriBreakpointEvent(resolvedBreakpoint, breakpointEvent);
@@ -870,6 +876,8 @@ UriBreakpoint::Owner::AttachState UriBreakpoint::Owner::sendUriBreakpointEvent(c
 
 	onUriBreakpointEvent(resolvedBreakpoint, currentBreakpointEvent);
 
+	ScopedReadLock sl(listenerLock);
+
 	for (auto l : listeners)
 	{
 		if (!l->matchesUriBreakpointEvent(currentBreakpointEvent))
@@ -883,7 +891,11 @@ UriBreakpoint::Owner::AttachState UriBreakpoint::Owner::sendUriBreakpointEvent(c
 
 void UriBreakpoint::Owner::addUriBreakpointListener(UriBreakpointListener* newListener)
 {
-	listeners.addIfNotAlreadyThere(newListener);
+	{
+		ScopedWriteLock sl(listenerLock);
+		listeners.addIfNotAlreadyThere(newListener);
+	}
+	
 
 	if (!currentBreakpointEvent.wasOk())
 		newListener->onUriBreakpointEvent({}, currentBreakpointEvent);
@@ -900,6 +912,7 @@ void UriBreakpoint::Owner::addUriBreakpointListener(UriBreakpointListener* newLi
 
 void UriBreakpoint::Owner::removeUriBreakpointListener(UriBreakpointListener* bp)
 {
+	ScopedWriteLock sl(listenerLock);
 	listeners.removeAllInstancesOf(bp);
 }
 
@@ -941,6 +954,8 @@ void UriBreakpoint::Owner::sendBreakpointUpdate(const std::pair<AttachState, Uri
 	{
 		this->onUriBreakpointChange(bp.second, ct);
 		this->onUriBreakpointAttachTypeChange(bp.second, bp.first);
+
+		ScopedReadLock sl(listenerLock);
 
 		for (auto l : listeners)
 		{

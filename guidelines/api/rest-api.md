@@ -346,6 +346,20 @@ curl -X POST "http://localhost:1900/api/recompile" \
 
 **Response**: Same format as `set_script` compile response (includes `externalFiles` array).
 
+If compilation hits a breakpoint, the request returns promptly with HTTP 400 instead of waiting for the paused script to resume. The response has `success: false`, `result: "breakpoint interrupted compilation"`, and a structured breakpoint event in `errors` (including its source location, `errorType: "breakpoint"`, and `sourceType: "debug"`). There is no separate generic interruption error. `logs` contains output captured up to the interruption. Compilation remains paused; resume it through DAP or the HISE UI. Its eventual compilation result is not added to the completed HTTP response.
+
+**Breakpoint response (abbreviated)**:
+```json
+{
+  "success": false,
+  "result": "breakpoint interrupted compilation",
+  "logs": [],
+  "errors": [
+    { "errorMessage": "Breakpoint hit", "errorType": "breakpoint", "sourceType": "debug" }
+  ]
+}
+```
+
 **When to use**:
 - After editing external `.js` files directly on disk
 - To re-run initialization code without changes

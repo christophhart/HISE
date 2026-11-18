@@ -289,7 +289,11 @@ struct RestApiEndpoints
 			.withDescription("Recompile a processor, restoring preset values and triggering callbacks "
 				"for saveInPreset components. Use after editing external .js files on disk, "
 				"or to re-run initialization code. Optionally starts a profiling session alongside "
-				"compilation. The response includes the externalFiles list which may have changed.")
+				"compilation. The response includes the externalFiles list which may have changed. "
+				"If compilation hits a breakpoint, HTTP 400 returns promptly with success=false, "
+				"result=\"breakpoint interrupted compilation\", and the structured breakpoint event "
+				"in errors. The script remains paused until resumed through DAP or the UI; its eventual "
+				"compilation result is not included in this response.")
 			.withReturns("Compilation result with success, logs, errors, externalFiles, and optional lafRenderWarning")
 			.withBodyParam(RouteParameter(RestApiIds::moduleId, "The script processor's module ID")
 				.withExample("Interface"))
@@ -312,7 +316,7 @@ struct RestApiEndpoints
 				.withType(ParamType::Bool).asOptional())
 			.withResponseField(RouteParameter(RestApiIds::warning, "Warning when synchronous mode was used")
 				.asOptional())
-			.withErrorCodes({ 404 })
+			.withErrorCodes({ 400, 404 })
 			.withRequestExample(R"({"moduleId": "Interface"})")
 			.withResponseExample(R"({"success": true, "result": "Recompiled OK", "externalFiles": ["utils.js"], "logs": [], "errors": []})"));
 	}

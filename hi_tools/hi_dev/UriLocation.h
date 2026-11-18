@@ -296,6 +296,8 @@ struct UriBreakpoint : public UriLocation
 
 	private:
 
+		ReadWriteLock listenerLock;
+
 		void sendBreakpointUpdate(const std::pair<AttachState, UriBreakpoint>& bp, UriBreakpointListener::ChangeType ct, NotificationType n);
 
 		UriError currentBreakpointEvent;
