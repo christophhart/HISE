@@ -108,7 +108,7 @@ Component* CodeEditorPanel::createContentComponent(int index)
 			if (f.getFileExtension() == ".h")
 			{
 				snex::ui::WorkbenchData* wb = new snex::ui::WorkbenchData();
-				wb->setUseFileAsContentSource(f);
+				wb->setUseFileAsContentSource(dynamic_cast<JavascriptProcessor*>(getProcessor())->getUriProcessorId(), f);
 				return new snex::SnexPlayground(wb);
 			}
 

@@ -120,6 +120,7 @@ struct ScriptNetworkTest : public hise::ConstScriptingObject
 		bool providesCode() const override { return false; }
 		bool saveCode(const String&) override { return true; }
 		Identifier getInstanceId() const override { return id; }
+		UriLocation getBaseLocation() const override { return {}; }
 		Identifier id;
 	};
 

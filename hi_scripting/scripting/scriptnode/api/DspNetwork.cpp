@@ -2163,14 +2163,15 @@ DspNetwork::CodeManager::Entry::Entry(const Identifier& t, const File& targetFil
 	if (auto xml = XmlDocument::parse(parameterFile))
 		pTree = ValueTree::fromXml(*xml);
 	
-	init(new snex::ui::WorkbenchData::DefaultCodeProvider(wb.get(), targetFile), pTree, sp);
+	init(new snex::ui::WorkbenchData::DefaultCodeProvider(wb.get(), dynamic_cast<JavascriptProcessor*>(sp)->getUriProcessorId(), targetFile), pTree, sp);
 }
 
 struct EmbeddedSnippetCodeProvider: public snex::ui::WorkbenchData::CodeProvider
 {
-	EmbeddedSnippetCodeProvider(ExternalScriptFile::Ptr ef_):
+	EmbeddedSnippetCodeProvider(ExternalScriptFile::Ptr ef_, ProcessorWithScriptingContent* sp):
 	  CodeProvider(nullptr),
-	  ef(ef_)
+	  ef(ef_),
+	  jp(dynamic_cast<JavascriptProcessor*>(sp))
 	{
 		
 	}
@@ -2189,7 +2190,16 @@ struct EmbeddedSnippetCodeProvider: public snex::ui::WorkbenchData::CodeProvider
 	/** Override this method and return the instance id. This will be used to find the main class in nodes. */
 	virtual Identifier getInstanceId() const override { return ef->getFile().getFileNameWithoutExtension(); }
 
+	UriLocation getBaseLocation() const override
+	{
+		UriLocation l;
+		l.processorId = jp->getUriProcessorId();
+		l.uri = ef->getFile().getFullPathName();
+		return l;
+	}
+
 	ExternalScriptFile::Ptr ef;
+	WeakReference<JavascriptProcessor> jp;
 };
 
 DspNetwork::CodeManager::Entry::Entry(const Identifier& t, const ExternalScriptFile::Ptr& embeddedFile, 
@@ -2204,7 +2214,7 @@ DspNetwork::CodeManager::Entry::Entry(const Identifier& t, const ExternalScriptF
 	if(auto xml = XmlDocument::parse(parameterExternalFile->getFileDocument().getAllContent()))
 		pTree = ValueTree::fromXml(*xml);
 
-	init(new EmbeddedSnippetCodeProvider(embeddedFile), pTree, sp);
+	init(new EmbeddedSnippetCodeProvider(embeddedFile, sp), pTree, sp);
 }
 
 void DspNetwork::CodeManager::Entry::parameterAddedOrRemoved(ValueTree, bool)

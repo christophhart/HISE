@@ -89,7 +89,8 @@ mcl::TextEditor::TextEditor(TextDocument& codeDoc)
 		{ "Bracket", 0xffFFFFFF },
 		{ "Punctuation", 0xffCCCCCC },
 		{ "Preprocessor Text", 0xffCC7777 },
-		{ "Deactivated", 0xFF666666 },
+		{ "ScopedStatement", 0xff88bec5 },
+		{ "Preprocessor Deactive", 0xFF444444 }
 	};
 
 	for (unsigned int i = 0; i < sizeof(types) / sizeof(types[0]); ++i)  // (NB: numElementsInArray doesn't work here in GCC4.2)
@@ -3591,71 +3592,73 @@ bool mcl::TextEditor::insert (const juce::String& content)
 		clearParameters(true);
 	}
 
-    if (now > lastTransactionTime + 400)
-    {
-        lastTransactionTime = Time::getApproximateMillisecondCounter();
-        
-    }
-    
-    for (int n = 0; n < document.getNumSelections(); ++n)
-    {
-        Transaction t;
-        t.content = content;
-        t.selection = document.getSelection (n);
-        
-        auto callback = [this, n] (const Transaction& r)
-        {
-            switch (r.direction) // NB: switching on the direction of the reciprocal here
-            {
-                case Transaction::Direction::forward: document.setSelection (n, r.selection, false); break;
-                case Transaction::Direction::reverse: document.setSelection (n, r.selection.tail, false); break;
-            }
+	if (now > lastTransactionTime + 400)
+	{
+		lastTransactionTime = Time::getApproximateMillisecondCounter();
 
-            if (! r.affectedArea.isEmpty())
-            {
-				repaint();
-            }
-        };
+	}
+
+	for (int n = 0; n < document.getNumSelections(); ++n)
+	{
+		Transaction t;
+		t.content = content;
+		t.selection = document.getSelection(n);
+
+		auto callback = [this, n](const Transaction& r)
+			{
+				switch (r.direction) // NB: switching on the direction of the reciprocal here
+				{
+				case Transaction::Direction::forward: document.setSelection(n, r.selection, false); break;
+				case Transaction::Direction::reverse: document.setSelection(n, r.selection.tail, false); break;
+				}
+
+				if (!r.affectedArea.isEmpty())
+				{
+					repaint();
+				}
+			};
 
 		ScopedPointer<UndoableAction> op = t.on(document, callback);
 		op->perform();
 
-    }
-	
+	}
+
 	//refreshLineWidth();
 	//updateViewTransform();
 	translateToEnsureCaretIsVisible();
-    updateSelections();
+	updateSelections();
 
 	lastInsertWasDouble = false;
 
-    // Do not open the autocomplete if we delete a character
-    if(content.isEmpty() && currentAutoComplete == nullptr)
-    {
-        abortAutocomplete();
-    }
+	// Do not open the autocomplete if we delete a character
+	if (content.isEmpty() && currentAutoComplete == nullptr)
+	{
+		abortAutocomplete();
+	}
 
 	diagnosticsTimer.trigger();
-    
-    return true;
+
+	return true;
 }
 
 MouseCursor mcl::TextEditor::getMouseCursor()
 {
-    return getMouseXYRelative().x < gutter.getGutterWidth() ? MouseCursor::NormalCursor : MouseCursor::IBeamCursor;
+	return getMouseXYRelative().x < gutter.getGutterWidth() ? MouseCursor::NormalCursor : MouseCursor::IBeamCursor;
 }
 
 
-void mcl::TextEditor::renderTextUsingGlyphArrangement (juce::Graphics& g)
+void mcl::TextEditor::renderTextUsingGlyphArrangement(juce::Graphics& g)
 {
 	auto c = Helpers::getEditorColour(Helpers::EditorBackgroundColour);
 
 	g.fillAll(c);
 
-    g.saveState();
-    g.addTransform (transform);
+	g.saveState();
+	g.addTransform(transform);
 
 	highlight.paintHighlight(g);
+
+
 
 	if (enableSyntaxHighlighting)
 	{
@@ -3676,15 +3679,23 @@ void mcl::TextEditor::renderTextUsingGlyphArrangement (juce::Graphics& g)
 
 		while (it.getLine() < rows.getEnd() && !it.isEOF())
 		{
-            int tokenType = -1;
+			int tokenType = -1;
 
-            auto cpos = it.getPosition();
-            
-            for(auto dr: deactivatedLines)
-            {
-                if(dr->contains(cpos))
-                {
-                    tokenType = JavascriptTokeniser::tokenType_deactivated;
+			auto cpos = it.getPosition();
+
+			for (auto dr : deactivatedLines)
+			{
+				if (dr->contains(cpos))
+				{
+					tokenType = JavascriptTokeniser::tokenType_deactivated;
+
+					// if this hits, your colour scheme doesn't supply a colour for preprocessor
+
+					if (!isPositiveAndBelow((int)tokenType, colourScheme.types.size()))
+					{
+						colourScheme.types.set((int)tokenType, { "Deactivated", Colour(0xFF444444) });
+					}
+
 					JavascriptTokeniser::readNextTokenStatic(it);
                     break;
                 }

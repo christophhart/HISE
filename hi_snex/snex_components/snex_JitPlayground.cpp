@@ -70,6 +70,8 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 
 	auto& ed = editor.editor;
 
+	ed.getTextDocument().setBaseLocation(data->getCodeProvider()->getBaseLocation());
+
 	ed.setPopupLookAndFeel(new hise::PopupLookAndFeel());
 
 	ed.setLanguageManager(new debug::SnexLanguageManager(doc, getGlobalScope()));
@@ -79,35 +81,6 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 	ed.addPopupMenuFunction([this](mcl::TextEditor& te, PopupMenu& m, const MouseEvent& e) { addPopupMenuItems(te, m, e); }, BIND_MEMBER_FUNCTION_2(SnexPlayground::performPopupMenu));
 
 	auto& d = doc;
-
-	jassertfalse; // TODO_DELETE replace with new goto function
-#if 0
-	ed.setGotoFunction([&d](int lineNumber, const String& token)
-	{
-		mcl::Selection selection;
-
-		GlobalScope s;
-		jit::Compiler c(s);
-
-		Types::SnexObjectDatabase::registerObjects(c, 2);
-
-		c.compileJitObject(d.getAllContent());
-		auto l = c.getNamespaceHandler().getDefinitionLine(lineNumber, token);
-
-		if (l != -1)
-			return l;
-
-		Preprocessor pp(d.getAllContent());
-		pp.process();
-		for (auto l : pp.getAutocompleteData())
-		{
-			if (l.name.upToFirstOccurrenceOf("(", false, false) == token)
-				return l.lineNumber + 1;
-		}
-
-		return -1;
-	});
-#endif
 
 	addAndMakeVisible(editor);
 	addAndMakeVisible(console);
@@ -551,16 +524,27 @@ void SnexPlayground::recalculateInternal()
 
 void SnexPlayground::logMessage(ui::WorkbenchData::Ptr p, int level, const juce::String& s)
 {
-	jassertfalse; //TODO_DELETE replace with UriError
-
-#if 0
-	if (level == jit::BaseCompiler::Error)
-		editor.editor.setError(s);
-
 	if (level == BaseCompiler::MessageType::Blink)
 	{
 		editor.sendBlinkMessage(s.getIntValue());
+		return;
 	}
+	
+
+	UriError::ErrorType t = UriError::ErrorType::OK;
+
+	switch (level)
+	{
+	case jit::BaseCompiler::Error:
+		t = UriError::ErrorType::Error;
+		break;
+	case jit::BaseCompiler::Warning:
+		t = UriError::ErrorType::Warning;
+		break;
+	}
+
+	if (t != UriError::ErrorType::OK)
+		editor.editor.addUriError(parseErrorMessage(s, t));
 
 	auto m = p->convertToLogMessage(level, s);
 
@@ -572,12 +556,6 @@ void SnexPlayground::logMessage(ui::WorkbenchData::Ptr p, int level, const juce:
 		consoleContent.insertText(consoleContent.getNumCharacters(), m);
 		consoleContent.clearUndoHistory();
 	}
-
-	if (level == jit::BaseCompiler::Warning)
-	{
-		editor.editor.addWarning(s);
-	}
-#endif
 }
 
 static void addToSubMenu(File currentFile, Array<File>& addedFiles, PopupMenu& m, const File& f)
@@ -834,7 +812,8 @@ void SnexPlayground::recompiled(ui::WorkbenchData::Ptr p)
 	}
 	else
 	{
-		editor.editor.addUriError(UriError::fromResult(r.compileResult, nullptr));
+		auto error = parseErrorMessage(r.compileResult.getErrorMessage(), UriError::ErrorType::Error);
+		editor.editor.addUriError(error);
 		resultLabel.setText(r.compileResult.getErrorMessage(), dontSendNotification);
 	}
 }
@@ -847,7 +826,7 @@ void SnexPlayground::postPostCompile(ui::WorkbenchData::Ptr wb)
     {
         auto m = wb->getLastResult().compileResult;
         resultLabel.setText(m.getErrorMessage(), dontSendNotification);
-        editor.editor.addUriError(UriError::fromResult(m, nullptr));
+		editor.editor.addUriError(parseErrorMessage(m.getErrorMessage(), UriError::ErrorType::Error));
         
     }
 	else if (!result.testWasOk())
@@ -1176,7 +1155,7 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 
 		if (ed.isLiveParsingEnabled())
 		{
-			ed.clearWarningsAndErrors();
+			ed.clearWarningsAndErrors(UriError::SourceType::Include);
 
 			GlobalScope s;
 			Compiler c(s);
@@ -1186,23 +1165,23 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 			c.compileJitObject(parent.doc.getAllContent());
 			ed.tokenCollection->signalRebuild();
 
-			jassertfalse; //TODO_DELETE replace with UriError
-#if 0
 			auto r = c.getCompileResult();
 
 			if (!r.wasOk())
-				ed.setError(r.getErrorMessage());
-#endif
+			{
+				auto error = parent.parseErrorMessage(r.getErrorMessage(), UriError::ErrorType::Error);
+				error.sourceType = UriError::SourceType::Include;
+				ed.addUriError(error);
+			}
 		}
 	}
 
 	void SnexPlayground::PreprocessorUpdater::logMessage(int level, const juce::String& s)
 	{
-		jassertfalse;
-#if 0
 		if (level == (int)snex::BaseCompiler::Warning)
-			parent.editor.editor.addWarning(s);
-#endif
+		{
+			parent.editor.editor.addUriError(parent.parseErrorMessage(s, UriError::ErrorType::Warning));
+		}
 	}
 
 	snex::ui::WorkbenchData::CompileResult TestCompileThread::compile(const String& s)

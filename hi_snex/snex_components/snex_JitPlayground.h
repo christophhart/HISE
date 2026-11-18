@@ -540,6 +540,14 @@ public:
 			return Identifier("UnsavedTest");
 		}
 
+		UriLocation getBaseLocation() const override
+		{
+			UriLocation l;
+			l.uri = f.getFullPathName();
+			l.processorId = "test";
+			return l;
+		}
+
 		SnexPlayground& parent;
 
 		File f;
@@ -709,6 +717,31 @@ private:
 	} blaf;
 
 	void logMessage(ui::WorkbenchData::Ptr d, int level, const juce::String& s) override;
+
+	UriError parseErrorMessage(const String& errorMessage, UriError::ErrorType errorType)
+	{
+		if (errorMessage.isEmpty())
+			return UriError::ok();
+
+		UriError e;
+		
+		e.errorMessage = errorMessage;
+		e.errorType = errorType;
+
+		if (errorMessage.startsWith("Line"))
+		{
+			auto line = errorMessage.fromFirstOccurrenceOf("Line", false, false).upToFirstOccurrenceOf("(", false, false).trim().getIntValue();
+			auto col = errorMessage.fromFirstOccurrenceOf("(", false, false).upToFirstOccurrenceOf(")", false, false).trim().getIntValue();
+
+			CodeDocument::Position pos(editor.editor.getDocument(), line - 1, col - 1);
+			auto baseLocation = getWorkbench()->getCodeProvider()->getBaseLocation();
+			baseLocation.fillLocation(pos);
+			e.fillLocation(baseLocation);
+			e.errorMessage = errorMessage.fromFirstOccurrenceOf(":", false, false).trim();
+		}
+
+		return e;
+	}
 
 	void eventHappened(BreakpointHandler* handler, BreakpointHandler::EventType type) override
 	{

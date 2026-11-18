@@ -958,6 +958,8 @@ public:
 		/** Override this method and return the instance id. This will be used to find the main class in nodes. */
 		virtual Identifier getInstanceId() const = 0;
 
+		virtual UriLocation getBaseLocation() const = 0;
+
 	private:
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(CodeProvider);
@@ -966,9 +968,10 @@ public:
 
 	struct DefaultCodeProvider: public CodeProvider
 	{
-		DefaultCodeProvider(WorkbenchData* parent, const File& f_):
+		DefaultCodeProvider(WorkbenchData* parent, const String processorId_, const File& f_):
 			CodeProvider(parent),
-			f(f_)
+			f(f_),
+			processorId(processorId_)
 		{
 			
 		}
@@ -1012,7 +1015,16 @@ public:
 			return {};
 		}
 
+		UriLocation getBaseLocation() const override
+		{
+			UriLocation l;
+			l.uri = f.getFullPathName();
+			l.processorId = processorId;
+			return l;
+		}
+
 		File f;
+		String processorId;
 	};
 
 
@@ -1042,6 +1054,12 @@ public:
 		}
 
 		Identifier getInstanceId() const override { return id; }
+
+		UriLocation getBaseLocation() const override
+		{
+			jassertfalse;
+			return {};
+		}
 
 		Identifier id;
 		Value codeValue;
@@ -1130,9 +1148,9 @@ public:
 
 	bool handleCompilation();
 
-	void setUseFileAsContentSource(const File& f)
+	void setUseFileAsContentSource(const String& processorId, const File& f)
 	{
-		codeProvider = new DefaultCodeProvider(this, f);
+		codeProvider = new DefaultCodeProvider(this, processorId, f);
 	}
 
 	bool setCode(const String& s, NotificationType recompileOnOk)
