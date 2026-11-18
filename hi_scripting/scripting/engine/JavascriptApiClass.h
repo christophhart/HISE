@@ -711,7 +711,6 @@ struct DiagnosticBase: public ReferenceCountedObject
 
             if (errorCode != ErrorCode::Unknown)
             {
-                auto sev = (Severity)((int)errorCode / 1000);
                 s << "[";
                 s << getSeverityString(severity).toUpperCase()[0];
                 s << String((int)errorCode);

@@ -343,8 +343,6 @@ public:
 
 		g.setColour(Colours::white.withAlpha(0.8f));
 
-		int textX = 4;
-
 		if (isFolder)
 		{
 			g.drawImage(folderIcon, b.removeFromLeft(height).reduced(2.0f), RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize);

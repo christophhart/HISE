@@ -782,8 +782,8 @@ private:
 
 		void initNodeIdLists()
 		{
-			signalNodeIds.ensureStorageAllocated(items.size());
-			cableNodeIds.ensureStorageAllocated(items.size());
+			signalNodeIds.ensureStorageAllocated((int)items.size());
+			cableNodeIds.ensureStorageAllocated((int)items.size());
 
 			for (const auto& i : items)
 			{

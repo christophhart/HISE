@@ -897,7 +897,7 @@ struct HostHelpers
 	static void setNumDataObjectsFromValueTree(OpaqueNode& on, const ValueTree& v);
 };
 
-struct Parameter;
+class Parameter;
 
 struct InjectHelpers
 {

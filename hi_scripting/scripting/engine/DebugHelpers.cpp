@@ -671,7 +671,7 @@ struct UriErrorDebugInformation : public UriLocationDebugInformation
 
 	int getNumChildElements() const override
 	{
-		return error.first.callstack.size();
+		return (int)error.first.callstack.size();
 	}
 
 	Ptr getChildElement(int index) override

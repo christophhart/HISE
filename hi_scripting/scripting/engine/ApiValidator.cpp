@@ -58,7 +58,6 @@ struct HiseJavascriptEngine::RootObject::ObjectTypeMap::ScopeStack
 
 	ScopeSafety getMinimumRequiredScopeSafety() const
 	{
-	
 		auto onInitAllowed = true;
 		
 		bool nonRealtimeAllowed = true;
@@ -82,6 +81,8 @@ struct HiseJavascriptEngine::RootObject::ObjectTypeMap::ScopeStack
 
 		if (!onInitAllowed)
 			return ScopeSafety::Unsafe;
+
+		return ScopeSafety::Unknown;
 	}
 
 	DR push(DynamicObject::Ptr newScope, Strictness strictness = Strictness::Unset, ScopeSafety safety = ScopeSafety::Unknown)
@@ -277,7 +278,7 @@ HiseJavascriptEngine::RootObject::Scope& HiseJavascriptEngine::RootObject::Objec
 void HiseJavascriptEngine::RootObject::ObjectTypeMap::shadowParse(Statement* s)
 {
 	var rv;
-	auto resultCode = s->perform(getCurrentScope(), &rv);
+	s->perform(getCurrentScope(), &rv);
 }
 
 void HiseJavascriptEngine::RootObject::ObjectTypeMap::addDiagnostic(const UriError& i)
