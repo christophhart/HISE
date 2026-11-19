@@ -251,6 +251,18 @@ public:
 		return nullptr;
 	}
 	
+	void setUriErrorLogger(hise::UriErrorLogger* logger, const hise::UriLocation& location)
+	{
+		uriLogger = logger;
+		uriBaseLocation = location;
+	}
+
+	void setUriLocationBuilder(UriLocationBuilder::Ptr builder)
+	{
+		if (uriLogger != nullptr)
+			uriLocationBuilder = builder;
+	}
+
 	void addDebugHandler(DebugHandler* handler)
 	{
 		debugHandlers.addIfNotAlreadyThere(handler);
@@ -386,6 +398,7 @@ public:
 private:
 
 	void handleAsyncUpdate();
+	void publishUriLog(const String& message);
 
 	bool clearNext = false;
 	hise::SimpleReadWriteLock messageLock;
@@ -412,6 +425,9 @@ private:
 	StringArray optimizationPasses;
 
 	Array<WeakReference<DebugHandler>> debugHandlers;
+	hise::UriErrorLogger* uriLogger = nullptr; // The session owns this scope and outlives its notifications.
+	hise::UriLocation uriBaseLocation;
+	UriLocationBuilder::Ptr uriLocationBuilder;
 
 	Array<WeakReference<ObjectDeleteListener>> deleteListeners;
 

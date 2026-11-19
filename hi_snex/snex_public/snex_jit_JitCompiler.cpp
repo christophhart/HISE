@@ -189,6 +189,7 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 	lastCode = code;
 	locationBuilder = nullptr;
 	compiler->setUriLocationBuilder(nullptr);
+	memory.setUriLocationBuilder(nullptr);
 	
 	try
 	{
@@ -212,14 +213,18 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 	locationBuilder = new UriLocationBuilder(lastCode, preprocessedCode);
 	locationBuilder->baseLocation = uriBaseLocation;
 	compiler->setUriLocationBuilder(locationBuilder);
+	memory.setUriLocationBuilder(locationBuilder);
 
 	JitObject snexObject(compiler->compileAndGetScope(preprocessedCode));
 
 	cr = compiler->getLastResult();
 
 #if SNEX_INTERPRETER_BACKEND
-	if (cr.wasOk())
+	if (useInterpreter)
 	{
+		if (cr.failed())
+			return {};
+
 		interpreter::ExpressionTreeBuilder builder(locationBuilder, getAST(), compiler->namespaceHandler.getComplexTypeList());
 
 		JitObject interpreterObject(builder.createEngine(memory));
@@ -228,8 +233,10 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 
 		return interpreterObject;
 	}
-	else
+#else
+	if (useInterpreter)
 	{
+		cr = Result::fail("SNEX interpreter backend is not available");
 		return {};
 	}
 #endif

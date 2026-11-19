@@ -209,7 +209,15 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 
 	bugButton.onClick = [this]()
 	{
-		getWorkbench()->setDebugMode(bugButton.getToggleState(), sendNotification);
+		if (testMode)
+		{
+			if (prototypeSession != nullptr)
+				prototypeSession->setUseInterpreter(bugButton.getToggleState());
+		}
+		else
+		{
+			getWorkbench()->setDebugMode(bugButton.getToggleState(), sendNotification);
+		}
 	};
 
 	compileButton.onClick = [this]()
@@ -264,6 +272,7 @@ void SnexPlayground::compileWithSession()
 		prototypeSession->addListener(this, true);
 	}
 
+	prototypeSession->setUseInterpreter(bugButton.getToggleState());
 	editor.editor.getTextDocument().setBaseLocation(prototypeSession->getBaseLocation());
 
 	auto sourceSnapshot = doc.getAllContent();
@@ -307,6 +316,19 @@ SnexPlayground::~SnexPlayground()
 
 void SnexPlayground::onError(const hise::UriError& error, int numOccurrences)
 {
+	if (error.sourceType == hise::UriError::Log && error.errorType == hise::UriError::Info)
+	{
+		hise::SafeAsyncCall::callAsyncIfNotOnMessageThread<SnexPlayground>(*this, [error](SnexPlayground& playground)
+		{
+			if (playground.editor.editor.matchesUriLocation(error))
+			{
+				playground.consoleContent.insertText(playground.consoleContent.getNumCharacters(),
+					error.errorMessage + "\n");
+			}
+		});
+		return;
+	}
+
 	if (error.sourceType != hise::UriError::Compilation || numOccurrences != 1)
 		return;
 
@@ -319,12 +341,16 @@ void SnexPlayground::onError(const hise::UriError& error, int numOccurrences)
 
 void SnexPlayground::onClear(hise::UriErrorLogger::SourceType sourceType)
 {
-	if (!(sourceType & hise::UriError::Compilation))
-		return;
-
-	hise::SafeAsyncCall::callAsyncIfNotOnMessageThread<SnexPlayground>(*this, [](SnexPlayground& playground)
+	hise::SafeAsyncCall::callAsyncIfNotOnMessageThread<SnexPlayground>(*this, [sourceType](SnexPlayground& playground)
 	{
-		playground.editor.editor.clearWarningsAndErrors(hise::UriError::Compilation);
+		if (sourceType & hise::UriError::Compilation)
+			playground.editor.editor.clearWarningsAndErrors(hise::UriError::Compilation);
+
+		if (sourceType & hise::UriError::Log)
+		{
+			playground.consoleContent.replaceAllContent({});
+			playground.consoleContent.clearUndoHistory();
+		}
 	});
 }
 

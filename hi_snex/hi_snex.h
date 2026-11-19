@@ -329,11 +329,11 @@ namespace snex
 #include "snex_core/snex_jit_FunctionClass.h"
 #include "snex_core/snex_jit_NamespaceHandler.h"
 #include "snex_core/snex_jit_BaseScope.h"
+#include "snex_public/snex_UriLocationBuilder.h"
 #include "snex_public/snex_jit_GlobalScope.h"
 #include "snex_mir/snex_MirObject.h"
 #include "snex_core/snex_jit_JitCallableObject.h"
 #include "snex_core/snex_jit_JitCompiledFunctionClass.h"
-#include "snex_public/snex_UriLocationBuilder.h"
 #include "snex_public/snex_jit_JitCompiler.h"
 
 #if SNEX_INTERPRETER_BACKEND

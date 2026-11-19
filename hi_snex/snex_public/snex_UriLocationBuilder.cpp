@@ -1,7 +1,7 @@
 namespace snex
 {
 
-UriLocationBuilder::UriLocationBuilder(const String& code, const String& preprocessedCode)
+UriLocationBuilder::UriLocationBuilder(const juce::String& code, const juce::String& preprocessedCode)
 {
 	codeDoc.setDisableUndo(true);
 	codeDoc.replaceAllContent(code);
@@ -14,32 +14,32 @@ UriLocationBuilder::UriLocationBuilder(const String& code, const String& preproc
 	}
 }
 
-UriLocation UriLocationBuilder::createLocation(int preprocessedCharIndex) const
+hise::UriLocation UriLocationBuilder::createLocation(int preprocessedCharIndex) const
 {
-	UriLocation location;
+	hise::UriLocation location;
 	location.fillLocation(baseLocation);
 
 	if (preprocessedCharIndex < 0)
 		return location;
 
 	const auto& source = resolvePreprocessedCode ? preprocessedDoc : codeDoc;
-	CodeDocument::Position position(source, preprocessedCharIndex);
-	CodeDocument::Position original(codeDoc, position.getLineNumber(), position.getIndexInLine());
+	juce::CodeDocument::Position position(source, preprocessedCharIndex);
+	juce::CodeDocument::Position original(codeDoc, position.getLineNumber(), position.getIndexInLine());
 	location.fillLocation(original);
 	return location;
 }
 
-UriLocation UriLocationBuilder::createLocationFromLineAndCol(int line, int col) const
+hise::UriLocation UriLocationBuilder::createLocationFromLineAndCol(int line, int col) const
 {
-	UriLocation location;
+	hise::UriLocation location;
 	location.fillLocation(baseLocation);
 
 	if (line < 1 || col < 1)
 		return location;
 
 	const auto& source = resolvePreprocessedCode ? preprocessedDoc : codeDoc;
-	CodeDocument::Position position(source, line - 1, col - 1);
-	CodeDocument::Position original(codeDoc, position.getLineNumber(), position.getIndexInLine());
+	juce::CodeDocument::Position position(source, line - 1, col - 1);
+	juce::CodeDocument::Position original(codeDoc, position.getLineNumber(), position.getIndexInLine());
 	location.fillLocation(original);
 	return location;
 }

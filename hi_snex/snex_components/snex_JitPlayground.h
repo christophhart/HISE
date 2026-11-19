@@ -745,8 +745,11 @@ private:
 
 	void debugModeChanged(bool isEnabled) override
 	{
-		bugButton.setToggleStateAndUpdateIcon(isEnabled);
-		editor.enableBreakpoints(isEnabled);
+		if (!testMode)
+		{
+			bugButton.setToggleStateAndUpdateIcon(isEnabled);
+			editor.enableBreakpoints(isEnabled);
+		}
 	}
 
 	void onError(const hise::UriError& error, int numOccurrences) override;

@@ -49,8 +49,8 @@ namespace interpreter {
  *  --------------------------------------
  *  The existing compiler produces the AST and instantiated ComplexType registry;
  *  ExpressionTreeBuilder creates an Engine returned through JitObject. The
- *  compile-time interpreter selection is a temporary development setting;
- *  wire the GlobalScope opt-in before production use. Reject unsupported AST
+ *  SnexSession selects the backend per compilation; validate the opt-in for
+ *  live nodes before production use. Reject unsupported AST
  *  nodes, missing children, unresolved types and symbols, and unsupported native
  *  signatures with attributed builder errors before running initializers.
  *  Review compiler passes that execute native root constructors before claiming

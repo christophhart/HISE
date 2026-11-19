@@ -511,15 +511,20 @@ void UriErrorLogger::logUriError(SourceType s, const UriError& e, NotificationTy
 	{
 		ScopedWriteLock sl(lock);
 
-		for (auto& ex : data[s])
-		{
-			jassert(ex.first.sourceType == s);
+		const bool isLogEvent = s == SourceType::Log && e.errorType == UriError::Info;
 
-			if (ex.first.matches(e))
+		if (!isLogEvent)
+		{
+			for (auto& ex : data[s])
 			{
-				ex.second++;
-				messageError = ex;
-				break;
+				jassert(ex.first.sourceType == s);
+
+				if (ex.first.matches(e))
+				{
+					ex.second++;
+					messageError = ex;
+					break;
+				}
 			}
 		}
 
@@ -527,7 +532,11 @@ void UriErrorLogger::logUriError(SourceType s, const UriError& e, NotificationTy
 		{
 			messageError = { e, 1 };
 			messageError.first.sourceType = s;
-			data[s].push_back(messageError);
+			auto& entries = data[s];
+			entries.push_back(messageError);
+
+			if (isLogEvent && entries.size() > 256)
+				entries.erase(entries.begin());
 		}
 	}
 	

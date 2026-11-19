@@ -32,6 +32,7 @@ SnexSession::SnexSession(const String& processorId_, std::unique_ptr<CodeProvide
 	jassert(source != nullptr);
 	jassert(processorId.isNotEmpty());
 	jassert(numChannels > 0);
+	scope.setUriErrorLogger(this, getBaseLocation());
 }
 
 std::pair<bool, String> SnexSession::getUriContent(const String& uri) const
@@ -63,8 +64,10 @@ Result SnexSession::compileFromSource()
 Result SnexSession::compile(const String& sourceSnapshot)
 {
 	clearUriErrors(hise::UriError::SourceType::Compilation);
+	scope.clearDebugMessages();
 
 	jit::Compiler compiler(scope);
+	compiler.setUseInterpreter(useInterpreter);
 	compiler.setUriErrorLogger(this, getBaseLocation());
 	Types::SnexObjectDatabase::registerObjects(compiler, numChannels);
 

@@ -54,6 +54,9 @@ public:
 	Result compile(const String& sourceSnapshot);
 	Result compileFromSource();
 
+	void setUseInterpreter(bool shouldUseInterpreter) { useInterpreter = shouldUseInterpreter; }
+	bool isUsingInterpreter() const { return useInterpreter; }
+
 	void handleAsyncUpdate() override {}
 	String getUriProcessorId() const override { return processorId; }
 	std::pair<bool, String> getUriContent(const String& uri) const override;
@@ -81,6 +84,7 @@ private:
 	String processorId;
 	std::unique_ptr<CodeProvider> source;
 	const int numChannels;
+	bool useInterpreter = false;
 	jit::GlobalScope scope;
 	JitObject object;
 	jit::ComplexType::Ptr mainClassType;

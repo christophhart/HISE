@@ -4,19 +4,19 @@ namespace snex
 {
 
 /** Maps positions in preprocessed SNEX code back to the original source. */
-struct UriLocationBuilder : public ReferenceCountedObject
+struct UriLocationBuilder : public juce::ReferenceCountedObject
 {
-	using Ptr = ReferenceCountedObjectPtr<UriLocationBuilder>;
+	using Ptr = juce::ReferenceCountedObjectPtr<UriLocationBuilder>;
 
-	UriLocationBuilder(const String& code, const String& preprocessedCode);
+	UriLocationBuilder(const juce::String& code, const juce::String& preprocessedCode);
 
-	UriLocation createLocation(int preprocessedCharIndex) const;
-	UriLocation createLocationFromLineAndCol(int line, int col) const;
+	hise::UriLocation createLocation(int preprocessedCharIndex) const;
+	hise::UriLocation createLocationFromLineAndCol(int line, int col) const;
 
-	CodeDocument codeDoc;
-	CodeDocument preprocessedDoc;
+	juce::CodeDocument codeDoc;
+	juce::CodeDocument preprocessedDoc;
 	bool resolvePreprocessedCode = false;
-	UriLocation baseLocation;
+	hise::UriLocation baseLocation;
 };
 
 } // namespace snex

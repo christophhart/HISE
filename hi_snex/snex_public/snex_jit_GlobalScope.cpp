@@ -240,10 +240,34 @@ void GlobalScope::sendBlinkMessage(int lineNumber)
 	}
 }
 
+void GlobalScope::publishUriLog(const String& message)
+{
+	if (uriLogger == nullptr)
+		return;
+
+	hise::UriError event;
+	event.fillLocation(uriBaseLocation);
+	event.errorType = hise::UriError::Info;
+	event.errorMessage = message.trimEnd();
+
+	if (message.startsWith("Line"))
+	{
+		auto line = message.fromFirstOccurrenceOf("Line", false, false).getIntValue();
+
+		if (uriLocationBuilder != nullptr)
+			event.fillLocation(uriLocationBuilder->createLocationFromLineAndCol(line, 1));
+		else
+		{
+			event.line = line;
+			event.col = 1;
+		}
+	}
+
+	uriLogger->logUriError(hise::UriError::Log, event);
+}
+
 void GlobalScope::logMessage(const String& message)
 {
-	
-
 	if (MessageManager::getInstance()->isThisTheMessageThread())
 	{
 		for (auto dh : debugHandlers)
@@ -251,6 +275,8 @@ void GlobalScope::logMessage(const String& message)
 			if (dh != nullptr)
 				dh->logMessage(BaseCompiler::AsmJitMessage, message);
 		}
+
+		publishUriLog(message);
 	}
 	else
 	{
@@ -472,6 +498,9 @@ void GlobalScope::clearDebugMessages()
 			if (dh != nullptr)
 				dh->clearLogger();
 		}
+
+		if (uriLogger != nullptr)
+			uriLogger->clearUriErrors(hise::UriError::Log);
 	}
 	else
 	{
@@ -495,6 +524,9 @@ void GlobalScope::handleAsyncUpdate()
 				dh->clearLogger();
 		}
 
+		if (uriLogger != nullptr)
+			uriLogger->clearUriErrors(hise::UriError::Log);
+
 		clearNext = false;
 		return;
 	}
@@ -513,6 +545,8 @@ void GlobalScope::handleAsyncUpdate()
 			if (dh != nullptr)
 				dh->logMessage(BaseCompiler::AsmJitMessage, t);
 		}
+
+		publishUriLog(t);
 	}
 }
 
