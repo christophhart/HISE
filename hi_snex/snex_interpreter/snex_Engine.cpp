@@ -38,8 +38,10 @@ namespace interpreter
 Engine::Engine(jit::GlobalScope& scope, const StatementCollection& createdNodes):
   globalScope(scope),
   rootTree(createdNodes.root),
-  rootScope(new Scope(nullptr, this, getMainId()))
+	rootScope(new Scope(nullptr, this, {}))
 {
+	Statement::List initialisers;
+
 	if (auto st = dynamic_cast<SyntaxTree*>(rootTree.get()))
 	{
 		for (auto c : st->children)
@@ -48,8 +50,17 @@ Engine::Engine(jit::GlobalScope& scope, const StatementCollection& createdNodes)
 			{
 				if (auto v = dynamic_cast<VariableReference*>(as->target.get()))
 				{
-					
+					if (v->symbol.id.getParent() == rootScope->id &&
+						rootScope->find(v->symbol.id.id) == nullptr)
+					{
+						auto& type = v->symbol.typeInfo;
+						auto result = rootScope->addSymbol(v->symbol, type.getRequiredByteSize(),
+							type.getRequiredAlignment());
+						jassert(result.wasOk());
+					}
 				}
+
+				initialisers.add(as);
 			}
 
 			if (auto f = dynamic_cast<Function*>(c))
@@ -61,24 +72,24 @@ Engine::Engine(jit::GlobalScope& scope, const StatementCollection& createdNodes)
 				d.functionData = f->fData;
 				d.functionScope = new Scope(rootScope, this, f->fData.id);
 
-				size_t parameterByteSize = 0;
-
 				for (const auto& a : f->fData.args)
 				{
-					auto alignment = a.typeInfo.getRequiredAlignment();
-					if (alignment != 0)
-						parameterByteSize += (alignment - (parameterByteSize % alignment)) % alignment;
-					d.functionScope->offsets[a.id.id] = parameterByteSize;
-					d.parameterOffsets.push_back(parameterByteSize);
-					parameterByteSize += a.typeInfo.getRequiredByteSize();
+					auto result = d.functionScope->addSymbol(a, a.typeInfo.getRequiredByteSize(),
+						a.typeInfo.getRequiredAlignment());
+					jassert(result.wasOk());
+
 				}
-				
-				d.functionScope->scopeData.calloc(parameterByteSize);
+
+				auto result = d.functionScope->finalise();
+				jassert(result.wasOk());
 				d.functionStatement = f;
 				dispatchData.push_back(d);
 			}
 		}
 	}
+
+	auto rootResult = rootScope->finalise();
+	jassert(rootResult.wasOk());
 
 	createdNodes.template callRecursive<VariableReference>(rootTree->astNode, [&](VariableReference* v)
 	{
@@ -87,13 +98,24 @@ Engine::Engine(jit::GlobalScope& scope, const StatementCollection& createdNodes)
 
 		if (auto s = rootScope->getScope(scopeId))
 		{
-			v->resolvedScope = s;
-			v->resolvedOffset = s->getOffset(idWithinScope);
-			v->symbol.resolved = true;
+			if (auto entry = s->find(idWithinScope))
+			{
+				if (s->getAddress(idWithinScope, v->symbol.typeInfo.getRequiredByteSize()) != nullptr)
+				{
+					v->resolvedScope = s;
+					v->resolvedOffset = entry->offset;
+					v->symbol.resolved = true;
+				}
+			}
 		}
 
 		return false;
 	});
+
+	for (auto i : initialisers)
+	{
+		i->perform(rootScope, nullptr);
+	}
 }
 
 Engine::~Engine()
@@ -113,25 +135,38 @@ jit::FunctionData Engine::getFunction(const jit::NamespacedIdentifier& functionI
 
 Array<jit::Symbol> Engine::getAllVariables() const
 {
-	
-	return Array<jit::Symbol>();
+	return rootScope->getSymbols();
 }
 
 VariableStorage Engine::getVariable(const Identifier& id) const
 {
-	
-	return VariableStorage();
+	if (auto entry = rootScope->find(id))
+	{
+		if (auto data = rootScope->getAddress(id, entry->size))
+		{
+			switch (entry->symbol.typeInfo.getType())
+			{
+			case Types::ID::Integer: return VariableStorage(*static_cast<int*>(data));
+			case Types::ID::Float:   return VariableStorage(*static_cast<float*>(data));
+			case Types::ID::Double:  return VariableStorage(*static_cast<double*>(data));
+			default: break;
+			}
+		}
+	}
+
+	return {};
 }
 
 size_t Engine::getMainObjectSize() const
 {
-	jassertfalse;
-	return size_t();
+	return rootScope->getDataSize();
 }
 
 void* Engine::getVariablePtr(const Identifier& id) const
 {
-	jassertfalse;
+	if (auto entry = rootScope->find(id))
+		return rootScope->getAddress(id, entry->size);
+
 	return nullptr;
 }
 

@@ -1,5 +1,10 @@
 #pragma once
 
+#include <algorithm>
+#include <cstdint>
+#include <cstring>
+#include <limits>
+
 namespace snex
 {
 namespace interpreter
@@ -53,6 +58,10 @@ namespace interpreter
  *  own ordered statements; frames own the current block position and call stack.
  *  Evaluate lvalues separately from rvalues so assignments can write through a
  *  typed address rather than modifying a temporary VariableStorage copy.
+ *  Audio-thread hot-path performance is critical even though interpretation is
+ *  slower than JIT code. Resolve IDs, types, and slot offsets once during
+ *  lowering; per-sample execution must not repeat symbol lookups, parse strings,
+ *  allocate memory, or perform other avoidable work in DSP loops.
  *
  *  4. Scopes and memory
  *  --------------------
@@ -162,17 +171,88 @@ struct Engine: public snex::jit::FunctionCollectionBase
 				parent->children.add(this);
 		}
 
-		void* getDataPointer() const
+		struct Entry
 		{
-			return reinterpret_cast<void*>(scopeData.get());
+			jit::Symbol symbol;
+			size_t offset = 0;
+			size_t size = 0;
+		};
+
+		Result addSymbol(const jit::Symbol& symbol, size_t slotSize, size_t alignment)
+		{
+			if (dataStart != nullptr)
+				return Result::fail("Scope storage is already finalised");
+
+			if (symbol.id.getParent() != id || entries.find(symbol.id.id) != entries.end())
+				return Result::fail("Invalid or duplicate scope symbol: " + symbol.id.toString());
+
+			if (slotSize == 0 || alignment == 0)
+				return Result::fail("Invalid scope slot size or alignment");
+
+			const auto remainder = totalSize % alignment;
+			const auto padding = remainder == 0 ? 0 : alignment - remainder;
+
+			if (padding > std::numeric_limits<size_t>::max() - totalSize ||
+				slotSize > std::numeric_limits<size_t>::max() - totalSize - padding)
+				return Result::fail("Scope storage size overflow");
+
+			Entry entry;
+			entry.symbol = symbol;
+			entry.offset = totalSize + padding;
+			entry.size = slotSize;
+			entries.emplace(symbol.id.id, entry);
+			totalSize = entry.offset + slotSize;
+			maxAlignment = std::max(maxAlignment, alignment);
+			return Result::ok();
 		}
 
-		size_t getOffset(const Identifier& id) const
+		Result finalise()
 		{
-			if (offsets.find(id) != offsets.end())
-				return offsets.at(id);
+			if (dataStart != nullptr)
+				return Result::fail("Scope storage is already finalised");
 
-			return 0;
+			if (totalSize > std::numeric_limits<size_t>::max() - maxAlignment)
+				return Result::fail("Scope storage size overflow");
+
+			scopeData.calloc(totalSize + maxAlignment);
+			auto address = reinterpret_cast<std::uintptr_t>(scopeData.get());
+			auto remainder = address % maxAlignment;
+			dataStart = scopeData.get() + (remainder == 0 ? 0 : maxAlignment - remainder);
+			return Result::ok();
+		}
+
+		void clear()
+		{
+			if (dataStart != nullptr)
+				std::memset(dataStart, 0, totalSize);
+		}
+
+		void* getDataPointer() const { return dataStart; }
+		size_t getDataSize() const { return totalSize; }
+
+		const Entry* find(const Identifier& symbolId) const
+		{
+			auto it = entries.find(symbolId);
+			return it == entries.end() ? nullptr : &it->second;
+		}
+
+		void* getAddress(const Identifier& symbolId, size_t bytesNeeded) const
+		{
+			if (auto entry = find(symbolId))
+				if (dataStart != nullptr && bytesNeeded <= entry->size)
+					return dataStart + entry->offset;
+
+			return nullptr;
+		}
+
+		Array<jit::Symbol> getSymbols() const
+		{
+			Array<jit::Symbol> symbols;
+
+			for (const auto& entry : entries)
+				symbols.add(entry.second.symbol);
+
+			return symbols;
 		}
 
 		Scope* getScope(const jit::NamespacedIdentifier& scopeId)
@@ -195,7 +275,10 @@ struct Engine: public snex::jit::FunctionCollectionBase
 		jit::NamespacedIdentifier id;
 
 		HeapBlock<uint8> scopeData;
-		std::map<Identifier, size_t> offsets;
+		std::map<Identifier, Entry> entries;
+		uint8* dataStart = nullptr;
+		size_t totalSize = 0;
+		size_t maxAlignment = 1;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Scope);
 	};
@@ -354,9 +437,31 @@ private:
 		{
 			auto& d = typed->dispatchData[FunctionIndex];
 
+			if (d.active || d.functionData.args.size() != 1)
+			{
+				jassertfalse;
+				return RT();
+			}
+
+			struct ActiveCall
+			{
+				explicit ActiveCall(bool& flag_) : flag(flag_) { flag = true; }
+				~ActiveCall() { flag = false; }
+				bool& flag;
+			} activeCall(d.active);
+
+			d.functionScope->clear();
+
 			VariableStorage rv;
-			ComplexType::writeNativeMemberType(d.functionScope->getDataPointer(), d.parameterOffsets[0], VariableStorage(value));
-			typed->dispatchData[FunctionIndex].functionStatement->perform(d.functionScope.get(), &rv);
+			if (auto address = d.functionScope->getAddress(d.functionData.args[0].id.id, sizeof(T1)))
+				ComplexType::writeNativeMemberType(address, 0, VariableStorage(value));
+			else
+			{
+				jassertfalse;
+				return RT();
+			}
+
+			d.functionStatement->perform(d.functionScope.get(), &rv);
 
 			static constexpr Types::ID RTypeId = Types::getTypeFromTypeId<RT>();
 			return rv.toType<RTypeId>();
@@ -370,7 +475,7 @@ private:
 		jit::FunctionData functionData;
 		Scope::Ptr functionScope;
 		Statement::Ptr functionStatement;
-		std::vector<size_t> parameterOffsets;
+		bool active = false;
 	};
 
 	std::vector<DispatchData> dispatchData;

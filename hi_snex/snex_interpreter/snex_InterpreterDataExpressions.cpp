@@ -40,17 +40,21 @@ struct Engine::VariableReference : public Engine::Expression
 		{
 		case Types::ID::Integer:
 			r = readStatic<int>;
+			w = writeStatic<int>;
 			break;
 		case Types::ID::Float:
 			r = readStatic<float>;
+			w = writeStatic<float>;
 			break;
 		case Types::ID::Double:
 			r = readStatic<double>;
+			w = writeStatic<double>;
 			break;
 		}
 	};
 
 	typedef VariableStorage(*ReadFunction)(void*, size_t);
+	typedef void(*WriteFunction)(void*, size_t, const VariableStorage&);
 
 	template <typename T> static VariableStorage readStatic(void* data, size_t offset)
 	{
@@ -58,11 +62,29 @@ struct Engine::VariableReference : public Engine::Expression
 		return VariableStorage(*reinterpret_cast<T*>(ptr));
 	}
 
+	template <typename T> static void writeStatic(void* data, size_t offset, const VariableStorage& value)
+	{
+		static constexpr auto TID = Types::Helpers::getTypeFromTypeId<T>();
+
+		auto ptr = reinterpret_cast<uint8*>(data) + offset;
+
+		T v = value.template toType<TID>();
+		*reinterpret_cast<T*>(ptr) = v;
+	}
+
+	void assign(Scope* s, const VariableStorage& value) override
+	{
+		if (resolvedScope != nullptr && r != nullptr)
+			w(resolvedScope->getDataPointer(), resolvedOffset, value);
+	}
+
 	VariableStorage getResult(Scope* s) override
 	{
-		jassert(resolvedScope != nullptr);
-		auto data = resolvedScope->getDataPointer();
-		return r(data, resolvedOffset);
+		if (resolvedScope != nullptr && r != nullptr)
+			return r(resolvedScope->getDataPointer(), resolvedOffset);
+
+		jassertfalse;
+		return {};
 	}
 
 	TypeInfo getTypeInfo() const override
@@ -71,6 +93,7 @@ struct Engine::VariableReference : public Engine::Expression
 	}
 
 	ReadFunction r = nullptr;
+	WriteFunction w = nullptr;
 
 	Scope::Ptr resolvedScope;
 	size_t resolvedOffset = 0;
