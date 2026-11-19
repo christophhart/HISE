@@ -1378,6 +1378,8 @@ struct ValueTreeCodeProvider : public snex::ui::WorkbenchData::CodeProvider,
 		return lastResult.code;
 	}
 
+	UriLocation getBaseLocation() const override { return {}; }
+
 	void rebuild() const;
 
 	mutable cppgen::ValueTreeBuilder::BuildResult lastResult;

@@ -222,16 +222,16 @@ return *this;
 			return toFloat();
 		else if constexpr (TypeID == ID::Double)
 			return toDouble();
-	else if constexpr (TypeID == ID::Integer)
-	return toInt();
-	else if constexpr (TypeID == ID::Block)
-	return toBlock();
-	else if constexpr (TypeID == ID::Event)
-		return toEvent();
-	else if constexpr (TypeID == ID::Pointer)
-	return toPtr();
-
-	return 0;
+		else if constexpr (TypeID == ID::Integer)
+			return toInt();
+		else if constexpr (TypeID == ID::Block)
+			return toBlock();
+		else if constexpr (TypeID == ID::Event)
+			return toEvent();
+		else if constexpr (TypeID == ID::Pointer)
+			return toPtr();
+		else
+			return 0;
 	}
 
 	void* getDataPointer() const

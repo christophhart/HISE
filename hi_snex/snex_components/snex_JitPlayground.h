@@ -733,10 +733,11 @@ private:
 			auto line = errorMessage.fromFirstOccurrenceOf("Line", false, false).upToFirstOccurrenceOf("(", false, false).trim().getIntValue();
 			auto col = errorMessage.fromFirstOccurrenceOf("(", false, false).upToFirstOccurrenceOf(")", false, false).trim().getIntValue();
 
+			auto bl = editor.editor.getTextDocument().getBaseLocation();
+
 			CodeDocument::Position pos(editor.editor.getDocument(), line - 1, col - 1);
-			auto baseLocation = getWorkbench()->getCodeProvider()->getBaseLocation();
-			baseLocation.fillLocation(pos);
-			e.fillLocation(baseLocation);
+			bl.fillLocation(pos);
+			e.fillLocation(bl);
 			e.errorMessage = errorMessage.fromFirstOccurrenceOf(":", false, false).trim();
 		}
 
@@ -746,16 +747,6 @@ private:
 	void eventHappened(BreakpointHandler* handler, BreakpointHandler::EventType type) override
 	{
 		jassertfalse;
-#if 0
-		currentBreakpointLine = (int)*handler->getLineNumber();
-
-		if (type == BreakpointHandler::Resume)
-			currentBreakpointLine = -1;
-
-		editor.setCurrentBreakline(currentBreakpointLine);
-
-		bpProvider.rebuild();
-#endif
 	}
 
 	void preCompile() override

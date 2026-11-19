@@ -89,67 +89,8 @@
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </LINUX_MAKE>
-    <VS2017 targetFolder="Builds/VisualStudio2017" extraDefs="USE_IPP=1"
-            IPPLibrary="Sequential" extraCompilerFlags="/bigobj /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot;">
-      <CONFIGURATIONS>
-        <CONFIGURATION isDebug="1" name="Debug" generateManifest="1" debugInformationFormat="ProgramDatabase"/>
-        <CONFIGURATION isDebug="0" name="Release" winWarningLevel="4" generateManifest="1"
-                       debugInformationFormat="ProgramDatabase" alwaysGenerateDebugSymbols="1"/>
-      </CONFIGURATIONS>
-      <MODULEPATHS>
-        <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_devices" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_formats" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_processors" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_data_structures" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_events" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_graphics" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
-        <MODULEPATH id="hi_zstd" path="../../"/>
-        <MODULEPATH id="hi_lac" path="../../"/>
-        <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_snex" path="../../"/>
-        <MODULEPATH id="hi_dsp_library" path="../../"/>
-        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_rlottie" path="../../"/>
-        <MODULEPATH id="melatonin_blur" path="../../../HISE modules"/>
-        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
-      </MODULEPATHS>
-    </VS2017>
-    <VS2019 targetFolder="Builds/VisualStudio2019" extraCompilerFlags="-msse4.1">
-      <CONFIGURATIONS>
-        <CONFIGURATION isDebug="1" name="Debug"/>
-        <CONFIGURATION isDebug="0" name="Release" alwaysGenerateDebugSymbols="1"/>
-      </CONFIGURATIONS>
-      <MODULEPATHS>
-        <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_graphics" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_events" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_data_structures" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_processors" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_formats" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_devices" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_zstd" path="../../"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
-        <MODULEPATH id="hi_snex" path="../../"/>
-        <MODULEPATH id="hi_lac" path="../../"/>
-        <MODULEPATH id="hi_dsp_library" path="../../"/>
-        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_rlottie" path="../../"/>
-        <MODULEPATH id="melatonin_blur" path="../../../HISE modules"/>
-        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
-      </MODULEPATHS>
-    </VS2019>
-    <VS2022 targetFolder="Builds/VisualStudio2022" extraCompilerFlags="/bigobj /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot;">
+    <VS2026 targetFolder="Builds/VisualStudio2026" extraCompilerFlags="/bigobj /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot;"
+            toolset="v145" extraDefs="HISE_INCLUDE_RT_NEURAL=0">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug"/>
         <CONFIGURATION isDebug="0" name="Release"/>
@@ -177,7 +118,7 @@
         <MODULEPATH id="melatonin_blur" path="../../../HISE modules"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
       </MODULEPATHS>
-    </VS2022>
+    </VS2026>
   </EXPORTFORMATS>
   <MODULES>
     <MODULE id="hi_dsp_library" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>

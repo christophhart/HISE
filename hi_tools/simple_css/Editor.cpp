@@ -122,17 +122,11 @@ void Editor::compile()
 	tf.replaceWithText(jdoc.getAllContent());
 	editor.editor.clearWarningsAndErrors();
 
-
-	jassertfalse; // TODO_DELETE: replace with UriError
-#if 0
-
-	editor.editor.setError(ok.getErrorMessage());
+	if (!ok.wasOk())
+		editor.editor.addUriError(ok);
 
 	for(const auto& w: p.getWarnings())
-	{
-		editor.editor.addWarning(w);
-	}
-#endif
+		editor.editor.addUriError(w);
 
 	auto css = p.getCSSValues();
 

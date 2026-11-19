@@ -70,7 +70,15 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 
 	auto& ed = editor.editor;
 
-	ed.getTextDocument().setBaseLocation(data->getCodeProvider()->getBaseLocation());
+	if(auto cp = data->getCodeProvider())
+		ed.getTextDocument().setBaseLocation(cp->getBaseLocation());
+	else
+	{
+		UriLocation l;
+		l.processorId = "test";
+		l.uri = "";
+		ed.getTextDocument().setBaseLocation(l);
+	}
 
 	ed.setPopupLookAndFeel(new hise::PopupLookAndFeel());
 
@@ -813,7 +821,12 @@ void SnexPlayground::recompiled(ui::WorkbenchData::Ptr p)
 	else
 	{
 		auto error = parseErrorMessage(r.compileResult.getErrorMessage(), UriError::ErrorType::Error);
-		editor.editor.addUriError(error);
+
+		if (error.sameUriAndProcessorId(editor.editor.getTextDocument().getBaseLocation()))
+		{
+			editor.editor.addUriError(error);
+		}
+
 		resultLabel.setText(r.compileResult.getErrorMessage(), dontSendNotification);
 	}
 }
@@ -826,7 +839,11 @@ void SnexPlayground::postPostCompile(ui::WorkbenchData::Ptr wb)
     {
         auto m = wb->getLastResult().compileResult;
         resultLabel.setText(m.getErrorMessage(), dontSendNotification);
-		editor.editor.addUriError(parseErrorMessage(m.getErrorMessage(), UriError::ErrorType::Error));
+
+		auto r = parseErrorMessage(m.getErrorMessage(), UriError::ErrorType::Error);
+
+		if(editor.editor.matchesUriLocation(r))
+			editor.editor.addUriError(r);
         
     }
 	else if (!result.testWasOk())

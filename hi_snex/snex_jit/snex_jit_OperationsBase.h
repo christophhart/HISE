@@ -240,6 +240,7 @@ namespace Operations
 			ValueTree v(getStatementId());
 
 			v.setProperty("Line", location.getLine(), nullptr);
+			v.setProperty("charIndex", (int)(location.location - location.program), nullptr);
 
 			for (auto s : *this)
 				v.addChild(s->toValueTree(), -1, nullptr);

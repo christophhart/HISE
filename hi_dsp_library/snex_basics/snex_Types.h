@@ -173,7 +173,7 @@ enum ID
 	Dynamic =		0b11111111
 };
 
-template <typename T> ID getTypeFromTypeId()
+template <typename T> constexpr ID getTypeFromTypeId()
 {
     if (std::is_same<typename std::remove_pointer<T>::type, float>())
 		return ID::Float;

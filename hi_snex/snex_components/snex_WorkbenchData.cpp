@@ -206,7 +206,7 @@ bool ui::WorkbenchData::handleCompilation()
 				l->preprocess(s);
 		}
 
-		if (getGlobalScope().getBreakpointHandler().shouldAbort())
+		if (s.isEmpty() || getGlobalScope().getBreakpointHandler().shouldAbort())
 			return true;
 
 		lastCompileResult = compileHandler->compile(s);

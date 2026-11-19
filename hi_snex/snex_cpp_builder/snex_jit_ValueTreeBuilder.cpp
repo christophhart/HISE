@@ -2598,7 +2598,7 @@ void ValueTreeBuilder::RootContainerBuilder::addParameterConnections()
 
 			prefix = snex::cppgen::StringHelpers::makeValidCppName(prefix);
 
-			if(containerWithParameter == root)
+			if(containerWithParameter == root.get())
 				prefix = "";
 
 			for (auto p : containerWithParameter->nodeTree.getChildWithName(PropertyIds::Parameters))

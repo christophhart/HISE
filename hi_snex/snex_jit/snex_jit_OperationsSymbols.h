@@ -144,6 +144,7 @@ struct Operations::Immediate : public Expression
 	ValueTree toValueTree() const override
 	{
 		auto t = Expression::toValueTree();
+		t.setProperty("Type", getTypeInfo().toString(), nullptr);
 		t.setProperty("Value", var(Types::Helpers::getCppValueString(v)), nullptr);
 		return t;
 	}
