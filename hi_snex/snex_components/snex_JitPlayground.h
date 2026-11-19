@@ -204,7 +204,6 @@ struct CallbackStateComponent : public Component,
 	bool frameProcessing = false;
 	bool active = false;
 
-	BreakpointHandler* handler = nullptr;
 	MarkdownRenderer r;
 };
 
@@ -246,54 +245,16 @@ public:
     Tokens currentState;
 };
 
-class BreakpointDataProvider : public ApiProviderBase,
-							   public ApiProviderBase::Holder
-{
-public:
-
-	BreakpointDataProvider(GlobalScope& m) :
-		handler(m.getBreakpointHandler()),
-		scope(m)
-	{};
-
-	ApiProviderBase* getProviderBase() override { return this; }
-
-	int getNumDebugObjects() const override
-	{
-		return infos.size();
-	}
-
-	DebugInformationBase::Ptr getDebugInformation(int index)
-	{
-		return infos[index];
-	}
-
-	void getColourAndLetterForType(int type, Colour& colour, char& letter) override
-	{
-		ApiHelpers::getColourAndLetterForType(type, colour, letter);
-	}
-
-	void rebuild() override;
-
-	DebugInformationBase::List infos;
-	GlobalScope& scope;
-	BreakpointHandler& handler;
-};
-
-
 /** A simple background thread that does the compilation. */
 class BackgroundCompileThread: public Thread,
 	public ui::WorkbenchData::CompileHandler
 {
 public:
 
-	
-
 	BackgroundCompileThread(ui::WorkbenchData::Ptr data_) :
 		Thread("SnexPlaygroundThread"),
 		CompileHandler(data_.get())
 	{
-		getParent()->getGlobalScope().getBreakpointHandler().setExecutingThread(this);
 		ThreadStarters::startLow(this);
 	}
 
@@ -321,8 +282,6 @@ public:
 
 	bool triggerCompilation() override
 	{
-		getParent()->getGlobalScope().getBreakpointHandler().abort();
-
 		if (isThreadRunning())
 			stopThread(3000);
 
@@ -506,8 +465,7 @@ private:
 
 class SnexPlayground : public ui::WorkbenchComponent,
 	public CodeDocument::Listener,
-	public ButtonListener,
-	public BreakpointHandler::Listener
+	public ButtonListener
 {
 public:
 
@@ -744,11 +702,6 @@ private:
 		return e;
 	}
 
-	void eventHappened(BreakpointHandler* handler, BreakpointHandler::EventType type) override
-	{
-		jassertfalse;
-	}
-
 	void preCompile() override
 	{
 		auto& ed = editor.editor;
@@ -784,7 +737,6 @@ private:
 	mcl::TextDocument mclDoc;
 	PreprocessorUpdater conditionUpdater;
 	juce::CPlusPlusCodeTokeniser tokeniser;
-	BreakpointDataProvider bpProvider;
 	mcl::FullEditor editor;
 	AssemblyTokeniser assemblyTokeniser;
 	CodeDocument assemblyDoc;

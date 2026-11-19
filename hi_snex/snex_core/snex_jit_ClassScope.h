@@ -159,48 +159,6 @@ public:
 		Types::ID type;
 	};
 
-	struct LocalVariableDebugObject : public DebugableObjectBase
-	{
-		LocalVariableDebugObject(LocalVariableInfo info_, GlobalScope* s_) :
-			s(s_),
-			info(info_)
-		{}
-
-		GlobalScope* s = nullptr;
-		LocalVariableInfo info;
-
-		Identifier getObjectName() const override
-		{
-			return Identifier(info.id.toString());
-		}
-
-		int getTypeNumber() const override
-		{
-			return info.type;
-		}
-
-		juce::String getDebugDataType() const override
-		{
-			return Types::Helpers::getTypeName(info.type);
-		}
-
-		juce::String getDebugValue() const override
-		{
-			if (s != nullptr)
-			{
-				auto entry = s->getBreakpointHandler().getEntry(info.id);
-
-				if (entry.isUsed)
-					return Types::Helpers::getCppValueString(entry.currentValue);
-				else
-					return "unknown";
-			}
-            
-            return {};
-		}
-		juce::String getCategory() const override { return info.isParameter ? "Parameter" : "Local variable"; };
-	};
-
 	struct BufferDummy : public ManualDebugObject
 	{
 

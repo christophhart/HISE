@@ -41,7 +41,6 @@ using namespace juce;
 
 SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 	ui::WorkbenchComponent(data, true),
-	bpProvider(getGlobalScope()),
 	mclDoc(doc),
 	editor(mclDoc),
 	assembly(assemblyDoc, &assemblyTokeniser),
@@ -61,6 +60,8 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 	conditionUpdater(*this),
 	testMode(isTestMode)
 {
+	data->getGlobalScope().clearOptimizations();
+
 	doc.replaceAllContent(getWorkbench()->getCode());
 	doc.clearUndoHistory();
 	
@@ -165,8 +166,6 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 	addAndMakeVisible(compileButton);
 	addAndMakeVisible(resumeButton);
 
-	getGlobalScope().getBreakpointHandler().addListener(this);
-
 	stateViewer->setVisible(false);
 	assembly.setVisible(false);
 	console.setVisible(false);
@@ -220,7 +219,7 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 
 	resumeButton.onClick = [this]()
 	{
-		getGlobalScope().getBreakpointHandler().resume();
+		jassertfalse;
 	};
 
 	bugButton.setToggleModeWithColourChange(true);
@@ -230,8 +229,6 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 	showWatch.setToggleModeWithColourChange(true);
 
 	debugModeChanged(getWorkbench()->getGlobalScope().isDebugModeEnabled());
-
-	
 
 	consoleContent.addListener(this);
 
@@ -250,7 +247,6 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 
 SnexPlayground::~SnexPlayground()
 {
-	getGlobalScope().getBreakpointHandler().removeListener(this);
 	getWorkbench()->removeListener(this);
 }
 
@@ -1090,70 +1086,6 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 
         return p;
     }
-
-	void BreakpointDataProvider::rebuild()
-	{
-		infos.clear();
-
-		for (int i = 0; i < handler.getNumEntries(); i++)
-		{
-			auto e = handler.getEntry(i);
-			auto si = new SettableDebugInfo();
-
-			si->typeValue = e.currentValue.getType();
-			si->name = e.id.toString();
-			si->dataType = e.scope == BaseScope::ScopeType::Class ? "global" : "local";
-			si->value = Types::Helpers::getCppValueString(e.currentValue);
-
-			infos.add(si);
-		}
-
-#if 0
-		if (auto cs = dynamic_cast<ClassScope*>(scope.getCurrentClassScope()))
-		{
-			for (auto v : cs->getAllVariables())
-			{
-				bool found = false;
-
-				for (auto existing : infos)
-				{
-					if (existing->getTextForName() == v.id.toString())
-					{
-						found = true;
-						break;
-					}
-				}
-
-				if (found)
-					continue;
-
-				auto si = new SettableDebugInfo();
-
-				if (cs->rootData->contains(v.id))
-				{
-					auto value = cs->rootData->getDataCopy(v.id);
-					
-					si->typeValue = value.getType();
-					si->name = v.id.toString();
-					si->dataType = "global";
-					si->value = Types::Helpers::getCppValueString(value);
-
-					infos.add(si);
-				}
-			}
-
-			StringArray removeClasses = { "Math", "Message", "Block" };
-
-			for (int i = 0; i < infos.size(); i++)
-			{
-				if(removeClasses.contains(infos[i]->getTextForName()))
-					infos.remove(i--);
-			}
-		}
-#endif
-
-		ApiProviderBase::Holder::rebuild();
-	}
 
 	
 

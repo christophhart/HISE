@@ -190,9 +190,6 @@ void ui::WorkbenchData::callAsyncWithSafeCheck(const std::function<void(Workbenc
 
 bool ui::WorkbenchData::handleCompilation()
 {
-	if (getGlobalScope().getBreakpointHandler().shouldAbort())
-		return true;
-
 	if (compileHandler != nullptr)
 	{
 		auto s = getCode();
@@ -206,7 +203,7 @@ bool ui::WorkbenchData::handleCompilation()
 				l->preprocess(s);
 		}
 
-		if (s.isEmpty() || getGlobalScope().getBreakpointHandler().shouldAbort())
+		if (s.isEmpty())
 			return true;
 
 		lastCompileResult = compileHandler->compile(s);

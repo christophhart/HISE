@@ -183,21 +183,7 @@ class ConsoleFunctions : public JitCallableObject
 
 	void stop(bool condition)
 	{
-		if (condition && gs != nullptr)
-		{
-			auto& handler = gs->getBreakpointHandler();
-
-			if (handler.isActive())
-			{
-				handler.breakExecution();
-				
-				while (!handler.shouldResume())
-				{
-					if (handler.canWait())
-						Thread::getCurrentThread()->wait(5000);
-				}
-			}
-		}
+		jassertfalse;
 	}
 
 	HiseEvent print(HiseEvent e)

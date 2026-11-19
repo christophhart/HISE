@@ -177,220 +177,7 @@ struct DataPool
 	juce::HeapBlock<char> data;
 };
 
-class BreakpointHandler
-{
-public:
 
-	enum EventType
-	{
-		Break,
-		Resume,
-		numEventTypes
-	};
-
-	struct Listener
-	{
-		virtual ~Listener() {};
-
-		virtual void eventHappened(BreakpointHandler* handler, EventType type) = 0;
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
-	};
-
-	struct Entry
-	{
-		juce::String toString() const
-		{
-			juce::String s;
-			s << id.toString();
-			s << " (" << Types::Helpers::getTypeName(currentValue.getType()) << "): ";
-			s << Types::Helpers::getCppValueString(currentValue);
-			s << "\n";
-            
-            return s;
-		}
-
-		Symbol id;
-		VariableStorage currentValue;
-		BaseScope::ScopeType scope;
-		bool changed = false;
-		bool isUsed = false;
-	};
-
-	bool shouldResume() const
-	{
-		if (executingThread != nullptr)
-		{
-			jassert(Thread::getCurrentThread() == executingThread);
-
-			if (executingThread->threadShouldExit())
-				return true;
-		}
-
-		return resumeOnNextCheck;
-	}
-
-	bool isRunning() const
-	{
-		return runExection;
-	}
-
-	void breakExecution()
-	{
-		if (!shouldAbort())
-		{
-			runExection.store(false);
-			resumeOnNextCheck.store(false);
-			sendMessage();
-		}
-	}
-
-	void resume()
-	{
-		if (executingThread != nullptr)
-		{
-			if (executingThread->threadShouldExit())
-				return;
-
-			executingThread->notify();
-		}
-
-		runExection.store(true);
-		resumeOnNextCheck.store(true);
-
-		
-		sendMessage();
-	}
-
-	bool shouldAbort() const
-	{
-		if (executingThread != nullptr)
-			return executingThread->threadShouldExit();
-
-		return false;
-	}
-
-	bool canWait() const
-	{
-		if (executingThread != nullptr)
-			return !executingThread->threadShouldExit();
-		
-		return true;
-	}
-
-	void abort()
-	{
-		if (executingThread != nullptr)
-			executingThread->signalThreadShouldExit();
-	}
-
-	void sendMessage()
-	{
-		auto e = runExection ? EventType::Resume : EventType::Break;
-		sendMessageToListeners(e);
-	}
-
-	void addListener(Listener* l)
-	{
-		listeners.addIfNotAlreadyThere(l);
-	}
-
-	void removeListener(Listener* l)
-	{
-		listeners.removeAllInstancesOf(l);
-	}
-
-	int getNumEntries() const 
-	{ 
-		return numEntries;
-	}
-
-	Entry getEntry(const Symbol& id) const 
-	{ 
-		for (int i = 0; i < 128; i++)
-		{
-			if (dumpTable[i].id == id)
-				return dumpTable[i];
-		}
-
-		return {};
-	}
-	Entry getEntry(int index) const { return dumpTable[index]; }
-
-	void clearTable()
-	{
-		for (int i = 0; i < 128; i++)
-			dumpTable[i].isUsed = false;
-
-		numEntries = 0;
-	}
-
-	void* getNextFreeTable(const Symbol& ref)
-	{
-		for (int i = 0; i < 128; i++)
-		{
-			if (!dumpTable[i].isUsed || dumpTable[i].id == ref)
-			{
-				if(!dumpTable[i].isUsed)
-					numEntries++;
-
-				dumpTable[i].isUsed = true;
-                dumpTable[i].id = ref;
-				dumpTable[i].scope = BaseScope::Class; 
-				dumpTable[i].currentValue = VariableStorage(ref.typeInfo.getType(), 0);
-
-				return dumpTable[i].currentValue.getDataPointer();
-			}
-		}
-
-		return nullptr;
-	}
-
-	uint64* getLineNumber()
-	{
-		return &lineNumber;
-	}
-	
-	bool isActive() const
-	{
-		return enabled && executingThread != nullptr && Thread::getCurrentThread() == executingThread;
-	}
-
-	void setExecutingThread(Thread* threadToUse)
-	{
-		executingThread = threadToUse;
-	}
-
-	void setEnabled(bool shouldBeEnabled)
-	{
-		enabled = shouldBeEnabled;
-	}
-
-private:
-
-	Thread* executingThread = nullptr;
-
-	bool enabled;
-	bool active = false;
-	uint64 lineNumber = 0;
-	
-	Entry dumpTable[128];
-	int numEntries = 0;
-
-	void sendMessageToListeners(EventType t)
-	{
-		for (auto l : listeners)
-		{
-			if (l != nullptr)
-				l->eventHappened(this, t);
-		}
-	}
-
-	Array<WeakReference<Listener>> listeners;
-
-	std::atomic<bool> runExection = { true };
-	std::atomic<bool> resumeOnNextCheck = { false };
-};
 
 
 /** The global scope that is passed to the compiler and contains the global variables
@@ -502,9 +289,6 @@ public:
 		return currentClassScope;
 	}
 
-	BreakpointHandler& getBreakpointHandler() { return breakPointHandler; }
-
-	
 	/** This returns the address to the runtime error flag. 
 		
 		If the NoSafeChecks optimisation is disabled, you can implement
@@ -583,8 +367,6 @@ public:
 		{
 			debugMode = shouldBeDebugMode;
 
-			getBreakpointHandler().setEnabled(shouldBeDebugMode);
-
 			for (auto d : debugHandlers)
 			{
 				if (d.get() != nullptr)
@@ -625,7 +407,6 @@ private:
 	RuntimeError currentRuntimeError;
 	Result runtimeError;
 
-	BreakpointHandler breakPointHandler;
 	WeakReference<BaseScope> currentClassScope;
 
 	StringArray optimizationPasses;

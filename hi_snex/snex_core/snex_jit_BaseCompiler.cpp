@@ -214,9 +214,6 @@ USE_ASMJIT_NAMESPACE;
 
 	void BaseCompiler::executePass(Pass p, BaseScope* scope, ReferenceCountedObject* statement)
     {
-		if (scope->getGlobalScope()->getBreakpointHandler().shouldAbort())
-			jassertfalse;
-
 		auto st = dynamic_cast<Operations::Statement*>(statement);
 
 		if (isOptimizationPass(p) && passes.isEmpty())

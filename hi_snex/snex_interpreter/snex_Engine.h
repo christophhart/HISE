@@ -172,12 +172,7 @@ private:
 
 	friend class snex::interpreter::ExpressionTreeBuilder;
 
-	
-
 	struct Helpers;
-
-	
-
 	struct EngineScope;
 
 	struct DispatchData
