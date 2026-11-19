@@ -2,48 +2,16 @@ namespace snex {
 namespace interpreter {
 namespace nodes {
 
-struct Assignment : public Statement
-{
-	SNEX_INTERPRETER_NODE(Assignment, isDefinition ? WantsNode::Yes : WantsNode::No);
 
-	Assignment(Factory& f, const ValueTree& v) :
- 	  Statement(v),
-	  value(Helpers::getChildExpression(f, v, 0)),
-	  target(Helpers::getChildExpression(f, v, 1)),
-	  isDefinition((bool)v[AstIds::First] && target->getTyped<VariableReference>())
-	{};
-
-	ResultCode perform(Scope* s, VariableStorage* returnValue) override
-	{
-		auto v = value->getResult(s);
-		target->assign(s, v);
-		return ResultCode::ok;
-	}
-
-	void annotateUriLocationTree(UriLocationTree& t)
-	{
-		jassert(isDefinition);
-
-		Helpers::annotateType(t, value->getTypeInfo());
-
-		if (auto v = target->getTyped<VariableReference>())
-			t.id = v->symbol.id.toString();
-	}
-
-	Expression::ExprPtr value;
-	Expression::ExprPtr target;
-
-	const bool isDefinition;
-};
 
 struct BinaryOp : public Expression
 {
 	SNEX_INTERPRETER_NODE(BinaryOp, WantsNode::No);
 
 	BinaryOp(Factory& f, const ValueTree& v) :
-		Expression(v),
-		l(Helpers::getChildExpression(f, v, 0)),
-		r(Helpers::getChildExpression(f, v, 1))
+		Expression(f, v),
+		l(Helpers::getChildExpression(this, 0)),
+		r(Helpers::getChildExpression(this, 1))
 	{
 		juce::juce_wchar opMode = v[AstIds::OpType].toString()[0];
 		Types::ID opType = l->getTypeInfo().getType();
@@ -118,9 +86,9 @@ struct Cast : public Expression
 	SNEX_INTERPRETER_NODE(Cast, WantsNode::No);
 
 	Cast(Factory& f, const ValueTree& v) :
-		Expression(v),
+		Expression(f, v),
 		targetType(Helpers::getType(f, v, AstIds::Target)),
-		sourceValue(Helpers::getChildExpression(f, v, 0))
+		sourceValue(Helpers::getChildExpression(this, 0))
 	{
 		switch (targetType.getType())
 		{
@@ -160,6 +128,51 @@ struct Cast : public Expression
 	TypeInfo targetType;
 	ExprPtr sourceValue;
 
+};
+
+struct Subscript : public Expression
+{
+	SNEX_INTERPRETER_NODE(Subscript, WantsNode::No);
+
+	Subscript(Factory& f, const ValueTree& v) :
+	  Expression(f, v),
+	  elementType(Helpers::getType(f, v, AstIds::ElementType)),
+	  parentType(Helpers::getType(f, v, AstIds::ParentType)),
+	  parent(Helpers::getChildExpression(this, 0)),
+	  index(Helpers::getChildExpression(this, 1)),
+	  f(OpFunctions::createDataFunctions(elementType))
+	{};
+
+	typedef VariableStorage(*CastFunction)(const VariableStorage&);
+
+	template <Types::ID TargetType> static VariableStorage castStatic(const VariableStorage& source)
+	{
+		return VariableStorage(source.template toType<TargetType>());
+	}
+
+	VariableStorage getResult(Scope* s) override
+	{
+		auto dataPtr = reinterpret_cast<uint8*>(parent->getResult(s).toPtr());
+		auto idx = index->getResult(s).toInt();
+		auto elementSize = elementType.getRequiredByteSize();
+		return f.first(dataPtr, elementSize * idx);
+	}
+
+	void assign(Scope* s, const VariableStorage& v) override
+	{
+		jassertfalse;
+	}
+
+	TypeInfo getTypeInfo() const override
+	{
+		return elementType;
+	}
+
+	TypeInfo parentType;
+	TypeInfo elementType;
+	OpFunctions::DataFunctions f;
+	ExprPtr parent;
+	ExprPtr index;
 };
 
 } // namespace nodes

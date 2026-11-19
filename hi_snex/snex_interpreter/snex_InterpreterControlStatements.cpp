@@ -41,24 +41,17 @@ struct SyntaxTree : public Statement
 	SNEX_INTERPRETER_NODE(SyntaxTree, WantsNode::Yes);
 
 	SyntaxTree(Statement::Factory& f, const ValueTree& v) :
-	  Statement(v)
+	  Statement(f, v)
 	{
-		for (auto c : v)
-		{
-			if (auto ptr = f.create(c))
-			{
-				children.add(ptr);
-				locations.push_back(Helpers::createUriLocation(f, c));
-			}
-				
-		}
+		for (auto c : childStatements)
+			locations.push_back(Helpers::createUriLocation(f, c->astNode));	
 	};
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue) override
 	{ 
-		for (int i = instructionPointer; i < children.size(); i++)
+		for (int i = instructionPointer; i < childStatements.size(); i++)
 		{
-			auto c = children[i];
+			auto c = childStatements[i];
 
 			if (auto r = c->perform(s, returnValue))
 				return r;
@@ -69,7 +62,6 @@ struct SyntaxTree : public Statement
 
 	int instructionPointer = 0;
 	std::vector<UriLocation> locations;
-	List children;
 };
 
 struct Function : public Statement
@@ -77,9 +69,9 @@ struct Function : public Statement
 	SNEX_INTERPRETER_NODE(Function, WantsNode::Yes);
 
 	Function(Statement::Factory& f, const ValueTree& v) :
-		Statement(v)
+		Statement(f, v)
 	{
-		body = f.create(v.getChildWithName(SyntaxTree::getStatementType()));
+		body = childStatements[0];
 		fData = Helpers::getFunctionData(f, v);
 		jassert(body != nullptr);
 	};
@@ -110,8 +102,8 @@ struct ReturnStatement : public Statement
 	SNEX_INTERPRETER_NODE(ReturnStatement, WantsNode::No);
 
 	ReturnStatement(Statement::Factory& f, const ValueTree& v) :
-		Statement(v),
-		value(Helpers::getChildExpression(f, v, 0))
+		Statement(f, v),
+		value(Helpers::getChildExpression(this, 0))
 	{};
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue) override

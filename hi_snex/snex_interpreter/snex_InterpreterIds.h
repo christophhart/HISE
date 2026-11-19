@@ -16,6 +16,11 @@ DECLARE_ID(OpType);
 DECLARE_ID(Target);
 DECLARE_ID(Symbol);
 DECLARE_ID(First);
+DECLARE_ID(InitValuesB64);
+DECLARE_ID(Ids);
+
+DECLARE_ID(ElementType);
+DECLARE_ID(ParentType);
 
 DECLARE_ID(charIndex);
 DECLARE_ID(Line);

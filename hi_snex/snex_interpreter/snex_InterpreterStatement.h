@@ -41,58 +41,9 @@ struct Statement : public ReferenceCountedObject
 
 	using Ptr = ReferenceCountedObjectPtr<Statement>;
 	using List = ReferenceCountedArray<Statement>;
+	using WeakPtr = WeakReference<Statement>;
+
 	enum ResultCode { ok = 0, returnWasHit, breakWasHit, continueWasHit };
-
-	struct Collection
-	{
-		template <typename StatementType=Statement> bool callRecursive(const ValueTree& v, const std::function<bool(StatementType*)>& f) const
-		{
-			if (auto s = get(v))
-			{
-				if (auto typed = s->getTyped<StatementType>())
-				{
-					if (f(typed))
-						return true;
-				}
-
-				for (auto c : v)
-				{
-					if (callRecursive(c, f))
-						return true;
-				}
-			}
-
-			return false;
-		};
-
-		template <typename StatementType=Statement> bool forEachNodeFlat(const std::function<bool(StatementType*)>& f) const
-		{
-			for (auto& item : flatList)
-			{
-				if (auto typed = item.second->getTyped<StatementType>())
-				{
-					if (f(typed))
-						return true;
-				}
-			}
-
-			return false;
-		};
-
-		Ptr get(const ValueTree& v) const
-		{
-			for (const auto& item : flatList)
-			{
-				if (item.first == v)
-					return item.second;
-			}
-
-			return nullptr;
-		}
-
-		Ptr root;
-		std::vector<std::pair<ValueTree, Ptr>> flatList;
-	};
 
 	struct Factory
 	{
@@ -109,16 +60,24 @@ struct Statement : public ReferenceCountedObject
 		UriLocationBuilder::Ptr locationBuilder;
 		Statement::Ptr create(const ValueTree& v);
 		std::map<Identifier, CreateFunction> createFunctions;
-		
-		Collection createdNodes;
 		ReferenceCountedArray<jit::ComplexType> typeLibrary;
 	};
 
 	struct Helpers;
+	struct OpFunctions;
 
-	Statement(const ValueTree& astNode_) :
+	Statement(Factory& f, const ValueTree& astNode_) :
 	  astNode(astNode_)
-	{};
+	{
+		for (auto& c : astNode_)
+		{
+			if (auto n = f.create(c))
+			{
+				childStatements.add(n);
+				n->parent = this;
+			}
+		}
+	};
 
 	virtual ~Statement() = default;
 	virtual ResultCode perform(Scope* s, VariableStorage* returnValue) { return ResultCode::ok; };
@@ -126,6 +85,17 @@ struct Statement : public ReferenceCountedObject
 	virtual void annotateUriLocationTree(UriLocationTree& t) {};
 
 	virtual WantsNode shouldCreateNode() const = 0;
+
+	/** Override this and fetch the data pointers after the scope has finalised its memory layout. */
+	virtual void resolveDataPointers(Scope* scopeToUse) {};
+
+	template <typename T> const T* getTyped() const
+	{
+		static_assert(std::is_base_of<interpreter::Statement, T>() ||
+			std::is_same<interpreter::Statement, T>(), "not a base of interpreter::Statement");
+
+		return dynamic_cast<const T*>(this);
+	}
 
 	template <typename T> T* getTyped() 
 	{ 
@@ -135,7 +105,39 @@ struct Statement : public ReferenceCountedObject
 		return dynamic_cast<T*>(this); 
 	}
 
+	template <typename StatementType=Statement> bool callRecursive(const std::function<bool(StatementType*)>& f)
+	{
+		if (auto typed = getTyped<StatementType>())
+		{
+			if (f(typed))
+				return true;
+		}
+
+		for (auto c : childStatements)
+		{
+			if (c->callRecursive<StatementType>(f))
+				return true;
+		}
+
+		return false;
+	};
+
 	ValueTree astNode;
+
+	WeakPtr parent;
+	List childStatements;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(Statement);
+};
+
+struct DefinitionBase : public Statement
+{
+	DefinitionBase(Factory& f, const ValueTree& v) :
+	  Statement(f, v)
+	{};
+
+	/** Override this and call Scope::addSymbol to allocate the data where needed. */
+	virtual Result allocateInScope(Scope* scopeToUse) = 0;
 };
 
 struct Expression : public Statement
@@ -143,8 +145,8 @@ struct Expression : public Statement
 	using ExprPtr = ReferenceCountedObjectPtr<Expression>;
 	using ExprList = ReferenceCountedArray<Expression>;
 
-	Expression(const ValueTree& astNode) :
-		Statement(astNode)
+	Expression(Factory& f, const ValueTree& astNode) :
+		Statement(f, astNode)
 	{};
 
 	virtual jit::TypeInfo getTypeInfo() const = 0;

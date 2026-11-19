@@ -149,7 +149,7 @@ struct Engine: public snex::jit::FunctionCollectionBase
 
 	// Forward declarations ===============================================================================
 
-	Engine(jit::GlobalScope& scope, const Statement::Collection& rootTree);
+	Engine(jit::GlobalScope& scope, Statement::Ptr rootTree);
 	~Engine();
 
 	// Function methods

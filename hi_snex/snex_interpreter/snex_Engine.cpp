@@ -35,9 +35,9 @@ namespace snex
 namespace interpreter
 {
 
-Engine::Engine(jit::GlobalScope& scope, const Statement::Collection& createdNodes):
+Engine::Engine(jit::GlobalScope& scope, const Statement::Ptr rootTree_):
   globalScope(scope),
-  rootTree(createdNodes.root),
+  rootTree(rootTree_),
 	rootScope(new Scope(nullptr, this, {}))
 {
 	Statement::List initialisers;
@@ -46,23 +46,16 @@ Engine::Engine(jit::GlobalScope& scope, const Statement::Collection& createdNode
 
 	if (auto st = rootTree->getTyped<SyntaxTree>())
 	{
-		for (auto c : st->children)
+		for (auto c : st->childStatements)
 		{
-			if (auto as = c->getTyped<Assignment>())
+			if (auto as = c->getTyped<DefinitionBase>())
 			{
-				if (auto v = as->target->getTyped<VariableReference>())
-				{
-					if (v->symbol.id.getParent() == rootScope->id &&
-						rootScope->find(v->symbol.id.id) == nullptr)
-					{
-						auto& type = v->symbol.typeInfo;
-						auto result = rootScope->addSymbol(v->symbol, type.getRequiredByteSize(),
-							type.getRequiredAlignment());
-						jassert(result.wasOk());
-					}
-				}
+				auto ok = as->allocateInScope(rootScope.get());
 
-				initialisers.add(as);
+				jassert(ok.wasOk());
+
+				if (ok.wasOk())
+					initialisers.add(as);
 			}
 
 			if (auto f = c->getTyped<Function>())
@@ -102,31 +95,15 @@ Engine::Engine(jit::GlobalScope& scope, const Statement::Collection& createdNode
 	auto rootResult = rootScope->finalise();
 	jassert(rootResult.wasOk());
 
-	createdNodes.template callRecursive<VariableReference>(rootTree->astNode, [&](VariableReference* v)
+	rootTree->callRecursive<Statement>([&](Statement* s)
 	{
-		auto scopeId = v->symbol.id.getParent();
-		auto idWithinScope = v->symbol.id.id;
-
-		if (auto s = rootScope->getScope(scopeId))
-		{
-			if (auto entry = s->find(idWithinScope))
-			{
-				if (s->getAddress(idWithinScope, v->symbol.typeInfo.getRequiredByteSize()) != nullptr)
-				{
-					v->resolvedScope = s;
-					v->resolvedOffset = entry->offset;
-					v->symbol.resolved = true;
-				}
-			}
-		}
-
+		s->resolveDataPointers(rootScope.get());
 		return false;
 	});
 
+
 	for (auto i : initialisers)
-	{
 		i->perform(rootScope.get(), nullptr);
-	}
 }
 
 Engine::~Engine()
@@ -204,8 +181,6 @@ ValueTree Engine::getDataLayout(int dataIndex) const
 	jassertfalse;
 	return ValueTree();
 }
-
-
 
 String Engine::DispatchData::getSigString() const
 {

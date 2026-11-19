@@ -47,7 +47,7 @@ private:
 
 	UriLocationBuilder::Ptr locationBuilder;
 
-	UriLocationTree::Ptr createUriLocationTree(const Statement::Factory& f, const ValueTree& v, UriLocationTree::Ptr parent);
+	UriLocationTree::Ptr createUriLocationTree(const Statement::Factory& f, Statement::Ptr ptr, UriLocationTree* parent);
 
 	Result r;
 	ValueTree astTree;

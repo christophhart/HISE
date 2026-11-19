@@ -39,14 +39,68 @@ Statement::Ptr Statement::Factory::create(const ValueTree& v)
 	if (createFunctions.find(v.getType()) != createFunctions.end())
 	{
 		if (auto t = createFunctions.at(v.getType())(*this, v))
-		{
-			createdNodes.flatList.push_back({ v, t });
 			return t;
-		}
 	}
 
 	return nullptr;
 }
+
+struct Statement::OpFunctions
+{
+	typedef VariableStorage(*ReadFunction)(void*, size_t);
+	typedef void(*WriteFunction)(void*, size_t, const VariableStorage&);
+
+	using DataFunctions = std::pair<ReadFunction, WriteFunction>;
+
+	template <typename T> static VariableStorage readStatic(void* data, size_t offset)
+	{
+		auto ptr = reinterpret_cast<uint8*>(data) + offset;
+
+		if constexpr (std::is_same<void*, T>())
+			return VariableStorage(reinterpret_cast<void*>(ptr));
+		else
+			return VariableStorage(*reinterpret_cast<T*>(ptr));
+	}
+
+	template <typename T> static void writeStatic(void* data, size_t offset, const VariableStorage& value)
+	{
+		static constexpr auto TID = Types::Helpers::getTypeFromTypeId<T>();
+
+		auto ptr = reinterpret_cast<uint8*>(data) + offset;
+
+		T v = value.template toType<TID>();
+		*reinterpret_cast<T*>(ptr) = v;
+	}
+
+	static DataFunctions createDataFunctions(const TypeInfo& t)
+	{
+		DataFunctions f;
+
+		switch (t.getType())
+		{
+		case Types::ID::Integer:
+			f.first = readStatic<int>;
+			f.second = writeStatic<int>;
+			break;
+		case Types::ID::Float:
+			f.first = readStatic<float>;
+			f.second = writeStatic<float>;
+			break;
+		case Types::ID::Double:
+			f.first = readStatic<double>;
+			f.second = writeStatic<double>;
+			break;
+		case Types::ID::Pointer:
+			f.first = readStatic<void*>;
+			f.second = writeStatic<void*>;
+			break;
+		default:
+			jassertfalse;
+		}
+
+		return f;
+	}
+};
 
 struct Statement::Helpers
 {
@@ -98,20 +152,24 @@ struct Statement::Helpers
 		return p.parseFunctionData();
 	}
 
-	static Expression::ExprPtr getChildExpression(Factory& f, const ValueTree& astNode, int childIndex)
+	static MemoryBlock getInitData(const ValueTree& v)
 	{
-		auto cn = astNode.getChild(childIndex);
+		MemoryBlock mb;
+		mb.fromBase64Encoding(v[AstIds::InitValuesB64].toString());
+		return mb;
+	}
 
-		if (cn.isValid())
-		{
-			auto s = f.create(cn);
-
-			if (auto e = dynamic_cast<Expression*>(s.get()))
-				return e;
-		}
+	static Expression::ExprPtr getChildExpression(Statement* parent, int childIndex)
+	{
+		if (auto cn = parent->childStatements[childIndex])
+			return cn->getTyped<Expression>();
 
 		return nullptr;
 	}
+
+	
+
+
 };
 
 } // namespace interpreter

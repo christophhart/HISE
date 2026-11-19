@@ -43,6 +43,8 @@ Statement::Factory::Factory()
 	registerType<nodes::Cast>();
 	registerType<nodes::VariableReference>();
 	registerType<nodes::Assignment>();
+	registerType<nodes::ComplexTypeDefinition>();
+	registerType<nodes::Subscript>();
 }
 
 ExpressionTreeBuilder::ExpressionTreeBuilder(const String& code, const String& preprocessed, const ValueTree& ast_, const ReferenceCountedArray<jit::ComplexType>& typeLibrary_):
@@ -61,39 +63,34 @@ jit::FunctionCollectionBase* ExpressionTreeBuilder::createEngine(jit::GlobalScop
 
 	DBG(astTree.createXml()->createDocument(""));
 
-	
-
 	auto rootTree = f.create(astTree);
+	auto locTree = createUriLocationTree(f, rootTree, nullptr);
 
-	auto locTree = createUriLocationTree(f, astTree, nullptr);
-
-	f.createdNodes.root = rootTree;
 	
-	return new interpreter::Engine(globalScope, f.createdNodes);
+	return new interpreter::Engine(globalScope, rootTree);
 }
 
-UriLocationTree::Ptr ExpressionTreeBuilder::createUriLocationTree(const Statement::Factory& f, const ValueTree& v, UriLocationTree::Ptr parent)
+UriLocationTree::Ptr ExpressionTreeBuilder::createUriLocationTree(const Statement::Factory& f, Statement::Ptr ptr, UriLocationTree* parent)
 {
-	if (auto ptr = f.createdNodes.get(v))
+	if (ptr->shouldCreateNode() == Statement::WantsNode::Yes)
 	{
-		if (ptr->shouldCreateNode() == Statement::WantsNode::Yes)
+		UriLocationTree::Ptr np = new UriLocationTree(parent);
+
+		np->fillLocation(locationBuilder->createLocation(ptr->astNode));
+		np->category = ptr->astNode.getType();
+		ptr->annotateUriLocationTree(*np);
+
+		UriLocationTree::List children;
+
+		for (auto c : ptr->childStatements)
 		{
-			UriLocationTree::Ptr np = new UriLocationTree(parent.get());
-
-			np->fillLocation(locationBuilder->createLocation(v));
-			np->category = v.getType();
-			ptr->annotateUriLocationTree(*np);
-
-			for (auto c : v)
-			{
-				createUriLocationTree(f, c, np);
-			}
-
-			return np;
+			children.add(createUriLocationTree(f, c, np.get()));
 		}
 
-		return nullptr;
+		return np;
 	}
+
+	return nullptr;
 }
 
 UriLocationBuilder::UriLocationBuilder(const String& code, const String& preprocessedCode)
