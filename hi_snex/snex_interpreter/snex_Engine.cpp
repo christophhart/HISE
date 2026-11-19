@@ -1,3 +1,4 @@
+#include "snex_Engine.h"
 /* ===========================================================================
 *
 *   This file is part of HISE.
@@ -65,25 +66,34 @@ Engine::Engine(jit::GlobalScope& scope, const StatementCollection& createdNodes)
 
 			if (auto f = dynamic_cast<Function*>(c))
 			{
-				f->fData.object = this;
-				f->fData.function = (void*)Engine::dispatch1<0, int, int>;
+				auto d = new DispatchData();
 
-				DispatchData d;
-				d.functionData = f->fData;
-				d.functionScope = new Scope(rootScope, this, f->fData.id);
+				d->functionData = f->fData;
+				d->functionScope = new Scope(rootScope, this, f->fData.id);
 
 				for (const auto& a : f->fData.args)
 				{
-					auto result = d.functionScope->addSymbol(a, a.typeInfo.getRequiredByteSize(),
+					auto result = d->functionScope->addSymbol(a, a.typeInfo.getRequiredByteSize(),
 						a.typeInfo.getRequiredAlignment());
 					jassert(result.wasOk());
-
 				}
 
-				auto result = d.functionScope->finalise();
-				jassert(result.wasOk());
-				d.functionStatement = f;
-				dispatchData.push_back(d);
+				auto result = d->functionScope->finalise();
+				bool validParameters = result.wasOk();
+				jassert(validParameters);
+
+				for (const auto& a : f->fData.args)
+				{
+					auto ptr = d->functionScope->getAddress(a.id.id, a.typeInfo.getRequiredByteSize());
+					validParameters &= ptr != nullptr;
+					d->parameterOffsets.push_back(ptr);
+				}
+
+				d->functionData.object = d;
+				d->functionData.function = validParameters ? DispatchData::getFromFunctionMap(d->getSigString()) : nullptr;
+				jassert(d->functionData.function != nullptr);
+				d->functionStatement = f;
+				dispatchData.add(d);
 			}
 		}
 	}
@@ -126,8 +136,8 @@ jit::FunctionData Engine::getFunction(const jit::NamespacedIdentifier& functionI
 {
 	for (const auto& f : dispatchData)
 	{
-		if (f.functionData.id == functionId)
-			return f.functionData;
+		if (f->functionData.id == functionId)
+			return f->functionData;
 	}
 
 	return {};
@@ -195,6 +205,48 @@ Engine::Statement::Ptr Engine::StatementFactory::create(const ValueTree& v)
 	}
 
 	return nullptr;
+}
+
+String Engine::DispatchData::getSigString() const
+{
+	String sig;
+
+	auto getChar = [](const TypeInfo& t)
+		{
+			switch (t.getType())
+			{
+			case Types::ID::Void:    return 'v';
+			case Types::ID::Integer: return 'i';
+			case Types::ID::Float:   return 'f';
+			case Types::ID::Double:  return 'd';
+			case Types::ID::Pointer: return 'p';
+			default:                 return '?';
+			}
+		};
+
+	sig << getChar(functionData.returnType);
+
+	for (const auto& a : functionData.args)
+		sig << getChar(a.typeInfo);
+
+	return sig;
+}
+
+void* Engine::DispatchData::getFromFunctionMap(const String& sig)
+{
+	static const std::map<String, void*> functionMap = []
+	{
+		std::map<String, void*> functions;
+		addReturnSignatures<void>(functions, "v");
+		addReturnSignatures<int>(functions, "i");
+		addReturnSignatures<float>(functions, "f");
+		addReturnSignatures<double>(functions, "d");
+		addReturnSignatures<void*>(functions, "p");
+		return functions;
+	}();
+
+	auto match = functionMap.find(sig);
+	return match != functionMap.end() ? match->second : nullptr;
 }
 
 } // namespace interpreter

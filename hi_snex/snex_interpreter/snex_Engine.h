@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <type_traits>
+#include <utility>
 
 namespace snex
 {
@@ -364,7 +366,7 @@ struct Engine: public snex::jit::FunctionCollectionBase
 
 		for (const auto& f : dispatchData)
 		{
-			ids.add(f.functionData.id);
+			ids.add(f->functionData.id);
 		}
 		
 		return ids;
@@ -417,68 +419,78 @@ private:
 
 	struct EngineScope;
 
-	template <int NumArgs> struct FunctionScope: public Scope
-	{
-		FunctionScope()
-		{
-			sourceType = DataSource::FunctionParameters;
-		}
-
-		void* resolve(int index) const override { return data[index].getDataPointer(); }
-
-		VariableStorage data[NumArgs];
-	};
-
-	template <int FunctionIndex, typename RT, typename T1> static RT dispatch1(void* obj, T1 value)
-	{
-		auto typed = static_cast<Engine*>(obj);
-
-		if (isPositiveAndBelow(FunctionIndex, typed->dispatchData.size()))
-		{
-			auto& d = typed->dispatchData[FunctionIndex];
-
-			if (d.active || d.functionData.args.size() != 1)
-			{
-				jassertfalse;
-				return RT();
-			}
-
-			struct ActiveCall
-			{
-				explicit ActiveCall(bool& flag_) : flag(flag_) { flag = true; }
-				~ActiveCall() { flag = false; }
-				bool& flag;
-			} activeCall(d.active);
-
-			d.functionScope->clear();
-
-			VariableStorage rv;
-			if (auto address = d.functionScope->getAddress(d.functionData.args[0].id.id, sizeof(T1)))
-				ComplexType::writeNativeMemberType(address, 0, VariableStorage(value));
-			else
-			{
-				jassertfalse;
-				return RT();
-			}
-
-			d.functionStatement->perform(d.functionScope.get(), &rv);
-
-			static constexpr Types::ID RTypeId = Types::getTypeFromTypeId<RT>();
-			return rv.toType<RTypeId>();
-		}
-
-		return RT();
-	}
-
 	struct DispatchData
 	{
+		String getSigString() const;
+
+		static void* getFromFunctionMap(const String& sig);
+
+		template <typename RV, typename T> static void addTwoArgumentSignatures(
+			std::map<String, void*>& functionMap, const String& firstArgumentSignature)
+		{
+			functionMap[firstArgumentSignature + "i"] = (void*)call<RV, T, int>;
+			functionMap[firstArgumentSignature + "f"] = (void*)call<RV, T, float>;
+			functionMap[firstArgumentSignature + "d"] = (void*)call<RV, T, double>;
+			functionMap[firstArgumentSignature + "p"] = (void*)call<RV, T, void*>;
+		}
+
+		template <typename RV> static void addReturnSignatures(
+			std::map<String, void*>& functionMap, const String& returnSignature)
+		{
+			functionMap[returnSignature] = (void*)call<RV>;
+			functionMap[returnSignature + "i"] = (void*)call<RV, int>;
+			functionMap[returnSignature + "f"] = (void*)call<RV, float>;
+			functionMap[returnSignature + "d"] = (void*)call<RV, double>;
+			functionMap[returnSignature + "p"] = (void*)call<RV, void*>;
+
+			addTwoArgumentSignatures<RV, int>(functionMap, returnSignature + "i");
+			addTwoArgumentSignatures<RV, float>(functionMap, returnSignature + "f");
+			addTwoArgumentSignatures<RV, double>(functionMap, returnSignature + "d");
+			addTwoArgumentSignatures<RV, void*>(functionMap, returnSignature + "p");
+		}
+
+		template <size_t... Indices, typename... Ts>
+		static void writeArguments(DispatchData& data, std::index_sequence<Indices...>, Ts... args)
+		{
+			(ComplexType::writeNativeMemberType(data.parameterOffsets[Indices], 0, VariableStorage(args)), ...);
+		}
+
+		template <typename RV, typename... Ts> static RV call(void* obj, Ts... args)
+		{
+			auto data = static_cast<DispatchData*>(obj);
+
+			if (data == nullptr || data->active || data->parameterOffsets.size() != sizeof...(Ts))
+			{
+				jassertfalse;
+				if constexpr (std::is_void_v<RV>)
+					return;
+				else
+					return RV();
+			}
+
+			ScopedValueSetter<bool> svs(data->active, true);
+
+			data->functionScope->clear();
+			writeArguments(*data, std::index_sequence_for<Ts...>{}, args...);
+
+			VariableStorage rv;
+			data->functionStatement->perform(data->functionScope.get(), &rv);
+
+			if constexpr (!std::is_void_v<RV>)
+			{
+				static constexpr Types::ID RTypeId = Types::getTypeFromTypeId<RV>();
+				return rv.toType<RTypeId>();
+			}
+		}
+
 		jit::FunctionData functionData;
 		Scope::Ptr functionScope;
 		Statement::Ptr functionStatement;
+		std::vector<void*> parameterOffsets;
 		bool active = false;
 	};
 
-	std::vector<DispatchData> dispatchData;
+	OwnedArray<DispatchData> dispatchData;
 
 	Statement::Ptr rootTree;
 	Scope::Ptr rootScope;
