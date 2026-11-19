@@ -640,7 +640,38 @@ private:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(GlobalScope);
 };
 
+struct TypeParserBase
+{
+	virtual ~TypeParserBase() {};
 
+	TypeParserBase(const String& s, bool includeTemplate_ = true, const ReferenceCountedArray<ComplexType>& list = {});
+
+
+	TypeInfo getTypeInfo() const;
+	String getTrailingString() const;
+	NamespacedIdentifier parseNamespacedIdentifier();
+	NamespacedIdentifier getComplexTypeId() const;
+	FunctionData parseFunctionData();
+
+private:
+
+	ReferenceCountedArray<ComplexType> typeRegistry;
+
+	bool includeTemplate = true;
+
+	void skipWhiteSpace();
+	String parseIdentifier();
+	bool matchIf(const char* token);
+	String skipTemplate();
+	void parse();
+
+	String code;
+	String typeId;
+	bool isRef = false;
+	bool isConst = false;
+	bool isStatic = false;
+	Types::ID t = Types::ID::Void;
+};
 
 }
 }

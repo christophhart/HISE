@@ -489,6 +489,8 @@ public:
 
 	Array<Selection> getSearchResults() const;
 
+	UriLocation getBaseLocation() const { return baseLocation; }
+
 	bool matchesLocation(const UriLocation& l) const;
 
 	AutocompleteTokenData createAutocompleteData(Point<int> lineAndCol) const;

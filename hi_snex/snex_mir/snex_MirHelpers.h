@@ -78,33 +78,12 @@ namespace InstructionPropertyIds
 	DEFINE_ID(Value);
 }
 
-struct SimpleTypeParser
+struct SimpleTypeParser : public snex::jit::TypeParserBase
 {
-	SimpleTypeParser(const String& s, bool includeTemplate_=true);
+	SimpleTypeParser(const String& s, bool includeTemplate_ = true);
 
-	MIR_type_t getMirType(bool getPointerIfRef=true) const;
-	TypeInfo getTypeInfo() const;
-	String getTrailingString() const;
-	NamespacedIdentifier parseNamespacedIdentifier();
-	NamespacedIdentifier getComplexTypeId();
-	FunctionData parseFunctionData();
-
-private:
-
-	bool includeTemplate = true;
-
-	void skipWhiteSpace();
-	String parseIdentifier();
-	bool matchIf(const char* token);
-	String skipTemplate();
-	void parse();
-
-	String code;
-	String typeId;
-	bool isRef = false;
-	bool isConst = false;
-	bool isStatic = false;
-	Types::ID t = Types::ID::Void;
+	MIR_type_t getMirType(bool getPointerIfRef = true) const;
+	
 };
 
 struct TypeConverters

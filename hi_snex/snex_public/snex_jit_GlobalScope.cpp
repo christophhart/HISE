@@ -516,5 +516,212 @@ void GlobalScope::handleAsyncUpdate()
 	}
 }
 
+TypeParserBase::TypeParserBase(const String& s, bool includeTemp, const ReferenceCountedArray<ComplexType>& list):
+	includeTemplate(includeTemp),
+	typeRegistry(list)
+{
+	code = s;
+	parse();
+}
+
+TypeInfo TypeParserBase::getTypeInfo() const
+{
+	if (t == Types::ID::Pointer && !typeRegistry.isEmpty())
+	{
+		auto nid = getComplexTypeId();
+
+		for (auto ct : typeRegistry)
+		{
+			if (ct->matchesId(nid))
+				return TypeInfo(ct).withModifiers(isConst, isRef, isStatic);
+		}
+	}
+
+	return TypeInfo(t, isConst, isRef, isStatic);
+}
+
+String TypeParserBase::getTrailingString() const
+{
+	return code;
+}
+
+NamespacedIdentifier TypeParserBase::parseNamespacedIdentifier()
+{
+	return NamespacedIdentifier::fromString(parseIdentifier());
+}
+
+NamespacedIdentifier TypeParserBase::getComplexTypeId() const
+{
+	jassert(t == Types::ID::Pointer);
+	return NamespacedIdentifier::fromString(typeId);
+}
+
+FunctionData TypeParserBase::parseFunctionData()
+{
+	FunctionData f;
+
+	f.returnType = getTypeInfo();
+	f.id = parseNamespacedIdentifier();
+
+	auto templateArgs = skipTemplate();
+
+	if (templateArgs.isNotEmpty())
+	{
+		auto tId = templateArgs.removeCharacters(" <>,");
+
+		f.id = f.id.getChildId(tId);
+	}
+
+	auto rest = getTrailingString().trim().removeCharacters("()");
+
+	while (rest.isNotEmpty())
+	{
+		TypeParserBase a(rest, true, typeRegistry);
+
+		jit::Symbol arg;
+		arg.typeInfo = a.getTypeInfo();
+		arg.id = f.id.getChildId(a.parseNamespacedIdentifier().getIdentifier());
+
+		rest = a.getTrailingString().fromFirstOccurrenceOf(",", false, false);
+
+		f.args.add(arg);
+	}
+
+	return f;
+}
+
+void TypeParserBase::skipWhiteSpace()
+{
+	auto start = code.begin();
+	auto end = code.end();
+
+	while (start != end)
+	{
+		if (CharacterFunctions::isWhitespace(*start))
+			start++;
+		else
+			break;
+	}
+
+	if (start != code.begin())
+		code = String(start, end);
+}
+
+String TypeParserBase::parseIdentifier()
+{
+	skipWhiteSpace();
+
+	auto start = code.begin();
+	auto end = code.end();
+	auto ptr = start;
+
+	while (ptr != end)
+	{
+		auto c = *ptr;
+
+		if (CharacterFunctions::isLetterOrDigit(c) ||
+			c == ':' || c == '_' || c == '-' || c == '*' || c == '~' || c == '=' || c == '+' || c == '[' || c == ']')
+			ptr++;
+		else
+			break;
+	}
+
+	auto id = String(start, ptr);
+
+	code = String(ptr, end);
+
+	return id;
+}
+
+bool TypeParserBase::matchIf(const char* token)
+{
+	skipWhiteSpace();
+
+	if (code.startsWith(token))
+	{
+		auto s = code.begin();
+		auto e = code.end();
+
+		int offset = String(token).length();
+
+		code = String(s + offset, e);
+		return true;
+	}
+
+	return false;
+}
+
+String TypeParserBase::skipTemplate()
+{
+	skipWhiteSpace();
+
+	if (code.startsWithChar('<'))
+	{
+		int numOpenTemplateBrackets = 0;
+
+		auto start = code.begin();
+		auto end = code.end();
+		auto ptr = start;
+
+		while (ptr != end)
+		{
+			auto c = *ptr;
+
+			if (c == '<')
+				numOpenTemplateBrackets++;
+			if (c == '>')
+				numOpenTemplateBrackets--;
+
+			ptr++;
+
+			if (numOpenTemplateBrackets == 0)
+				break;
+		}
+
+		auto tp = String(start, ptr);
+		code = String(ptr, end);
+
+		jassert(numOpenTemplateBrackets == 0);
+		return tp;
+	}
+
+	return {};
+}
+
+void TypeParserBase::parse()
+{
+	isStatic = matchIf(JitTokens::static_);
+	isConst = matchIf(JitTokens::const_);
+
+	typeId = parseIdentifier();
+
+	if (typeId == "double")     t = Types::ID::Double;
+	else if (typeId == "float") t = Types::ID::Float;
+	else if (typeId == "int")   t = Types::ID::Integer;
+	else if (typeId == "void*") t = Types::ID::Pointer;
+	else if (typeId == "void")  t = Types::ID::Void;
+	else						t = Types::ID::Pointer;
+
+	if (includeTemplate)
+		typeId << skipTemplate();
+	else
+		skipTemplate();
+
+	while (matchIf(JitTokens::double_colon))
+	{
+		typeId << JitTokens::double_colon;
+		typeId << parseIdentifier();
+
+		if (includeTemplate)
+			typeId << skipTemplate();
+		else
+			skipTemplate();
+	}
+
+	isRef = matchIf("&");
+
+	skipWhiteSpace();
+}
+
 }
 }

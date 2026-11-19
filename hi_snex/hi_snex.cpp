@@ -104,6 +104,17 @@ using String = juce::String;
 #include "snex_core/snex_jit_JitCompiledFunctionClass.cpp"
 #include "snex_public/snex_jit_JitCompiler.cpp"
 
+#if SNEX_INTERPRETER_BACKEND
+
+#include "snex_interpreter/snex_InterpreterControlStatements.cpp"
+#include "snex_interpreter/snex_InterpreterScope.cpp"
+#include "snex_interpreter/snex_InterpreterExpressions.cpp"
+#include "snex_interpreter/snex_InterpreterDataExpressions.cpp"
+#include "snex_interpreter/snex_InterpreterOperators.cpp"
+#include "snex_interpreter/snex_Engine.cpp"
+#include "snex_interpreter/snex_ExpressionTreeBuilder.cpp"
+#endif
+
 #include "snex_jit/snex_jit_TemplateClassBuilder.cpp"
 #include "snex_library/snex_CallbackCollection.cpp"
 
