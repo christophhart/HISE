@@ -106,13 +106,14 @@ using String = juce::String;
 
 #if SNEX_INTERPRETER_BACKEND
 
-#include "snex_interpreter/snex_InterpreterControlStatements.cpp"
 #include "snex_interpreter/snex_InterpreterScope.cpp"
+#include "snex_interpreter/snex_InterpreterStatement.cpp"
+#include "snex_interpreter/snex_InterpreterControlStatements.cpp"
 #include "snex_interpreter/snex_InterpreterExpressions.cpp"
 #include "snex_interpreter/snex_InterpreterDataExpressions.cpp"
 #include "snex_interpreter/snex_InterpreterOperators.cpp"
-#include "snex_interpreter/snex_Engine.cpp"
 #include "snex_interpreter/snex_ExpressionTreeBuilder.cpp"
+#include "snex_interpreter/snex_Engine.cpp"
 #endif
 
 #include "snex_jit/snex_jit_TemplateClassBuilder.cpp"

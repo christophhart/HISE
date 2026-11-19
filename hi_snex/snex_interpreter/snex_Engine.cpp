@@ -1,4 +1,3 @@
-#include "snex_Engine.h"
 /* ===========================================================================
 *
 *   This file is part of HISE.
@@ -36,20 +35,20 @@ namespace snex
 namespace interpreter
 {
 
-Engine::Engine(jit::GlobalScope& scope, const StatementCollection& createdNodes):
+Engine::Engine(jit::GlobalScope& scope, const Statement::Collection& createdNodes):
   globalScope(scope),
   rootTree(createdNodes.root),
 	rootScope(new Scope(nullptr, this, {}))
 {
 	Statement::List initialisers;
 
-	if (auto st = dynamic_cast<SyntaxTree*>(rootTree.get()))
+	if (auto st = dynamic_cast<nodes::SyntaxTree*>(rootTree.get()))
 	{
 		for (auto c : st->children)
 		{
-			if (auto as = dynamic_cast<Assignment*>(c))
+			if (auto as = dynamic_cast<nodes::Assignment*>(c))
 			{
-				if (auto v = dynamic_cast<VariableReference*>(as->target.get()))
+				if (auto v = dynamic_cast<nodes::VariableReference*>(as->target.get()))
 				{
 					if (v->symbol.id.getParent() == rootScope->id &&
 						rootScope->find(v->symbol.id.id) == nullptr)
@@ -64,7 +63,7 @@ Engine::Engine(jit::GlobalScope& scope, const StatementCollection& createdNodes)
 				initialisers.add(as);
 			}
 
-			if (auto f = dynamic_cast<Function*>(c))
+			if (auto f = dynamic_cast<nodes::Function*>(c))
 			{
 				auto d = new DispatchData();
 
@@ -101,7 +100,7 @@ Engine::Engine(jit::GlobalScope& scope, const StatementCollection& createdNodes)
 	auto rootResult = rootScope->finalise();
 	jassert(rootResult.wasOk());
 
-	createdNodes.template callRecursive<VariableReference>(rootTree->astNode, [&](VariableReference* v)
+	createdNodes.template callRecursive<nodes::VariableReference>(rootTree->astNode, [&](nodes::VariableReference* v)
 	{
 		auto scopeId = v->symbol.id.getParent();
 		auto idWithinScope = v->symbol.id.id;
@@ -130,6 +129,18 @@ Engine::Engine(jit::GlobalScope& scope, const StatementCollection& createdNodes)
 
 Engine::~Engine()
 {
+}
+
+Array<jit::NamespacedIdentifier> Engine::getFunctionIds() const
+{
+	Array<jit::NamespacedIdentifier> ids;
+
+	for (const auto& f : dispatchData)
+	{
+		ids.add(f->functionData.id);
+	}
+
+	return ids;
 }
 
 jit::FunctionData Engine::getFunction(const jit::NamespacedIdentifier& functionId)
@@ -192,20 +203,7 @@ ValueTree Engine::getDataLayout(int dataIndex) const
 	return ValueTree();
 }
 
-Engine::Statement::Ptr Engine::StatementFactory::create(const ValueTree& v)
-{
-	if (createFunctions.find(v.getType()) != createFunctions.end())
-	{
-		if (auto t = createFunctions.at(v.getType())(*this, v))
-		{
-			createdNodes.flatList.push_back({ v, t });
 
-			return t;
-		}
-	}
-
-	return nullptr;
-}
 
 String Engine::DispatchData::getSigString() const
 {

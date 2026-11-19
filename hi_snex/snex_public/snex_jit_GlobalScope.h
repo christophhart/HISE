@@ -653,7 +653,7 @@ struct TypeParserBase
 	NamespacedIdentifier getComplexTypeId() const;
 	FunctionData parseFunctionData();
 
-private:
+protected:
 
 	ReferenceCountedArray<ComplexType> typeRegistry;
 

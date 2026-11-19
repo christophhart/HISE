@@ -214,7 +214,7 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 #if SNEX_INTERPRETER_BACKEND
 	if (cr.wasOk())
 	{
-		interpreter::ExpressionTreeBuilder builder(getAST(), compiler->namespaceHandler.getComplexTypeList());
+		interpreter::ExpressionTreeBuilder builder(code, preprocessedCode, getAST(), compiler->namespaceHandler.getComplexTypeList());
 
 		JitObject interpreterObject(builder.createEngine(memory));
 

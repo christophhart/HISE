@@ -1,16 +1,39 @@
+/* ===========================================================================
+*
+*   This file is part of HISE.
+*   Copyright 2016 Christoph Hart
+*
+*   HISE is free software: you can redistribute it and/or modify
+*   it under the terms of the GNU General Public License as published by
+*   the Free Software Foundation, either version 3 of the License, or
+*   (at your option any later version.
+*
+*   HISE is distributed in the hope that it will be useful,
+*   but WITHOUT ANY WARRANTY; without even the implied warranty of
+*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*   GNU General Public License for more details.
+*
+*   You should have received a copy of the GNU General Public License
+*   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
+*
+*   Commercial licences for using HISE in an closed source project are
+*   available on request. Please visit the project's website to get more
+*   information about commercial licencing:
+*
+*   http://www.hartinstruments.net/hise/
+*
+*   HISE is based on the JUCE library,
+*   which also must be licenced for commercial applications:
+*
+*   http://www.juce.com
+*
+*   ===========================================================================
+*/
+
 #pragma once
 
-#include <algorithm>
-#include <cstdint>
-#include <cstring>
-#include <limits>
-#include <type_traits>
-#include <utility>
-
-namespace snex
-{
-namespace interpreter
-{
+namespace snex {
+namespace interpreter {
 
 /** Implementation plan for the opt-in SNEX interpreter.
  *
@@ -22,101 +45,62 @@ namespace interpreter
  *  for source-level debugging. The interpreter owns SNEX memory operations, but
  *  calls into arbitrary native functions and host-owned memory are not crash-proof.
  *
- *  1. Compilation boundary and ownership
- *  ------------------------------------
- *  Keep preprocessing, parsing, type checking, and AST generation in the existing
- *  compiler. After a successful common compilation pass, select the interpreter
- *  instead of MIR and give ExpressionTreeBuilder the AST ValueTree, the complex
- *  type layouts, and any required GlobalScope services. Do not make the builder
- *  depend on MIR instructions or generated MIR text. Backend selection must be
- *  opt-in; enabling interpreter support must not select it for every compile.
- *  Return a JitObject holding an Engine via FunctionCollectionBase. Propagate
- *  builder failures as compile errors, without silently falling through to MIR.
- *  Keep the executable nodes, globals, type metadata, and native entry bindings
- *  alive in the Engine for at least as long as any returned FunctionData is used.
- *  Review the common compiler passes for work that still runs native code during
- *  compilation (for example, root construction) before claiming full safety.
+ *  1. Compilation boundary and validation
+ *  --------------------------------------
+ *  The existing compiler produces the AST and instantiated ComplexType registry;
+ *  ExpressionTreeBuilder creates an Engine returned through JitObject. The
+ *  compile-time interpreter selection is a temporary development setting;
+ *  wire the GlobalScope opt-in before production use. Reject unsupported AST
+ *  nodes, missing children, unresolved types and symbols, and unsupported native
+ *  signatures with attributed builder errors before running initializers.
+ *  Review compiler passes that execute native root constructors before claiming
+ *  complete crash isolation.
  *
- *  2. Lower the AST once
- *  ---------------------
- *  ExpressionTreeBuilder validates node kinds and required properties, resolves
- *  types, symbols, functions, member offsets, and scope slot indices, and creates
- *  immutable executable Statement / Expression nodes. Reject unsupported nodes
- *  with an attributed error. Do not repeatedly parse ValueTree property strings
- *  in the execution loop. Retain source positions and the resolved TypeInfo on
- *  executable nodes. The serialized AST currently has Line and charIndex; use
- *  charIndex as the cheap source offset and defer line / column resolution.
- *  Remember that the AST offset is into the preprocessed program: provide a
- *  source mapping when editor text and preprocessed text differ. Resolve types
- *  during lowering rather than assuming that every AST node has a Type property.
+ *  2. Complete executable AST coverage
+ *  -----------------------------------
+ *  The prototype already lowers scalar literals, references, arithmetic, casts,
+ *  assignments, returns, and function bodies. Add the remaining ValueTree types:
+ *  locals and nested scopes, control flow, calls, member/index expressions,
+ *  complex definitions, and compound operators. Resolve member and slot offsets
+ *  once while building nodes; never parse AST strings during execution. Retain
+ *  Line and charIndex; map preprocessed offsets back to editor source locations.
  *
  *  3. Runtime nodes, values, and control flow
  *  ------------------------------------------
- *  Model execution after HiseJavascriptEngine: statements perform an action and
- *  propagate ok / return / break / continue; expressions evaluate to a
- *  VariableStorage. Provide a default Expression::perform() that discards its
- *  result. The node graph is shared and should not store mutable call positions
- *  or local values: recursion and nested calls need independent frames. Blocks
- *  own ordered statements; frames own the current block position and call stack.
- *  Evaluate lvalues separately from rvalues so assignments can write through a
- *  typed address rather than modifying a temporary VariableStorage copy.
+ *  Add an Expression::perform() for discarded values and complete return, break,
+ *  and continue propagation. Keep executable nodes immutable: use the current
+ *  reusable per-function buffer with an active-call guard to reject reentry.
+ *  If recursion becomes necessary, move call state into separate frames. Keep
+ *  lvalue addresses distinct from temporary VariableStorage results.
  *  Audio-thread hot-path performance is critical even though interpretation is
  *  slower than JIT code. Resolve IDs, types, and slot offsets once during
  *  lowering; per-sample execution must not repeat symbol lookups, parse strings,
- *  allocate memory, or perform other avoidable work in DSP loops.
+ *  allocate memory, or perform other avoidable work in DSP loops. Select typed
+ *  operation function pointers while constructing each node (as BinaryOp does)
+ *  so the per-sample path does not branch on operation kinds or value types.
  *
- *  4. Scopes and memory
- *  --------------------
- *  Use typed, indexed scope slots rather than a DynamicObject. The builder
- *  assigns slot indices and the runtime links function parameters, local block
- *  scopes, and the engine/global scope through Scope::parent. DataSource selects
- *  the intended storage category; specify nearest-scope/shadowing behavior for
- *  nested scopes of the same category. A matching scope with an invalid index
- *  must report an error, not accidentally resolve an outer slot. Use runtime
- *  frame sizes from compiled function metadata unless fixed sizes genuinely
- *  simplify a particular callback. Frames own their storage while suspended.
- *  Scope::resolve() returns the writable address of the SNEX value. Native
- *  VariableStorage slots expose their payload address; complex members use
- *  their containing object's address plus a validated data-layout offset.
- *  Distinguish the address of a pointer slot from the address it points to:
- *  VariableStorage::getDataPointer() returns the pointee for Pointer and is
- *  not a universal address-of-slot operation. Define block/dyn storage layouts
- *  explicitly rather than treating their tagged VariableStorage union as the
- *  native block struct. Keep TypeInfo, size, alignment, constness, and storage
- *  lifetime associated with each resolved address. Check bounds and alignment
- *  before dereferencing interpreter-owned storage; do not assume that a valid
- *  SNEX type proves a host-provided pointer is safe.
- *  For native scalars, copy values into slots. For a non-reference complex
- *  parameter, allocate correctly sized/aligned frame storage and copy its
- *  object representation, then use the address of that copy internally. For a
- *  reference, retain an address to the original object. Copying a block/dyn
- *  view copies its pointer and length, not its underlying sample buffer. Apply
- *  the same value-versus-reference distinction to assignments and returns.
- *  Define initialization and destruction for owned complex storage separately.
+ *  4. Complex storage and runtime errors
+ *  -------------------------------------
+ *  Scope already owns aligned buffers and resolved scalar offsets. Add nested
+ *  scopes, shadowing, and complex member/index addresses with checked bounds.
+ *  Represent complex references as addresses of caller-owned objects, not
+ *  by-value object slots; keep pointer-slot and pointee addresses distinct.
+ *  Handle block/dyn views, complex initialization and destruction, and constness
+ *  without treating VariableStorage as the native object layout. Host-owned
+ *  pointers require separate validation and cannot be assumed crash-proof.
+ *  Report runtime failures with AST locations through UriErrorLogger; defer UI
+ *  notifications off the audio thread without allocation in the hot path.
  *
- *  5. Functions and host entry points
- *  ----------------------------------
- *  Engine implements FunctionCollectionBase: expose function IDs and metadata,
- *  global variables and pointers, main-object size, layout snapshots, and a
- *  dump of live data. Keep callable FunctionData metadata/bindings separate
- *  from the executable function-body list. Populate FunctionData.function with
- *  a typed native trampoline and FunctionData.object with a stable per-function
- *  binding containing Engine and function index. One trampoline per supported
- *  native signature is enough; avoid one template instantiation per function
- *  index. Select the trampoline once when creating the FunctionData. Its exact
- *  C++ signature must match the caller ABI (including float/double, pointers,
- *  block-by-value callbacks, and returns). Inside it, construct a frame from
- *  the declared SNEX TypeInfo, execute the body, and convert the return value.
- *  Cover CallbackCollection signatures first, then ScriptnodeCallbacks
- *  (prepare, reset, process, frame, event, external data, and optional calls)
- *  as needed. Check all callers using callUnchecked/callVoidUnchecked: those
- *  methods do not prepend FunctionData.object. Route interpreter calls through
- *  an object-aware path; never put a context-requiring trampoline behind an
- *  unchecked call that omits its context. Keep bindings valid for copied
- *  FunctionData values and decide how errors cross native callback boundaries.
- *  Internal SNEX calls may invoke executable nodes directly without a native
- *  trampoline. External native calls need explicit safe adapters or a clearly
- *  documented escape from interpreter crash protection.
+ *  5. Calls and host integration
+ *  -----------------------------
+ *  FunctionData already uses stable per-function bindings and setup-time typed
+ *  trampolines for zero to two scalar/pointer arguments. Add internal SNEX calls
+ *  without a native trampoline. Audit callUnchecked/callVoidUnchecked callers:
+ *  they omit FunctionData.object and cannot call a bound trampoline directly.
+ *  Support the required CallbackCollection and ScriptnodeCallbacks signatures,
+ *  including block views and complex references. Wrap PrepareSpecs copies before
+ *  passing them as references. Finish main-object access, layout snapshots, and
+ *  dumpTable; define how runtime errors cross native callback boundaries.
  *
  *  6. Scope tree and debugger
  *  -------------------------
@@ -126,8 +110,11 @@ namespace interpreter
  *  jit::ComplexType for complex types. Some HiseScript consumers only recognize
  *  strings or LightweightDiagnostics, so provide a SNEX-aware display adapter.
  *  Use the shared UriBreakpoint::Owner interface for attachment, resume, and
- *  step actions. Keep SNEX-specific breakpoint state and per-call frames rather
- *  than depending on JavaScript's DynamicObject scopes. Resolve stops to stable
+ *  step actions. Study HiseJavascriptEngine::BlockStatement::BreakpointHelpers
+ *  for stack unwinding and instruction-pointer movement, but validate SNEX
+ *  scope lifetimes before adapting its control-flow behavior. Keep SNEX-specific
+ *  breakpoint state and active function scopes instead of JavaScript's
+ *  DynamicObject scopes. Resolve stops to stable
  *  executable statement positions. Implement step-in/over/out against frame
  *  depth and block positions. Restrict instruction-pointer moves to validated
  *  targets in the current function: entering a block with uninitialized locals
@@ -136,8 +123,10 @@ namespace interpreter
  *  DynamicObjects for structs, and Array<var> for span/dyn values. Use TypeInfo
  *  and layouts to interpret memory. Do not dereference untrusted pointers merely
  *  to populate the UI. Materialize snapshots only while execution is halted;
- *  the interpreter itself never stores its values as var. Provide an appropriate
- *  non-audio-thread suspension path rather than reusing JavascriptProcessor's
+ *  the interpreter itself never stores its values as var. Provide a paused-only
+ *  REPL and value readout over typed scopes, starting with read-only inspection.
+ *  Provide an appropriate non-audio-thread suspension path rather than reusing
+ *  JavascriptProcessor's
  *  thread-specific sleeper directly.
  *
  *  7. Verification milestones
@@ -148,229 +137,24 @@ namespace interpreter
  *  Keep expected compile errors on the common front end; assembly loop-count
  *  and optimization-specific assertions remain MIR-only. Extend the embedded
  *  C++ tests to exercise the typed entry bindings and inspect scoped locals.
- *  Implement in stages: scalar statements and calls; addressable scopes and
- *  complex values; host callbacks and buffers; debugger stepping and snapshots;
- *  finally validated instruction-pointer moves. Report unsupported constructs
- *  explicitly and track behavioral parity by test category. The maintainer
+ *  Track behavioral parity by test category: scalar control flow, complex
+ *  storage, host callbacks, debugger snapshots, and validated pointer moves.
+ *  The maintainer
  *  builds and runs tests; do not build or run HISE from this repository.
  */
+
 struct Engine: public snex::jit::FunctionCollectionBase
 {
 	// Base interfaces ==================================================================================
 
-	struct Scope: public ReferenceCountedObject
-	{
-		using Ptr = ReferenceCountedObjectPtr<Scope>;
-		using List = ReferenceCountedArray<Scope>;
-		using WeakPtr = WeakReference<Scope>;
-
-		Scope(Scope* parent_, Engine* e, const NamespacedIdentifier& id_):
-		  parent(parent_),
-		  engine(e),
-		  id(id_)
-		{
-			if(parent != nullptr)
-				parent->children.add(this);
-		}
-
-		struct Entry
-		{
-			jit::Symbol symbol;
-			size_t offset = 0;
-			size_t size = 0;
-		};
-
-		Result addSymbol(const jit::Symbol& symbol, size_t slotSize, size_t alignment)
-		{
-			if (dataStart != nullptr)
-				return Result::fail("Scope storage is already finalised");
-
-			if (symbol.id.getParent() != id || entries.find(symbol.id.id) != entries.end())
-				return Result::fail("Invalid or duplicate scope symbol: " + symbol.id.toString());
-
-			if (slotSize == 0 || alignment == 0)
-				return Result::fail("Invalid scope slot size or alignment");
-
-			const auto remainder = totalSize % alignment;
-			const auto padding = remainder == 0 ? 0 : alignment - remainder;
-
-			if (padding > std::numeric_limits<size_t>::max() - totalSize ||
-				slotSize > std::numeric_limits<size_t>::max() - totalSize - padding)
-				return Result::fail("Scope storage size overflow");
-
-			Entry entry;
-			entry.symbol = symbol;
-			entry.offset = totalSize + padding;
-			entry.size = slotSize;
-			entries.emplace(symbol.id.id, entry);
-			totalSize = entry.offset + slotSize;
-			maxAlignment = std::max(maxAlignment, alignment);
-			return Result::ok();
-		}
-
-		Result finalise()
-		{
-			if (dataStart != nullptr)
-				return Result::fail("Scope storage is already finalised");
-
-			if (totalSize > std::numeric_limits<size_t>::max() - maxAlignment)
-				return Result::fail("Scope storage size overflow");
-
-			scopeData.calloc(totalSize + maxAlignment);
-			auto address = reinterpret_cast<std::uintptr_t>(scopeData.get());
-			auto remainder = address % maxAlignment;
-			dataStart = scopeData.get() + (remainder == 0 ? 0 : maxAlignment - remainder);
-			return Result::ok();
-		}
-
-		void clear()
-		{
-			if (dataStart != nullptr)
-				std::memset(dataStart, 0, totalSize);
-		}
-
-		void* getDataPointer() const { return dataStart; }
-		size_t getDataSize() const { return totalSize; }
-
-		const Entry* find(const Identifier& symbolId) const
-		{
-			auto it = entries.find(symbolId);
-			return it == entries.end() ? nullptr : &it->second;
-		}
-
-		void* getAddress(const Identifier& symbolId, size_t bytesNeeded) const
-		{
-			if (auto entry = find(symbolId))
-				if (dataStart != nullptr && bytesNeeded <= entry->size)
-					return dataStart + entry->offset;
-
-			return nullptr;
-		}
-
-		Array<jit::Symbol> getSymbols() const
-		{
-			Array<jit::Symbol> symbols;
-
-			for (const auto& entry : entries)
-				symbols.add(entry.second.symbol);
-
-			return symbols;
-		}
-
-		Scope* getScope(const jit::NamespacedIdentifier& scopeId)
-		{
-			if (id == scopeId)
-				return this;
-
-			for (auto c : children)
-			{
-				if (auto match = c->getScope(scopeId))
-					return match;
-			}
-
-			return nullptr;
-		}
-
-		List children;
-		WeakPtr parent = nullptr;
-		Engine* engine = nullptr;
-		jit::NamespacedIdentifier id;
-
-		HeapBlock<uint8> scopeData;
-		std::map<Identifier, Entry> entries;
-		uint8* dataStart = nullptr;
-		size_t totalSize = 0;
-		size_t maxAlignment = 1;
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(Scope);
-	};
-
-	struct Statement: public ReferenceCountedObject
-	{
-		Statement(const ValueTree& astNode_) :
-		  astNode(astNode_)
-		{};
-
-		using Ptr = ReferenceCountedObjectPtr<Statement>;
-		using List = ReferenceCountedArray<Statement>;
-		enum ResultCode { ok = 0, returnWasHit, breakWasHit, continueWasHit };
-
-		virtual ~Statement() = default;
-		virtual ResultCode perform(Scope* s, VariableStorage* returnValue) { return ResultCode::ok; };
-
-		ValueTree astNode;
-	};
-
-	struct Expression : public Statement
-	{
-		using ExprPtr = ReferenceCountedObjectPtr<Expression>;
-		using ExprList = ReferenceCountedArray<Expression>;
-
-		Expression(const ValueTree& astNode) :
-		  Statement(astNode)
-		{};
-
-		virtual jit::TypeInfo getTypeInfo() const = 0;
-		virtual VariableStorage getResult(Scope* s) = 0;
-		
-		virtual void assign(Scope* s, const VariableStorage& v) {}
-	};
-
-	struct StatementCollection
-	{
-		template <typename StatementType = Statement> bool callRecursive(const ValueTree& v, const std::function<bool(StatementType*)>& f) const
-		{
-			if (auto s = get(v))
-			{
-				if (auto typed = dynamic_cast<StatementType*>(s.get()))
-				{
-					if (f(typed))
-						return true;
-				}
-
-				for (auto c : v)
-				{
-					if (callRecursive(c, f))
-						return true;
-				}
-			}
-
-			return false;
-		};
-
-		Statement::Ptr get(const ValueTree& v) const
-		{
-			for (const auto& item : flatList)
-			{
-				if (item.first == v)
-					return item.second;
-			}
-
-			return nullptr;
-		}
-
-		Statement::Ptr root;
-		std::vector<std::pair<ValueTree, Statement::Ptr>> flatList;
-	};
-
 	// Forward declarations ===============================================================================
 
-	Engine(jit::GlobalScope& scope, const StatementCollection& rootTree);
+	Engine(jit::GlobalScope& scope, const Statement::Collection& rootTree);
 	~Engine();
 
 	// Function methods
 
-	Array<jit::NamespacedIdentifier> getFunctionIds() const override 
-	{ 
-		Array<jit::NamespacedIdentifier> ids;
-
-		for (const auto& f : dispatchData)
-		{
-			ids.add(f->functionData.id);
-		}
-		
-		return ids;
-	}
+	Array<jit::NamespacedIdentifier> getFunctionIds() const override;
 
 	jit::FunctionData getFunction(const jit::NamespacedIdentifier& functionId) override;
 
@@ -388,34 +172,11 @@ private:
 
 	friend class snex::interpreter::ExpressionTreeBuilder;
 
-	struct StatementFactory
-	{
-		using CreateFunction = std::function<Statement::Ptr(StatementFactory& f, const ValueTree& v)>;
-
-		StatementFactory();;
-
-		template <typename T> void registerType()
-		{
-			auto id = T::getStatementType();
-			createFunctions[id] = T::create;
-		}
-
-		Statement::Ptr create(const ValueTree& v);
-		std::map<Identifier, CreateFunction> createFunctions;
-		StatementCollection createdNodes;
-		ReferenceCountedArray<jit::ComplexType> typeLibrary;
-	};
+	
 
 	struct Helpers;
 
-	struct SyntaxTree;
-	struct Function;
-	struct ReturnStatement;
-	struct Immediate;
-	struct BinaryOp;
-	struct Cast;
-	struct VariableReference;
-	struct Assignment;
+	
 
 	struct EngineScope;
 

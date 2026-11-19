@@ -80,10 +80,11 @@ namespace InstructionPropertyIds
 
 struct SimpleTypeParser : public snex::jit::TypeParserBase
 {
-	SimpleTypeParser(const String& s, bool includeTemplate_ = true);
+	SimpleTypeParser(const String& s, bool includeTemplate_ = true) :
+	  TypeParserBase(s, includeTemplate_, {})
+	{}
 
 	MIR_type_t getMirType(bool getPointerIfRef = true) const;
-	
 };
 
 struct TypeConverters

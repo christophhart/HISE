@@ -1,13 +1,12 @@
-namespace snex
-{
-namespace interpreter
-{
+namespace snex {
+namespace interpreter {
+namespace nodes {
 
-struct Engine::Assignment : public Engine::Statement
+struct Assignment : public Statement
 {
-	SNEX_INTERPRETER_NODE(Assignment);
+	SNEX_INTERPRETER_NODE(Assignment, WantsNode::Yes);
 
-	Assignment(StatementFactory& f, const ValueTree& v) :
+	Assignment(Factory& f, const ValueTree& v) :
  	  Statement(v),
 	  value(Helpers::getChildExpression(f, v, 0)),
 	  target(Helpers::getChildExpression(f, v, 1))
@@ -24,11 +23,11 @@ struct Engine::Assignment : public Engine::Statement
 	Expression::ExprPtr target;
 };
 
-struct Engine::BinaryOp : public Engine::Expression
+struct BinaryOp : public Expression
 {
-	SNEX_INTERPRETER_NODE(BinaryOp);
+	SNEX_INTERPRETER_NODE(BinaryOp, WantsNode::No);
 
-	BinaryOp(StatementFactory& f, const ValueTree& v) :
+	BinaryOp(Factory& f, const ValueTree& v) :
 		Expression(v),
 		l(Helpers::getChildExpression(f, v, 0)),
 		r(Helpers::getChildExpression(f, v, 1))
@@ -101,11 +100,11 @@ struct Engine::BinaryOp : public Engine::Expression
 	
 };
 
-struct Engine::Cast : public Engine::Expression
+struct Cast : public Expression
 {
-	SNEX_INTERPRETER_NODE(Cast);
+	SNEX_INTERPRETER_NODE(Cast, WantsNode::No);
 
-	Cast(StatementFactory& f, const ValueTree& v) :
+	Cast(Factory& f, const ValueTree& v) :
 		Expression(v),
 		targetType(Helpers::getType(f, v, AstIds::Target)),
 		sourceValue(Helpers::getChildExpression(f, v, 0))
@@ -150,5 +149,6 @@ struct Engine::Cast : public Engine::Expression
 
 };
 
+} // namespace nodes
 } // namespace interpreter
 } // namespace snex

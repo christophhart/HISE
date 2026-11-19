@@ -336,6 +336,9 @@ namespace snex
 #include "snex_public/snex_jit_JitCompiler.h"
 
 #if SNEX_INTERPRETER_BACKEND
+#include "snex_interpreter/snex_InterpreterIds.h"
+#include "snex_interpreter/snex_InterpreterScope.h"
+#include "snex_interpreter/snex_InterpreterStatement.h"
 #include "snex_interpreter/snex_ExpressionTreeBuilder.h"
 #include "snex_interpreter/snex_Engine.h"
 #endif

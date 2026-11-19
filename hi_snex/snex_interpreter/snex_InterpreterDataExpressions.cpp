@@ -1,13 +1,12 @@
-namespace snex
-{
-namespace interpreter
-{
+namespace snex {
+namespace interpreter {
+namespace nodes {
 
-struct Engine::Immediate : public Engine::Expression
+struct Immediate : public Expression
 {
-	SNEX_INTERPRETER_NODE(Immediate);
+	SNEX_INTERPRETER_NODE(Immediate, WantsNode::No);
 
-	Immediate(StatementFactory& f, const ValueTree& v) :
+	Immediate(Factory& f, const ValueTree& v) :
 		Expression(v),
 		type(Helpers::getType(f, v)),
 		value(type.getType(), v[AstIds::Value])
@@ -28,11 +27,11 @@ struct Engine::Immediate : public Engine::Expression
 
 };
 
-struct Engine::VariableReference : public Engine::Expression
+struct VariableReference : public Expression
 {
-	SNEX_INTERPRETER_NODE(VariableReference);
+	SNEX_INTERPRETER_NODE(VariableReference, WantsNode::No);
 
-	VariableReference(StatementFactory& f, const ValueTree& v) :
+	VariableReference(Factory& f, const ValueTree& v) :
 		Expression(v),
 		symbol(Helpers::getSymbol(f, v))
 	{
@@ -100,5 +99,6 @@ struct Engine::VariableReference : public Engine::Expression
 	jit::Symbol symbol;
 };
 
+} // namespace nodes
 } // namespace interpreter
 } // namespace snex

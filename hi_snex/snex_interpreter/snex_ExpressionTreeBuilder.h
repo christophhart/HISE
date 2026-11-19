@@ -32,20 +32,22 @@
 
 #pragma once
 
-namespace snex
-{
-namespace interpreter
-{
+namespace snex {
+namespace interpreter {
 
 struct ExpressionTreeBuilder
 {
-	ExpressionTreeBuilder(const ValueTree& ast, const ReferenceCountedArray<jit::ComplexType>& typeLibrary_);
+	ExpressionTreeBuilder(const String& code, const String& preprocessedCode, const ValueTree& ast, const ReferenceCountedArray<jit::ComplexType>& typeLibrary_);
 
 	Result getLastError() const { return r; }
 
 	jit::FunctionCollectionBase* createEngine(jit::GlobalScope& globalScope);
 
 private:
+
+	UriLocationBuilder::Ptr locationBuilder;
+
+	UriLocationTree::Ptr createUriLocationTree(const Statement::Factory& f, const ValueTree& v, UriLocationTree::Ptr parent);
 
 	Result r;
 	ValueTree astTree;

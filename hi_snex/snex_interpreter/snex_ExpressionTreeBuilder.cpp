@@ -30,37 +30,106 @@
 *   ===========================================================================
 */
 
-namespace snex
-{
-namespace interpreter
-{
+namespace snex {
+namespace interpreter {
 
-Engine::StatementFactory::StatementFactory()
+Statement::Factory::Factory()
 {
-	registerType<Engine::SyntaxTree>();
-	registerType<Engine::Function>();
-	registerType<Engine::ReturnStatement>();
-	registerType<Engine::Immediate>();
-	registerType<Engine::BinaryOp>();
-	registerType<Engine::Cast>();
-	registerType<Engine::VariableReference>();
-	registerType<Engine::Assignment>();
+	registerType<nodes::SyntaxTree>();
+	registerType<nodes::Function>();
+	registerType<nodes::ReturnStatement>();
+	registerType<nodes::Immediate>();
+	registerType<nodes::BinaryOp>();
+	registerType<nodes::Cast>();
+	registerType<nodes::VariableReference>();
+	registerType<nodes::Assignment>();
 }
 
-ExpressionTreeBuilder::ExpressionTreeBuilder(const ValueTree& ast_, const ReferenceCountedArray<jit::ComplexType>& typeLibrary_):
+ExpressionTreeBuilder::ExpressionTreeBuilder(const String& code, const String& preprocessed, const ValueTree& ast_, const ReferenceCountedArray<jit::ComplexType>& typeLibrary_):
   r(Result::ok()),
   astTree(ast_),
-  typeLibrary(typeLibrary_)
+  typeLibrary(typeLibrary_),
+  locationBuilder(new UriLocationBuilder(code, preprocessed))
 {}
 
 jit::FunctionCollectionBase* ExpressionTreeBuilder::createEngine(jit::GlobalScope & globalScope)
 {
-	Engine::StatementFactory f;
+	Statement::Factory f;
+	
+	f.locationBuilder = locationBuilder;
 	f.typeLibrary = typeLibrary;
+
+	DBG(astTree.createXml()->createDocument(""));
+
+	auto locTree = createUriLocationTree(f, astTree, nullptr);
 
 	auto rootTree = f.create(astTree);
 	f.createdNodes.root = rootTree;
+	
 	return new interpreter::Engine(globalScope, f.createdNodes);
+}
+
+UriLocationTree::Ptr ExpressionTreeBuilder::createUriLocationTree(const Statement::Factory& f, const ValueTree& v, UriLocationTree::Ptr parent)
+{
+	if (f.wantsNode(v))
+	{
+		UriLocationTree::Ptr np = new UriLocationTree(parent.get());
+
+		np->fillLocation(locationBuilder->createLocation(v));
+		np->category = v.getType();
+
+		for (auto c : v)
+		{
+			createUriLocationTree(f, c, np);
+		}
+
+		return np;
+	}
+
+	return nullptr;
+	
+}
+
+UriLocationBuilder::UriLocationBuilder(const String& code, const String& preprocessedCode)
+{
+	baseLocation.uri = "tbd";
+	baseLocation.processorId = "tbd";
+
+	codeDoc.setDisableUndo(true);
+	codeDoc.replaceAllContent(code);
+
+	if (code != preprocessedCode)
+	{
+		preprocessedDoc.setDisableUndo(true);
+		preprocessedDoc.replaceAllContent(preprocessedCode);
+		resolvePreprocessedCode = true;
+	}
+}
+
+UriLocation UriLocationBuilder::createLocation(const ValueTree& v) const
+{
+	auto charIndex = (int)v[AstIds::charIndex];
+
+	UriLocation l;
+	l.fillLocation(baseLocation);
+
+	if (resolvePreprocessedCode)
+	{
+		CodeDocument::Position prePos(preprocessedDoc, charIndex);
+
+		auto line = prePos.getLineNumber();
+		auto col = prePos.getIndexInLine();
+
+		CodeDocument::Position realPos(codeDoc, line, col);
+		l.fillLocation(realPos);
+	}
+	else
+	{
+		CodeDocument::Position charPos(codeDoc, charIndex);
+		l.fillLocation(charPos);
+	}
+
+	return l;
 }
 
 } // namespace interpreter

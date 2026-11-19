@@ -99,19 +99,19 @@ struct ParserHelpers
 #endif
 		}
 
-		void calculateLineIfEnabled(bool isEnabled)
+		void calculateLineIfEnabled(bool isEnabled) const
 		{
 			if (isEnabled)
 				calculatePosition(false, true);
 		}
 
-		void calculatePosIfEnabled(bool isEnabled)
+		void calculatePosIfEnabled(bool isEnabled) const
 		{
 			if (isEnabled)
 				calculatePosition(true, true);
 		}
 
-		void calculatePosition(bool calculateColToo, bool forceUpdate=false)
+		void calculatePosition(bool calculateColToo, bool forceUpdate=false) const
 		{
 #if SNEX_PREPARSE_LINE_NUMBERS
 			if (getXYPosition().isOrigin() || forceUpdate)
@@ -151,31 +151,10 @@ struct ParserHelpers
 			}
 
 			return line;
-
-#if 0
-			int col = 0;
-
-			auto start = program;
-			auto end = location;
-
-			auto charactersFromStart = (end - start);
-
-			for (int i = 0; i < jmin<int>((int)charactersFromStart, (int)start.length()); i++)
-			{
-				if (start[i] == '\n')
-					col = 0;
-				else
-					col++;
-			}
-
-			return col;
-#endif
 		}
 
 		int calculateColNumber() const
 		{
-
-
 			int col = 0;
 
 			auto start = program;
@@ -199,8 +178,8 @@ struct ParserHelpers
 		String::CharPointerType location;
 
 #if SNEX_PREPARSE_LINE_NUMBERS
-		int lineNumber = 0;
-		int colNumber = 0;
+		mutable int lineNumber = 0;
+		mutable int colNumber = 0;
 #endif
 	};
 

@@ -239,6 +239,8 @@ namespace Operations
 		{
 			ValueTree v(getStatementId());
 
+			location.calculatePosition(false);
+
 			v.setProperty("Line", location.getLine(), nullptr);
 			v.setProperty("charIndex", (int)(location.location - location.program), nullptr);
 
