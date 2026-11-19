@@ -377,6 +377,7 @@ namespace snex {
 #include "snex_library/snex_jit_NativeDspFunctions.h"
 
 
+#include "snex_components/snex_Session.h"
 #include "snex_components/snex_WorkbenchData.h"
 #include "snex_components/snex_ExtraComponents.h"
 

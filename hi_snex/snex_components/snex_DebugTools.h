@@ -232,13 +232,6 @@ struct TemplateProvider : public SnexTokenProvider
 	void addTokens(TokenCollection::List& tokens);
 };
 
-struct ComplexTypeProvider : public SnexTokenProvider
-{
-	
-
-	
-};
-
 struct PreprocessorMacroProvider : public SnexTokenProvider
 {
 	PreprocessorMacroProvider(CodeDocument& d) :
@@ -289,62 +282,6 @@ struct PreprocessorMacroProvider : public SnexTokenProvider
 
 	void addTokens(TokenCollection::List& tokens) override;
 
-	CodeDocument& doc;
-};
-
-struct SymbolProvider : public SnexTokenProvider
-{
-	struct ComplexMemberToken : public TokenCollection::Token
-	{
-		ComplexMemberToken(SymbolProvider& parent_, ComplexType::Ptr p_, FunctionData& f);
-
-		bool matches(const String& input, const String& previousToken, int lineNumber) const override;
-
-		bool equals(const Token* other) const override
-		{
-			if (auto co = dynamic_cast<const ComplexMemberToken*>(other))
-			{
-				if (co->p != p)
-					return false;
-			}
-
-			return Token::equals(other);
-		}
-
-		SymbolProvider& parent;
-		ComplexType::Ptr p;
-
-		String codeToInsert;
-
-		String getCodeToInsert(const String& input) const override
-		{
-			return codeToInsert;
-		}
-	};
-
-	SymbolProvider(CodeDocument& d):
-		doc(d),
-		c(s),
-		nh(c.getNamespaceHandlerReference())
-	{
-	}
-
-	void addTokens(TokenCollection::List& tokens);
-
-	static void addDocumentation(const ValueTree& v, TokenCollection::TokenPtr t, const String& methodName)
-	{
-		auto c = v.getChildWithProperty("name", methodName);
-
-		if (c.isValid())
-			t->markdownDescription = c["description"].toString();
-	}
-
-	GlobalScope s;
-	Compiler c;
-	NamespaceHandler::Ptr nh;
-
-	ReferenceCountedArray<jit::ComplexType> typeList;
-	StringArray sa;
 	CodeDocument& doc;
 };
 

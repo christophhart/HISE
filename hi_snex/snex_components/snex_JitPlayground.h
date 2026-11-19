@@ -465,15 +465,16 @@ private:
 
 class SnexPlayground : public ui::WorkbenchComponent,
 	public CodeDocument::Listener,
-	public ButtonListener
+	public ButtonListener,
+	public hise::UriErrorLogger::Listener
 {
 public:
 
 	enum class ContextActions
 	{
-		BackgroundParsing = 11000,
-		Preprocessor,
-		Goto
+		Preprocessor = 11000,
+		Goto,
+		CompileWithSession
 	};
 
 	struct TestCodeProvider : public ui::WorkbenchData::CodeProvider
@@ -512,8 +513,7 @@ public:
 	};
 
 	struct PreprocessorUpdater: public Timer,
-								public CodeDocument::Listener,
-		public snex::DebugHandler
+								public CodeDocument::Listener
 	{
 		PreprocessorUpdater(SnexPlayground& parent_):
 			parent(parent_)
@@ -527,8 +527,6 @@ public:
 		{
 			startTimer(1200);
 		}
-
-		void logMessage(int level, const juce::String& s);
 
 		void codeDocumentTextDeleted(int, int) override
 		{
@@ -568,8 +566,9 @@ public:
 	void addPopupMenuItems(mcl::TextEditor& te, PopupMenu &m, const MouseEvent& e)
 	{
 		m.addItem((int)ContextActions::Goto, "Goto definition", true, false);
-		m.addItem((int)ContextActions::BackgroundParsing, "Background C++ parsing", true, te.enableLiveParsing);
 		m.addItem((int)ContextActions::Preprocessor, "Parse preprocessor conditions", true, te.enablePreprocessorParsing);
+		if (testMode)
+			m.addItem((int)ContextActions::CompileWithSession, "Compile with SnexSession (prototype)");
 	}
 
 	bool performPopupMenu(mcl::TextEditor& te, int result)
@@ -577,13 +576,14 @@ public:
 		switch ((ContextActions)result)
 		{
 		case ContextActions::Goto: te.gotoDefinition(te.getTextDocument().getSelection(0)); return true;
-		case ContextActions::BackgroundParsing: te.enableLiveParsing = !te.enableLiveParsing; return true;
 		case ContextActions::Preprocessor: te.enablePreprocessorParsing = !te.enablePreprocessorParsing; return true;
+		case ContextActions::CompileWithSession: compileWithSession(); return true;
 		}
 
 		return false;
 	}
 
+	void compileWithSession();
 	bool keyPressed(const KeyPress& k) override;
 	void createTestSignal();
 
@@ -685,6 +685,7 @@ private:
 		
 		e.errorMessage = errorMessage;
 		e.errorType = errorType;
+		e.sourceType = UriError::SourceType::Compilation;
 
 		if (errorMessage.startsWith("Line"))
 		{
@@ -727,11 +728,14 @@ private:
 		editor.enableBreakpoints(isEnabled);
 	}
 
+	void onError(const hise::UriError& error, int numOccurrences) override;
+	void onClear(hise::UriErrorLogger::SourceType sourceType) override;
 	void recompiled(ui::WorkbenchData::Ptr p) override;
 
 	void postPostCompile(ui::WorkbenchData::Ptr wb) override;
 
 	const bool testMode;
+	ui::SnexSession::Ptr prototypeSession;
 
 	CodeDocument doc;
 	mcl::TextDocument mclDoc;
@@ -775,6 +779,8 @@ private:
 
 	Array<Range<int>> scopeRanges;
 	ScopedPointer<TestCodeProvider> testProvider;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SnexPlayground);
 };
 
 }

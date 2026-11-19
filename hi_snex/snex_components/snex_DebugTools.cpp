@@ -73,48 +73,6 @@ void debug::MathFunctionProvider::addTokens(mcl::TokenCollection::List& l)
 	}
 }
 
-debug::SymbolProvider::ComplexMemberToken::ComplexMemberToken(SymbolProvider& parent_, ComplexType::Ptr p_, FunctionData& f) :
-	Token(f.getSignature()),
-	parent(parent_),
-	p(p_)
-{
-	f.getOrResolveReturnType(p);
-
-	c = FourColourScheme::getColour(FourColourScheme::Method);
-	tokenContent = f.getSignature({}, false);
-	priority = 80;
-	codeToInsert = f.getCodeToInsert();
-	markdownDescription = f.description;
-}
-
-bool debug::SymbolProvider::ComplexMemberToken::matches(const String& input, const String& previousToken, int lineNumber) const
-{
-	if (auto st = dynamic_cast<SpanType*>(p.get()))
-	{
-		if (st->getElementSize() == 19)
-			jassertfalse;
-	}
-
-	if (previousToken.endsWith("."))
-	{
-		try
-		{
-			auto typeInfo = parent.nh->parseTypeFromTextInput(previousToken.upToLastOccurrenceOf(".", false, false), lineNumber);
-
-			auto codeToSearch = input.length() == 1 ? getCodeToInsert(input) : tokenContent;
-
-			if (typeInfo.getTypedIfComplexType<ComplexType>() == p.get())
-				return matchesInput(input, codeToSearch);
-		}
-		catch (ParserHelpers::Error& )
-		{
-			return false;
-		}
-	}
-
-	return false;
-}
-
 void debug::PreprocessorMacroProvider::addTokens(mcl::TokenCollection::List& tokens)
 {
 	Preprocessor p(doc.getAllContent());
@@ -135,51 +93,6 @@ void debug::PreprocessorMacroProvider::addTokens(mcl::TokenCollection::List& tok
 	{
 		tokens.add(new PreprocessorToken(ad.name, ad.codeToInsert, ad.description, ad.lineNumber));
 	}
-}
-
-void debug::SymbolProvider::addTokens(mcl::TokenCollection::List& tokens)
-{
-	ApiDatabase::Instance db;
-	c.reset();
-	Types::SnexObjectDatabase::registerObjects(c, 2);
-
-	c.compileJitObject(doc.getAllContent());
-
-	auto ct = c.getNamespaceHandler().getComplexTypeList();
-
-	nh = c.getNamespaceHandlerReference();
-
-	for (auto c : ct)
-	{
-		if (FunctionClass::Ptr fc = c->getFunctionClass())
-		{
-			TokenCollection::List l;
-
-			for (auto id : fc->getFunctionIds())
-			{
-				Array<FunctionData> fData;
-				fc->addMatchingFunctions(fData, id);
-
-				for (auto& f : fData)
-					l.add(new ComplexMemberToken(*this, c, f));
-			}
-
-			if (auto st = dynamic_cast<StructType*>(c))
-			{
-				for (auto ni : l)
-					db->addDocumentation(ni, st->id, ni->getCodeToInsert(""));
-			}
-
-			tokens.addArray(l);
-		}
-	}
-
-	auto l2 = c.getNamespaceHandler().getTokenList();
-
-	for (auto ni : l2)
-		db->addDocumentation(ni, NamespacedIdentifier(ni->tokenContent), {});
-
-	tokens.addArray(l2);
 }
 
 void debug::TemplateProvider::addTokens(mcl::TokenCollection::List& tokens)
@@ -221,7 +134,6 @@ mcl::FoldableLineRange::List debug::SnexLanguageManager::createLineRange(const C
 void debug::SnexLanguageManager::addTokenProviders(mcl::TokenCollection* t)
 {
 	t->addTokenProvider(new debug::KeywordProvider());
-	t->addTokenProvider(new debug::SymbolProvider(doc));
 	t->addTokenProvider(new debug::TemplateProvider());
 	t->addTokenProvider(new debug::MathFunctionProvider());
 	t->addTokenProvider(new debug::PreprocessorMacroProvider(doc));

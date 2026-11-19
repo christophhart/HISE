@@ -245,9 +245,60 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 	getWorkbench()->addListener(this);
 }
 
+void SnexPlayground::compileWithSession()
+{
+	if (!testMode)
+		return;
+
+	auto uri = currentTestFile.existsAsFile() ? currentTestFile.getFullPathName() : String("UnsavedTest.h");
+
+	if (prototypeSession == nullptr || prototypeSession->getBaseLocation().uri != uri)
+	{
+		if (prototypeSession != nullptr)
+			prototypeSession->removeListener(this);
+
+		auto instanceId = currentTestFile.existsAsFile()
+			? Identifier(currentTestFile.getFileNameWithoutExtension()) : Identifier("UnsavedTest");
+		auto source = std::make_unique<ui::SnexSession::DocumentCodeProvider>(doc, uri, instanceId);
+		prototypeSession = new ui::SnexSession("SnexPlayground", std::move(source));
+		prototypeSession->addListener(this, true);
+	}
+
+	editor.editor.getTextDocument().setBaseLocation(prototypeSession->getBaseLocation());
+
+	auto result = prototypeSession->compileFromSource();
+	resultLabel.setText(result.wasOk() ? "Session compile OK" : result.getErrorMessage(), dontSendNotification);
+}
+
 SnexPlayground::~SnexPlayground()
 {
+	if (prototypeSession != nullptr)
+		prototypeSession->removeListener(this);
+
 	getWorkbench()->removeListener(this);
+}
+
+void SnexPlayground::onError(const hise::UriError& error, int numOccurrences)
+{
+	if (error.sourceType != hise::UriError::Compilation || numOccurrences != 1)
+		return;
+
+	hise::SafeAsyncCall::call<SnexPlayground>(*this, [error](SnexPlayground& playground)
+	{
+		if (playground.editor.editor.matchesUriLocation(error))
+			playground.editor.editor.addUriError(error);
+	});
+}
+
+void SnexPlayground::onClear(hise::UriErrorLogger::SourceType sourceType)
+{
+	if (!(sourceType & hise::UriError::Compilation))
+		return;
+
+	hise::SafeAsyncCall::call<SnexPlayground>(*this, [](SnexPlayground& playground)
+	{
+		playground.editor.editor.clearWarningsAndErrors(hise::UriError::Compilation);
+	});
 }
 
 
@@ -678,8 +729,14 @@ bool SnexPlayground::keyPressed(const KeyPress& k)
 {
 	if (k.getKeyCode() == KeyPress::F5Key)
 	{
-		saveTest = k.getModifiers().isShiftDown();
-		compileButton.triggerClick();
+		if (testMode && !k.getModifiers().isShiftDown())
+			compileWithSession();
+		else
+		{
+			saveTest = k.getModifiers().isShiftDown();
+			compileButton.triggerClick();
+		}
+
 		return true;
 	}
 	if (k.getKeyCode() == KeyPress::F10Key)
@@ -1102,35 +1159,8 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 			ed.setDeactivatedLines(lastRange);
 		}
 
-		if (ed.isLiveParsingEnabled())
-		{
-			ed.clearWarningsAndErrors(UriError::SourceType::Include);
-
-			GlobalScope s;
-			Compiler c(s);
-			c.setDebugHandler(this);
-			Types::SnexObjectDatabase::registerObjects(c, 2);
-
-			c.compileJitObject(parent.doc.getAllContent());
+		if (ed.tokenCollection != nullptr)
 			ed.tokenCollection->signalRebuild();
-
-			auto r = c.getCompileResult();
-
-			if (!r.wasOk())
-			{
-				auto error = parent.parseErrorMessage(r.getErrorMessage(), UriError::ErrorType::Error);
-				error.sourceType = UriError::SourceType::Include;
-				ed.addUriError(error);
-			}
-		}
-	}
-
-	void SnexPlayground::PreprocessorUpdater::logMessage(int level, const juce::String& s)
-	{
-		if (level == (int)snex::BaseCompiler::Warning)
-		{
-			parent.editor.editor.addUriError(parent.parseErrorMessage(s, UriError::ErrorType::Warning));
-		}
 	}
 
 	snex::ui::WorkbenchData::CompileResult TestCompileThread::compile(const String& s)
