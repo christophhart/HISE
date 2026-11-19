@@ -2870,7 +2870,7 @@ JavascriptThreadPool::ScopedSleeper::ScopedSleeper(JavascriptThreadPool& p_, Jav
 		}
 		else
 		{
-			Thread::sleep(200);
+			Thread::sleep(15);
 		}
 	}
 

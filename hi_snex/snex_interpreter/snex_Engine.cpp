@@ -68,7 +68,7 @@ Engine::Engine(jit::GlobalScope& scope, const Statement::Collection& createdNode
 				auto d = new DispatchData();
 
 				d->functionData = f->fData;
-				d->functionScope = new Scope(rootScope, this, f->fData.id);
+				d->functionScope = new Scope(rootScope.get(), this, f->fData.id);
 
 				for (const auto& a : f->fData.args)
 				{
@@ -123,7 +123,7 @@ Engine::Engine(jit::GlobalScope& scope, const Statement::Collection& createdNode
 
 	for (auto i : initialisers)
 	{
-		i->perform(rootScope, nullptr);
+		i->perform(rootScope.get(), nullptr);
 	}
 }
 

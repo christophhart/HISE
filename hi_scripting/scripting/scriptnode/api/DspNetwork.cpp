@@ -2075,9 +2075,7 @@ void DspNetwork::CodeManager::SnexSourceCompileHandler::postCompile(ui::Workbenc
 
 	if (lastResult.compiledOk() && test != nullptr && getParent()->getGlobalScope().isDebugModeEnabled())
 	{
-		getParent()->getGlobalScope().getBreakpointHandler().setExecutingThread(currentThread);
 		lastResult.compileResult = test->runTest(lastResult);
-		getParent()->getGlobalScope().getBreakpointHandler().setExecutingThread(nullptr);
 	}
 
 	runTestNext.store(false);
@@ -2282,8 +2280,6 @@ void DspNetwork::CodeManager::SnexSourceCompileHandler::run()
 
 bool DspNetwork::CodeManager::SnexSourceCompileHandler::triggerCompilation()
 {
-	getParent()->getGlobalScope().getBreakpointHandler().abort();
-
 	if (isThreadRunning())
 		stopThread(3000);
 
