@@ -83,9 +83,10 @@ public:
 	void scrollToLine(float centerLine, bool roundToLine);
 
 	void timerCallback() override;
+
 	void setHeatMap(DebugInformationBase::Ptr ptr, const std::map<int, double>* map)
 	{
-		for(auto p: inplaceDebugValueComponents)
+		for(auto p: inplaceDebugValueManager.inplaceDebugValueComponents)
 		{
 			if(p->value->info == ptr)
 			{
@@ -475,7 +476,40 @@ private:
 		Path p;
 	};
 
-	OwnedArray<InplaceDebugValueComponent> inplaceDebugValueComponents;
+	struct InplaceDebugValueManager : public Timer
+	{
+		InplaceDebugValueManager(TextEditor& parent_) :
+			parent(parent_)
+		{};
+
+		void clear()
+		{
+			inplaceDebugValueComponents.clear();
+			currentValues.clear();
+		}
+
+		void timerCallback() override
+		{
+			
+			parent.rebuildInplaceDebugValues();
+			stopTimer();
+		}
+
+		void updatePosition()
+		{
+			for (auto p : inplaceDebugValueComponents)
+				p->updatePosition();
+		}
+
+		void addInplaceDebugValues(LanguageManager::InplaceDebugValue::List& inplaceDebugValues);
+
+		void push(const UriError& e);
+
+		TextEditor& parent;
+
+		LanguageManager::InplaceDebugValue::List currentValues;
+		OwnedArray<InplaceDebugValueComponent> inplaceDebugValueComponents;
+	} inplaceDebugValueManager;
 
     Array<int> currentTitles;
     
@@ -614,6 +648,8 @@ private:
     TextDocument& document;
 
 	OwnedArray<Error> errors;
+
+	
 
 	Array<PopupMenuFunction> popupMenuFunctions;
 	Array<PopupMenuResultFunction> popupMenuResultFunctions;

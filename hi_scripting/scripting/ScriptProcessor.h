@@ -557,12 +557,6 @@ public:
 
 	JavascriptCodeEditor* getActiveEditor() override;
 
-	void addInplaceDebugValue(const UriLocation& loc, const String& value, DebugInformationBase::Ptr info);
-
-	Array<std::pair<String, mcl::LanguageManager::InplaceDebugValue::Ptr>> deferredValues;
-    mcl::LanguageManager::InplaceDebugValue::List inplaceValues;
-    LambdaBroadcaster<Identifier, int> inplaceBroadcaster;
-	
 	virtual void fileChanged() override;
 
 	void compileScript(const ResultFunction& f = ResultFunction());

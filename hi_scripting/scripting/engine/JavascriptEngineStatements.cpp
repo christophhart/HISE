@@ -40,11 +40,6 @@ struct HiseJavascriptEngine::RootObject::ScopedBlockStatement: public Statement
 		return Identifier(id);
 	}
 
-	void addInplaceDebugValue(JavascriptProcessor* jp, DebugInformationBase::Ptr info) const
-	{
-		jp->addInplaceDebugValue(location.createUriLocation(), info->getTextForName(), info);
-	}
-
 	bool checkCondition(const Scope& s, bool before)
 	{
 		if(before && condition != nullptr)
@@ -562,12 +557,6 @@ struct HiseJavascriptEngine::RootObject::ScopedProfiler: public HiseJavascriptEn
 		dataSource->sourceType = DebugSession::ProfileDataSource::SourceType::Script;
 
 		auto id = callback;
-
-		dataSource->onMessageFlush = [uri](ApiProviderBase::Holder* h, DebugInformationBase::Ptr info)
-		{
-			if(auto jp = dynamic_cast<JavascriptProcessor*>(h))
-				jp->addInplaceDebugValue(uri, info->getTextForName(), info);
-		};
 #endif
 	}
 
@@ -642,7 +631,7 @@ struct HiseJavascriptEngine::RootObject::ScopedSampling: public HiseJavascriptEn
 		auto sessionId = name->getResult(s).toString();
 		auto& dh = p->getMainController()->getDebugSession();
 		ignoreUnused(sessionId, dh, jp);
-		PROFILE_ONLY(if(auto s = dh.startSession(jp, sessionId)) addInplaceDebugValue(jp, s));
+		PROFILE_ONLY(dh.startSession(jp, sessionId));
 
 		return ResultCode::ok;
 	}

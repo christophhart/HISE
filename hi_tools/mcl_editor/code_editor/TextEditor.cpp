@@ -32,6 +32,7 @@ mcl::TextEditor::TextEditor(TextDocument& codeDoc)
 , autocompleteTimer(*this)
 , diagnosticsTimer(*this)
 , plaf(new LookAndFeel_V3())
+, inplaceDebugValueManager(*this)
 {
 	//tokenCollection.addTokenProvider(new SimpleDocumentTokenProvider(docRef));
 
@@ -251,6 +252,9 @@ void TextEditor::setGotoFunction(const GotoFunction& f)
 
 void TextEditor::clearWarningsAndErrors(UriError::SourceType sourceType)
 {
+	if(sourceType & UriError::SourceType::Debug)
+		inplaceDebugValueManager.clear();
+
 	if (sourceType == UriError::SourceType::All)
 	{
 		autofixButton = nullptr;
@@ -274,6 +278,13 @@ void TextEditor::clearWarningsAndErrors(UriError::SourceType sourceType)
 void TextEditor::addUriError(const UriError& e)
 {
 	jassert(matchesUriLocation(e));
+
+	if (e.sourceType == UriError::SourceType::Debug &&
+		e.errorType == UriError::ErrorType::Info)
+	{
+		inplaceDebugValueManager.push(e);
+		return;
+	}
 
 	switch (e.errorType)
 	{
@@ -795,16 +806,19 @@ void TextEditor::InplaceDebugValueComponent::paint(Graphics& g)
 void TextEditor::rebuildInplaceDebugValues()
 {
 	heatmap.clear();
-	inplaceDebugValueComponents.clear();
-	LanguageManager::InplaceDebugValue::List inplaceDebugValues;
+	inplaceDebugValueManager.inplaceDebugValueComponents.clear();
 
-	if(languageManager != nullptr && languageManager->getInplaceDebugValues(inplaceDebugValues))
+	LanguageManager::InplaceDebugValue::List inplaceDebugValues;
+	
+	inplaceDebugValueManager.addInplaceDebugValues(inplaceDebugValues);
+
+	if(languageManager != nullptr)
+		languageManager->getInplaceDebugValues(inplaceDebugValues);
+
+	for (auto ip : inplaceDebugValues)
 	{
-		for(auto ip: inplaceDebugValues)
-		{
-			inplaceDebugValueComponents.add(new InplaceDebugValueComponent(*this, ip));
-			addAndMakeVisible(inplaceDebugValueComponents.getLast());
-		}
+		inplaceDebugValueManager.inplaceDebugValueComponents.add(new InplaceDebugValueComponent(*this, ip));
+		addAndMakeVisible(inplaceDebugValueManager.inplaceDebugValueComponents.getLast());
 	}
 
 	repaint();
@@ -2012,9 +2026,7 @@ void mcl::TextEditor::updateViewTransform()
         }        
     }
 
-	for(auto ipv: inplaceDebugValueComponents)
-		ipv->updatePosition();
-
+	inplaceDebugValueManager.updatePosition();
     repaint();
 }
 
@@ -2096,8 +2108,7 @@ void mcl::TextEditor::resized()
         currentSearchBox->setBounds(getLocalBounds().removeFromBottom(document.getRowHeight() * transform.getScaleFactor() * 1.2f + 5));
     }
 
-	for(auto p: inplaceDebugValueComponents)
-		p->updatePosition();
+	inplaceDebugValueManager.updatePosition();
 }
 
 void mcl::TextEditor::paint (Graphics& g)
@@ -3756,6 +3767,37 @@ void TextEditor::LiveDiagnosticsTimer::timerCallback()
     
     parent.tokenRebuildPending = false;
     parent.repaint();
+}
+
+void TextEditor::InplaceDebugValueManager::addInplaceDebugValues(LanguageManager::InplaceDebugValue::List& inplaceDebugValues)
+{
+	inplaceDebugValues.addArray(currentValues);
+
+	
+}
+
+void TextEditor::InplaceDebugValueManager::push(const UriError& e)
+{
+	startTimer(200);
+
+	for (auto& m : currentValues)
+	{
+		if (m->originalLocation.matches(e))
+		{
+			m->numEvents++;
+			return;
+		}
+	}
+
+	auto ni = new LanguageManager::InplaceDebugValue();
+	
+	auto lineIndex = e.line - 1;
+	ni->location = CodeDocument::Position(parent.getDocument(), lineIndex, 99);
+	ni->location.setPositionMaintained(true);
+	ni->originalLocation.fillLocation(e);
+	ni->type = LanguageManager::InplaceDebugValue::Type::Value;
+	ni->value = e.errorMessage;
+	currentValues.add(ni);
 }
 
 }

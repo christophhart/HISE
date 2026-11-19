@@ -64,12 +64,13 @@ public:
         
         void init();
 
-        int originalLineNumber = -1;
-        bool initialised = false;
+        UriLocation originalLocation;
+
+        int numEvents = 1;
+
         CodeDocument::Position location;
         String value;
         DebugInformationBase::Ptr info;
-
         Type type = Type::Value;
 
     private:

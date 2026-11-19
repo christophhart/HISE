@@ -622,7 +622,6 @@ void JavascriptProcessor::showPopupForCallback(const Identifier& callback, int /
 
 void JavascriptProcessor::cleanupEngine()
 {
-	inplaceValues.clear();
 	mainController->getScriptComponentEditBroadcaster()->clearSelection(sendNotification);
 	scriptEngine = nullptr;
 	dynamic_cast<ProcessorWithScriptingContent*>(this)->content = nullptr;
@@ -974,13 +973,8 @@ JavascriptProcessor::JavascriptProcessor(MainController *mc) :
 
 JavascriptProcessor::~JavascriptProcessor()
 {
-	inplaceValues.clear();
-
-
 	deleteAllPopups();
 	scriptEngine = nullptr;
-
-
 }
 
 
@@ -1078,66 +1072,6 @@ hise::JavascriptCodeEditor* JavascriptProcessor::getActiveEditor()
 #else
 	return nullptr;
 #endif
-}
-
-void JavascriptProcessor::addInplaceDebugValue(const UriLocation& loc, const String& value, DebugInformationBase::Ptr info)
-{
-	bool initialised = false;
-
-	auto lineNumber = loc.line;
-	auto callback = loc.toLocationString(UriLocation::UriFormat::CallbackId);
-	auto docToUse = getSnippetOrExternalFile(loc);
-	
-	lineNumber--;
-
-	if(docToUse == nullptr)
-	{
-		if(scriptEngine != nullptr && docToUse == nullptr)
-		{
-			for(int i = 0; i < scriptEngine->getNumIncludedFiles(); i++)
-			{
-				if(loc.matchesFile(scriptEngine->getIncludedFile(i)))
-				{
-					std::pair<String, mcl::LanguageManager::InplaceDebugValue::Ptr> d;
-
-					d.second = new mcl::LanguageManager::InplaceDebugValue();
-
-					d.first = callback;
-					d.second->initialised = false;
-					d.second->info = info;
-					d.second->originalLineNumber = lineNumber;
-					d.second->value = value;
-
-					deferredValues.add(d);
-				}
-			}
-		}
-
-		return;
-	}
-
-	inplaceBroadcaster.sendMessage(sendNotificationAsync, callback, lineNumber);
-
-	for (auto v : inplaceValues)
-	{
-		if (v->location.getOwner() == docToUse &&
-			(v->location.getLineNumber() == lineNumber || lineNumber == v->originalLineNumber))
-		{
-			v->value = value;
-			v->info = info;
-			return;
-		}
-	}
-
-	auto newValue = new mcl::LanguageManager::InplaceDebugValue();
-	newValue->location = CodeDocument::Position(*docToUse, lineNumber, 99);
-	newValue->originalLineNumber = lineNumber;
-	newValue->value = value;
-	newValue->info = info;
-	newValue->initialised = initialised;
-	newValue->location.setPositionMaintained(true);
-	
-	inplaceValues.add(newValue);
 }
 
 void JavascriptProcessor::fileChanged()
@@ -1401,10 +1335,6 @@ void JavascriptProcessor::initialiseEngine()
 
 void JavascriptProcessor::compileScript(const ResultFunction& rf /*= ResultFunction()*/)
 {
-    inplaceValues.clearQuick();
-
-	
-
 	bool stopAfterCompilation = false;
 
 #if HISE_INCLUDE_PROFILING_TOOLKIT
@@ -1714,9 +1644,6 @@ void JavascriptProcessor::onUriBreakpointEvent(const UriBreakpoint& resolvedBrea
 void JavascriptProcessor::setupApi()
 {
     sendClearMessage();
-
-	inplaceValues.clearQuick();
-	inplaceBroadcaster.sendMessage(sendNotificationAsync, {}, -1);
 
 	dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent()->cleanJavascriptObjects();
 
@@ -2605,23 +2532,6 @@ void JavascriptProcessor::stuffAfterCompilation(const UriError& result)
 	}
 #endif
 	
-	for(auto & d: deferredValues)
-	{
-		for (int i = 0; i < getNumWatchedFiles(); i++)
-		{
-			if (getWatchedFile(i).getFileName() == d.first)
-			{
-				d.second->location = CodeDocument::Position(getWatchedFileDocument(i), d.second->originalLineNumber, 90);
-				d.second->init();
-
-				inplaceBroadcaster.sendMessage(sendNotificationAsync, Identifier(d.first), d.second->originalLineNumber);
-				inplaceValues.add(d.second);
-			}
-		}
-	}
-
-	deferredValues.clear();
-
 	mainController->sendScriptCompileMessage(this);
 	rebuild();
 }

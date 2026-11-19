@@ -318,12 +318,6 @@ mcl::FoldableLineRange::List LanguageManager::createLineRange(const juce::CodeDo
 
 void LanguageManager::InplaceDebugValue::init()
 {
-	if(!initialised)
-	{
-		location = CodeDocument::Position(*location.getOwner(), originalLineNumber, 99);
-		location.setPositionMaintained(true);
-		initialised = true;
-	}
 }
 
 FoldableLineRange::List MarkdownLanguageManager::createLineRange(const CodeDocument& doc)

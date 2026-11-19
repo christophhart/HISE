@@ -6706,8 +6706,6 @@ void ScriptingApi::Console::print(var x)
 	e.errorMessage = x.toString();
 
 	jp->errorProvider.logUriError(UriErrorLogger::SourceType::Debug, e, sendNotificationAsync);
-
-    jp->addInplaceDebugValue(debugLocation, x.toString(), nullptr);
 	debugToConsole(getProcessor(), x);
 
 #else
@@ -6879,11 +6877,7 @@ void ScriptingApi::Console::startSampling(const String& sessionId)
 {
 #if HISE_INCLUDE_PROFILING_TOOLKIT
     auto& dh = getScriptProcessor()->getMainController_()->getDebugSession();
-    
-	if(auto s = dh.startSession(dynamic_cast<JavascriptProcessor*>(getScriptProcessor()), sessionId))
-	{
-		dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->addInplaceDebugValue(debugLocation, s->getTextForName(), s);
-	}
+	dh.startSession(dynamic_cast<JavascriptProcessor*>(getScriptProcessor()), sessionId);
 #endif
 }
 
@@ -6955,10 +6949,7 @@ void ScriptingApi::Console::sample(const String& label, var dataToSample)
 		ni->lineNumber = debugLocation;
 
 		if(dh.addDataItem(ni))
-		{
-			dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->addInplaceDebugValue(debugLocation, ni->getTextForName(), ni);
 			return;
-		}
 	}
 
 	if(warnIfNoSession)

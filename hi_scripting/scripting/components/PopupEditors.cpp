@@ -185,11 +185,6 @@ struct JavascriptLanguageManager : public mcl::LanguageManager
 		{
 			ed.setHeatMap(info, heatmap);
 		});
-
-        jp->inplaceBroadcaster.addListener(ed, [](mcl::TextEditor& ed, Identifier, int)
-        {
-			ed.rebuildInplaceDebugValues();
-        });
     };
 
 	CodeTokeniser* createCodeTokeniser() override 
@@ -205,15 +200,7 @@ struct JavascriptLanguageManager : public mcl::LanguageManager
     {
 		auto sn = jp->getSnippetOrExternalFile(location);
 		
-		for(auto& ip: jp->inplaceValues)
-		{
-			ip->init();
-
-			if(ip->location.getOwner() == sn)
-			{
-				values.add(ip);
-			}
-		}
+		
 
 		auto [includeTree, scopeTree] = jp->getIncludeAndScopeTree();
 
@@ -231,10 +218,9 @@ struct JavascriptLanguageManager : public mcl::LanguageManager
 					idv->info = new UriLocationTreeDebugInformation(p);
 
 					auto lineNumber = t.line - 1;
-					idv->originalLineNumber = lineNumber;
-					idv->location = CodeDocument::Position(*sn, lineNumber, sn->getLine(lineNumber).length());
+					idv->originalLocation.fillLocation(t);
+					idv->location = CodeDocument::Position(*sn, lineNumber, 99);
 					idv->location.setPositionMaintained(true);
-					idv->initialised = true;
 					idv->type = InplaceDebugValue::Type::CodeLens;
 
 					auto occurrences = JavascriptLocationTreeHelpers::getOccurrences(t);
