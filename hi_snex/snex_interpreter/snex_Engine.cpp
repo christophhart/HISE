@@ -42,13 +42,15 @@ Engine::Engine(jit::GlobalScope& scope, const Statement::Collection& createdNode
 {
 	Statement::List initialisers;
 
-	if (auto st = dynamic_cast<nodes::SyntaxTree*>(rootTree.get()))
+	using namespace nodes;
+
+	if (auto st = rootTree->getTyped<SyntaxTree>())
 	{
 		for (auto c : st->children)
 		{
-			if (auto as = dynamic_cast<nodes::Assignment*>(c))
+			if (auto as = c->getTyped<Assignment>())
 			{
-				if (auto v = dynamic_cast<nodes::VariableReference*>(as->target.get()))
+				if (auto v = as->target->getTyped<VariableReference>())
 				{
 					if (v->symbol.id.getParent() == rootScope->id &&
 						rootScope->find(v->symbol.id.id) == nullptr)
@@ -63,7 +65,7 @@ Engine::Engine(jit::GlobalScope& scope, const Statement::Collection& createdNode
 				initialisers.add(as);
 			}
 
-			if (auto f = dynamic_cast<nodes::Function*>(c))
+			if (auto f = c->getTyped<Function>())
 			{
 				auto d = new DispatchData();
 
@@ -100,7 +102,7 @@ Engine::Engine(jit::GlobalScope& scope, const Statement::Collection& createdNode
 	auto rootResult = rootScope->finalise();
 	jassert(rootResult.wasOk());
 
-	createdNodes.template callRecursive<nodes::VariableReference>(rootTree->astNode, [&](nodes::VariableReference* v)
+	createdNodes.template callRecursive<VariableReference>(rootTree->astNode, [&](VariableReference* v)
 	{
 		auto scopeId = v->symbol.id.getParent();
 		auto idWithinScope = v->symbol.id.id;

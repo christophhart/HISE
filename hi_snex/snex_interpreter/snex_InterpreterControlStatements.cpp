@@ -89,7 +89,19 @@ struct Function : public Statement
 		return body->perform(s, returnValue);
 	};
 
-	FunctionData fData;
+	void annotateUriLocationTree(UriLocationTree& t) override
+	{
+		for (auto a : fData.args)
+		{
+			auto argDef = new UriLocationTree(&t);
+			argDef->fillLocation(t);
+			argDef->category = "parameter";
+			argDef->id = a.id.toString();
+			Helpers::annotateType(*argDef, a.typeInfo);
+		}
+	}
+
+	jit::FunctionData fData;
 	Ptr body;
 };
 

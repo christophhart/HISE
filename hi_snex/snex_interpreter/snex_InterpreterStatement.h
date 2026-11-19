@@ -45,11 +45,11 @@ struct Statement : public ReferenceCountedObject
 
 	struct Collection
 	{
-		template <typename StatementType = Statement> bool callRecursive(const ValueTree& v, const std::function<bool(StatementType*)>& f) const
+		template <typename StatementType=Statement> bool callRecursive(const ValueTree& v, const std::function<bool(StatementType*)>& f) const
 		{
 			if (auto s = get(v))
 			{
-				if (auto typed = dynamic_cast<StatementType*>(s.get()))
+				if (auto typed = s->getTyped<StatementType>())
 				{
 					if (f(typed))
 						return true;
@@ -58,6 +58,20 @@ struct Statement : public ReferenceCountedObject
 				for (auto c : v)
 				{
 					if (callRecursive(c, f))
+						return true;
+				}
+			}
+
+			return false;
+		};
+
+		template <typename StatementType=Statement> bool forEachNodeFlat(const std::function<bool(StatementType*)>& f) const
+		{
+			for (auto& item : flatList)
+			{
+				if (auto typed = item.second->getTyped<StatementType>())
+				{
+					if (f(typed))
 						return true;
 				}
 			}
@@ -90,15 +104,12 @@ struct Statement : public ReferenceCountedObject
 		{
 			auto id = T::getStatementType();
 			createFunctions[id] = T::create;
-			isNodeStatement[id] = T::wantsNode == Statement::WantsNode::Yes;
 		}
-
-		bool wantsNode(const ValueTree& v) const;
 
 		UriLocationBuilder::Ptr locationBuilder;
 		Statement::Ptr create(const ValueTree& v);
 		std::map<Identifier, CreateFunction> createFunctions;
-		std::map<Identifier, bool> isNodeStatement;
+		
 		Collection createdNodes;
 		ReferenceCountedArray<jit::ComplexType> typeLibrary;
 	};
@@ -111,6 +122,18 @@ struct Statement : public ReferenceCountedObject
 
 	virtual ~Statement() = default;
 	virtual ResultCode perform(Scope* s, VariableStorage* returnValue) { return ResultCode::ok; };
+
+	virtual void annotateUriLocationTree(UriLocationTree& t) {};
+
+	virtual WantsNode shouldCreateNode() const = 0;
+
+	template <typename T> T* getTyped() 
+	{ 
+		static_assert(std::is_base_of<interpreter::Statement, T>() ||
+					  std::is_same<interpreter::Statement, T>(), "not a base of interpreter::Statement");
+
+		return dynamic_cast<T*>(this); 
+	}
 
 	ValueTree astNode;
 };

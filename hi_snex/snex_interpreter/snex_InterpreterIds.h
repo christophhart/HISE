@@ -15,6 +15,7 @@ DECLARE_ID(Signature);
 DECLARE_ID(OpType);
 DECLARE_ID(Target);
 DECLARE_ID(Symbol);
+DECLARE_ID(First);
 
 DECLARE_ID(charIndex);
 DECLARE_ID(Line);
@@ -24,7 +25,7 @@ DECLARE_ID(Line);
 
 #define SNEX_INTERPRETER_NODE(ValueTreeType, wn) static Identifier getStatementType() { RETURN_STATIC_IDENTIFIER(#ValueTreeType); } \
 	static Statement::Ptr create(Statement::Factory& f, const ValueTree& v) { return new ValueTreeType(f, v); } \
-	static constexpr Statement::WantsNode wantsNode = wn;
+	WantsNode shouldCreateNode() const override { return (wn); };
 
 // forward declarations;
 

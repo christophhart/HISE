@@ -61,9 +61,12 @@ jit::FunctionCollectionBase* ExpressionTreeBuilder::createEngine(jit::GlobalScop
 
 	DBG(astTree.createXml()->createDocument(""));
 
-	auto locTree = createUriLocationTree(f, astTree, nullptr);
+	
 
 	auto rootTree = f.create(astTree);
+
+	auto locTree = createUriLocationTree(f, astTree, nullptr);
+
 	f.createdNodes.root = rootTree;
 	
 	return new interpreter::Engine(globalScope, f.createdNodes);
@@ -71,23 +74,26 @@ jit::FunctionCollectionBase* ExpressionTreeBuilder::createEngine(jit::GlobalScop
 
 UriLocationTree::Ptr ExpressionTreeBuilder::createUriLocationTree(const Statement::Factory& f, const ValueTree& v, UriLocationTree::Ptr parent)
 {
-	if (f.wantsNode(v))
+	if (auto ptr = f.createdNodes.get(v))
 	{
-		UriLocationTree::Ptr np = new UriLocationTree(parent.get());
-
-		np->fillLocation(locationBuilder->createLocation(v));
-		np->category = v.getType();
-
-		for (auto c : v)
+		if (ptr->shouldCreateNode() == Statement::WantsNode::Yes)
 		{
-			createUriLocationTree(f, c, np);
+			UriLocationTree::Ptr np = new UriLocationTree(parent.get());
+
+			np->fillLocation(locationBuilder->createLocation(v));
+			np->category = v.getType();
+			ptr->annotateUriLocationTree(*np);
+
+			for (auto c : v)
+			{
+				createUriLocationTree(f, c, np);
+			}
+
+			return np;
 		}
 
-		return np;
+		return nullptr;
 	}
-
-	return nullptr;
-	
 }
 
 UriLocationBuilder::UriLocationBuilder(const String& code, const String& preprocessedCode)

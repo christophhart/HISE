@@ -4,12 +4,13 @@ namespace nodes {
 
 struct Assignment : public Statement
 {
-	SNEX_INTERPRETER_NODE(Assignment, WantsNode::Yes);
+	SNEX_INTERPRETER_NODE(Assignment, isDefinition ? WantsNode::Yes : WantsNode::No);
 
 	Assignment(Factory& f, const ValueTree& v) :
  	  Statement(v),
 	  value(Helpers::getChildExpression(f, v, 0)),
-	  target(Helpers::getChildExpression(f, v, 1))
+	  target(Helpers::getChildExpression(f, v, 1)),
+	  isDefinition((bool)v[AstIds::First] && target->getTyped<VariableReference>())
 	{};
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue) override
@@ -19,8 +20,20 @@ struct Assignment : public Statement
 		return ResultCode::ok;
 	}
 
+	void annotateUriLocationTree(UriLocationTree& t)
+	{
+		jassert(isDefinition);
+
+		Helpers::annotateType(t, value->getTypeInfo());
+
+		if (auto v = target->getTyped<VariableReference>())
+			t.id = v->symbol.id.toString();
+	}
+
 	Expression::ExprPtr value;
 	Expression::ExprPtr target;
+
+	const bool isDefinition;
 };
 
 struct BinaryOp : public Expression

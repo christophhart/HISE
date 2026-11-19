@@ -34,16 +34,6 @@
 namespace snex {
 namespace interpreter {
 
-bool Statement::Factory::wantsNode(const ValueTree& v) const
-{
-	if (isNodeStatement.find(v.getType()) != isNodeStatement.end())
-	{
-		return isNodeStatement.at(v.getType());
-	}
-
-	return false;
-}
-
 Statement::Ptr Statement::Factory::create(const ValueTree& v)
 {
 	if (createFunctions.find(v.getType()) != createFunctions.end())
@@ -60,6 +50,23 @@ Statement::Ptr Statement::Factory::create(const ValueTree& v)
 
 struct Statement::Helpers
 {
+	static void annotateType(UriLocationTree& d, const jit::TypeInfo& type)
+	{
+		DynamicObject::Ptr ti = new DynamicObject();
+		
+		if (type.isComplexType())
+			ti->setProperty("type", type.getComplexType().get());
+		else
+			ti->setProperty("type", Types::Helpers::getTypeName(type.getType()));
+
+		ti->setProperty("isConst", type.isConst());
+		ti->setProperty("isRef", type.isRef());
+		ti->setProperty("isStatic", type.isStatic());
+		ti->setProperty("label", type.toString());
+
+		d.data->setProperty("typeInfo", ti.get());
+	}
+
 	static UriLocation createUriLocation(Factory& f, const ValueTree& v)
 	{
 		return f.locationBuilder->createLocation(v);
