@@ -141,7 +141,7 @@ public:
 
 			auto m = e.toString(useCodeSnippetInErrorMessage() ? ParserHelpers::Error::Format::CodeExample : ParserHelpers::Error::Format::LineNumbers);
 
-			logMessage(BaseCompiler::Error, m);
+			logMessage(BaseCompiler::Error, m, (int)(e.location.location - e.location.program));
 			lastResult = Result::fail(m);
 		}
 

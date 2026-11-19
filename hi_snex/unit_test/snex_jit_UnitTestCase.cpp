@@ -273,12 +273,6 @@ juce::var JitFileTestCase::getJSONData(const HiseEvent& e)
 	return var(eventObject);
 }
 
-void JitFileTestCase::logMessage(int level, const juce::String& s)
-{
-	if (level == BaseCompiler::Error)
-		r = Result::fail(s);
-}
-
 juce::File JitFileTestCase::getTestFileDirectory()
 {
 	auto p = File::getSpecialLocation(File::currentApplicationFile);
@@ -309,14 +303,46 @@ void JitFileTestCase::initCompiler()
 		memory.setPolyphonic(true);
 
 	c.reset();
-	c.setDebugHandler(debugHandler);
-
 	memory.setDebugMode(true);
 
 	if (!nodeId.isValid())
     {
         Types::SnexObjectDatabase::registerObjects(c, 2);
     }
+}
+
+juce::Result JitFileTestCase::prepareSessionCompilation()
+{
+	if (r.failed())
+		return r;
+
+	if (nodeId.isValid())
+		return Result::fail("Node test execution is not yet supported by SnexSession");
+
+	if (function.returnType == Types::ID::Dynamic)
+		return Result::fail("Dynamic return type tests are not yet supported by SnexSession");
+
+	if (expectedLoopCount != -1)
+		return Result::fail("Assembly loop checks are not supported by SnexSession");
+
+	for (const auto& flag : requiredCompileFlags)
+		if (!memory.getOptimizationPassList().contains(flag))
+			return Result::fail("Test requires an unavailable optimization: " + flag);
+
+	memory.setPolyphonic(voiceIndex != -1);
+	memory.setDebugMode(true);
+	return Result::ok();
+}
+
+juce::Result JitFileTestCase::testWithCompiledObject(const JitObject& compiledObject, const Result& compilationResult)
+{
+	r = compilationResult;
+
+	if (r.failed() || expectedFail.isNotEmpty())
+		return expectCompileFail(expectedFail);
+
+	obj = compiledObject;
+	return testAfterCompilation();
 }
 
 juce::Result JitFileTestCase::compileWithoutTesting(bool dumpBeforeTest /*= false*/)

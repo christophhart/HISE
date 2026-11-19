@@ -123,7 +123,7 @@ struct Statement::Helpers
 
 	static UriLocation createUriLocation(Factory& f, const ValueTree& v)
 	{
-		return f.locationBuilder->createLocation(v);
+		return f.locationBuilder->createLocation((int)v[AstIds::charIndex]);
 	}
 
 	static jit::Symbol getSymbol(Factory& f, const ValueTree& astNode, const Identifier& id = Identifier())

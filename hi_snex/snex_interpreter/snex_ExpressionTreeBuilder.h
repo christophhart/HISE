@@ -37,7 +37,7 @@ namespace interpreter {
 
 struct ExpressionTreeBuilder
 {
-	ExpressionTreeBuilder(const String& code, const String& preprocessedCode, const ValueTree& ast, const ReferenceCountedArray<jit::ComplexType>& typeLibrary_);
+	ExpressionTreeBuilder(UriLocationBuilder::Ptr locations, const ValueTree& ast, const ReferenceCountedArray<jit::ComplexType>& typeLibrary_);
 
 	Result getLastError() const { return r; }
 

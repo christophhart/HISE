@@ -259,15 +259,42 @@ void SnexPlayground::compileWithSession()
 
 		auto instanceId = currentTestFile.existsAsFile()
 			? Identifier(currentTestFile.getFileNameWithoutExtension()) : Identifier("UnsavedTest");
-		auto source = std::make_unique<ui::SnexSession::DocumentCodeProvider>(doc, uri, instanceId);
-		prototypeSession = new ui::SnexSession("SnexPlayground", std::move(source));
+		auto source = std::make_unique<SessionDocumentProvider>(doc, uri, instanceId);
+		prototypeSession = new snex::SnexSession("SnexPlayground", std::move(source));
 		prototypeSession->addListener(this, true);
 	}
 
 	editor.editor.getTextDocument().setBaseLocation(prototypeSession->getBaseLocation());
 
-	auto result = prototypeSession->compileFromSource();
-	resultLabel.setText(result.wasOk() ? "Session compile OK" : result.getErrorMessage(), dontSendNotification);
+	auto sourceSnapshot = doc.getAllContent();
+	std::unique_ptr<JitFileTestCase> test;
+
+	if (currentTestFile.existsAsFile() || sourceSnapshot.contains("BEGIN_TEST_DATA"))
+	{
+		test = std::make_unique<JitFileTestCase>(prototypeSession->getGlobalScope(), sourceSnapshot);
+
+		auto preparation = test->prepareSessionCompilation();
+
+		if (preparation.failed())
+		{
+			prototypeSession->clearUriErrors(hise::UriError::Compilation);
+			resultLabel.setText(preparation.getErrorMessage(), dontSendNotification);
+			return;
+		}
+	}
+
+	auto result = prototypeSession->compile(sourceSnapshot);
+
+	if (test != nullptr)
+	{
+		auto testResult = test->testWithCompiledObject(prototypeSession->getObject(), result);
+		resultLabel.setText(testResult.wasOk() ? "Session test OK" : testResult.getErrorMessage(),
+						dontSendNotification);
+	}
+	else
+	{
+		resultLabel.setText(result.wasOk() ? "Session compile OK" : result.getErrorMessage(), dontSendNotification);
+	}
 }
 
 SnexPlayground::~SnexPlayground()
@@ -283,7 +310,7 @@ void SnexPlayground::onError(const hise::UriError& error, int numOccurrences)
 	if (error.sourceType != hise::UriError::Compilation || numOccurrences != 1)
 		return;
 
-	hise::SafeAsyncCall::call<SnexPlayground>(*this, [error](SnexPlayground& playground)
+	hise::SafeAsyncCall::callAsyncIfNotOnMessageThread<SnexPlayground>(*this, [error](SnexPlayground& playground)
 	{
 		if (playground.editor.editor.matchesUriLocation(error))
 			playground.editor.editor.addUriError(error);
@@ -295,7 +322,7 @@ void SnexPlayground::onClear(hise::UriErrorLogger::SourceType sourceType)
 	if (!(sourceType & hise::UriError::Compilation))
 		return;
 
-	hise::SafeAsyncCall::call<SnexPlayground>(*this, [](SnexPlayground& playground)
+	hise::SafeAsyncCall::callAsyncIfNotOnMessageThread<SnexPlayground>(*this, [](SnexPlayground& playground)
 	{
 		playground.editor.editor.clearWarningsAndErrors(hise::UriError::Compilation);
 	});

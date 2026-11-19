@@ -187,6 +187,8 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 {
 	compileCount++;
 	lastCode = code;
+	locationBuilder = nullptr;
+	compiler->setUriLocationBuilder(nullptr);
 	
 	try
 	{
@@ -207,6 +209,10 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 
 	
 
+	locationBuilder = new UriLocationBuilder(lastCode, preprocessedCode);
+	locationBuilder->baseLocation = uriBaseLocation;
+	compiler->setUriLocationBuilder(locationBuilder);
+
 	JitObject snexObject(compiler->compileAndGetScope(preprocessedCode));
 
 	cr = compiler->getLastResult();
@@ -214,7 +220,7 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 #if SNEX_INTERPRETER_BACKEND
 	if (cr.wasOk())
 	{
-		interpreter::ExpressionTreeBuilder builder(code, preprocessedCode, getAST(), compiler->namespaceHandler.getComplexTypeList());
+		interpreter::ExpressionTreeBuilder builder(locationBuilder, getAST(), compiler->namespaceHandler.getComplexTypeList());
 
 		JitObject interpreterObject(builder.createEngine(memory));
 
@@ -298,6 +304,12 @@ void Compiler::setDebugHandler(DebugHandler* newHandler, bool useLineNumbersInEr
 	compiler->setDebugHandler(newHandler);
 	compiler->parentScope->getGlobalScope()->addDebugHandler(newHandler);
 	compiler->setUseCodeInErrorMessage(!useLineNumbersInErrorMessage);
+}
+
+void Compiler::setUriErrorLogger(hise::UriErrorLogger* logger, const hise::UriLocation& baseLocation)
+{
+	uriBaseLocation = baseLocation;
+	compiler->setUriErrorLogger(logger, baseLocation);
 }
 
 struct SyntaxTreeDictionaryProvider : public zstd::DictionaryProviderBase<void>

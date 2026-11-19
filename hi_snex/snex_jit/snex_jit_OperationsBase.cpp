@@ -598,7 +598,7 @@ void Operations::Statement::logMessage(BaseCompiler* compiler, BaseCompiler::Mes
 																				ParserHelpers::Error::Format::LineNumbers;
 
 	DBG(e.toString(f));
-	compiler->logMessage(type, e.toString(f));
+	compiler->logMessage(type, e.toString(f), (int)(location.location - location.program));
 }
 
 void Operations::ConditionalBranch::preallocateVariableRegistersBeforeBranching(Statement::Ptr statementToSearchFor, BaseCompiler* c, BaseScope* s)

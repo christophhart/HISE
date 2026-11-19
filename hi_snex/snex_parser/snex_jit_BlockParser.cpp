@@ -674,7 +674,8 @@ bool BlockParser::skipIfConsoleCall()
 
 			ParserHelpers::Error e(location);
 			e.errorMessage = "Console call outside function body";
-			compiler->logMessage(BaseCompiler::Warning, e.toString());
+			compiler->logMessage(BaseCompiler::Warning, e.toString(),
+				(int)(e.location.location - e.location.program));
 
 			return true;
 		}
@@ -1341,6 +1342,7 @@ BlockParser::ExprPtr BlockParser::parseReference(bool mustBeResolvedAtCompileTim
 
 BlockParser::ExprPtr BlockParser::parseLiteral(bool isNegative)
 {
+	auto literalLocation = location;
 	auto v = parseVariableStorageLiteral();
 
 	if (isNegative)
@@ -1350,7 +1352,7 @@ BlockParser::ExprPtr BlockParser::parseLiteral(bool isNegative)
 		else if (v.getType() == Types::ID::Double)  v = VariableStorage(v.toDouble() * -1.0);
 	}
 
-	return new Operations::Immediate(location, v);
+	return new Operations::Immediate(literalLocation, v);
 }
 
 

@@ -49,7 +49,7 @@ struct CppGenerator
 	}
 };
 
-class JitFileTestCase : public DebugHandler
+class JitFileTestCase
 {
 public:
 
@@ -87,8 +87,6 @@ public:
 		ValueTree v;
 	};
 	
-
-	void logMessage(int level, const juce::String& s) override;
 
 	static File getTestFileDirectory();
 
@@ -192,6 +190,12 @@ public:
 
 	Result test(bool dumpBeforeTest = false);
 
+	/** Prepare the shared test scope before the session compiles the source. */
+	Result prepareSessionCompilation();
+
+	/** Check a session compilation and run the fixture without compiling it again. */
+	Result testWithCompiledObject(const JitObject& compiledObject, const Result& compilationResult);
+
 	AudioSampleBuffer getBuffer(bool getProcessed) const
 	{
 		return inputBuffer;// getProcessed ? outputBuffer : inputBuffer;
@@ -200,7 +204,6 @@ public:
 	File save();
 
 	juce::String assembly;
-	DebugHandler* debugHandler = nullptr;
 	GlobalScope& memory;
 	Compiler c;
 	JitObject obj;

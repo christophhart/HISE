@@ -141,18 +141,58 @@ public:
 		debugHandler = l;
 	}
 
-	bool hasLogger() const { return debugHandler != nullptr; }
-
-	void logMessage(MessageType level, const juce::String& s)
+	void setUriErrorLogger(hise::UriErrorLogger* logger, const hise::UriLocation& location)
 	{
-		if (!hasLogger())
-			return;
+		uriLogger = logger;
+		baseLocation = location;
+	}
 
+	void setUriLocationBuilder(UriLocationBuilder::Ptr builder) { locationBuilder = builder; }
+
+	bool hasLogger() const { return debugHandler != nullptr || uriLogger != nullptr; }
+
+	void logMessage(MessageType level, const juce::String& s, int preprocessedCharIndex = -1)
+	{
 		if (level > verbosity)
 			return;
 
 		if (debugHandler != nullptr)
 			debugHandler->logMessage(level, s);
+
+		if (uriLogger != nullptr && (level == Error || level == Warning))
+		{
+			int line = 1;
+			int col = 1;
+
+			if (s.startsWith("Line"))
+			{
+				line = s.fromFirstOccurrenceOf("Line", false, false).getIntValue();
+
+				if (s.contains("("))
+					col = s.fromFirstOccurrenceOf("(", false, false).getIntValue();
+			}
+
+			hise::UriError error;
+			error.fillLocation(baseLocation);
+
+			if (locationBuilder != nullptr)
+			{
+				auto location = preprocessedCharIndex >= 0
+					? locationBuilder->createLocation(preprocessedCharIndex)
+					: locationBuilder->createLocationFromLineAndCol(line, col);
+				error.fillLocation(location);
+			}
+			else
+			{
+				error.line = line;
+				error.col = col;
+			}
+
+			error.errorType = level == Error ? hise::UriError::Error : hise::UriError::Warning;
+			error.errorMessage = s.startsWith("Line") && s.contains(":")
+				? s.fromFirstOccurrenceOf(":", false, false).trim() : s;
+			uriLogger->logUriError(hise::UriError::Compilation, error);
+		}
 	}
 
 	void setMessageLevel(MessageType maxVerbosity)
@@ -277,6 +317,9 @@ private:
 	Pass currentPass;
 
 	WeakReference<DebugHandler> debugHandler;
+	hise::UriErrorLogger* uriLogger = nullptr; // Bound for the lifetime of this compiler only.
+	hise::UriLocation baseLocation;
+	UriLocationBuilder::Ptr locationBuilder;
 
 	
 

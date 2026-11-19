@@ -1,7 +1,5 @@
 namespace snex
 {
-namespace ui
-{
 
 std::pair<bool, String> SnexSession::FileCodeProvider::getContent(const String& uri) const
 {
@@ -9,14 +7,6 @@ std::pair<bool, String> SnexSession::FileCodeProvider::getContent(const String& 
 		return { true, file.loadFileAsString() };
 
 	return { false, "Unknown SNEX source: " + uri };
-}
-
-std::pair<bool, String> SnexSession::DocumentCodeProvider::getContent(const String& requestedUri) const
-{
-	if (requestedUri == uri)
-		return { true, document.getAllContent() };
-
-	return { false, "Unknown SNEX source: " + requestedUri };
 }
 
 SnexSession::ValueCodeProvider::ValueCodeProvider(Value& source, const String& uri_, const Identifier& instanceId_) :
@@ -75,6 +65,7 @@ Result SnexSession::compile(const String& sourceSnapshot)
 	clearUriErrors(hise::UriError::SourceType::Compilation);
 
 	jit::Compiler compiler(scope);
+	compiler.setUriErrorLogger(this, getBaseLocation());
 	Types::SnexObjectDatabase::registerObjects(compiler, numChannels);
 
 	auto compiledObject = compiler.compileJitObject(sourceSnapshot);
@@ -111,27 +102,41 @@ Result SnexSession::compile(const String& sourceSnapshot)
 	}
 	else
 	{
-		reportCompilationError(lastResult.getErrorMessage());
+		bool hasCompilerError = false;
+
+		for (const auto& entry : getErrorList(hise::UriError::Compilation))
+			if (entry.first.errorType == hise::UriError::Error)
+				hasCompilerError = true;
+
+		if (!hasCompilerError)
+			reportCompilationError(lastResult.getErrorMessage(), compiler.getUriLocationBuilder());
 	}
 
 	return lastResult;
 }
 
-void SnexSession::reportCompilationError(const String& message)
+void SnexSession::reportCompilationError(const String& message, UriLocationBuilder::Ptr locations)
 {
 	hise::UriError error;
 	error.errorType = hise::UriError::ErrorType::Error;
 	error.errorMessage = message;
 	error.fillLocation(getBaseLocation());
+	error.line = 1;
+	error.col = 1;
 
 	if (message.startsWith("Line"))
 	{
-		error.line = message.fromFirstOccurrenceOf("Line", false, false).getIntValue() - 1;
-		error.col = message.fromFirstOccurrenceOf("(", false, false).getIntValue() - 1;
+		error.line = message.fromFirstOccurrenceOf("Line", false, false).getIntValue();
+
+		if (message.contains("("))
+			error.col = message.fromFirstOccurrenceOf("(", false, false).getIntValue();
 
 		if (message.contains(":"))
 			error.errorMessage = message.fromFirstOccurrenceOf(":", false, false).trim();
 	}
+
+	if (locations != nullptr)
+		error.fillLocation(locations->createLocationFromLineAndCol(error.line, error.col));
 
 	logUriError(hise::UriError::SourceType::Compilation, error);
 }
@@ -198,5 +203,4 @@ void SnexSession::linkTo(ExternalData::DataType type, ExternalDataHolder& src, i
 		holder->linkTo(type, src, srcIndex, dstIndex);
 }
 
-} // namespace ui
 } // namespace snex

@@ -333,6 +333,7 @@ namespace snex
 #include "snex_mir/snex_MirObject.h"
 #include "snex_core/snex_jit_JitCallableObject.h"
 #include "snex_core/snex_jit_JitCompiledFunctionClass.h"
+#include "snex_public/snex_UriLocationBuilder.h"
 #include "snex_public/snex_jit_JitCompiler.h"
 
 #if SNEX_INTERPRETER_BACKEND
@@ -377,7 +378,7 @@ namespace snex {
 #include "snex_library/snex_jit_NativeDspFunctions.h"
 
 
-#include "snex_components/snex_Session.h"
+#include "snex_public/snex_Session.h"
 #include "snex_components/snex_WorkbenchData.h"
 #include "snex_components/snex_ExtraComponents.h"
 

@@ -477,6 +477,27 @@ public:
 		CompileWithSession
 	};
 
+	struct SessionDocumentProvider : public snex::SnexSession::CodeProvider
+	{
+		SessionDocumentProvider(CodeDocument& document_, const String& uri_, const Identifier& instanceId_) :
+			document(document_), uri(uri_), instanceId(instanceId_) {}
+
+		String getUri() const override { return uri; }
+		std::pair<bool, String> getContent(const String& requestedUri) const override
+		{
+			if (requestedUri == uri)
+				return { true, document.getAllContent() };
+
+			return { false, "Unknown SNEX source: " + requestedUri };
+		}
+		bool saveCode(const String& code) override { document.replaceAllContent(code); return true; }
+		Identifier getInstanceId() const override { return instanceId; }
+
+		CodeDocument& document;
+		String uri;
+		Identifier instanceId;
+	};
+
 	struct TestCodeProvider : public ui::WorkbenchData::CodeProvider
 	{
 		TestCodeProvider(SnexPlayground& p, const File& f_):
@@ -735,7 +756,7 @@ private:
 	void postPostCompile(ui::WorkbenchData::Ptr wb) override;
 
 	const bool testMode;
-	ui::SnexSession::Ptr prototypeSession;
+	snex::SnexSession::Ptr prototypeSession;
 
 	CodeDocument doc;
 	mcl::TextDocument mclDoc;

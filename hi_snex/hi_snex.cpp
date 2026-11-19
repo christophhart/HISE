@@ -103,6 +103,7 @@ using String = juce::String;
 
 #include "snex_core/snex_jit_JitCompiledFunctionClass.cpp"
 #include "snex_public/snex_jit_JitCompiler.cpp"
+#include "snex_public/snex_UriLocationBuilder.cpp"
 
 #if SNEX_INTERPRETER_BACKEND
 
@@ -150,7 +151,7 @@ using String = juce::String;
 
 
 #include "snex_components/snex_DebugTools.cpp"
-#include "snex_components/snex_Session.cpp"
+#include "snex_public/snex_Session.cpp"
 #include "snex_components/snex_WorkbenchData.cpp"
 #include "snex_components/snex_ExtraComponents.cpp"
 #include "snex_components/snex_JitPlayground.cpp"

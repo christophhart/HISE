@@ -47,11 +47,11 @@ Statement::Factory::Factory()
 	registerType<nodes::Subscript>();
 }
 
-ExpressionTreeBuilder::ExpressionTreeBuilder(const String& code, const String& preprocessed, const ValueTree& ast_, const ReferenceCountedArray<jit::ComplexType>& typeLibrary_):
+ExpressionTreeBuilder::ExpressionTreeBuilder(UriLocationBuilder::Ptr locations, const ValueTree& ast_, const ReferenceCountedArray<jit::ComplexType>& typeLibrary_):
   r(Result::ok()),
   astTree(ast_),
   typeLibrary(typeLibrary_),
-  locationBuilder(new UriLocationBuilder(code, preprocessed))
+  locationBuilder(locations)
 {}
 
 jit::FunctionCollectionBase* ExpressionTreeBuilder::createEngine(jit::GlobalScope & globalScope)
@@ -76,7 +76,7 @@ UriLocationTree::Ptr ExpressionTreeBuilder::createUriLocationTree(const Statemen
 	{
 		UriLocationTree::Ptr np = new UriLocationTree(parent);
 
-		np->fillLocation(locationBuilder->createLocation(ptr->astNode));
+		np->fillLocation(locationBuilder->createLocation((int)ptr->astNode[AstIds::charIndex]));
 		np->category = ptr->astNode.getType();
 		ptr->annotateUriLocationTree(*np);
 
@@ -91,48 +91,6 @@ UriLocationTree::Ptr ExpressionTreeBuilder::createUriLocationTree(const Statemen
 	}
 
 	return nullptr;
-}
-
-UriLocationBuilder::UriLocationBuilder(const String& code, const String& preprocessedCode)
-{
-	baseLocation.uri = "tbd";
-	baseLocation.processorId = "tbd";
-
-	codeDoc.setDisableUndo(true);
-	codeDoc.replaceAllContent(code);
-
-	if (code != preprocessedCode)
-	{
-		preprocessedDoc.setDisableUndo(true);
-		preprocessedDoc.replaceAllContent(preprocessedCode);
-		resolvePreprocessedCode = true;
-	}
-}
-
-UriLocation UriLocationBuilder::createLocation(const ValueTree& v) const
-{
-	auto charIndex = (int)v[AstIds::charIndex];
-
-	UriLocation l;
-	l.fillLocation(baseLocation);
-
-	if (resolvePreprocessedCode)
-	{
-		CodeDocument::Position prePos(preprocessedDoc, charIndex);
-
-		auto line = prePos.getLineNumber();
-		auto col = prePos.getIndexInLine();
-
-		CodeDocument::Position realPos(codeDoc, line, col);
-		l.fillLocation(realPos);
-	}
-	else
-	{
-		CodeDocument::Position charPos(codeDoc, charIndex);
-		l.fillLocation(charPos);
-	}
-
-	return l;
 }
 
 } // namespace interpreter

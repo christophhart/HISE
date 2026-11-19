@@ -102,6 +102,8 @@ public:
 	Compiler(GlobalScope& memoryPool);
 
 	void setDebugHandler(DebugHandler* newHandler, bool useLineNumbersInErrorMessage=true);
+	void setUriErrorLogger(hise::UriErrorLogger* logger, const hise::UriLocation& baseLocation);
+	UriLocationBuilder::Ptr getUriLocationBuilder() const { return locationBuilder; }
 
 	JitObject compileJitObject(const juce::String& code);
 
@@ -150,6 +152,8 @@ private:
 	NamespaceHandler::Ptr handler;
 	juce::String lastCode;
 	juce::String preprocessedCode;
+	UriLocationBuilder::Ptr locationBuilder;
+	hise::UriLocation uriBaseLocation;
 	ClassCompiler* compiler = nullptr;
 	GlobalScope& memory;
 

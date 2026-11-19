@@ -39,7 +39,6 @@ struct Engine;
 struct Scope;
 struct Statement;
 struct Expression;
-struct UriLocationBuilder;
 struct ExpressionTreeBuilder;
 
 namespace nodes
@@ -53,21 +52,6 @@ struct Cast;
 struct VariableReference;
 struct Assignment;
 }
-
-struct UriLocationBuilder : public ReferenceCountedObject
-{
-	UriLocationBuilder(const String& code, const String& preprocessedCode);
-
-	using Ptr = ReferenceCountedObjectPtr<UriLocationBuilder>;
-
-	UriLocation createLocation(const ValueTree& v) const;
-
-	bool resolvePreprocessedCode = false;
-	CodeDocument codeDoc;
-	CodeDocument preprocessedDoc;
-
-	UriLocation baseLocation;
-};
 
 } // namespace interpreter
 } // namespace snex

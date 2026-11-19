@@ -5,8 +5,6 @@
 
 namespace snex
 {
-namespace ui
-{
 
 /** A stable source and compilation context. Scheduling and test execution live outside this class. */
 class SnexSession : public ReferenceCountedObject,
@@ -35,21 +33,6 @@ public:
 		Identifier getInstanceId() const override { return file.getFileNameWithoutExtension(); }
 
 		File file;
-	};
-
-	struct DocumentCodeProvider : public CodeProvider
-	{
-		DocumentCodeProvider(CodeDocument& document_, const String& uri_, const Identifier& instanceId_) :
-			document(document_), uri(uri_), instanceId(instanceId_) {}
-
-		String getUri() const override { return uri; }
-		std::pair<bool, String> getContent(const String& requestedUri) const override;
-		bool saveCode(const String& code) override { document.replaceAllContent(code); return true; }
-		Identifier getInstanceId() const override { return instanceId; }
-
-		CodeDocument& document;
-		String uri;
-		Identifier instanceId;
 	};
 
 	struct ValueCodeProvider : public CodeProvider
@@ -93,7 +76,7 @@ public:
 	void linkTo(ExternalData::DataType type, ExternalDataHolder& src, int srcIndex, int dstIndex) override;
 
 private:
-	void reportCompilationError(const String& message);
+	void reportCompilationError(const String& message, UriLocationBuilder::Ptr locations = nullptr);
 
 	String processorId;
 	std::unique_ptr<CodeProvider> source;
@@ -108,5 +91,4 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SnexSession);
 };
 
-} // namespace ui
 } // namespace snex
