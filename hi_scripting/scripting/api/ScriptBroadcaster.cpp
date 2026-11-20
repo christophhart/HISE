@@ -3166,7 +3166,10 @@ juce::Result ScriptBroadcaster::ComponentValueItem::callSync(const Array<var>& a
 				return false;
 
 			if (auto sc = dynamic_cast<ScriptComponent*>(cv.getObject()))
+			{
 				sc->setValue(rv);
+				sc->changed();
+			}				
 
 			return true;
 		});
