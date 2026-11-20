@@ -1291,7 +1291,10 @@ void PresetBrowser::setOptions(const Options& newOptions)
 
 	setHighlightColourAndFont(newOptions.highlightColour, newOptions.backgroundColour, newOptions.font);
 
+	getPresetBrowserLookAndFeel().fontName = newOptions.fontName;
 	getPresetBrowserLookAndFeel().textColour = newOptions.textColour;
+	getPresetBrowserLookAndFeel().modalBackgroundColour = newOptions.modalBackgroundColour;
+	getPresetBrowserLookAndFeel().itemColour3 = newOptions.itemColour3;
 	setNumColumns(newOptions.numColumns);
 	columnWidthRatios.clear();
 	columnWidthRatios.addArray(newOptions.columnWidthRatios);
