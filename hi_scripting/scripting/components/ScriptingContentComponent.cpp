@@ -178,8 +178,10 @@ void ScriptContentComponent::updateValue(int i)
 			const double min = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(contentData->components[i].get())->getMinValue();
 			const double max = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(contentData->components[i].get())->getMaxValue();
 
-			s->setMinValue(min, dontSendNotification);
-			s->setMaxValue(max, dontSendNotification);
+			// Setting min and max separately clamps against whatever the other value
+			// currently is (eg. min gets pinned to a stale valueMax of 0 on a freshly
+			// created slider), so both must be applied atomically here.
+			s->setMinAndMaxValues(min, max, dontSendNotification);
 		}
 	}
 }
