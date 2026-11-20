@@ -41,6 +41,13 @@
 #undef Rectangle
 #endif
 
+// On Linux, resolv.h (included transitively by httplib.h) defines DELETE as
+// ns_uop_delete (= 0), which collides with the RestServer::Method::DELETE enum
+// value in switch statements. Undefine it here after all system headers are done.
+#ifdef DELETE
+#undef DELETE
+#endif
+
 namespace hise { using namespace juce;
 
 //==============================================================================
