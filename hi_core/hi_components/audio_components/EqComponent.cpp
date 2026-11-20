@@ -326,6 +326,7 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 		AllowContextMenu,
 		ShowLines,
 		GainRange,
+		HandleSize,
 		PathType,
 		PathMargin,
 		numSpecialProperties
@@ -350,6 +351,7 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialProperties::AllowContextMenu, "AllowContextMenu");
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialProperties::ShowLines, "ShowLines");
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialProperties::GainRange, "GainRange");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialProperties::HandleSize, "HandleSize");
 
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialProperties::PathMargin, "PathMargin");
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialProperties::PathType, "PathType");
@@ -370,6 +372,7 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 		RETURN_DEFAULT_PROPERTY(index, SpecialProperties::AllowContextMenu, var(true));
 		RETURN_DEFAULT_PROPERTY(index, SpecialProperties::ShowLines, var(true));
 		RETURN_DEFAULT_PROPERTY(index, SpecialProperties::GainRange, var(24.0));
+		RETURN_DEFAULT_PROPERTY(index, SpecialProperties::HandleSize, var(24));
 
 		RETURN_DEFAULT_PROPERTY(index, SpecialProperties::PathMargin, var(3.0));
 		RETURN_DEFAULT_PROPERTY(index, SpecialProperties::PathType, var("StrokeFullWidth"));
@@ -390,6 +393,8 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 
 			auto u = (bool)getPropertyWithDefault(object, (int)SpecialProperties::UseUndoManager);
 			auto rd = (bool)getPropertyWithDefault(object, (int)SpecialProperties::ResetOnDoubleClick);
+			
+			auto hs = (int)getPropertyWithDefault(object, (int)SpecialProperties::HandleSize);
 
 			if (u)
 				fd->setUndoManager(getMainController()->getControlUndoManager());
@@ -410,6 +415,7 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 			fd->setResetOnDoubleClick(rd);
 			fd->setAllowFilterResizing(r);
 			fd->setSpectrumVisibility((SpectrumVisibility)s);
+			fd->setHandleSize(hs);
 		}
 	}
 
@@ -432,6 +438,8 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 
 			storePropertyInObject(obj, (int)SpecialProperties::GainRange, fd->gainRange);
 			storePropertyInObject(obj, (int)SpecialProperties::AllowContextMenu, fd->allowContextMenu);
+			
+			storePropertyInObject(obj, (int)SpecialProperties::HandleSize, fd->handleSize);
 		}
 
 		return obj;
@@ -605,7 +613,7 @@ void FilterDragOverlay::checkEnabledBands()
 
 void FilterDragOverlay::resized()
 {
-	constrainer->setMinimumOnscreenAmounts(24, 24, 24, 24);
+	constrainer->setMinimumOnscreenAmounts(handleSize, handleSize, handleSize, handleSize);
 
 	fftAnalyser.setBounds(getLocalBounds().reduced(offset));
 	filterGraph.setBounds(getLocalBounds().reduced(offset));
@@ -711,7 +719,7 @@ void FilterDragOverlay::updatePositions(bool forceUpdate)
 
 		Rectangle<int> b(point, point);
 
-		dragComponents[i]->setBounds(b.withSizeKeepingCentre(24, 24));
+		dragComponents[i]->setBounds(b.withSizeKeepingCentre(handleSize, handleSize));
 	}
 }
 
@@ -1088,6 +1096,9 @@ void FilterDragOverlay::FilterDragComponent::mouseDrag(const MouseEvent& e)
 {
 	CHECK_MIDDLE_MOUSE_DRAG(e);
 
+	auto* broadcasterValue = new DynamicObject();
+	broadcasterValue->setProperty("Index", index);
+
 	CurveEq::BandParameter xp = parent.filterStats->getParameterForDragAction(DragAction::DragX);
 	CurveEq::BandParameter yp = parent.filterStats->getParameterForDragAction(DragAction::DragY);
 
@@ -1127,6 +1138,7 @@ void FilterDragOverlay::FilterDragComponent::mouseDrag(const MouseEvent& e)
 		return;
 	
 #if 0
+
 	if (e.mods.isShiftDown())
 	{
 		auto deltaNormalised = (float)e.getDistanceFromDragStartY() / (float)getParentComponent()->getHeight();
@@ -1142,12 +1154,16 @@ void FilterDragOverlay::FilterDragComponent::mouseDrag(const MouseEvent& e)
 
 		parent.setEqAttribute(CurveEq::BandParameter::Q, index, qRange.convertFrom0to1(newValue));
 
+		broadcasterValue->setProperty("Q", qRange.convertFrom0to1(newValue));
+		parent.filterStats->sendBroadcasterMessage("QChanged", broadcasterValue);
+
 		return;
 	}
 	else
 	{
 		auto pi = parent.filterStats->getAttributeIndex(index, CurveEq::BandParameter::Q);
 		dragQStart = parent.eq->getAttribute(pi);
+		broadcasterValue->setProperty("Q", dragQStart);
 	}
 #endif
 
@@ -1175,23 +1191,26 @@ void FilterDragOverlay::FilterDragComponent::mouseDrag(const MouseEvent& e)
 
 	const double freq = jlimit<double>(20.0, 20000.0, (double)parent.filterGraph.xToFreq((float)x));
 	parent.setEqAttribute(CurveEq::BandParameter::Freq, index, freq);
-
+	broadcasterValue->setProperty("Frequency", freq);
+	
 	if(yp == CurveEq::BandParameter::Gain)
 	{
 		const double gain = parent.filterGraph.yToGain((float)y, parent.gainRange);
 		parent.setEqAttribute(CurveEq::BandParameter::Gain, index, gain);
+		broadcasterValue->setProperty("Gain", gain);	
 	}
 
+	parent.filterStats->sendBroadcasterMessage("BandMoved", broadcasterValue);
 	parent.repaint();
 }
-
-
-
 
 void FilterDragOverlay::FilterDragComponent::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &d)
 {
 	if (parent.eq == nullptr)
 		return;
+		
+	auto* broadcasterValue = new DynamicObject();
+	broadcasterValue->setProperty("Index", index);
 
 	if (e.mods.isCtrlDown() || parent.isInFloatingTile)
 	{
@@ -1208,14 +1227,14 @@ void FilterDragOverlay::FilterDragComponent::mouseWheelMove(const MouseEvent &e,
         q = jlimit(0.1, 8.0, q * amp);
 
 		parent.setEqAttribute(CurveEq::BandParameter::Q, index, q);
+		broadcasterValue->setProperty("Q", q);
+		parent.filterStats->sendBroadcasterMessage("QChanged", broadcasterValue);
 	}
 	else
 	{
 		getParentComponent()->mouseWheelMove(e, d);
 	}
 }
-
-
 
 void FilterDragOverlay::FilterDragComponent::mouseDoubleClick(const MouseEvent& e)
 {
@@ -1260,12 +1279,24 @@ void FilterDragOverlay::FilterDragComponent::setConstrainer(ComponentBoundsConst
 void FilterDragOverlay::FilterDragComponent::mouseEnter(const MouseEvent& e)
 {
 	over = true;
+	
+	auto* broadcasterValue = new DynamicObject();
+	broadcasterValue->setProperty("Index", index);
+	broadcasterValue->setProperty("Over", true);
+	parent.filterStats->sendBroadcasterMessage("MouseOver", broadcasterValue);
+	
 	parent.repaint();
 }
 
 void FilterDragOverlay::FilterDragComponent::mouseExit(const MouseEvent& e)
 {
 	over = false;
+	
+	auto* broadcasterValue = new DynamicObject();
+	broadcasterValue->setProperty("Index", index);
+	broadcasterValue->setProperty("Over", false);
+	parent.filterStats->sendBroadcasterMessage("MouseOver", broadcasterValue);
+	
 	parent.repaint();
 }
 

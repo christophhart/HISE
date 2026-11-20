@@ -445,8 +445,8 @@
                   "ID": "eqEventTypes",
                   "EmptyText": "Enter event types (BandAdded, BandRemoved, etc)...",
                   "Required": true,
-                  "Items": "BandAdded\nBandRemoved\nBandSelected\nFFTEnabled",
-                  "Help": "Set the event type that the broadcaster should react too. This can be multiple items from this list:\n\n- `BandAdded`\n- `BandRemoved`\n- `BandSelected`\n- `FFTEnabled`",
+                  "Items": "BandAdded\nBandRemoved\nBandSelected\nBandMoved\nQChanged\nMouseOver\nFFTEnabled",
+                  "Help": "Set the event type that the broadcaster should react too. This can be multiple items from this list:\n\n- `BandAdded`\n- `BandRemoved`\n- `BandSelected`\n- `BandMoved`\n- `QChanged`\n- `MouseOver`\n- `FFTEnabled`",
                   "UseInitValue": "",
                   "Height": 80,
                   "ParseArray": true

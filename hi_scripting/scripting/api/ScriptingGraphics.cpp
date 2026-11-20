@@ -3240,7 +3240,7 @@ void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawFilterGridLines(Graphics
 	FilterGraph::LookAndFeelMethods::drawFilterGridLines(g, fg, gridPath);
 }
 
-void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawFilterDragHandle(Graphics& g, FilterDragOverlay& o, int index,
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawFilterDragHandle(Graphics& g, FilterGraph& fg, FilterDragOverlay& o, int index,
                                                                          Rectangle<float> handleBounds, const FilterDragOverlay::DragData& d)
 {
 	using namespace simple_css;
@@ -3306,7 +3306,7 @@ void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawFilterDragHandle(Graphic
 		return;
 	}
 
-	FilterDragOverlay::LookAndFeelMethods::drawFilterDragHandle(g, o, index, handleBounds, d);
+	FilterDragOverlay::LookAndFeelMethods::drawFilterDragHandle(g, fg, o, index, handleBounds, d);
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::setCSSColourOrBlack(simple_css::StyleSheet::Ptr ss, const Identifier& id, Component& c, int colourId)
