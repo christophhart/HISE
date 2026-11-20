@@ -1205,7 +1205,17 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 		}
 	}
 
-	auto parts = getSourceFiles(sourceFile);
+	auto metadataObject = readMetadataFromArchive(sourceFile);
+
+	auto isDataOnlyUpdate = [&metadataObject](int64 sampleBytesInFirstPart)
+	{
+		if (metadataObject.hasProperty("DataOnly"))
+			return (bool)metadataObject.getProperty("DataOnly", false);
+
+		return sampleBytesInFirstPart == 0;
+	};
+
+	auto parts = getSourceFiles(sourceFile, metadataObject);
 	
 	int64 processedBytes = 0;
 	int64 totalBytes = 0;
@@ -1288,21 +1298,13 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 		{
 			overwriteThisFile = false;
 		}
-		
-		if (targetHlacFile.existsAsFile() && option == OverwriteOption::ForceOverwrite)
-		{
-			targetHlacFile.deleteFile();
-		}
 
 		if (targetHlacFile.existsAsFile() && option == OverwriteOption::OverwriteIfNewer)
 		{
 			Time existingTime = targetHlacFile.getCreationTime();
 
-			if (archiveTime > existingTime)
-				targetHlacFile.deleteFile();
-			else
+			if (archiveTime <= existingTime)
 				overwriteThisFile = false;
-				
 		}
 
 		if (thread->threadShouldExit())
@@ -1339,11 +1341,30 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 			while (currentFlag == Flag::SplitMonolith)
 			{
+				bool continuingFromDataOnlyPart = (partIndex == 1 && isDataOnlyUpdate(monolithBytes));
+
 				partIndex++;
+
+				auto nextPart = findExistingPartFile(sourceFile, partIndex, metadataObject);
+
+				if (!nextPart.existsAsFile())
+				{
+					flacTempWriteStream = nullptr;
+					tmpFlacFile.deleteFile();
+
+					if (continuingFromDataOnlyPart)
+					{
+						VERBOSE_LOG("  No further part found, leaving " + name + " untouched");
+						return true;
+					}
+
+					listener->criticalErrorOccured("Missing archive: " + nextPart.getFileName());
+					return false;
+				}
 
 				fis = nullptr;
 
-				fis = new FileInputStream(getPartFile(sourceFile, partIndex));
+				fis = new FileInputStream(nextPart);
 
 				CHECK_FLAG(Flag::BeginMonolithLength);
 				bytesToRead = fis->readInt64();
@@ -1385,7 +1406,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 			if (!data.debugLogMode)
 			{
 				if (targetHlacFile.existsAsFile())
-					targetHlacFile.create();
+					targetHlacFile.deleteFile();
 
 				monolithOutputStream = new FileOutputStream(targetHlacFile);
 				writer = hlacFormat.createWriterFor(monolithOutputStream, flacReader->sampleRate, flacReader->numChannels, 5, metadata, 5);
@@ -1471,10 +1492,26 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 			while (currentFlag == Flag::SplitMonolith)
 			{
+				bool continuingFromDataOnlyPart = (partIndex == 1 && isDataOnlyUpdate(bytesToSkip));
+
 				partIndex++;
 
+				auto nextPart = findExistingPartFile(sourceFile, partIndex, metadataObject);
+
+				if (!nextPart.existsAsFile())
+				{
+					if (continuingFromDataOnlyPart)
+					{
+						VERBOSE_LOG("  No further part found, stopping here");
+						return true;
+					}
+
+					listener->criticalErrorOccured("Missing archive: " + nextPart.getFileName());
+					return false;
+				}
+
 				fis = nullptr;
-				fis = new FileInputStream(getPartFile(sourceFile, partIndex));
+				fis = new FileInputStream(nextPart);
 
 				CHECK_FLAG(Flag::BeginMonolithLength);
 				bytesToSkip = fis->readInt64();
@@ -1582,6 +1619,7 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 	if (!targetFile.isDirectory())
 	{
 		int partIndex = 1;
+		bool endedAtSplit = false;
 
 		targetFile.deleteFile();
 
@@ -1631,7 +1669,9 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 
 		if (data.partSize > 0)
 		{
-			for (int i = 0; i < hlacFiles.size(); i++)
+			int numFilesToWrite = data.skipSampleEncoding ? jmin(1, hlacFiles.size()) : hlacFiles.size();
+
+			for (int i = 0; i < numFilesToWrite; i++)
 			{
 				if (thread->threadShouldExit())
 					return;
@@ -1640,18 +1680,10 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 
 				auto sizeLeftInPart = data.partSize - fos->getPosition();
 
-				FileInputStream* fis = new FileInputStream(hlacFiles[i]);
-
-				ScopedPointer<AudioFormatReader> reader = haf.createReaderFor(fis, true);
+				if (i == 0 && data.forceCleanSplit)
+					sizeLeftInPart = 0;
 
 				const String name = hlacFiles[i].getFileName();
-
-				VERBOSE_LOG("  Writing monolith " + name);
-				STATUS_LOG("Compressing " + name);
-
-				VERBOSE_LOG("    Samplerate: " + String(reader->sampleRate, 1));
-				VERBOSE_LOG("    Channels: " + String(reader->numChannels));
-				VERBOSE_LOG("    Length: " + String(reader->lengthInSamples));
 
 				WRITE_FLAG(Flag::BeginName);
 				ok = fos->writeString(name);
@@ -1663,14 +1695,31 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 				CHECK_FILE_WRITE_OP;
 				WRITE_FLAG(Flag::EndTime);
 
-				
+				ScopedPointer<FileInputStream> tmpInput;
+				int64 totalLength = 0;
 
-				ScopedPointer<FileInputStream> tmpInput = writeTempFile(reader, bitDepth);
+				if (!data.skipSampleEncoding)
+				{
+					FileInputStream* fis = new FileInputStream(hlacFiles[i]);
 
-				if (tmpInput == nullptr)
-					return;
+					ScopedPointer<AudioFormatReader> reader = haf.createReaderFor(fis, true);
 
-				int64 bytesToWrite = jmin<int64>(tmpInput->getTotalLength(), sizeLeftInPart);
+					VERBOSE_LOG("  Writing monolith " + name);
+					STATUS_LOG("Compressing " + name);
+
+					VERBOSE_LOG("    Samplerate: " + String(reader->sampleRate, 1));
+					VERBOSE_LOG("    Channels: " + String(reader->numChannels));
+					VERBOSE_LOG("    Length: " + String(reader->lengthInSamples));
+
+					tmpInput = writeTempFile(reader, bitDepth);
+
+					if (tmpInput == nullptr)
+						return;
+
+					totalLength = tmpInput->getTotalLength();
+				}
+
+				int64 bytesToWrite = jmin<int64>(totalLength, sizeLeftInPart);
 
 				WRITE_FLAG(Flag::BeginMonolithLength);
 				ok = fos->writeInt64(bytesToWrite);
@@ -1678,8 +1727,22 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 				WRITE_FLAG(Flag::EndMonolithLength);
 
 				WRITE_FLAG(Flag::BeginMonolith);
-				ok = fos->writeFromInputStream(*tmpInput, bytesToWrite);
-				CHECK_FILE_WRITE_OP;
+
+				if (bytesToWrite > 0)
+				{
+					ok = fos->writeFromInputStream(*tmpInput, bytesToWrite);
+					CHECK_FILE_WRITE_OP;
+				}
+
+				if (data.skipSampleEncoding)
+				{
+					WRITE_FLAG(Flag::SplitMonolith);
+					fos->flush();
+					fos = nullptr;
+					endedAtSplit = true;
+					continue;
+				}
+
 				while(!tmpInput->isExhausted())
 				{
 					WRITE_FLAG(Flag::SplitMonolith);
@@ -1689,7 +1752,9 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 
 					partIndex++;
 
-					auto newPart = getPartFile(targetFile, partIndex);
+					auto newPart = getPartFileToWrite(targetFile, partIndex);
+
+					VERBOSE_LOG("New Part " + newPart.getFileName());
 
 					if (newPart.existsAsFile())
 						newPart.deleteFile();
@@ -1711,7 +1776,7 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 
 					fos->flush();
 				}
-				
+
 				WRITE_FLAG(Flag::EndMonolith);
 				jassert(tmpInput->isExhausted());
 				fos->flush();
@@ -1719,9 +1784,12 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 			}
 		}
 
-		WRITE_FLAG(Flag::EndOfArchive);
-		fos->flush();
-		fos = nullptr;
+		if (!endedAtSplit)
+		{
+			WRITE_FLAG(Flag::EndOfArchive);
+			fos->flush();
+			fos = nullptr;
+		}
 
 		tmpFile.deleteFile();
 	}
@@ -1763,13 +1831,50 @@ String HlacArchiver::getFlagName(Flag f)
 
 #undef RETURN
 
-File HlacArchiver::getPartFile(const File& originalFile, int partIndex)
+File HlacArchiver::getPartFileToWrite(const File& firstFile, int partIndex)
 {
-	String newFileName = originalFile.getFileNameWithoutExtension() + ".hr" + String(partIndex);
+	return firstFile.getSiblingFile(getArchiveCoreName(firstFile) + "_Part" + String(partIndex) + ".hr" + String(partIndex));
+}
 
-	VERBOSE_LOG("New Part " + newFileName);
+File HlacArchiver::findExistingPartFile(const File& firstFile, int partIndex, const var& metadata)
+{
+	auto core = getArchiveCoreName(firstFile);
+	auto extension = ".hr" + String(partIndex);
+	auto part = getPartFileToWrite(firstFile, partIndex);
 
-	return originalFile.getSiblingFile(newFileName);
+	if (part.existsAsFile())
+		return part;
+
+	auto legacyPart = firstFile.getSiblingFile(core + "_Samples" + extension);
+
+	if (legacyPart.existsAsFile())
+		return legacyPart;
+
+	auto versionSuffix = "_" + metadata.getProperty("Version", "").toString().replaceCharacter('.', '_');
+
+	if (!(bool)metadata.getProperty("DataOnly", false) || !core.endsWith(versionSuffix))
+		return part;
+
+	auto stem = core.dropLastCharacters(versionSuffix.length()) + "_";
+
+	Array<File> candidates;
+	firstFile.getParentDirectory().findChildFiles(candidates, File::findFiles, false, stem + "*" + extension);
+
+	File best;
+	String bestVersion;
+
+	for (const auto& f : candidates)
+	{
+		auto version = f.getFileNameWithoutExtension().substring(stem.length()).upToLastOccurrenceOf("_", false, false);
+
+		if (CharacterFunctions::isDigit(version[0]) && (best == File() || version.compareNatural(bestVersion) > 0))
+		{
+			best = f;
+			bestVersion = version;
+		}
+	}
+
+	return best != File() ? best : part;
 }
 
 bool HlacArchiver::writeFlag(FileOutputStream* fos, Flag flag)
