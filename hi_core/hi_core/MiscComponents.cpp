@@ -1273,6 +1273,20 @@ TextEditor * MultilineLabel::createEditorComponent()
 
 	textEditor->setJustification(alignmentForLabelAndEditor);
 
+	if (!multiline)
+	{
+		auto fontHeight = (int)getFont().getHeight();
+		auto slack = jmax(0, getHeight() - fontHeight);
+		int topIndent = 0;
+
+		if (alignmentForLabelAndEditor.testFlags(Justification::verticallyCentred))
+			topIndent = slack / 2;
+		else if (alignmentForLabelAndEditor.testFlags(Justification::bottom))
+			topIndent = slack;
+
+		textEditor->setIndents(0, topIndent);
+	}
+
 	if(auto root = simple_css::CSSRootComponent::find(*this))
 		root->stateWatcher.registerComponentToUpdate(textEditor);
 
