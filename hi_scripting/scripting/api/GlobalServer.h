@@ -32,10 +32,13 @@
 
 #pragma once
 
+#include "../../../hi_tools/hi_tools/NetworkConnectivityChecker.h"
+
 namespace hise { using namespace juce;
 
 /** This object will surpass the lifetime of a server API object. */
-struct GlobalServer: public ControlledObject
+struct GlobalServer: public ControlledObject,
+                    private NetworkConnectivityChecker::Listener
 {
 	enum class State
 	{
@@ -52,9 +55,12 @@ struct GlobalServer: public ControlledObject
 
 		/** This callback is being executed synchronously when the queue has changed. */
 		virtual void queueChanged(int numItemsInQueue) = 0;
-		
+
 		/** This callback is being executed synchronously when the download queue changed. */
 		virtual void downloadQueueChanged(int numItemsToDownload) = 0;
+
+		/** Called on the main thread when the network connection type changes. */
+		virtual void networkConnectivityChanged(NetworkConnectivityChecker::NetworkType) {}
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 	};
@@ -142,6 +148,13 @@ struct GlobalServer: public ControlledObject
 
     void setInitialised();
 
+	void startConnectivityMonitoring();
+
+	void stopConnectivityMonitoring();
+
+	/** Queries the OS immediately and returns the current network type. */
+	NetworkConnectivityChecker::NetworkType queryCurrentNetworkType();
+
 private:
 
 #if USE_BACKEND
@@ -181,6 +194,11 @@ private:
 	String extraHeader;
 
 	Array<WeakReference<Listener>> listeners;
+
+	NetworkConnectivityChecker connectivityChecker;
+	std::atomic<int> connectivityMonitoringRefCount { 0 };
+
+	void networkStatusChanged (NetworkConnectivityChecker::NetworkType newType) override;
     
 public:
 

@@ -8059,6 +8059,8 @@ struct ScriptingApi::Server::Wrapper
 	API_METHOD_WRAPPER_0(Server, getPendingDownloads);
 	API_METHOD_WRAPPER_0(Server, getPendingCalls);
 	API_METHOD_WRAPPER_0(Server, isOnline);
+	API_METHOD_WRAPPER_0(Server, getConnectionType);
+	API_VOID_METHOD_WRAPPER_1(Server, setConnectivityCallback);
 	API_VOID_METHOD_WRAPPER_1(Server, setNumAllowedDownloads);
 	API_VOID_METHOD_WRAPPER_0(Server, cleanFinishedDownloads);
 	API_VOID_METHOD_WRAPPER_1(Server, setServerCallback);
@@ -8072,7 +8074,8 @@ ScriptingApi::Server::Server(JavascriptProcessor* jp_):
 	ScriptingObject(dynamic_cast<ProcessorWithScriptingContent*>(jp_)),
 	jp(jp_),
 	globalServer(*getScriptProcessor()->getMainController_()->getJavascriptThreadPool().getGlobalServer()),
-	serverCallback(getScriptProcessor(), this, {}, 1)
+	serverCallback(getScriptProcessor(), this, {}, 1),
+	connectivityCallback(getScriptProcessor(), this, {}, 1)
 {
 	globalServer.addListener(this);
 
@@ -8093,6 +8096,9 @@ ScriptingApi::Server::Server(JavascriptProcessor* jp_):
 	ADD_API_METHOD_0(getPendingDownloads);
 	ADD_API_METHOD_0(getPendingCalls);
 	ADD_API_METHOD_0(isOnline);
+	ADD_API_METHOD_0(getConnectionType);
+	ADD_TYPED_API_METHOD_1(setConnectivityCallback, VarTypeChecker::Function);
+	ADD_CALLBACK_DIAGNOSTIC(connectivityCallback, setConnectivityCallback, 0);
     ADD_API_METHOD_0(resendLastCall);
 	ADD_API_METHOD_1(setNumAllowedDownloads);
 	ADD_TYPED_API_METHOD_1(setServerCallback, VarTypeChecker::Function);
@@ -8286,6 +8292,24 @@ void ScriptingApi::Server::setServerCallback(var callback)
 {
 	serverCallback = WeakCallbackHolder(getScriptProcessor(), this, callback, 1);
 	serverCallback.incRefCount();
+}
+
+String ScriptingApi::Server::getConnectionType()
+{
+	// Always do a live OS query — the timer may not be running if no callback is registered.
+	return networkTypeToString (globalServer.queryCurrentNetworkType());
+}
+
+void ScriptingApi::Server::setConnectivityCallback(var callback)
+{
+	connectivityCallback = WeakCallbackHolder(getScriptProcessor(), this, callback, 1);
+	connectivityCallback.incRefCount();
+
+	if (!hasConnectivityCallback)
+	{
+		hasConnectivityCallback = true;
+		globalServer.startConnectivityMonitoring();
+	}
 }
 
 bool ScriptingApi::Server::isEmailAddress(String email)
