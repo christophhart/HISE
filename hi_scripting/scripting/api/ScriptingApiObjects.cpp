@@ -226,6 +226,7 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_1(ScriptFile, toReferenceString);
 	API_METHOD_WRAPPER_1(ScriptFile, getRelativePathFrom);
 	API_METHOD_WRAPPER_0(ScriptFile, getNumZippedItems);
+	API_METHOD_WRAPPER_0(ScriptFile, getZippedItemList);
 	API_VOID_METHOD_WRAPPER_2(ScriptFile, setReadOnly);
 	API_VOID_METHOD_WRAPPER_3(ScriptFile, extractZipFile);
 	API_VOID_METHOD_WRAPPER_0(ScriptFile, show);
@@ -289,6 +290,7 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_0(getNonExistentSibling);
 	ADD_API_METHOD_3(extractZipFile);
 	ADD_API_METHOD_0(getNumZippedItems);
+	ADD_API_METHOD_0(getZippedItemList);
 	ADD_API_METHOD_2(setReadOnly);
 	ADD_API_METHOD_1(toReferenceString);
 	ADD_API_METHOD_1(getRelativePathFrom);
@@ -992,6 +994,7 @@ void ScriptingObjects::ScriptFile::extractZipFile(var targetDirectory, bool over
 		data->setProperty("TotalBytesWritten", 0);
 		data->setProperty("Cancel", false);
 		data->setProperty("Target", tf.getFullPathName());
+		data->setProperty("ZipFile", safeThis->f.getFullPathName());
 		data->setProperty("CurrentFile", "");
 		data->setProperty("Error", "");
 		
@@ -1119,6 +1122,20 @@ int ScriptingObjects::ScriptFile::getNumZippedItems()
 {
 	juce::ZipFile zipFile(f);
 	return zipFile.getNumEntries();
+}
+
+var ScriptingObjects::ScriptFile::getZippedItemList()
+{
+	juce::ZipFile zipFile(f);
+	StringArray result;
+	
+	for (int i = 0; i < zipFile.getNumEntries(); ++i)
+	{
+			if (auto* entry = zipFile.getEntry(i))
+					result.add(entry->filename);
+	}
+	
+	return result;
 }
 
 void ScriptingObjects::ScriptFile::setReadOnly(bool shouldBeReadOnly, bool applyRecursively)
