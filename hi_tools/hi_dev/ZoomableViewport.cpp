@@ -490,15 +490,12 @@ struct PopupMenuParser
         return flags;
     };
     
-    static bool addToPopupMenu(PopupMenu& tm, int& menuIndex, const String& item, const Array<int>& activeIndexes)
+    static bool addToPopupMenu(PopupMenu& tm, int itemId, const String& item, const Array<int>& activeIndexes)
     {
         if (item == "%SKIP%")
-        {
-            menuIndex++;
             return false;
-        }
         
-        auto isTicked = activeIndexes.contains(menuIndex-1);
+        auto isTicked = activeIndexes.contains(itemId-1);
         
         auto fl = getSpecialItemType(item);
         
@@ -522,7 +519,7 @@ struct PopupMenuParser
 		newItem.text = item.removeCharacters("~|");
 		newItem.isEnabled = (fl & SpecialItem::Deactivated) == 0;
 		newItem.isTicked = isTicked;
-		newItem.itemID = menuIndex++;
+		newItem.itemID = itemId;
 		newItem.shouldBreakAfter = item.getLastCharacter() == '|';
 
         tm.addItem(newItem);
@@ -538,26 +535,30 @@ struct PopupMenuParser
         bool ticked = false;
         String name;
         StringArray items;
+        Array<int> itemIds;
         
-        void flush(PopupMenu& m, int& firstId, const Array<int>& activeIndexes)
+        bool flush(PopupMenu& m, const Array<int>& activeIndexes)
         {
             if(items.isEmpty() && children.isEmpty())
-                return;
+                return false;
             
-            for(auto& s: items)
+            for(int i = 0; i < items.size(); i++)
             {
-                ticked |= addToPopupMenu(sub, firstId, s, activeIndexes);
+                ticked |= addToPopupMenu(sub, itemIds[i], items[i], activeIndexes);
             }
             
             for(auto c: children)
             {
-                c->flush(sub, firstId, activeIndexes);
+                ticked |= c->flush(sub, activeIndexes);
             }
             
             m.addSubMenu(name, sub, true, nullptr, ticked);
             
             items.clear();
+            itemIds.clear();
             children.clear();
+            
+            return ticked;
         }
         
         OwnedArray<SubInfo> children;
@@ -608,8 +609,24 @@ juce::PopupMenu SubmenuComboBox::parseFromStringArray(const StringArray& itemLis
 
     PopupMenuParser parser;
 
-	for (const auto& item: itemList)
+    // The ids must match the position in the item list, not the order in which
+    // the submenu tree gets flushed.
+    Array<int> idForPosition;
+    int runningId = 1;
+
+    for (const auto& item: itemList)
+    {
+        auto fl = parser.getSpecialItemType(item);
+
+        if (fl & (PopupMenuParser::SpecialItem::Header | PopupMenuParser::SpecialItem::Separator))
+            idForPosition.add(-1);
+        else
+            idForPosition.add(runningId++);
+    }
+
+	for (int i = 0; i < itemList.size(); i++)
 	{
+        const auto& item = itemList[i];
         auto fl = parser.getSpecialItemType(item);
         
         if (fl & PopupMenuParser::SpecialItem::Sub)
@@ -620,14 +637,15 @@ juce::PopupMenu SubmenuComboBox::parseFromStringArray(const StringArray& itemLis
 			if (subMenuName.isEmpty() || subMenuItem.isEmpty())
                 continue;
 
-            parser.getSubMenu(subMenuName)->items.add(subMenuItem);
+            auto subInfo = parser.getSubMenu(subMenuName);
+            subInfo->items.add(subMenuItem);
+            subInfo->itemIds.add(idForPosition[i]);
 		}
 	}
 
-    int menuIndex = 1;
-
-    for(const auto& item: itemList)
+    for(int i = 0; i < itemList.size(); i++)
     {
+        const auto& item = itemList[i];
         auto fl = parser.getSpecialItemType(item);
         auto isSubEntry = (fl & PopupMenuParser::SpecialItem::Sub) != 0;
         
@@ -637,10 +655,10 @@ juce::PopupMenu SubmenuComboBox::parseFromStringArray(const StringArray& itemLis
             // flush its children
             auto firstMenuName = item.upToFirstOccurrenceOf("::", false, false);
             
-            parser.getSubMenu(firstMenuName)->flush(m, menuIndex, activeIndexes);
+            parser.getSubMenu(firstMenuName)->flush(m, activeIndexes);
         }
         else
-            parser.addToPopupMenu(m, menuIndex, item, activeIndexes);
+            parser.addToPopupMenu(m, idForPosition[i], item, activeIndexes);
     }
     
 	return m;
