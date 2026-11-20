@@ -516,6 +516,24 @@ juce::File ExpansionHandler::getExpansionTargetFolder(const File& resourceFile)
 	return File();
 }
 
+var ExpansionHandler::getPropertiesFromHxi(const File& hxiFile)
+{
+	FileInputStream fis(hxiFile);
+	auto hxiData = ValueTree::readFromStream(fis);
+	
+	auto hxiTree = hxiData.getChildWithName(ExpansionIds::ExpansionInfo);
+	
+	auto obj = new DynamicObject();
+
+	for (int i = 0; i < hxiTree.getNumProperties(); ++i)
+	{
+		Identifier propertyName = hxiTree.getPropertyName(i);
+		obj->setProperty(propertyName, hxiTree.getProperty(propertyName).toString());
+	}
+
+	return obj;
+}
+
 PooledAudioFile ExpansionHandler::loadAudioFileReference(const PoolReference& sampleId)
 {
 	AudioSampleBufferPool* pool = nullptr;

@@ -268,6 +268,9 @@ public:
 	/** Encrypts the given hxi file. */
 	bool encodeWithCredentials(var hxiFile);
 
+	/** Get the Expansion properties directly from an info.hxi file */
+	var getPropertiesFromHxi(var hxiFile);
+
 	/** Decompresses the samples and installs the .hxi / .hxp file. */
 	bool installExpansionFromPackage(var packageFile, var sampleDirectory);
 

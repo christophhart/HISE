@@ -320,6 +320,8 @@ public:
 
 	void removeListener(Listener* l);
 
+	var getPropertiesFromHxi(const File& hxiFile);
+
 	bool installFromResourceFile(const File& f, const File& sampleDirectoryToUse);
 
 	File getExpansionTargetFolder(const File& resourceFile);

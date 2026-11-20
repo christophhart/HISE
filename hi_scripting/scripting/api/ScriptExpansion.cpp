@@ -1173,7 +1173,8 @@ struct ScriptExpansionHandler::Wrapper
 	API_METHOD_WRAPPER_1(ScriptExpansionHandler, encodeWithCredentials);
 	API_METHOD_WRAPPER_0(ScriptExpansionHandler, refreshExpansions);
 	API_VOID_METHOD_WRAPPER_1(ScriptExpansionHandler, setAllowedExpansionTypes);
-	API_METHOD_WRAPPER_2(ScriptExpansionHandler, installExpansionFromPackage);
+	API_METHOD_WRAPPER_1(ScriptExpansionHandler, getPropertiesFromHxi);
+		API_METHOD_WRAPPER_2(ScriptExpansionHandler, installExpansionFromPackage);
 	API_METHOD_WRAPPER_1(ScriptExpansionHandler, getExpansionForInstallPackage);
 	API_METHOD_WRAPPER_1(ScriptExpansionHandler, getMetaDataFromPackage);
 };
@@ -1201,6 +1202,7 @@ ScriptExpansionHandler::ScriptExpansionHandler(JavascriptProcessor* jp_) :
 	ADD_API_METHOD_1(setInstallFullDynamics);
 	ADD_API_METHOD_1(encodeWithCredentials);
 	ADD_API_METHOD_0(refreshExpansions);
+	ADD_API_METHOD_1(getPropertiesFromHxi);
 	ADD_API_METHOD_2(installExpansionFromPackage);
 	ADD_API_METHOD_1(setAllowedExpansionTypes);
 	ADD_API_METHOD_0(getCurrentExpansion);
@@ -1356,6 +1358,24 @@ bool ScriptExpansionHandler::encodeWithCredentials(var hxiFile)
 	{
 		reportScriptError("argument is not a file");
 		RETURN_IF_NO_THROW(false);
+	}
+}
+
+var ScriptExpansionHandler::getPropertiesFromHxi(var hxiFile)
+{
+	if (auto f = dynamic_cast<ScriptingObjects::ScriptFile*>(hxiFile.getObject()))
+	{
+		if (!f->f.existsAsFile())
+			reportScriptError(f->toString(0) + " doesn't exist");
+
+		auto result = getMainController()->getExpansionHandler().getPropertiesFromHxi(f->f);
+
+		return var(result);
+	}
+	else
+	{
+		reportScriptError("argument is not a file");
+		return var();
 	}
 }
 
