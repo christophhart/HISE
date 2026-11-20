@@ -103,6 +103,46 @@ struct ScriptedPostDrawActions
 		const bool monochrom;
 	};
 
+	struct addNoiseFromPath : public DrawActions::ActionBase
+	{
+		addNoiseFromPath(DrawActions::NoiseMapManager* manager, const Path& p_, Rectangle<float> a,
+		                 float v, bool monochrom_=false, float scale_=1.0f) :
+			m(manager),
+			noise(v),
+			scale(scale_),
+			monochrom(monochrom_),
+			p(p_)
+		{
+			if (!p.getBounds().isEmpty())
+			{
+				p.scaleToFit(a.getX(), a.getY(), a.getWidth(), a.getHeight(), false);
+				area = p.getBounds().toNearestIntEdges();
+			}
+		}
+
+		SET_ACTION_ID(addNoiseFromPath);
+
+		void perform(Graphics& g) override
+		{
+			if (area.isEmpty())
+				return;
+
+			Graphics::ScopedSaveState state(g);
+			g.reduceClipRegion(p);
+			m->drawNoiseMap(g, area, noise, monochrom, scale);
+		}
+
+		bool wantsCachedImage() const override { return false; }
+		bool wantsToDrawOnParent() const override { return false; }
+
+		DrawActions::NoiseMapManager* m;
+		Path p;
+		Rectangle<int> area;
+		const float noise;
+		const float scale;
+		const bool monochrom;
+	};
+
 	struct applyHSL : public DrawActions::PostActionBase
 	{
 		applyHSL(float hue, float sat, float light) :
