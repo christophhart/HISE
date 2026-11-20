@@ -483,6 +483,9 @@ public:
 		/** Checks if the global MPE mode is enabled. */
 		bool isMpeEnabled() const;
 
+		/** Enables or disables the global MPE mode. */
+		void setMpeEnabled(bool shouldBeEnabled);
+
 		/** Returns the currently loaded user preset (without extension). */
 		String getCurrentUserPresetName();
 
