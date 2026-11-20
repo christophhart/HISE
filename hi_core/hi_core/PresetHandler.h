@@ -624,6 +624,8 @@ public:
 
 	static String getCurrentVersionNumber(ModulatorSynthChain* chain);
 
+	static String getCurrentEngineVersionNumber(ModulatorSynthChain* chain);
+
 	static ValueTree collectAllUserPresets(ModulatorSynthChain* chain, FileHandlerBase* expansion=nullptr);
 
 	static StringArray getExpansionsForUserPreset(const File& userpresetFile);
