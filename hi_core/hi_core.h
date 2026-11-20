@@ -396,10 +396,12 @@ If true, then the FX plugin will have a MIDI input and the MIDI processor chain 
 
 /** Config: HISE_COMPLAIN_ABOUT_ILLEGAL_BUFFER_SIZE
 
-If true then the plugin will complain about the buffer size not being a multiple of HISE_EVENT_RASTER. 
+If true then the plugin will complain about the buffer size not being a multiple of HISE_EVENT_RASTER.
+Instrument plugins pad odd buffer sizes internally, so the warning is only enabled by default for FX plugins,
+where an odd buffer size still results in silence.
 */
 #ifndef HISE_COMPLAIN_ABOUT_ILLEGAL_BUFFER_SIZE
-#define HISE_COMPLAIN_ABOUT_ILLEGAL_BUFFER_SIZE 1
+#define HISE_COMPLAIN_ABOUT_ILLEGAL_BUFFER_SIZE FRONTEND_IS_PLUGIN
 #endif
 
 
