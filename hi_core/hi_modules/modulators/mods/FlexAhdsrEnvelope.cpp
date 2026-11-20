@@ -265,11 +265,15 @@ float FlexAhdsrEnvelope::startVoice(int voiceIndex)
 
 		auto ownerSynth = static_cast<ModulatorSynth*>(getParentProcessor(true));
 		auto ownerVoice = static_cast<ModulatorSynthVoice*>(ownerSynth->getVoice(voiceIndex));
-		auto e = ownerVoice->getCurrentHiseEvent();
 
-		// reset the smoothers
-		obj.reset();
-		obj.handleHiseEvent(e);
+		if (ownerVoice != nullptr)
+		{
+			auto e = ownerVoice->getCurrentHiseEvent();
+
+			// reset the smoothers
+			obj.reset();
+			obj.handleHiseEvent(e);
+		}
 	}
 
 	span<float, 1> data = { 1.0f };
@@ -308,9 +312,13 @@ void FlexAhdsrEnvelope::stopVoice(int voiceIndex)
 
 		auto ownerSynth = static_cast<ModulatorSynth*>(getParentProcessor(true));
 		auto ownerVoice = static_cast<ModulatorSynthVoice*>(ownerSynth->getVoice(voiceIndex));
-		auto e = ownerVoice->getCurrentHiseEvent();
-		e.setType(HiseEvent::Type::NoteOff);
-		obj.handleHiseEvent(e);
+
+		if (ownerVoice != nullptr)
+		{
+			auto e = ownerVoice->getCurrentHiseEvent();
+			e.setType(HiseEvent::Type::NoteOff);
+			obj.handleHiseEvent(e);
+		}
 	}
 }
 
@@ -361,6 +369,9 @@ void FlexAhdsrEnvelope::calculateBlock(int startSample, int numSamples)
 	{
 		auto os = static_cast<ModulatorSynth*>(getParentProcessor(true, true));
 		auto msv = static_cast<ModulatorSynthVoice*>(os->getVoice(voiceIndex));
+
+		if (msv == nullptr)
+			return;
 
 		const int pseudoOffset = startSample * HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
 		const int pseudoSize = numSamples * HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
