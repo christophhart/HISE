@@ -1878,7 +1878,21 @@ String OverlayMessageBroadcaster::getOverlayTextMessage(State s) const
 	case IllegalBufferSize:
 	{
 		String s;
-		s << "The audio buffer size should be a multiple of " << String(HISE_EVENT_RASTER) << ". Please adjust your audio settings";
+		s << "The audio buffer size should be a multiple of " << String(HISE_EVENT_RASTER) << ". ";
+
+		// FL Studio reports odd block sizes regardless of the buffer length in its audio settings,
+		// so the generic advice is wrong there. The per-plugin wrapper option is the actual fix.
+		bool isFruityLoops = false;
+
+#if !(IS_STANDALONE_APP || IS_STANDALONE_FRONTEND)
+		isFruityLoops = PluginHostType().isFruityLoops();
+#endif
+
+		if (isFruityLoops)
+			s << "In FL Studio enable 'Use fixed size buffers' for this plugin.";
+		else
+			s << "Please adjust your audio settings";
+
 		return s;
 	}
 	case SamplesNotFound:
