@@ -406,6 +406,91 @@ void ExpansionHandler::unloadExpansion(Expansion* e)
 	}
 }
 
+void ExpansionHandler::removeExpansion(Expansion* e, bool removeUserPresets)
+{
+	if (e == nullptr)
+		return;
+
+	auto expansionRoot = e->getRootFolder();
+
+	// FullInstrumentExpansion lazy-loads its pool; ensure it is populated before
+	// we read sample map data. This is a no-op for other expansion types.
+	e->populateSampleMapPool();
+
+	// getSubDirectory follows any link file and returns the true samples path.
+	auto actualSamplesDir = e->getSubDirectory(FileHandlerBase::Samples);
+
+	// Monolith files are named "{ID.replace('/','_')}.chN" (flat, no subdirectories).
+	// Channel count is the number of ';' characters in the MicPositions property.
+	struct MonolithInfo { String flatId; int numChannels; };
+	Array<MonolithInfo> monolithFiles;
+
+	for (const auto& ref : e->pool->getSampleMapPool().getListOfAllReferences(true))
+	{
+		if (auto loaded = e->pool->getSampleMapPool().loadFromReference(ref, PoolHelpers::LoadAndCacheWeak))
+		{
+			const auto& vt = loaded->data;
+
+			if ((int)vt.getProperty("SaveMode") != (int)SampleMap::SaveMode::Monolith)
+				continue;
+
+			String flatId = vt.getProperty("ID").toString().replace("/", "_");
+			auto micStr = vt.getProperty("MicPositions").toString().toStdString();
+			int numCh = (int)std::count(micStr.begin(), micStr.end(), ';');
+
+			if (numCh > 0)
+				monolithFiles.add({ flatId, numCh });
+		}
+	}
+
+	// unloadExpansion removes from expansionList and clears currentExpansion
+	unloadExpansion(e);
+
+	// unloadExpansion only checks expansionList; handle other lists here
+	uninitialisedExpansions.removeObject(e, false);
+
+	// Take ownership so the Expansion object is deleted on function exit.
+	// After unloadExpansion, e is in unloadedExpansions if it was active.
+	ScopedPointer<Expansion> owned;
+	auto idx = unloadedExpansions.indexOf(e);
+	if (idx != -1)
+		owned = unloadedExpansions.removeAndReturn(idx);
+	else
+		owned = e;
+
+	if (actualSamplesDir.isDirectory() && !monolithFiles.isEmpty())
+	{
+		for (const auto& info : monolithFiles)
+		{
+			for (int i = 0; i < info.numChannels; i++)
+				actualSamplesDir.getChildFile(info.flatId + ".ch" + String(i + 1)).deleteFile();
+		}
+
+		if (actualSamplesDir.getNumberOfChildFiles(File::findFilesAndDirectories) == 0)
+			actualSamplesDir.deleteFile();
+	}
+
+	Array<File> subDirs;
+	expansionRoot.findChildFiles(subDirs, File::findDirectories, false);
+
+	for (const auto& dir : subDirs)
+	{
+		if (!removeUserPresets && dir.getFileName() == "UserPresets")
+			continue;
+
+		dir.deleteRecursively();
+	}
+
+	Array<File> rootFiles;
+	expansionRoot.findChildFiles(rootFiles, File::findFiles, false);
+
+	for (const auto& f : rootFiles)
+		f.deleteFile();
+
+	if (expansionRoot.getNumberOfChildFiles(File::findFilesAndDirectories) == 0)
+		expansionRoot.deleteFile();
+}
+
 bool ExpansionHandler::installFromResourceFile(const File& resourceFile, const File& sampleDirectoryToUse)
 {
 	auto expRoot = getExpansionTargetFolder(resourceFile);
