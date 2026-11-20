@@ -3240,7 +3240,7 @@ void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawFilterGridLines(Graphics
 	FilterGraph::LookAndFeelMethods::drawFilterGridLines(g, fg, gridPath);
 }
 
-void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawFilterDragHandle(Graphics& g, FilterDragOverlay& o, int index,
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawFilterDragHandle(Graphics& g, FilterGraph& fg, FilterDragOverlay& o, int index,
                                                                          Rectangle<float> handleBounds, const FilterDragOverlay::DragData& d)
 {
 	using namespace simple_css;
@@ -3306,7 +3306,7 @@ void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawFilterDragHandle(Graphic
 		return;
 	}
 
-	FilterDragOverlay::LookAndFeelMethods::drawFilterDragHandle(g, o, index, handleBounds, d);
+	FilterDragOverlay::LookAndFeelMethods::drawFilterDragHandle(g, fg, o, index, handleBounds, d);
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::setCSSColourOrBlack(simple_css::StyleSheet::Ptr ss, const Identifier& id, Component& c, int colourId)
@@ -4218,7 +4218,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::getIdealPopupMenuItemSize(const
     GlobalHiseLookAndFeel::getIdealPopupMenuItemSize(text, isSeparator, standardMenuItemHeight, idealWidth, idealHeight);
 }
 
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawFilterDragHandle(Graphics& g_, FilterDragOverlay& o, int index, Rectangle<float> handleBounds, const FilterDragOverlay::DragData& d)
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawFilterDragHandle(Graphics& g_, FilterGraph& fg, FilterDragOverlay& o, int index, Rectangle<float> handleBounds, const FilterDragOverlay::DragData& d)
 {
 	if (functionDefined("drawFilterDragHandle"))
 	{
@@ -4238,17 +4238,17 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawFilterDragHandle(Graphics& 
 		obj->setProperty("gain", d.gain);
 		obj->setProperty("type", d.type);
 
-		setColourOrBlack(obj, "bgColour", o, FilterGraph::ColourIds::bgColour);
-		setColourOrBlack(obj, "itemColour1", o, FilterGraph::ColourIds::lineColour);
-		setColourOrBlack(obj, "itemColour2", o, FilterGraph::ColourIds::fillColour);
-		setColourOrBlack(obj, "itemColour3", o, FilterGraph::ColourIds::gridColour);
-		setColourOrBlack(obj, "textColour", o, FilterGraph::ColourIds::textColour);
+		setColourOrBlack(obj, "bgColour", fg, FilterGraph::ColourIds::bgColour);
+		setColourOrBlack(obj, "itemColour1", fg, FilterGraph::ColourIds::fillColour);
+		setColourOrBlack(obj, "itemColour2", fg, FilterGraph::ColourIds::lineColour);
+		setColourOrBlack(obj, "itemColour3", fg, FilterGraph::ColourIds::gridColour);
+		setColourOrBlack(obj, "textColour", fg, FilterGraph::ColourIds::textColour);
 
 		if (get()->callWithGraphics(g_, "drawFilterDragHandle", var(obj), &o))
 			return;
 	}
 
-	FilterDragOverlay::LookAndFeelMethods::drawFilterDragHandle(g_, o, index, handleBounds, d);
+	FilterDragOverlay::LookAndFeelMethods::drawFilterDragHandle(g_, fg, o, index, handleBounds, d);
 }
 
 
