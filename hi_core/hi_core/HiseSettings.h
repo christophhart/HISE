@@ -131,6 +131,7 @@ namespace ExpansionSettings
 DECLARE_ID(UUID);
 DECLARE_ID(Tags);
 DECLARE_ID(Description);
+DECLARE_ID(RequiredPlayerVersion);
 
 Array<Identifier> getAllIds();
 }
