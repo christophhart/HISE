@@ -495,7 +495,18 @@ void MainController::UserPresetHandler::loadUserPresetFromValueTree(const ValueT
 			return SafeFunctionCall::OK;
 		};
 
+		abortCurrentLoad = false;
+
 		preprocess(pendingPreset);
+
+		if (abortCurrentLoad)
+		{
+			abortCurrentLoad = false;
+			currentlyLoadedFile = oldFile;
+			pendingPreset = {};
+
+			return;
+		}
 
 		// Send a note off to stop the arpeggiator etc...
 		mc->allNotesOff(false);

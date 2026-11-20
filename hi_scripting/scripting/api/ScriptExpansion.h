@@ -85,6 +85,9 @@ public:
 	/** Checks if the given version string is a older version than the current project version number. */
 	bool isOldVersion(const String& version);
 
+	/** Aborts the preset that is currently being loaded (call this synchronously from the pre-load callback). Reverts to the previously loaded preset and updates any attached preset browser selection. */
+	void abortLoad();
+
 	/** Disables the default user preset data model and allows a manual data handling. */
 	void setUseCustomUserPresetModel(var loadCallback, var saveCallback, bool usePersistentObject);
 

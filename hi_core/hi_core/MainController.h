@@ -1005,6 +1005,8 @@ public:
 
 		void postPresetSave();
 
+		void abortPresetLoad() { abortCurrentLoad = true; }
+
 		bool setCustomAutomationData(CustomAutomationData::List newList);
 
 		void setUseCustomDataModel(bool shouldUseCustomModel, bool usePersistentObject);
@@ -1087,6 +1089,7 @@ public:
 
 		MainController* mc;
 		bool useUndoForPresetLoads = false;
+		bool abortCurrentLoad = false;
 
 		struct CustomStateManager : public UserPresetStateManager
 		{
