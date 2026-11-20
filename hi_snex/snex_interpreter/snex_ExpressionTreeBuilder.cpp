@@ -36,10 +36,12 @@ namespace interpreter {
 Statement::Factory::Factory()
 {
 	registerType<nodes::SyntaxTree>();
+	registerType<nodes::InternalProperty>();
 	registerType<nodes::Function>();
 	registerType<nodes::ReturnStatement>();
 	registerType<nodes::Immediate>();
 	registerType<nodes::BinaryOp>();
+	registerType<nodes::Increment>();
 	registerType<nodes::Comparison>();
 	registerType<nodes::Cast>();
 	registerType<nodes::VariableReference>();

@@ -2,6 +2,31 @@ namespace snex {
 namespace interpreter {
 namespace nodes {
 
+struct InternalProperty : public Statement
+{
+	SNEX_INTERPRETER_NODE(InternalProperty, WantsNode::Yes);
+
+	InternalProperty(Factory& f, const ValueTree& v):
+	  Statement(f, v),
+	  id(v["ID"].toString()),
+	  value(v[AstIds::Value])
+	{}
+
+	void annotateUriLocationTree(UriLocationTree& t)
+	{
+		t.id = id;
+		t.data->setProperty(AstIds::Value, value);
+	}
+
+	ResultCode perform(Scope*, VariableStorage*) override
+	{
+		return ResultCode::ok;
+	}
+
+	Identifier id;
+	var value;
+};
+
 struct Immediate : public Expression
 {
 	SNEX_INTERPRETER_NODE(Immediate, WantsNode::No);

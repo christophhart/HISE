@@ -162,7 +162,6 @@ void* Engine::getVariablePtr(const Identifier& id) const
 
 juce::String Engine::dumpTable()
 {
-	jassertfalse;
 	return juce::String();
 }
 

@@ -42,6 +42,43 @@ struct Comparison : public BinaryOp
 	{};
 };
 
+struct Increment : public Expression
+{
+	SNEX_INTERPRETER_NODE(Increment, WantsNode::No);
+
+	Increment(Factory& f, const ValueTree& v) :
+	  Expression(f, v),
+	  isPre((bool)v[AstIds::IsPre]),
+	  target(Helpers::getChildExpression(this, 0))
+	{
+		auto isDec = (bool)v[AstIds::IsDec];
+		auto opMode = isDec ? OpFunctions::BinaryOp::Ops::SUB : OpFunctions::BinaryOp::Ops::ADD;
+		op = OpFunctions::BinaryOp::getFunctionPtr(target->getTypeInfo(), opMode);
+	};
+
+	void assign(Scope* s, const VariableStorage& v) override
+	{
+		jassertfalse;
+	}
+
+	VariableStorage getResult(Scope* s) override
+	{
+		auto prevValue = target->getResult(s);
+		auto postValue = op(prevValue, 1);
+		target->assign(s, postValue);
+		return isPre ? postValue : prevValue;
+	}
+
+	TypeInfo getTypeInfo() const override
+	{
+		return target->getTypeInfo();
+	}
+
+	const bool isPre;
+	ExprPtr target;
+	OpFunctions::BinaryOp::Function op;
+};
+
 struct Cast : public Expression
 {
 	SNEX_INTERPRETER_NODE(Cast, WantsNode::No);

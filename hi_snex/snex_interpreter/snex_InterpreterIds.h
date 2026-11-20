@@ -24,6 +24,9 @@ DECLARE_ID(CallType);
 DECLARE_ID(ObjectType);
 DECLARE_ID(MemberType);
 
+DECLARE_ID(IsPre);
+DECLARE_ID(IsDec);
+
 DECLARE_ID(ElementType);
 DECLARE_ID(ParentType);
 
