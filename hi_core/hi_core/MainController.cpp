@@ -2033,7 +2033,7 @@ float MainController::getStringWidthFromEmbeddedFont(const String& text, const S
 Font MainController::getFontFromString(const String& fontName, float fontSize) const
 {
 	if (fontName == "Default")
-		return globalFont;
+		return globalFont.withHeight(fontSize);
 
 	const Identifier id(fontName);
 
@@ -2076,6 +2076,11 @@ void MainController::setGlobalFont(const String& fontName)
 		globalFont = GLOBAL_FONT();
 	else 
 		globalFont = getFontFromString(fontName, 14.0f);
+
+	// Keep the "Default" measuring table in sync with the typeface that "Default" now draws with,
+	// so getStringWidth() agrees with drawText() for the global font.
+	if (auto tf = globalFont.getTypefacePtr())
+		defaultFont = CustomTypeFace(tf, "Default");
 
 	mainLookAndFeel->setComboBoxFont(globalFont);
 }
