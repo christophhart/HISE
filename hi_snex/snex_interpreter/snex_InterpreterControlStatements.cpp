@@ -41,24 +41,16 @@ struct SyntaxTree : public Statement
 	SNEX_INTERPRETER_NODE(SyntaxTree, WantsNode::Yes);
 
 	SyntaxTree(Statement::Factory& f, const ValueTree& v) :
-	  Statement(f, v)
-	{
-		for (auto c : childStatements)
-			locations.push_back(Helpers::createUriLocation(f, c->astNode));	
-	};
+	  Statement(f, v),
+	  blockData(f, *this)
+	{};
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue) override
 	{ 
-		for (int i = instructionPointer; i < childStatements.size(); i++)
-		{
-			auto c = childStatements[i];
-
-			if (auto r = c->perform(s, returnValue))
-				return r;
-		}
-
-		return ResultCode::ok; 
+		return blockData.perform(s, returnValue);
 	};
+
+	BlockExecutor blockData;
 
 	int instructionPointer = 0;
 	std::vector<UriLocation> locations;
@@ -70,11 +62,9 @@ struct StatementBlock : public DefinitionBase
 
 	StatementBlock(Statement::Factory& f, const ValueTree& v) :
 		DefinitionBase(f, v),
+		blockData(f, *this),
 		blockId(Helpers::getNamespacedIdentifier(v, AstIds::ScopeId))
-	{
-		for (auto c : childStatements)
-			locations.push_back(Helpers::createUriLocation(f, c->astNode));
-	};
+	{};
 
 	Result allocateInScope(Scope* scopeToUse) override
 	{
@@ -97,19 +87,10 @@ struct StatementBlock : public DefinitionBase
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue) override
 	{
-		for (int i = instructionPointer; i < childStatements.size(); i++)
-		{
-			auto c = childStatements[i];
-
-			if (auto r = c->perform(blockScope, returnValue))
-				return r;
-		}
-
-		return ResultCode::ok;
+		return blockData.perform(s, returnValue);
 	};
 
-	int instructionPointer = 0;
-	std::vector<UriLocation> locations;
+	BlockExecutor blockData;
 	NamespacedIdentifier blockId;
 	Scope::Ptr blockScope;
 };
@@ -158,6 +139,8 @@ struct ReturnStatement : public Statement
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue) override
 	{
+		throwRuntimeError("test error");
+		
 		if (returnValue != nullptr && value != nullptr)
 			*returnValue = value->getResult(s);
 		

@@ -329,7 +329,8 @@ void SnexPlayground::onError(const hise::UriError& error, int numOccurrences)
 		return;
 	}
 
-	if (error.sourceType != hise::UriError::Compilation || numOccurrences != 1)
+	if ((error.sourceType != hise::UriError::Compilation && error.sourceType != hise::UriError::Runtime)
+		|| numOccurrences != 1)
 		return;
 
 	hise::SafeAsyncCall::callAsyncIfNotOnMessageThread<SnexPlayground>(*this, [error](SnexPlayground& playground)
@@ -345,6 +346,9 @@ void SnexPlayground::onClear(hise::UriErrorLogger::SourceType sourceType)
 	{
 		if (sourceType & hise::UriError::Compilation)
 			playground.editor.editor.clearWarningsAndErrors(hise::UriError::Compilation);
+
+		if (sourceType & hise::UriError::Runtime)
+			playground.editor.editor.clearWarningsAndErrors(hise::UriError::Runtime);
 
 		if (sourceType & hise::UriError::Log)
 		{

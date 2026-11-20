@@ -64,6 +64,7 @@ struct Statement : public ReferenceCountedObject
 	};
 
 	struct Helpers;
+	struct BlockExecutor;
 	struct OpFunctions;
 
 	Statement(Factory& f, const ValueTree& astNode_) :
@@ -121,6 +122,8 @@ struct Statement : public ReferenceCountedObject
 
 		return false;
 	};
+
+	void throwRuntimeError(const String& errorMessage);
 
 	ValueTree astNode;
 

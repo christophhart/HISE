@@ -521,13 +521,21 @@ juce::Result JitFileTestCase::testAfterCompilation(bool dumpBeforeTest /*= false
 
 			function = compiledF;
 
-			switch (function.returnType.getType())
-            {
-            case Types::ID::Integer: actualResult = call<int>(); break;
-            case Types::ID::Float:   actualResult = call<float>(); break;
-            case Types::ID::Double:  actualResult = call<double>(); break;
-            default: jassertfalse;
-            }
+			try
+			{
+				switch (function.returnType.getType())
+				{
+				case Types::ID::Integer: actualResult = call<int>(); break;
+				case Types::ID::Float:   actualResult = call<float>(); break;
+				case Types::ID::Double:  actualResult = call<double>(); break;
+				default: jassertfalse;
+				}
+			}
+			catch (interpreter::Engine::CallError& ce)
+			{
+				memory.getUriLogger()->logUriError(UriError::SourceType::Runtime, ce.e, sendNotificationAsync);
+				return Result::fail(ce.e.errorMessage);
+			}
 
 			expectedResult = VariableStorage(function.returnType.getType(), var(expectedResult.toDouble()));
 		}

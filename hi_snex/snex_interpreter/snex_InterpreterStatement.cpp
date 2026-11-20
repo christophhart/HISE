@@ -201,7 +201,64 @@ struct Statement::Helpers
 	}
 };
 
+struct Statement::BlockExecutor
+{
+	struct StatementError
+	{
+		Statement* s;
+		String errorMessage;
+	};
 
+	BlockExecutor(Factory& f, Statement& parent_) :
+		parent(parent_)
+	{
+		for (auto c : parent.childStatements)
+			locations.push_back(Helpers::createUriLocation(f, c->astNode));
+	}
+
+	ResultCode perform(Scope* s, VariableStorage* returnValue)
+	{
+		for (int i = instructionPointer; i < parent.childStatements.size(); i++)
+		{
+			auto c = parent.childStatements.getUnchecked(i);
+
+			try
+			{
+				if (auto r = c->perform(s, returnValue))
+					return r;
+			}
+			catch (StatementError& se)
+			{
+				UriError e;
+				e.fillLocation(locations[i]);
+				e.errorType = UriError::Error;
+				e.errorMessage = se.errorMessage;
+				throw e;
+			}
+			catch (Engine::CallError& ne)
+			{
+				auto callstackLocation = locations[i];
+				ne.e.callstack.push_back({ ne.callstackId, callstackLocation });
+				throw ne.e;
+			}
+		}
+
+		return ResultCode::ok;
+	}
+
+	Statement& parent;
+	int instructionPointer = 0;
+	std::vector<UriLocation> locations;
+};
+
+
+void Statement::throwRuntimeError(const String& errorMessage)
+{
+	BlockExecutor::StatementError e;
+	e.s = this;
+	e.errorMessage = errorMessage;
+	throw e;
+}
 
 } // namespace interpreter
 } // namespace snex

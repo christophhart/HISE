@@ -145,6 +145,12 @@ namespace interpreter {
 
 struct Engine: public snex::jit::FunctionCollectionBase
 {
+	struct CallError
+	{
+		UriError e;
+		String callstackId;
+	};
+
 	// Base interfaces ==================================================================================
 
 	// Forward declarations ===============================================================================
@@ -217,27 +223,37 @@ private:
 		{
 			auto data = static_cast<InterpretedFunction*>(obj);
 
-			if (data == nullptr || data->active || data->parameterOffsets.size() != sizeof...(Ts))
+			try
 			{
-				jassertfalse;
-				if constexpr (std::is_void_v<RV>)
-					return;
-				else
-					return RV();
+				if (data == nullptr || data->active || data->parameterOffsets.size() != sizeof...(Ts))
+				{
+					jassertfalse;
+					if constexpr (std::is_void_v<RV>)
+						return;
+					else
+						return RV();
+				}
+
+				ScopedValueSetter<bool> svs(data->active, true);
+
+				data->functionScope->clear();
+				writeArguments(*data, std::index_sequence_for<Ts...>{}, args...);
+
+				VariableStorage rv;
+				data->functionStatement->perform(data->functionScope.get(), &rv);
+
+				if constexpr (!std::is_void_v<RV>)
+				{
+					static constexpr Types::ID RTypeId = Types::getTypeFromTypeId<RV>();
+					return rv.toType<RTypeId>();
+				}
 			}
-
-			ScopedValueSetter<bool> svs(data->active, true);
-
-			data->functionScope->clear();
-			writeArguments(*data, std::index_sequence_for<Ts...>{}, args...);
-
-			VariableStorage rv;
-			data->functionStatement->perform(data->functionScope.get(), &rv);
-
-			if constexpr (!std::is_void_v<RV>)
+			catch (UriError& e)
 			{
-				static constexpr Types::ID RTypeId = Types::getTypeFromTypeId<RV>();
-				return rv.toType<RTypeId>();
+				CallError ne;
+				ne.callstackId = data->functionData.getSignature();
+				ne.e = e;
+				throw ne;
 			}
 		}
 

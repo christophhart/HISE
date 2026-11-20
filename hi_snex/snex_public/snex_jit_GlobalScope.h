@@ -32,6 +32,8 @@
 
 #pragma once
 
+#include <atomic>
+
 namespace snex {
 namespace jit {
 using namespace juce;
@@ -395,14 +397,19 @@ public:
     
 	void clearDebugMessages();
 
+	hise::UriErrorLogger* getUriLogger() { return uriLogger; }
+
 private:
 
 	void handleAsyncUpdate();
 	void publishUriLog(const String& message);
+	void publishUriRuntimeError(const RuntimeError& error);
 
 	bool clearNext = false;
 	hise::SimpleReadWriteLock messageLock;
 	Array<String> pendingMessages;
+	std::atomic<int> pendingRuntimeErrorState { 0 }; // 0: empty, 1: writing, 2: ready, 3: reading
+	RuntimeError pendingRuntimeError;
 
 	Map currentMap;
 

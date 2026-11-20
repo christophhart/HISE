@@ -266,6 +266,32 @@ void GlobalScope::publishUriLog(const String& message)
 	uriLogger->logUriError(hise::UriError::Log, event);
 }
 
+void GlobalScope::publishUriRuntimeError(const RuntimeError& error)
+{
+	jassert(MessageManager::getInstance()->isThisTheMessageThread());
+
+	if (uriLogger == nullptr)
+		return;
+
+	hise::UriError event;
+	event.fillLocation(uriBaseLocation);
+	event.errorType = hise::UriError::Error;
+	event.errorMessage = error.toString().fromFirstOccurrenceOf(":", false, false).trim();
+
+	auto line = jmax(1, error.lineNumber);
+	auto col = jmax(1, error.colNumber);
+
+	if (uriLocationBuilder != nullptr)
+		event.fillLocation(uriLocationBuilder->createLocationFromLineAndCol(line, col));
+	else
+	{
+		event.line = line;
+		event.col = col;
+	}
+
+	uriLogger->logUriError(hise::UriError::Runtime, event);
+}
+
 void GlobalScope::logMessage(const String& message)
 {
 	if (MessageManager::getInstance()->isThisTheMessageThread())
@@ -322,7 +348,26 @@ bool GlobalScope::checkRuntimeErrorAfterExecution()
 			if(dh.get() != nullptr)
 				dh->logMessage(BaseCompiler::Error, m);
 		}
-			
+
+		if (uriLogger != nullptr)
+		{
+			if (MessageManager::getInstance()->isThisTheMessageThread())
+			{
+				publishUriRuntimeError(currentRuntimeError);
+			}
+			else
+			{
+				int expected = 0;
+
+				if (pendingRuntimeErrorState.compare_exchange_strong(expected, 1, std::memory_order_acq_rel))
+				{
+					pendingRuntimeError = currentRuntimeError;
+					pendingRuntimeErrorState.store(2, std::memory_order_release);
+					triggerAsyncUpdate();
+				}
+			}
+		}
+
 		currentRuntimeError = {};
 
 		return true;
@@ -516,6 +561,15 @@ void GlobalScope::clearDebugMessages()
 
 void GlobalScope::handleAsyncUpdate()
 {
+	int expected = 2;
+
+	if (pendingRuntimeErrorState.compare_exchange_strong(expected, 3, std::memory_order_acq_rel))
+	{
+		auto error = pendingRuntimeError;
+		pendingRuntimeErrorState.store(0, std::memory_order_release);
+		publishUriRuntimeError(error);
+	}
+
 	if (clearNext)
 	{
 		for (auto dh : debugHandlers)

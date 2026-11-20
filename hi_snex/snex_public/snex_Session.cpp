@@ -57,6 +57,7 @@ Result SnexSession::compileFromSource()
 
 	lastResult = Result::fail(content.second);
 	clearUriErrors(hise::UriError::SourceType::Compilation);
+	clearUriErrors(hise::UriError::SourceType::Runtime);
 	reportCompilationError(lastResult.getErrorMessage());
 	return lastResult;
 }
@@ -64,6 +65,7 @@ Result SnexSession::compileFromSource()
 Result SnexSession::compile(const String& sourceSnapshot)
 {
 	clearUriErrors(hise::UriError::SourceType::Compilation);
+	clearUriErrors(hise::UriError::SourceType::Runtime);
 	scope.clearDebugMessages();
 
 	jit::Compiler compiler(scope);
