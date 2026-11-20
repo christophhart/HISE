@@ -973,7 +973,7 @@ public:
 
 		Result checkPluginParameterGroupName(const String& possibleName) const
 		{
-			if(pluginParameterGroups.contains(possibleName) || possibleName.isEmpty())
+			if(pluginParameterGroups.isEmpty() || pluginParameterGroups.contains(possibleName) || possibleName.isEmpty())
 				return Result::ok();
 
 			return Result::fail(possibleName + " is not a valid group name");
