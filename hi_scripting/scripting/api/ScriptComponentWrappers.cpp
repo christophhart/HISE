@@ -874,6 +874,9 @@ void ScriptCreatedComponentWrapper::updatePopupPosition()
 
 		p.applyTransform(currentPopup->getTransform().inverted());
 
+		if (currentPopup->drawShadow)
+			p -= Point<int>(ValuePopup::shadowMargin, ValuePopup::shadowMargin);
+
 		currentPopup->setTopLeftPosition(p);
 	}
 }
@@ -1185,33 +1188,35 @@ void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateFont(ScriptComponent
 	const String fontStyle = cb->getScriptObjectProperty(ScriptingApi::Content::ScriptComboBox::FontStyle).toString();
 	const float fontSize = (float)cb->getScriptObjectProperty(ScriptingApi::Content::ScriptComboBox::FontSize);
 
+	Font f;
+
 	if (fontName == "Oxygen" || fontName == "Default")
 	{
 		if (fontStyle == "Bold")
-			plaf.setComboBoxFont(GLOBAL_BOLD_FONT().withHeight(fontSize));
+			f = GLOBAL_BOLD_FONT().withHeight(fontSize);
 		else
-		{
-			plaf.setComboBoxFont(GLOBAL_FONT().withHeight(fontSize));
-		}
+			f = GLOBAL_FONT().withHeight(fontSize);
 	}
 	else if (fontName == "Source Code Pro")
 	{
-		plaf.setComboBoxFont(GLOBAL_MONOSPACE_FONT().withHeight(fontSize));
+		f = GLOBAL_MONOSPACE_FONT().withHeight(fontSize);
 	}
 	else
 	{
 		const juce::Typeface::Ptr typeface = dynamic_cast<const Processor*>(contentComponent->getScriptProcessor())->getMainController()->getFont(fontName);
 
 		if (typeface != nullptr)
-		{
-			Font font = Font(typeface).withHeight(fontSize);
-			plaf.setComboBoxFont(font);
-		}
+			f = Font(typeface).withHeight(fontSize);
 		else
-		{
-			Font font(fontName, fontStyle, fontSize);
-			plaf.setComboBoxFont(font);
-		}
+			f = Font(fontName, fontStyle, fontSize);
+	}
+
+	plaf.setComboBoxFont(f);
+
+	if (auto hcb = dynamic_cast<HiComboBox*>(getComponent()))
+	{
+		hcb->font = f;
+		hcb->fontName = fontName;
 	}
 
 	getComponent()->resized();
@@ -2298,6 +2303,12 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateColourAndBorder(BorderP
 	bpc->borderColour = GET_OBJECT_COLOUR(textColour);
 	bpc->borderRadius = getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::borderRadius);
 	bpc->borderSize = getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::borderSize);
+
+	bpc->setColour(HiseColourScheme::ComponentOutlineColourId, GET_OBJECT_COLOUR(bgColour));
+	bpc->setColour(HiseColourScheme::ComponentFillTopColourId, GET_OBJECT_COLOUR(itemColour));
+	bpc->setColour(HiseColourScheme::ComponentFillBottomColourId, GET_OBJECT_COLOUR(itemColour2));
+	bpc->setColour(HiseColourScheme::ComponentTextColourId, GET_OBJECT_COLOUR(textColour));
+
 	bpc->repaint();
 };
 
@@ -3463,7 +3474,7 @@ void ScriptCreatedComponentWrapper::ValuePopup::updateText()
 
 		if(!area.isEmpty())
 		{
-			shadow = nullptr;
+			drawShadow = false;
 			currentText = thisText;
 			setSize(area.getWidth(), area.getHeight());
 			repaint();
@@ -3479,9 +3490,9 @@ void ScriptCreatedComponentWrapper::ValuePopup::updateText()
 
 		int margin = (int)p->getLayoutData().margin;
 
-		int newWidth = p->getFont().getStringWidth(currentText) + 2 * margin + 5;
+		int newWidth = p->getFont().getStringWidth(currentText) + 2 * margin + 5 + 2 * shadowMargin;
 
-		setSize(newWidth, (int)p->getFont().getHeight() + 2*margin);
+		setSize(newWidth, (int)p->getFont().getHeight() + 2*margin + 2 * shadowMargin);
 
 
 		repaint();
@@ -3498,15 +3509,21 @@ void ScriptCreatedComponentWrapper::ValuePopup::paint(Graphics& g)
 
 	Properties::Ptr p = parent.contentComponent->getValuePopupProperties();
 
-	
-
 	if (p != nullptr)
 	{
 		auto l = p->getLayoutData();
 
-		auto ar = getLocalBounds().toFloat().reduced(l.lineThickness * 0.5f);
+		auto contentArea = getLocalBounds().toFloat().reduced((float)shadowMargin);
+		auto ar = contentArea.reduced(l.lineThickness * 0.5f);
 
-		g.setGradientFill(ColourGradient(p->getColour(Properties::itemColour), 0.0f, 0.0f, 
+		if (drawShadow)
+		{
+			Path shadowPath;
+			shadowPath.addRoundedRectangle(ar, l.radius);
+			shadow.drawForPath(g, shadowPath);
+		}
+
+		g.setGradientFill(ColourGradient(p->getColour(Properties::itemColour), 0.0f, 0.0f,
 										 p->getColour(Properties::itemColour2), 0.0f, (float)getHeight(), false));
 
 		g.fillRoundedRectangle(ar, l.radius);
@@ -3516,7 +3533,7 @@ void ScriptCreatedComponentWrapper::ValuePopup::paint(Graphics& g)
 
 		g.setFont(p->getFont());
 		g.setColour(p->getColour(Properties::textColour));
-		g.drawText(currentText, getLocalBounds(), Justification::centred);
+		g.drawText(currentText, contentArea.toNearestInt(), Justification::centred);
 	}
 
 	
