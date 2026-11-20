@@ -328,6 +328,39 @@ void MPEPanel::updateTableColours()
 	listbox.getViewport()->getVerticalScrollBar().setColour(ScrollBar::ColourIds::thumbColourId, laf.fillColour);
 }
 
+Identifier MPEPanel::getDefaultablePropertyId(int id) const
+{
+	if (id < (int)FloatingTileContent::PanelPropertyId::numPropertyIds)
+		return FloatingTileContent::getDefaultablePropertyId(id);
+
+	RETURN_DEFAULT_PROPERTY_ID(id, Properties::ShowTable, "ShowTable");
+	RETURN_DEFAULT_PROPERTY_ID(id, Properties::ShowPlotter, "ShowPlotter");
+	RETURN_DEFAULT_PROPERTY_ID(id, Properties::ShowPlotterPopup, "ShowPlotterPopup");
+
+	jassertfalse;
+	return {};
+}
+
+var MPEPanel::getDefaultProperty(int id) const
+{
+	switch (id)
+	{
+	case Properties::ShowTable:       return true;
+	case Properties::ShowPlotter:     return true;
+	case Properties::ShowPlotterPopup: return true;
+	default: return FloatingTileContent::getDefaultProperty(id);
+	}
+}
+
+var MPEPanel::toDynamicObject() const
+{
+	var obj = FloatingTileContent::toDynamicObject();
+	storePropertyInObject(obj, Properties::ShowTable,        showTable,        true);
+	storePropertyInObject(obj, Properties::ShowPlotter,      showPlotter,      true);
+	storePropertyInObject(obj, Properties::ShowPlotterPopup, showPlotterPopup, true);
+	return obj;
+}
+
 void MPEPanel::fromDynamicObject(const var& object)
 {
 	FloatingTileContent::fromDynamicObject(object);
@@ -338,6 +371,13 @@ void MPEPanel::fromDynamicObject(const var& object)
 	laf.fillColour = findPanelColour(FloatingTileContent::PanelColourId::itemColour2);
 
 	laf.font = getFont();
+
+	showTable       = getPropertyWithDefault(object, Properties::ShowTable);
+	showPlotter     = getPropertyWithDefault(object, Properties::ShowPlotter);
+	showPlotterPopup = getPropertyWithDefault(object, Properties::ShowPlotterPopup);
+
+	if (currentPlotter != nullptr)
+		currentPlotter->setPopupEnabled(showPlotterPopup);
 
 	listbox.setRowHeight(roundToInt(getFont().getHeight() * 2.2f));
 
@@ -381,11 +421,19 @@ void MPEPanel::resized()
 		{
 			auto r = bottomArea;
 
-			currentTable.setVisible(true);
+			const bool showBoth = showTable && showPlotter;
 
-			currentTable.setBounds(r.removeFromLeft(r.getWidth() / 2).reduced(margin));
+			currentTable.setVisible(showTable);
+
+			if (showTable)
+				currentTable.setBounds((showBoth ? r.removeFromLeft(r.getWidth() / 2) : r).reduced(margin));
+
 			if (currentPlotter)
-				currentPlotter->setBounds(r.reduced(margin));
+			{
+				currentPlotter->setVisible(showPlotter && enabled);
+				if (showPlotter)
+					currentPlotter->setBounds(r.reduced(margin));
+			}
 		}
 		else
 		{
@@ -393,7 +441,12 @@ void MPEPanel::resized()
 		}
 
 
-		listbox.setBounds(topArea.reduced(margin));
+		auto listboxBounds = topArea;
+
+		if (!showTable && !showPlotter)
+			listboxBounds = listboxBounds.withBottom(bottomArea.getBottom());
+
+		listbox.setBounds(listboxBounds.reduced(margin));
 	}
 
 
@@ -470,13 +523,18 @@ void MPEPanel::paint(Graphics& g)
 			g.drawText("No Active Modulations", tableHeader, Justification::centred);
 		}
 
-		if (currentlyEditedMod != nullptr)
+		if (currentlyEditedMod != nullptr && (showTable || showPlotter))
 		{
 			g.setColour(laf.textColour);
 			g.setFont(laf.font);
 
-			g.drawText("Curve", bottomBar.removeFromLeft(getWidth() / 2), Justification::centred);
-			g.drawText("Plot", bottomBar.removeFromLeft(getWidth() / 2), Justification::centred);
+			const bool showBoth = showTable && showPlotter;
+
+			if (showTable)
+				g.drawText("Curve", showBoth ? bottomBar.removeFromLeft(getWidth() / 2) : bottomBar, Justification::centred);
+
+			if (showPlotter)
+				g.drawText("Plot", bottomBar, Justification::centred);
 		}
 	}
 	else
@@ -514,6 +572,7 @@ void MPEPanel::setCurrentMod(MPEModulator* newMod)
 			currentPlotter->setColour(Plotter::ColourIds::pathColour, laf.fillColour.withMultipliedAlpha(1.05f));
 			currentPlotter->setColour(Plotter::ColourIds::pathColour2, laf.fillColour);
 			currentPlotter->setColour(Plotter::ColourIds::backgroundColour, laf.fillColour.withAlpha(0.05f));
+			currentPlotter->setPopupEnabled(showPlotterPopup);
 			currentTable.setColour(TableEditor::ColourIds::bgColour, laf.fillColour.withAlpha(0.05f));
 		}
 

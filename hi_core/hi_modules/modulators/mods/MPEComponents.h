@@ -47,7 +47,9 @@ public:
 	enum Properties
 	{
 		ShowTable = (int)FloatingTileContent::PanelPropertyId::numPropertyIds,
-		ShowPlotte
+		ShowPlotter,
+		ShowPlotterPopup,
+		numPropertyIds
 	};
 
 	struct LookAndFeel : public PopupLookAndFeel
@@ -99,6 +101,10 @@ public:
 
 	void updateTableColours();
 
+	int getNumDefaultableProperties() const override { return Properties::numPropertyIds; }
+	Identifier getDefaultablePropertyId(int id) const override;
+	var getDefaultProperty(int id) const override;
+	var toDynamicObject() const override;
 	void fromDynamicObject(const var& object) override;
 
 	bool keyPressed(const KeyPress& key) override;
@@ -251,6 +257,10 @@ private:
 	TextButton enableMPEButton;
 
 	ScopedPointer<MarkdownHelpButton> helpButton;
+
+	bool showTable = true;
+	bool showPlotter = true;
+	bool showPlotterPopup = true;
 
 	TableEditor currentTable;
 	ScopedPointer<Plotter> currentPlotter;
