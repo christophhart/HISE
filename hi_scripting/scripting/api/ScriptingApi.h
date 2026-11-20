@@ -597,6 +597,9 @@ public:
     /** Returns the product name (not the HISE name!). */
     String getName();
 
+		/** Compares two semantic version strings (eg. "1.2.0" or "1.2.0.5") and returns an object describing the difference. */
+		var compareVersion(String oldVersion, String newVersion);
+
 		/** Returns project and company info from the Project's preferences. */
 		var getProjectInfo();
 
