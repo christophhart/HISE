@@ -203,6 +203,10 @@ MidiChannelPanel::MidiChannelPanel(FloatingTile* parent) :
 	FloatingTileContent(parent)
 {
 	setDefaultPanelColour(PanelColourId::bgColour, Colours::black);
+	setDefaultPanelColour(PanelColourId::textColour, Colours::white);
+	setDefaultPanelColour(PanelColourId::itemColour1, Colour(0x00000000));
+	setDefaultPanelColour(PanelColourId::itemColour2, Colour(0x00000000));
+	setDefaultPanelColour(PanelColourId::itemColour3, Colour(0x00000000));
 
 	StringArray channelNames;
 	channelNames.add("All Channels");
@@ -216,8 +220,6 @@ MidiChannelPanel::MidiChannelPanel(FloatingTile* parent) :
 	viewport->setViewedComponent(channelList);
 
 	viewport->setScrollBarsShown(true, false, true, false);
-
-	setDefaultPanelColour(PanelColourId::textColour, Colours::white);
 
 	if (getMainController()->getCurrentScriptLookAndFeel() != nullptr)
 	{
@@ -264,18 +266,27 @@ void MidiChannelPanel::resized()
 
 	channelList->setSize(getParentShell()->getContentBounds().getWidth() - 5 - delta, channelList->getHeight());
 	channelList->setColourAndFont(findPanelColour(PanelColourId::textColour), getFont());
+	channelList->setColoursForPanel(findPanelColour(PanelColourId::bgColour),
+	                                findPanelColour(PanelColourId::textColour),
+	                                findPanelColour(PanelColourId::itemColour1),
+	                                findPanelColour(PanelColourId::itemColour2),
+	                                findPanelColour(PanelColourId::itemColour3));
 }
 
 MidiSourcePanel::MidiSourcePanel(FloatingTile* parent) :
 	FloatingTileContent(parent)
 {
 	setDefaultPanelColour(PanelColourId::bgColour, Colours::black);
+	setDefaultPanelColour(PanelColourId::textColour, Colours::white);
+	setDefaultPanelColour(PanelColourId::itemColour1, Colour(0x00000000));
+	setDefaultPanelColour(PanelColourId::itemColour2, Colour(0x00000000));
+	setDefaultPanelColour(PanelColourId::itemColour3, Colour(0x00000000));
 
     StringArray midiInputs;
-    
+
 #if HISE_IOS || IS_STANDALONE_APP
     if(!parent->getMainController()->isFlakyThreadingAllowed())
-        midiInputs = MidiInput::getDevices();	
+        midiInputs = MidiInput::getDevices();
 #endif
 
 	numMidiDevices = midiInputs.size();
@@ -283,8 +294,6 @@ MidiSourcePanel::MidiSourcePanel(FloatingTile* parent) :
 	addAndMakeVisible(viewport = new Viewport());
 
 	midiInputList = new ToggleButtonList(midiInputs, this);
-
-	setDefaultPanelColour(PanelColourId::textColour, Colours::white);
 
 	viewport->setViewedComponent(midiInputList);
 
@@ -316,6 +325,11 @@ void MidiSourcePanel::resized()
 	midiInputList->setSize(getParentShell()->getContentBounds().getWidth() - 5 - delta, midiInputList->getHeight());
 
 	midiInputList->setColourAndFont(findPanelColour(PanelColourId::textColour), getFont());
+	midiInputList->setColoursForPanel(findPanelColour(PanelColourId::bgColour),
+	                                  findPanelColour(PanelColourId::textColour),
+	                                  findPanelColour(PanelColourId::itemColour1),
+	                                  findPanelColour(PanelColourId::itemColour2),
+	                                  findPanelColour(PanelColourId::itemColour3));
 }
 
 void MidiSourcePanel::periodicCheckCallback(ToggleButtonList* list)
