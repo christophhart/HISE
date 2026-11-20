@@ -243,6 +243,8 @@ public:
 			static bool undo(Editor * e, bool shouldUndo);
 
 			static bool toggleOverlay(Editor& e);
+			static bool showScreenshotMenu(Editor& e);
+			static bool saveScreenshot(Editor& e, float scale);
 		};
 
 		LambdaBroadcaster<Image, float> overlayBroadcaster;
