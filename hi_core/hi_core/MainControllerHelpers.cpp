@@ -53,6 +53,12 @@ void MidiControllerAutomationHandler::addMidiControlledParameter(Processor *inte
 
 	unlearnedData.processor = interfaceProcessor;
 	unlearnedData.attribute = attributeIndex;
+
+	if (interfaceProcessor != nullptr && interfaceProcessor->hasInitialisedMetadata())
+		unlearnedData.parameterId = interfaceProcessor->getIdentifierForParameterIndex(attributeIndex);
+	else
+		unlearnedData.parameterId = {};
+
 	unlearnedData.parameterRange = parameterRange;
 	unlearnedData.fullRange = parameterRange;
 	unlearnedData.macroIndex = macroIndex;
@@ -197,6 +203,32 @@ void MidiControllerAutomationHandler::removeMidiControlledParameter(Processor *i
 		sendChangeMessage();
 }
 
+void MidiControllerAutomationHandler::refreshAttributeIndexesForProcessor(Processor* interfaceProcessor)
+{
+	if (interfaceProcessor == nullptr || !anyUsed || !interfaceProcessor->hasInitialisedMetadata())
+		return;
+
+	AudioThreadGuard audioGuard(&(mc->getKillStateHandler()));
+	LockHelpers::SafeLock sl(mc, LockHelpers::Type::AudioLock);
+
+	auto iter = createIterator();
+	AutomationData a;
+
+	while (iter.next(&a))
+	{
+		if (a.processor == interfaceProcessor && a.parameterId.isValid())
+		{
+			auto newIndex = interfaceProcessor->getParameterIndexForIdentifier(a.parameterId);
+
+			if (newIndex != -1 && newIndex != a.attribute)
+			{
+				auto& entry = automationData[iter.getCurrentKey()][iter.getPositionInVector()];
+				entry.attribute = newIndex;
+			}
+		}
+	}
+}
+
 MidiControllerAutomationHandler::AutomationData::AutomationData() :
 processor(nullptr),
 attribute(-1),
@@ -214,6 +246,7 @@ void MidiControllerAutomationHandler::AutomationData::clear()
 {
 	processor = nullptr;
 	attribute = -1;
+	parameterId = {};
 	parameterRange = NormalisableRange<double>();
 	fullRange = NormalisableRange<double>();
 	macroIndex = -1;
@@ -276,6 +309,7 @@ void MidiControllerAutomationHandler::AutomationData::restoreFromValueTree(const
 				if (processor->getIdentifierForParameterIndex(j) == pId)
 				{
 					attribute = j;
+					parameterId = pId;
 					break;
 				}
 			}
@@ -299,6 +333,7 @@ void MidiControllerAutomationHandler::AutomationData::restoreFromValueTree(const
 				if (processor->getIdentifierForParameterIndex(j) == pId)
 				{
 					attribute = j;
+					parameterId = pId;
 					break;
 				}
 			}
