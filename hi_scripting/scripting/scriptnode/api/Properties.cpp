@@ -789,6 +789,8 @@ void ExpressionPropertyComponent::Comp::Display::mouseDown(const MouseEvent& )
 
 		if (value.isInt64() || value.isInt())
 			colourValue = (int64)value;
+		else if (value.isDouble())
+			colourValue = (int64)(double)value;
 		else if (value.isString())
 		{
 			auto string = value.toString();
