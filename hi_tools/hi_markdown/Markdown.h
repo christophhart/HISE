@@ -215,6 +215,8 @@ public:
 
 	HyperLink getHyperLinkForEvent(const MouseEvent& event, Rectangle<float> area);
 
+	HyperLink getHyperLinkForPoint(Point<float> position, Rectangle<float> area);
+
 	static void createDatabaseEntriesForFile(File root, MarkdownDataBase::Item* item, File f, Colour c);
 
 	struct SnippetTokeniser : public CodeTokeniser

@@ -336,6 +336,11 @@ Array<MarkdownLink> MarkdownParser::getImageLinks() const
 
 hise::MarkdownParser::HyperLink MarkdownParser::getHyperLinkForEvent(const MouseEvent& event, Rectangle<float> area)
 {
+	return getHyperLinkForPoint(event.getPosition().toFloat(), area);
+}
+
+hise::MarkdownParser::HyperLink MarkdownParser::getHyperLinkForPoint(Point<float> position, Rectangle<float> area)
+{
 	if (!containsLinks)
 	{
 		return {};
@@ -349,9 +354,9 @@ hise::MarkdownParser::HyperLink MarkdownParser::getHyperLinkForEvent(const Mouse
 		heightToUse += e->getTopMargin();
 		Rectangle<float> eBounds(area.getX(), y, area.getWidth(), heightToUse);
 
-		if (eBounds.contains(event.getPosition().toFloat()))
+		if (eBounds.contains(position))
 		{
-			auto translatedPoint = event.getPosition().toFloat();
+			auto translatedPoint = position;
 			translatedPoint.addXY(eBounds.getX(), -eBounds.getY());
 
 			Array<HyperLink> matches;

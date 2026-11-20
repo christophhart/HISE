@@ -581,6 +581,9 @@ namespace ScriptingObjects
 		/** Creates an image provider from the given JSON data that resolves image links. */
 		void setImageProvider(var data);
 
+		/** Returns the URL of the hyperlink at the given position (a [x, y] array relative to the panel), or an empty string if there is no link. */
+		String getLinkAtPosition(var position);
+
 		// ============================================================================================================ API End
 
 		hise::DrawActions::MarkdownAction::Ptr obj;
