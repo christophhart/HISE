@@ -156,6 +156,34 @@ struct TernaryOp : public Expression
 	ExprPtr falseValue;
 };
 
+struct IfStatement : public Statement
+{
+	SNEX_INTERPRETER_NODE(IfStatement, WantsNode::No);
+
+	IfStatement(Statement::Factory& f, const ValueTree& v) :
+		Statement(f, v),
+		condition(Helpers::getChildExpression(this, 0)),
+		trueBranch(childStatements[1]),
+		falseBranch(childStatements.size() == 3 ? childStatements[2] : nullptr)
+	{};
+
+	ResultCode perform(Scope* s, VariableStorage* returnValue) override
+	{
+		auto conditionValue = condition->getResult(s).toInt();
+
+		if (conditionValue != 0)
+			return trueBranch->perform(s, returnValue);
+		else if (falseBranch != nullptr)
+			return falseBranch->perform(s, returnValue);
+		else
+			return ResultCode::ok;
+	}
+
+	Expression::ExprPtr condition;
+	Statement::Ptr trueBranch;
+	Statement::Ptr falseBranch;
+};
+
 struct ReturnStatement : public Statement
 {
 	SNEX_INTERPRETER_NODE(ReturnStatement, WantsNode::No);

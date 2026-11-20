@@ -220,6 +220,12 @@ Engine::InterpretedFunction* Engine::createInterpretedFunction(Statement::Ptr s,
 
 		d->functionData.object = d;
 		d->functionData.function = validParameters ? InterpretedFunction::getFromFunctionMap(d->getSigString()) : nullptr;
+
+		if (d->functionData.function == nullptr)
+		{
+			d->functionData.function = (void*)InterpretedFunction::callDynamic;
+		}
+
 		jassert(d->functionData.function != nullptr);
 		d->functionStatement = f;
 		return d;
@@ -296,6 +302,35 @@ void* Engine::InterpretedFunction::getFromFunctionMap(const String& sig)
 
 	auto match = functionMap.find(sig);
 	return match != functionMap.end() ? match->second : nullptr;
+}
+
+VariableStorage Engine::InterpretedFunction::callDynamic(void* obj, VariableStorage* args, int numArgs)
+{
+	auto data = static_cast<InterpretedFunction*>(obj);
+
+	try
+	{
+		jassert(numArgs == data->parameterOffsets.size());
+
+		ScopedValueSetter<bool> svs(data->active, true);
+
+		data->functionScope->clear();
+
+		for (int i = 0; i < numArgs; i++)
+			jit::ComplexType::writeNativeMemberType(data->parameterOffsets[i], 0, args[i]);
+
+		VariableStorage rv;
+		data->functionStatement->perform(data->functionScope.get(), &rv);
+
+		return rv;
+	}
+	catch (UriError& e)
+	{
+		CallError ne;
+		ne.callstackId = data->functionData.getSignature();
+		ne.e = e;
+		throw ne;
+	}
 }
 
 } // namespace interpreter

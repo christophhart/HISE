@@ -8,6 +8,15 @@ struct FunctionCall : public Expression
 {
 	SNEX_INTERPRETER_NODE(FunctionCall, WantsNode::No);
 
+	enum class ExecutionType
+	{
+		FunctionMap,  // <= 1 args
+		CallVariadic, // <= 4 args
+		CallDynamic   // >  4 args
+	};
+
+	typedef VariableStorage(*CallDynamicSignature)(void* obj, VariableStorage*, int);
+
 	FunctionCall(Factory& f, const ValueTree& v) :
 		Expression(f, v),
 		fData(Helpers::getFunctionData(f, v)),
@@ -63,8 +72,15 @@ struct FunctionCall : public Expression
 		auto sig = OpFunctions::getSigString(fData, objectType != nullptr);
 
 		if (map.find(sig) != map.end())
+		{
 			functionPointer = map.at(sig);
-
+			executionType = ExecutionType::FunctionMap;
+		}
+		else
+		{
+			executionType = args.size() < 4 ? ExecutionType::CallVariadic : ExecutionType::CallDynamic;
+		}
+			
 		jassert(args.size() == childStatements.size());
 	};
 
@@ -146,23 +162,42 @@ struct FunctionCall : public Expression
 
 	VariableStorage getResult(Scope* s) override
 	{	
+		if (!fData.isResolved())
+		{
+			String msg;
+			msg << "unresolved function pointer for `";
+			msg << fData.getSignature() << "`";
+			throwRuntimeError(msg);
+		}
+
 		for (int i = 0; i < args.size(); i++)
 			args.set(i, argExpressions[i]->getResult(s));
-		
-		if (functionPointer != nullptr)
-			return functionPointer(this, args.getRawDataPointer());
 
-		if (fData.returnType.getType() == Types::ID::Void)
+		switch (executionType)
 		{
-			fData.callVoidDynamic(args.getRawDataPointer(), args.size());
-			return VariableStorage();
+		case ExecutionType::FunctionMap:
+			return functionPointer(this, args.getRawDataPointer());
+		case ExecutionType::CallVariadic:
+		{
+			if (fData.returnType.getType() == Types::ID::Void)
+			{
+				fData.callVoidDynamic(args.getRawDataPointer(), args.size());
+				return VariableStorage();
+			}
+			else
+			{
+				return fData.callDynamic(args.getRawDataPointer(), args.size());
+			}
 		}
-		else
+		case ExecutionType::CallDynamic:
 		{
-			return fData.callDynamic(args.getRawDataPointer(), args.size());
+			auto f = (CallDynamicSignature)fData.function;
+			return f(fData.object, args.getRawDataPointer(), args.size());
+		}
 		}
 	}
 
+	ExecutionType executionType;
 	ResolvedPtr functionPointer = nullptr;
 	Identifier callType;
 

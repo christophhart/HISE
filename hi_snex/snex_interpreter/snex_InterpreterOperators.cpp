@@ -18,9 +18,19 @@ struct BinaryOp : public Expression
 
 	VariableStorage getResult(Scope* s) override
 	{
-		auto lv = l->getResult(s);
-		auto rv = r->getResult(s);
-		return op(lv, rv);
+		if (op != nullptr)
+		{
+			auto lv = l->getResult(s);
+			auto rv = r->getResult(s);
+			return op(lv, rv);
+		}
+
+		String msg;
+		msg << "Can't resolve binary op '";
+		msg << astNode[AstIds::OpType].toString();
+		msg << "' for type " + getTypeInfo().toString();
+
+		throwRuntimeError(msg);
 	}
 
 	TypeInfo getTypeInfo() const override

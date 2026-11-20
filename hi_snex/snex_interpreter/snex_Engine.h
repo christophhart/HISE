@@ -219,6 +219,8 @@ private:
 			(ComplexType::writeNativeMemberType(data.parameterOffsets[Indices], 0, VariableStorage(args)), ...);
 		}
 
+		static VariableStorage callDynamic(void* obj, VariableStorage* args, int numArgs);;
+
 		template <typename RV, typename... Ts> static RV call(void* obj, Ts... args)
 		{
 			auto data = static_cast<InterpretedFunction*>(obj);

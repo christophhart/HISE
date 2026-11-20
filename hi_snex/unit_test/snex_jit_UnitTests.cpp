@@ -190,29 +190,45 @@ public:
 				jassertfalse; // there you go...
 			}
 
-            auto v = f.template call<ReturnType>(input);
-            
-			auto diff = std::abs(v - expected);
-
-			if (diff > 0.000001)
+			try
 			{
-				dump();
+				auto v = f.template call<ReturnType>(input);
+
+				auto diff = std::abs(v - expected);
+
+				if (diff > 0.0001)
+				{
+					DBG("FAIL: ======================================= ");
+
+					DBG(compiler->getLastCompiledCode());
+					DBG(compiler->dumpSyntaxTree());
+
+					DBG("RESULT: ===================================== ");
+
+					DBG("Expected: " + juce::String(expected));
+					DBG("Actual: " + juce::String(v));
+
+					DBG("============================================= ");
+					jassertfalse;
+				}
+
+				return v;
+			}
+			catch (interpreter::Engine::CallError& e)
+			{
+				DBG("RUNTIME ERROR: ============================== ");
+				
+				DBG(e.e.toFullCallStack());
 
 				DBG("FAIL: ======================================= ");
-				
+
 				DBG(compiler->getLastCompiledCode());
 				DBG(compiler->dumpSyntaxTree());
-
-				DBG("RESULT: ===================================== ");
-
-				DBG("Expected: " + juce::String(expected));
-				DBG("Actual: " + juce::String(v));
 
 				DBG("============================================= ");
 				jassertfalse;
 			}
-
-			return v;
+            
 		}
         else
         {

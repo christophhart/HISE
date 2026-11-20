@@ -125,14 +125,15 @@ struct Statement::OpFunctions
 						CASE(GT_, TYPE, opFunction); \
 						CASE(GET, TYPE, opFunction); \
 						CASE(LT_, TYPE, opFunction); \
-						CASE(LET, TYPE, opFunction); 
-#define INTEGER_CASES(TYPE) CASE(NEG, TYPE, opFunctionInt); \
-							CASE(MOD, TYPE, opFunctionInt); \
+						CASE(LET, TYPE, opFunction); \
+						CASE(AND, TYPE, opFunctionInt); \
+						CASE(OR_, TYPE, opFunctionInt); \
+						CASE(NEG, TYPE, opFunctionInt); 
+
+#define INTEGER_CASES(TYPE)	CASE(MOD, TYPE, opFunctionInt); \
 							CASE(BO_, TYPE, opFunctionInt); \
-							CASE(BA_, TYPE, opFunctionInt); \
-							CASE(AND, TYPE, opFunctionInt); \
-							CASE(OR_, TYPE, opFunctionInt);
-					 
+							CASE(BA_, TYPE, opFunctionInt); 
+							
 			if (opType == Types::ID::Integer) { switch (opMode) { ALL_CASES(Integer); INTEGER_CASES(Integer); }}
 			if (opType == Types::ID::Double) { switch (opMode) { ALL_CASES(Double); }}
 			if (opType == Types::ID::Float)  { switch (opMode) { ALL_CASES(Float);  }}
@@ -149,11 +150,8 @@ struct Statement::OpFunctions
 
 		template <Types::ID T, Ops OpType> static VariableStorage opFunctionInt(const VariableStorage& v1, const VariableStorage& v2)
 		{
-			if constexpr (OpType == Ops::NEG) return VariableStorage((int)v1 != 0);
 			if constexpr (OpType == Ops::MOD) return VariableStorage((int)v1 %  (int)v2);
-			if constexpr (OpType == Ops::AND) return VariableStorage((int)v1 && (int)v2);
 			if constexpr (OpType == Ops::BA_) return VariableStorage((int)v1 &  (int)v2);
-			if constexpr (OpType == Ops::OR_) return VariableStorage((int)v1 || (int)v2);
 			if constexpr (OpType == Ops::BO_) return VariableStorage((int)v1 |  (int)v2);
 
 			jassertfalse;
@@ -173,6 +171,10 @@ struct Statement::OpFunctions
 			if constexpr (OpType == Ops::LT_) return VariableStorage(v1.toType<T>() <  v2.toType<T>());
 			if constexpr (OpType == Ops::LET) return VariableStorage(v1.toType<T>() <= v2.toType<T>());
 			
+			if constexpr (OpType == Ops::NEG) return VariableStorage(v1.toInt() != 0);
+			if constexpr (OpType == Ops::AND) return VariableStorage(v1.toInt() && v2.toInt());
+			if constexpr (OpType == Ops::OR_) return VariableStorage(v1.toInt() || v2.toInt());
+
 			jassertfalse;
 			return VariableStorage(T, var(0));
 		}
