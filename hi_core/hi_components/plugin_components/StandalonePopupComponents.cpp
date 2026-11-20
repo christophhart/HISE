@@ -117,6 +117,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus)
 	ADD(SampleLocation);
 	ADD(DebugMode);
 	ADD(ScaleFactorList);
+	ADD(LabelAlignment);
 	
 	setColour(ColourIds::textColour, Colours::white);
 
@@ -617,9 +618,9 @@ void CustomSettingsWindow::paint(Graphics& g)
 
 	drawLabel = [&](Properties id, const char* text)
 	{
-		if (isOn(id)) 
-		{ 
-			g.drawText(text, 0, y, getWidth() / 2 - 30, 30, Justification::centredRight); 
+		if (isOn(id))
+		{
+			g.drawText(text, 0, y, getWidth() / 2 - 30, 30, labelRight ? Justification::centredRight : Justification::centredLeft);
 			y += 40;
 		}
 	};

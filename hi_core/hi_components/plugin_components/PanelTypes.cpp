@@ -92,6 +92,7 @@ var CustomSettingsWindowPanel::toDynamicObject() const
 	SET(CustomSettingsWindow::Properties::UseOpenGL);
 
 	storePropertyInObject(obj, (int)CustomSettingsWindow::Properties::ScaleFactorList, var(window->scaleFactorList));
+	storePropertyInObject(obj, (int)CustomSettingsWindow::Properties::LabelAlignment, window->labelRight ? "right" : "left");
 
 	return obj;
 }
@@ -138,6 +139,9 @@ void CustomSettingsWindowPanel::fromDynamicObject(const var& object)
 
 		window->rebuildScaleFactorList();
 	}
+
+	auto alignment = getPropertyWithDefault(object, (int)CustomSettingsWindow::Properties::LabelAlignment).toString();
+	window->labelRight = (alignment != "left");
 }
 
 #undef SET
@@ -163,7 +167,7 @@ Identifier CustomSettingsWindowPanel::getDefaultablePropertyId(int index) const
 	SET(CustomSettingsWindow::Properties::DebugMode);
 	SET(CustomSettingsWindow::Properties::ScaleFactorList);
 	SET(CustomSettingsWindow::Properties::UseOpenGL);
-
+	SET(CustomSettingsWindow::Properties::LabelAlignment);
 
 	jassertfalse;
 	return{};
@@ -192,6 +196,8 @@ var CustomSettingsWindowPanel::getDefaultProperty(int index) const
 	SET(CustomSettingsWindow::Properties::UseOpenGL);
 
 	if (index == (int)CustomSettingsWindow::Properties::ScaleFactorList) return var({ var(0.5), var(0.75), var(1.0), var(1.25), var(1.5), var(2.0) });
+
+	if (index == (int)CustomSettingsWindow::Properties::LabelAlignment) return var("right");
 
 	jassertfalse;
 	return{};
