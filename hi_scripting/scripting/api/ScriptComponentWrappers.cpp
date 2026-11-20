@@ -1420,7 +1420,8 @@ void ScriptCreatedComponentWrappers::LabelWrapper::updateComponent(int propertyI
 		PROPERTY_CASE::ScriptLabel::FontName:
 		PROPERTY_CASE::ScriptLabel::FontSize :
 		PROPERTY_CASE::ScriptLabel::FontStyle :
-		PROPERTY_CASE::ScriptLabel::Alignment :		updateFont(sc, l); break;
+		PROPERTY_CASE::ScriptLabel::Alignment :
+		PROPERTY_CASE::ScriptLabel::LetterSpacing :	updateFont(sc, l); break;
 		PROPERTY_CASE::ScriptLabel::Editable:		 updateEditability(sc, l); break;
 		PROPERTY_CASE::ScriptLabel::Multiline:		l->setMultiline(newValue); break;
         PROPERTY_CASE::ScriptLabel::SendValueEachKeyPress: sendValueEachKey = (bool)newValue;break;
@@ -1464,21 +1465,24 @@ void ScriptCreatedComponentWrappers::LabelWrapper::updateFont(ScriptingApi::Cont
 	const String fontName = sl->getScriptObjectProperty(ScriptingApi::Content::ScriptLabel::FontName).toString();
 	const String fontStyle = sl->getScriptObjectProperty(ScriptingApi::Content::ScriptLabel::FontStyle).toString();
 	const float fontSize = (float)sl->getScriptObjectProperty(ScriptingApi::Content::ScriptLabel::FontSize);
+	const float letterSpacing = (float)sl->getScriptObjectProperty(ScriptingApi::Content::ScriptLabel::LetterSpacing);
+
+	Font font;
 
 	if (fontName == "Oxygen" || fontName == "Default")
 	{
 		if (fontStyle == "Bold")
 		{
-			l->setFont(GLOBAL_BOLD_FONT().withHeight(fontSize));
+			font = GLOBAL_BOLD_FONT().withHeight(fontSize);
 		}
 		else
 		{
-			l->setFont(GLOBAL_FONT().withHeight(fontSize));
+			font = GLOBAL_FONT().withHeight(fontSize);
 		}
 	}
 	else if (fontName == "Source Code Pro")
 	{
-		l->setFont(GLOBAL_MONOSPACE_FONT().withHeight(fontSize));
+		font = GLOBAL_MONOSPACE_FONT().withHeight(fontSize);
 	}
 	else
 	{
@@ -1486,16 +1490,17 @@ void ScriptCreatedComponentWrappers::LabelWrapper::updateFont(ScriptingApi::Cont
 
 		if (typeface != nullptr)
 		{
-			Font font = Font(typeface).withHeight(fontSize);
-			l->setFont(font);
+			font = Font(typeface).withHeight(fontSize);
 		}
 		else
 		{
-			Font font(fontName, fontStyle, fontSize);
-			l->setFont(font);
+			font = Font(fontName, fontStyle, fontSize);
 		}
 	}
-	
+
+	l->setFont(font.withExtraKerningFactor(letterSpacing));
+
+
 	l->setUsePasswordCharacter(fontStyle == "Password");
 
 	l->setJustificationForLabelAndTextEditor(sl->getJustification());
