@@ -1760,6 +1760,10 @@ void TableFloatingTileBase::initTable(bool addChannelColumn)
 
 	laf = new TableHeaderLookAndFeel();
 
+	// Inverted holds a centred toggle, Min/Max centred value sliders - centre their
+	// headers over them. CC # / Channel / Parameter stay left like their text cells.
+	laf->centredColumnIds = { Inverted, Minimum, Maximum };
+
 	table.getHeader().setLookAndFeel(laf);
 	table.getHeader().setSize(getWidth(), 22);
 	table.getViewport()->setScrollBarsShown(true, false, true, false);

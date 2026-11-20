@@ -207,6 +207,12 @@ public:
 	Font f;
 	Colour bgColour;
 	Colour textColour;
+
+	/** Column ids whose header text is centred instead of left-aligned. Empty by
+	    default so existing tables are unchanged; opt in for columns whose cells hold
+	    centred widgets (toggle buttons, value sliders) so the header lines up with
+	    its content. */
+	Array<int> centredColumnIds;
 };
 
 
