@@ -40,6 +40,7 @@ Statement::Factory::Factory()
 	registerType<nodes::ReturnStatement>();
 	registerType<nodes::Immediate>();
 	registerType<nodes::BinaryOp>();
+	registerType<nodes::Comparison>();
 	registerType<nodes::Cast>();
 	registerType<nodes::VariableReference>();
 	registerType<nodes::Assignment>();

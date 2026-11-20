@@ -148,7 +148,7 @@ struct Assignment : public DefinitionBase
 		return Result::fail("not a definition");
 	}
 
-	juce_wchar assignmentType;
+	OpFunctions::BinaryOp::Ops assignmentType;
 
 	Expression::ExprPtr value;
 	Expression::ExprPtr target;

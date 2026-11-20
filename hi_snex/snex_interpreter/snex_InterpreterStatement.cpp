@@ -49,45 +49,93 @@ struct Statement::OpFunctions
 {
 	struct BinaryOp
 	{
+		using OpType = juce_wchar;
+
+		enum class Ops: OpType
+		{
+			ADD = '+', // +
+			SUB = '-', // -
+			MUL = '*', // *
+			DIV = '/', // /
+			SET = '=', // =
+			NEG = '!', // !
+			MOD = '%', // %
+			EQ_ = 'e', // ==
+			NEQ = 'q', // !=
+			GT_ = 'G', // >
+			GET = 'g', // >=
+			LT_ = 'L', // <
+			LET = 'l', // <=
+			AND = 'A', // &&
+			BA_ = 'a', // &
+			OR_ = 'O', // ||
+			BO_ = 'o', // |
+			unknown = 0
+		};
+
+		static Ops getFromString(const String& opType)
+		{
+			static const std::map<String, Ops> map({
+			{ "+", Ops::ADD },
+			{ "-", Ops::SUB },
+			{ "*", Ops::MUL },
+			{ "/", Ops::DIV },
+			{ "=", Ops::SET },
+			{ "!", Ops::NEG },
+			{ "%", Ops::MOD },
+			{ "==", Ops::EQ_ },
+			{ "!=", Ops::NEQ },
+			{ ">", Ops::GT_ },
+			{ ">=", Ops::GET },
+			{ "<", Ops::LT_ },
+			{ "<=", Ops::LET },
+			{ "&&", Ops::AND },
+			{ "&", Ops::BA_ },
+			{ "||", Ops::OR_ },
+			{ "|", Ops::BO_ }
+			});
+			
+			if (map.find(opType) != map.end())
+				return map.at(opType);
+
+			jassertfalse;
+			return Ops::unknown;
+		}
+
 		typedef VariableStorage(*Function)(const VariableStorage&, const VariableStorage&);
 
-		static Function getFunctionPtr(const TypeInfo& t, juce_wchar opMode)
+		static Function getFunctionPtr(const TypeInfo& t, Ops opMode)
 		{
-			if (opMode == '=')
+			if (opMode == Ops::SET)
 				return nullptr;
 
 			auto opType = t.getType();
 
-			if (opType == Types::ID::Integer)
-			{
-				switch (opMode)
-				{
-				case '+': return opFunction<Types::ID::Integer, '+'>;
-				case '*': return opFunction<Types::ID::Integer, '*'>;
-				case '-': return opFunction<Types::ID::Integer, '-'>;
-				case '/': return opFunction<Types::ID::Integer, '/'>;
-				}
-			}
-			if (opType == Types::ID::Double)
-			{
-				switch (opMode)
-				{
-				case '+': return opFunction<Types::ID::Double, '+'>;
-				case '*': return opFunction<Types::ID::Double, '*'>;
-				case '-': return opFunction<Types::ID::Double, '-'>;
-				case '/': return opFunction<Types::ID::Double, '/'>;
-				}
-			}
-			if (opType == Types::ID::Float)
-			{
-				switch (opMode)
-				{
-				case '+': return opFunction<Types::ID::Float, '+'>;
-				case '*': return opFunction<Types::ID::Float, '*'>;
-				case '-': return opFunction<Types::ID::Float, '-'>;
-				case '/': return opFunction<Types::ID::Float, '/'>;
-				}
-			}
+#define CASE(O, TYPE, func) case Ops::O: return func<Types::ID::TYPE, Ops::O>;
+#define ALL_CASES(TYPE) CASE(ADD, TYPE, opFunction); \
+						CASE(SUB, TYPE, opFunction); \
+						CASE(MUL, TYPE, opFunction); \
+						CASE(DIV, TYPE, opFunction); \
+						CASE(EQ_, TYPE, opFunction); \
+						CASE(NEQ, TYPE, opFunction); \
+						CASE(GT_, TYPE, opFunction); \
+						CASE(GET, TYPE, opFunction); \
+						CASE(LT_, TYPE, opFunction); \
+						CASE(LET, TYPE, opFunction); 
+#define INTEGER_CASES(TYPE) CASE(NEG, TYPE, opFunctionInt); \
+							CASE(MOD, TYPE, opFunctionInt); \
+							CASE(BO_, TYPE, opFunctionInt); \
+							CASE(BA_, TYPE, opFunctionInt); \
+							CASE(AND, TYPE, opFunctionInt); \
+							CASE(OR_, TYPE, opFunctionInt);
+					 
+			if (opType == Types::ID::Integer) { switch (opMode) { ALL_CASES(Integer); INTEGER_CASES(Integer); }}
+			if (opType == Types::ID::Double) { switch (opMode) { ALL_CASES(Double); }}
+			if (opType == Types::ID::Float)  { switch (opMode) { ALL_CASES(Float);  }}
+
+#undef CASE
+#undef ALL_CASES
+#undef INTEGER_CASES
 
 			jassertfalse;
 			return nullptr;
@@ -95,15 +143,34 @@ struct Statement::OpFunctions
 
 	private:
 
-		template <Types::ID T, char OpType> static VariableStorage opFunction(const VariableStorage& v1, const VariableStorage& v2)
+		template <Types::ID T, Ops OpType> static VariableStorage opFunctionInt(const VariableStorage& v1, const VariableStorage& v2)
 		{
-			switch (OpType)
-			{
-			case '+': return VariableStorage(v1.toType<T>() + v2.toType<T>());
-			case '*': return VariableStorage(v1.toType<T>() * v2.toType<T>());
-			case '-': return VariableStorage(v1.toType<T>() - v2.toType<T>());
-			case '/': return VariableStorage(v1.toType<T>() / v2.toType<T>());
-			}
+			if constexpr (OpType == Ops::NEG) return VariableStorage((int)v1 != 0);
+			if constexpr (OpType == Ops::MOD) return VariableStorage((int)v1 %  (int)v2);
+			if constexpr (OpType == Ops::AND) return VariableStorage((int)v1 && (int)v2);
+			if constexpr (OpType == Ops::BA_) return VariableStorage((int)v1 &  (int)v2);
+			if constexpr (OpType == Ops::OR_) return VariableStorage((int)v1 || (int)v2);
+			if constexpr (OpType == Ops::BO_) return VariableStorage((int)v1 |  (int)v2);
+
+			jassertfalse;
+			return VariableStorage(0);
+		}
+
+		template <Types::ID T, Ops OpType> static VariableStorage opFunction(const VariableStorage& v1, const VariableStorage& v2)
+		{
+			if constexpr (OpType == Ops::ADD) return VariableStorage(v1.toType<T>() +  v2.toType<T>());
+			if constexpr (OpType == Ops::SUB) return VariableStorage(v1.toType<T>() -  v2.toType<T>());
+			if constexpr (OpType == Ops::MUL) return VariableStorage(v1.toType<T>() *  v2.toType<T>());
+			if constexpr (OpType == Ops::DIV) return VariableStorage(v1.toType<T>() /  v2.toType<T>());
+			if constexpr (OpType == Ops::EQ_) return VariableStorage(v1.toType<T>() == v2.toType<T>());
+			if constexpr (OpType == Ops::NEQ) return VariableStorage(v1.toType<T>() != v2.toType<T>());
+			if constexpr (OpType == Ops::GT_) return VariableStorage(v1.toType<T>() >  v2.toType<T>());
+			if constexpr (OpType == Ops::GET) return VariableStorage(v1.toType<T>() >= v2.toType<T>());
+			if constexpr (OpType == Ops::LT_) return VariableStorage(v1.toType<T>() <  v2.toType<T>());
+			if constexpr (OpType == Ops::LET) return VariableStorage(v1.toType<T>() <= v2.toType<T>());
+			
+			jassertfalse;
+			return VariableStorage(T, var(0));
 		}
 	};
 
@@ -262,10 +329,11 @@ struct Statement::Helpers
 		return s;
 	}
 
-	static juce_wchar getOpType(const ValueTree& astNode, const Identifier& id = Identifier())
+	static OpFunctions::BinaryOp::Ops getOpType(const ValueTree& astNode, const Identifier& id = Identifier())
 	{
 		auto idToUse = id.isValid() ? id : AstIds::OpType;
-		return astNode[idToUse].toString()[0];
+		auto opString = astNode[idToUse].toString();
+		return OpFunctions::BinaryOp::getFromString(opString.getCharPointer().getAddress());
 	}
 
 	static TypeInfo getType(Factory& f, const ValueTree& astNode, const Identifier& id = Identifier())

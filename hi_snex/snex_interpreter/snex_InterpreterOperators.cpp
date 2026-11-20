@@ -2,8 +2,6 @@ namespace snex {
 namespace interpreter {
 namespace nodes {
 
-
-
 struct BinaryOp : public Expression
 {
 	SNEX_INTERPRETER_NODE(BinaryOp, WantsNode::No);
@@ -31,8 +29,17 @@ struct BinaryOp : public Expression
 	}
 
 	Expression::ExprPtr l, r;
-	const juce_wchar opMode;
+	const OpFunctions::BinaryOp::Ops opMode;
 	OpFunctions::BinaryOp::Function op = nullptr;
+};
+
+struct Comparison : public BinaryOp
+{
+	SNEX_INTERPRETER_NODE(Comparison, WantsNode::No);
+
+	Comparison(Factory& f, const ValueTree& v) :
+		BinaryOp(f, v)
+	{};
 };
 
 struct Cast : public Expression
@@ -70,11 +77,11 @@ struct Subscript : public Expression
 
 	Subscript(Factory& f, const ValueTree& v) :
 	  Expression(f, v),
-	  parentType(Helpers::getType(f, v, AstIds::ParentType)),
+	  parentType (Helpers::getType(f, v, AstIds::ParentType)),
 	  elementType(Helpers::getType(f, v, AstIds::ElementType)),
-	  parent(Helpers::getChildExpression(this, 0)),
-	  index(Helpers::getChildExpression(this, 1)),
-	  f(OpFunctions::Data::getFunctionPtr(elementType))
+	  parent     (Helpers::getChildExpression(this, 0)),
+	  index      (Helpers::getChildExpression(this, 1)),
+	  f          (OpFunctions::Data::getFunctionPtr(elementType))
 	{};
 
 	VariableStorage getResult(Scope* s) override
