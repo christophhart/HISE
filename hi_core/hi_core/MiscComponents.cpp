@@ -1033,6 +1033,19 @@ BorderPanel::~BorderPanel()
 		drawHandler->removeDrawActionListener(this);
 }
 
+void BorderPanel::setDrawHandler(DrawActions::Handler* newHandler)
+{
+	if (drawHandler != nullptr)
+		drawHandler->removeDrawActionListener(this);
+
+	drawHandler = newHandler;
+
+	if (drawHandler != nullptr)
+		drawHandler->addDrawActionListener(this);
+
+	repaint();
+}
+
 void BorderPanel::newOpenGLContextCreated()
 {
 }

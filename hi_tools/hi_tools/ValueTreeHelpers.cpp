@@ -336,12 +336,15 @@ void AnyPropertyListener::valueTreePropertyChanged(ValueTree& v_, const Identifi
 	{
 		auto thisValue = v[id];
 
-		if (v.hasProperty(id) && lastValue == thisValue)
+		// a priorised listener is called twice for the same change - skip only that, not a
+		// different property that happens to have the same value as the last one
+		if (v.hasProperty(id) && id == lastId && lastValue == thisValue)
 		{
 			//probably priorised
 			return;
 		}
 
+		lastId = id;
 		lastValue = thisValue;
 
 		if (auto pb = dynamic_cast<AnyPropertyListener*>(priorisedListener.get()))
@@ -486,7 +489,8 @@ void PropertyListener::valueTreePropertyChanged(ValueTree& v_, const Identifier&
 	{
 		auto thisValue = v[id];
 
-		if (v.hasProperty(id) && lastValues[id] == thisValue)
+		// only a value that was seen before: a missing entry is an empty var, which equals 0
+		if (v.hasProperty(id) && lastValues.contains(id) && lastValues[id] == thisValue)
 		{
 			//probably priorised
 			return;

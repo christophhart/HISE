@@ -595,6 +595,9 @@ public:
 	BorderPanel(DrawActions::Handler* drawHandler);
 	~BorderPanel();
 
+	/** Draws the actions of another handler from now on. */
+	void setDrawHandler(DrawActions::Handler* newHandler);
+
 	void newOpenGLContextCreated() override;
 
 	void renderOpenGL() override;

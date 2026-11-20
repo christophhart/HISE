@@ -286,6 +286,7 @@ private:
 	ValueTree v;
 	Array<Identifier> ids;
 	Array<Identifier> changedIds;
+	Identifier lastId;
 	var lastValue;
 };
 
