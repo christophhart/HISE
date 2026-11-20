@@ -448,6 +448,9 @@ namespace ScriptingObjects
 
 		/** Renames the file. */
 		bool rename(String newName);
+		
+		/** True if this file is on a hard disk. This will fail if it's a network drive, but will still be true for removable hard-disks. */
+		bool isOnHardDisk();
 
 		/** Moves the file. The target isn't the directory to put it in, it's the actual file to create. */
 		bool move(var target);
