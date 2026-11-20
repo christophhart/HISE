@@ -12,7 +12,8 @@ struct FunctionCall : public Expression
 	{
 		FunctionMap,  // <= 1 args
 		CallVariadic, // <= 4 args
-		CallDynamic   // >  4 args
+		CallDynamic,  // >  4 args,
+		Inliner		  // forward raw args array
 	};
 
 	typedef VariableStorage(*CallDynamicSignature)(void* obj, VariableStorage*, int);
@@ -89,6 +90,13 @@ struct FunctionCall : public Expression
 	
 	void resolveDataPointers(Scope* s) override
 	{
+		if (auto inliner = OpFunctions::Inliners::getInliner(fData.id))
+		{
+			fData.function = inliner;
+			executionType = ExecutionType::Inliner;
+			return;
+		}
+
 		if (callType == Identifier("ApiFunction"))
 		{
 			jit::GlobalScope* gs = s->engine->getGlobalScope();
@@ -175,6 +183,11 @@ struct FunctionCall : public Expression
 
 		switch (executionType)
 		{
+		case ExecutionType::Inliner:
+		{
+			auto f = (OpFunctions::Inliners::Prototype)fData.function;
+			return f(args.getRawDataPointer(), args.size());
+		}
 		case ExecutionType::FunctionMap:
 			return functionPointer(this, args.getRawDataPointer());
 		case ExecutionType::CallVariadic:

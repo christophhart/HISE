@@ -51,6 +51,35 @@ Statement::Ptr Statement::Factory::create(const ValueTree& v)
 
 struct Statement::OpFunctions
 {
+	struct Inliners
+	{
+		typedef VariableStorage(*Prototype)(VariableStorage*, int);
+
+		struct dyn
+		{
+			static VariableStorage size(VariableStorage* args, int numArgs)
+			{
+				jassert(numArgs == 1);
+				auto bl = args[0].toBlock();
+				return VariableStorage(bl.size());
+			}
+		};
+
+		static Prototype getInliner(const NamespacedIdentifier& id)
+		{
+			static const std::map<String, Prototype> inlinerMap {
+				{ "dyn::size", dyn::size }
+			};
+
+			auto s = id.toString();
+
+			if (inlinerMap.find(s) != inlinerMap.end())
+				return inlinerMap.at(s);
+
+			return nullptr;
+		}
+	};
+
 	struct BinaryOp
 	{
 		using OpType = juce_wchar;
@@ -126,9 +155,9 @@ struct Statement::OpFunctions
 						CASE(GET, TYPE, opFunction); \
 						CASE(LT_, TYPE, opFunction); \
 						CASE(LET, TYPE, opFunction); \
-						CASE(AND, TYPE, opFunctionInt); \
-						CASE(OR_, TYPE, opFunctionInt); \
-						CASE(NEG, TYPE, opFunctionInt); 
+						CASE(AND, TYPE, opFunction); \
+						CASE(OR_, TYPE, opFunction); \
+						CASE(NEG, TYPE, opFunction); 
 
 #define INTEGER_CASES(TYPE)	CASE(MOD, TYPE, opFunctionInt); \
 							CASE(BO_, TYPE, opFunctionInt); \
@@ -208,6 +237,29 @@ struct Statement::OpFunctions
 		typedef VariableStorage(*ReadFunction)(Scope::LValue);
 		typedef void(*WriteFunction)(Scope::LValue, const VariableStorage&);
 		using Functions = std::pair<ReadFunction, WriteFunction>;
+
+		static bool isBlockType(const TypeInfo& t)
+		{
+			if (t.isComplexType() && !t.isRef())
+			{
+				if (auto d = dynamic_cast<DynType*>(t.getComplexType().get()))
+				{
+					if (d->elementType.getType() == Types::ID::Float)
+						return true;
+				}
+			}
+
+			return false;
+		}
+
+		// Convert a pointer to a block type
+		static VariableStorage toBlock(const VariableStorage& pointer)
+		{
+			jassert(pointer.getType() == Types::ID::Pointer);
+			auto blockPtr = reinterpret_cast<block*>(pointer.getDataPointer());
+			jassert(blockPtr->unused == Types::ID::Block);
+			return VariableStorage(*blockPtr);
+		}
 
 		static Functions getFunctionPtr(const TypeInfo& t)
 		{

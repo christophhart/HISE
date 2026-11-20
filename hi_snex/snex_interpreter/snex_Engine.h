@@ -155,26 +155,26 @@ struct Engine: public snex::jit::FunctionCollectionBase
 
 	// Forward declarations ===============================================================================
 
-	Engine(jit::GlobalScope& scope, Statement::Ptr rootTree);
-	~Engine();
+Engine(jit::GlobalScope& scope, Statement::Ptr rootTree);
+~Engine();
 
-	// Function methods
+// Function methods
 
-	Array<jit::NamespacedIdentifier> getFunctionIds() const override;
+Array<jit::NamespacedIdentifier> getFunctionIds() const override;
 
-	jit::FunctionData getFunction(const jit::NamespacedIdentifier& functionId) override;
+jit::FunctionData getFunction(const jit::NamespacedIdentifier& functionId) override;
 
-	// Data methods
+// Data methods
 
-	Array<jit::Symbol> getAllVariables() const override;
-	VariableStorage getVariable(const Identifier& id) const override;
+Array<jit::Symbol> getAllVariables() const override;
+VariableStorage getVariable(const Identifier& id) const override;
 
-	size_t getMainObjectSize() const override;
-	void* getVariablePtr(const Identifier& id) const override;
-	juce::String dumpTable() override;
-	ValueTree getDataLayout(int dataIndex) const override;
+size_t getMainObjectSize() const override;
+void* getVariablePtr(const Identifier& id) const override;
+juce::String dumpTable() override;
+ValueTree getDataLayout(int dataIndex) const override;
 
-	jit::GlobalScope* getGlobalScope() { return &globalScope; }
+jit::GlobalScope* getGlobalScope() { return &globalScope; }
 
 private:
 
@@ -213,10 +213,14 @@ private:
 			addTwoArgumentSignatures<RV, void*>(functionMap, returnSignature + "p");
 		}
 
+		static void writeWithTypeInfo(void* ptr, const jit::TypeInfo& argType, const VariableStorage& argValue);
+
 		template <size_t... Indices, typename... Ts>
 		static void writeArguments(InterpretedFunction& data, std::index_sequence<Indices...>, Ts... args)
 		{
-			(ComplexType::writeNativeMemberType(data.parameterOffsets[Indices], 0, VariableStorage(args)), ...);
+			(writeWithTypeInfo(data.parameterOffsets[Indices], data.functionData.args[Indices].typeInfo, VariableStorage(args)), ...);
+
+			//(ComplexType::writeNativeMemberType(data.parameterOffsets[Indices], 0, VariableStorage(args)), ...);
 		}
 
 		static VariableStorage callDynamic(void* obj, VariableStorage* args, int numArgs);;
@@ -246,8 +250,20 @@ private:
 
 				if constexpr (!std::is_void_v<RV>)
 				{
+					if constexpr (std::is_same<RV, void*>())
+					{
+						if (data->convertToBlock)
+						{
+
+							auto ptr = reinterpret_cast<block*>(rv.getDataPointer());
+							auto b1 = *ptr;
+							return reinterpret_cast<void*>(ptr);
+						}
+					}
+
 					static constexpr Types::ID RTypeId = Types::getTypeFromTypeId<RV>();
 					return rv.toType<RTypeId>();
+					
 				}
 			}
 			catch (UriError& e)
@@ -265,6 +281,8 @@ private:
 		std::vector<void*> parameterOffsets;
 		bool addThisPointer = false;
 		bool active = false;
+
+		bool convertToBlock = false;
 	};
 
 	struct InterpretedClass

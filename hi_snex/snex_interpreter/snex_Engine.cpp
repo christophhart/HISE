@@ -1,3 +1,4 @@
+#include "snex_Engine.h"
 /* ===========================================================================
 *
 *   This file is part of HISE.
@@ -226,6 +227,9 @@ Engine::InterpretedFunction* Engine::createInterpretedFunction(Statement::Ptr s,
 			d->functionData.function = (void*)InterpretedFunction::callDynamic;
 		}
 
+		if (d->functionData.returnType.toString() == "block&")
+			d->convertToBlock = true;
+
 		jassert(d->functionData.function != nullptr);
 		d->functionStatement = f;
 		return d;
@@ -302,6 +306,14 @@ void* Engine::InterpretedFunction::getFromFunctionMap(const String& sig)
 
 	auto match = functionMap.find(sig);
 	return match != functionMap.end() ? match->second : nullptr;
+}
+
+void Engine::InterpretedFunction::writeWithTypeInfo(void* ptr, const TypeInfo& argType, const VariableStorage& argValue)
+{
+	if (Statement::OpFunctions::Data::isBlockType(argType))
+		ComplexType::writeNativeMemberType(ptr, 0, Statement::OpFunctions::Data::toBlock(argValue));
+	else
+		ComplexType::writeNativeMemberType(ptr, 0, argValue);
 }
 
 VariableStorage Engine::InterpretedFunction::callDynamic(void* obj, VariableStorage* args, int numArgs)

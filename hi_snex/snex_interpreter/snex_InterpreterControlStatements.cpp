@@ -195,8 +195,6 @@ struct ReturnStatement : public Statement
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue) override
 	{
-		
-		
 		if (returnValue != nullptr && value != nullptr)
 			*returnValue = value->getResult(s);
 		
@@ -204,6 +202,98 @@ struct ReturnStatement : public Statement
 	};
 
 	Expression::ExprPtr value;
+};
+
+ struct Loop : public DefinitionBase
+{
+	enum class LoopType
+	{
+		Undefined,
+		Span,
+		Dyn,
+		Custom
+	};
+
+	SNEX_INTERPRETER_NODE(Loop, WantsNode::No);
+
+	Loop(Statement::Factory& f, const ValueTree& v) :
+		DefinitionBase(f, v),
+		iterator(Helpers::getSymbol(f, v, AstIds::Iterator)),
+		loadIterator(v[AstIds::LoadIterator]),
+		elementType(Helpers::getType(f, v, AstIds::ElementType)),
+		elementSize((int)v.getProperty(AstIds::ElementSize, -1)),
+		numElements((int)v.getProperty(AstIds::NumElements, -1)),
+		target(Helpers::getChildExpression(this, 0)),
+		body(childStatements[1]->getTyped<StatementBlock>())
+	{
+		static const StringArray lt({ "Undefined", "Span", "Dyn", "CustomObject" });
+		loopType = (LoopType)lt.indexOf(v[AstIds::LoopType].toString());
+	}
+
+	Result allocateInScope(Scope* scopeToUse) override
+	{
+		body->allocateInScope(scopeToUse);
+		return body->blockScope->addReference(iterator);
+	}
+
+	void resolveDataPointers(Scope* scopeToUse) override
+	{
+		iteratorIndex = body->blockScope->getLValueReferenceIndex(iterator.id.id);
+	};
+
+	ResultCode perform(Scope* s, VariableStorage* returnValue) override
+	{
+		auto obj = target->getResult(s);
+
+		void* beginPtr = nullptr;
+
+		switch (loopType)
+		{
+		case LoopType::Span:
+			beginPtr = obj.getDataPointer();
+			break;
+		case LoopType::Dyn:
+			beginPtr = obj.toBlock().begin();
+			numElements = obj.toBlock().size();
+			break;
+		default:
+			jassertfalse;
+		}
+
+		if (numElements > 0)
+		{
+			auto& itLValue = body->blockScope->getLValueReference(iteratorIndex);
+
+			for (int i = 0; i < numElements; i++)
+			{
+				itLValue = { beginPtr, i * elementSize};
+
+				auto ok = body->perform(body->blockScope.get(), returnValue);
+
+				if (ok == ResultCode::breakWasHit)
+					break;
+
+				if (ok == ResultCode::continueWasHit)
+					continue;
+
+				if (ok == ResultCode::returnWasHit)
+					return ok;
+			}
+		}
+
+		return ResultCode::ok;
+	};
+
+	int iteratorIndex = -1;
+	Expression::ExprPtr target;
+	StatementBlock* body;
+
+	jit::Symbol iterator;
+	const bool loadIterator;
+	LoopType loopType;
+	TypeInfo elementType;
+	int elementSize;
+	int numElements;
 };
 
 } // namespace nodes

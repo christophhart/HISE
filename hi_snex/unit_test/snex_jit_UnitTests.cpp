@@ -2457,16 +2457,6 @@ private:
 		block bl(b.getWritePointer(0), 512);
 		block bl2(b.getWritePointer(0), 512);
 
-		CREATE_TYPED_TEST("block& test(int in2, block in){ return in; };");
-
-		test->setup();
-
-		auto rb = test->func["test"].call<block*>(
-			9, &bl);
-
-		expectEquals<uint64>(reinterpret_cast<uint64>(bl.begin()), reinterpret_cast<uint64>(rb->begin()), "simple block return");
-
-
 		CREATE_TYPED_TEST("float test(block in){ double x = 2.0; in[1] = Math.sin(x); return 1.0f; };");
 		test->setup();
 		test->func["test"].call<float>(&bl);

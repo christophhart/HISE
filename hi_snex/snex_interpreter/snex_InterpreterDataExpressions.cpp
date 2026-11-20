@@ -59,7 +59,8 @@ struct VariableReference : public Expression
 	VariableReference(Factory& f, const ValueTree& v) :
 		Expression(f, v),
 		symbol(Helpers::getSymbol(f, v)),
-		f(OpFunctions::Data::getFunctionPtr(symbol.typeInfo))
+		f(OpFunctions::Data::getFunctionPtr(symbol.typeInfo)),
+		isBlock(OpFunctions::Data::isBlockType(symbol.typeInfo))
 	{};
 
 	Scope::LValue& getLValue(Scope* s) override
@@ -78,11 +79,15 @@ struct VariableReference : public Expression
 
 	VariableStorage getResult(Scope* s) override
 	{
-		if (symbol.resolved)
-			return f.first(getLValue(s));
+		VariableStorage v;
 
-		jassertfalse;
-		return {};
+		if (symbol.resolved)
+			v = f.first(getLValue(s));
+
+		if(isBlock)
+			v = OpFunctions::Data::toBlock(v);
+
+		return v;
 	}
 
 	void resolveDataPointers(Scope* rootScope) override
@@ -107,6 +112,11 @@ struct VariableReference : public Expression
 						symbol.resolved = true;
 					}
 				}
+				
+				refIndex = s->getLValueReferenceIndex(idWithinScope);
+
+				if (refIndex != -1)
+					symbol.resolved = true;
 			}
 		}
 	}
@@ -120,6 +130,8 @@ struct VariableReference : public Expression
 	Scope::LValue lValue;
 	jit::Symbol symbol;
 	OpFunctions::Data::Functions f;
+
+	const bool isBlock = false;
 };
 
 struct Assignment : public DefinitionBase

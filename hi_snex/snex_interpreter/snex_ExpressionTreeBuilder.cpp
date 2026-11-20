@@ -56,6 +56,7 @@ Statement::Factory::Factory()
 	registerType<nodes::StatementBlock>();
 	registerType<nodes::TernaryOp>();
 	registerType<nodes::IfStatement>();
+	registerType<nodes::Loop>();
 }
 
 ExpressionTreeBuilder::ExpressionTreeBuilder(UriLocationBuilder::Ptr locations, const ValueTree& ast_, const ReferenceCountedArray<jit::ComplexType>& typeLibrary_):

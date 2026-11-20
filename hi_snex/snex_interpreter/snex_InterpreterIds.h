@@ -24,6 +24,13 @@ DECLARE_ID(CallType);
 DECLARE_ID(ObjectType);
 DECLARE_ID(MemberType);
 
+DECLARE_ID(Iterator);
+DECLARE_ID(LoadIterator);
+DECLARE_ID(LoopType);
+
+DECLARE_ID(ElementSize);
+DECLARE_ID(NumElements);
+
 DECLARE_ID(IsPre);
 DECLARE_ID(IsDec);
 
