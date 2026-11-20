@@ -382,6 +382,8 @@ public:
 
 	SET_PROCESSOR_NAME("ModulatorChain", "Modulator Chain", "chain")
 
+	static ProcessorMetadata createMetadata();
+
 	class ModulatorChainHandler;
 
 	/** Creates a new modulator chain. You have to specify the voice amount and the Modulation::Mode */

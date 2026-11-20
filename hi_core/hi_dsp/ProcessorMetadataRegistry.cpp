@@ -214,6 +214,7 @@ void ProcessorMetadataRegistry::registerAllMetadata()
 	add(HardcodedEnvelopeModulator::createMetadata());
 	add(MatrixModulator::createMetadata());
 	add(FlexAhdsrEnvelope::createMetadata());
+	add(ModulatorChain::createMetadata());
 
 	// --- MidiProcessors ---
 
