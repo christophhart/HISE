@@ -128,6 +128,34 @@ struct Function : public Statement
 	Ptr body;
 };
 
+struct TernaryOp : public Expression
+{
+	SNEX_INTERPRETER_NODE(TernaryOp, WantsNode::No);
+
+	TernaryOp(Statement::Factory& f, const ValueTree& v) :
+		Expression(f, v),
+		condition(Helpers::getChildExpression(this, 0)),
+		trueValue(Helpers::getChildExpression(this, 1)),
+		falseValue(Helpers::getChildExpression(this, 2))
+	{};
+
+	TypeInfo getTypeInfo() const override { return trueValue->getTypeInfo(); }
+
+	VariableStorage getResult(Scope* s) override
+	{
+		auto conditionValue = condition->getResult(s).toInt();
+
+		if (conditionValue != 0)
+			return trueValue->getResult(s);
+		else
+			return falseValue->getResult(s);
+	}
+
+	ExprPtr condition;
+	ExprPtr trueValue;
+	ExprPtr falseValue;
+};
+
 struct ReturnStatement : public Statement
 {
 	SNEX_INTERPRETER_NODE(ReturnStatement, WantsNode::No);
