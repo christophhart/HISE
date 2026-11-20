@@ -256,6 +256,7 @@ public:
 		void setRootDirectory(const File& newRootDirectory) { root = newRootDirectory; }
 		void toggleEditMode() { editMode = !editMode; }
 		void setDisplayDirectories(bool shouldDisplayDirectories) { displayDirectories = shouldDisplayDirectories; }
+		void setFlattenOneLevel(bool shouldFlatten) { flattenOneLevel = shouldFlatten; }
 
 		int getNumRows() override;
 		void listBoxItemClicked(int row, const MouseEvent &) override;
@@ -310,10 +311,14 @@ public:
 			showFavoritesOnly = shouldShowFavoritesOnly;
 		}
 
+		bool getShowFavoritesOnly() const { return showFavoritesOnly; }
+
 		File getFileForIndex(int fileIndex) const
 		{
 			return entries[fileIndex];
 		};
+
+		bool isFavoriteInAnyDatabase(const File& f) const;
 
 		int getIndexForFile(const File& f) const
 		{
@@ -331,6 +336,7 @@ public:
 		void updateTags(const StringArray& newSelection);
 
 		bool allowRecursiveSearch = false;
+		bool flattenOneLevel = false;
 		bool deleteOnClick = false;
 
 		int getColumnIndex() const { return index; }
@@ -407,6 +413,14 @@ public:
 		listbox->updateContent();
 	}
 
+	void setFlattenOneLevel(bool shouldFlatten)
+	{
+		listModel->setFlattenOneLevel(shouldFlatten);
+		listbox->updateContent();
+	}
+
+	bool isFlatteningOneLevel() const { return listModel->flattenOneLevel; }
+
 	void setFavoriteIconOffset(int xOffset)
 	{
 		favoriteIconOffset = xOffset;
@@ -417,20 +431,20 @@ public:
 		return favoriteIconOffset;
 	}
 
+	enum ButtonIndexes
+	{
+		All = 0,
+		AddButton,
+		RenameButton,
+		DeleteButton
+	};
+
 	void setShowButtons(int buttonId, bool shouldBeShown)
 	{
-		enum ButtonIndexes
-		{
-			All = 0,
-			AddButton,
-			RenameButton,
-			DeleteButton
-		};
-		
 		switch (buttonId)
 		{
-			case All: showButtonsAtBottom = shouldBeShown; break;
-			case AddButton: shouldShowAddButton = shouldBeShown; break;
+			case All:         showButtonsAtBottom   = shouldBeShown; break;
+			case AddButton:   shouldShowAddButton   = shouldBeShown; break;
 			case RenameButton: shouldShowRenameButton = shouldBeShown; break;
 			case DeleteButton: shouldShowDeleteButton = shouldBeShown; break;
 		}
@@ -516,6 +530,13 @@ public:
 		listModel = newModel;
 	}
 
+	void setTotalRoot(const File& newTotalRoot)
+	{
+		listModel->setTotalRoot(newTotalRoot);
+		listbox->updateContent();
+		listbox->repaint();
+	}
+
 	void setDatabase(var db)
 	{
 		listModel->database = db;
@@ -524,6 +545,14 @@ public:
 	void showAddButton()
 	{
 		addButton->setVisible(true && shouldShowAddButton);
+	}
+
+	/** When showExpansionContentOnly is active, hides the add button in the preset
+	    column unless the selected expansion is the currently loaded expansion. */
+	void setExpansionAddButtonHidden(bool hidden)
+	{
+		expansionAddButtonHidden = hidden;
+		updateButtonVisibility(false);
 	}
 
 	Component* getListbox() { return listbox.get(); }
@@ -539,6 +568,7 @@ private:
 	bool shouldShowRenameButton = true;
 	bool shouldShowDeleteButton = true;
 	bool buttonsInsideBorder = false;
+	bool expansionAddButtonHidden = false;
 	int editButtonOffset = 10;
 	int favoriteIconOffset = 0;
 	double rowPadding = 0;
