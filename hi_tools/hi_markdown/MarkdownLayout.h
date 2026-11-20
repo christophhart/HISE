@@ -41,6 +41,8 @@ namespace MarkdownStyleIds
 	DECLARE_ID(Font);
 	DECLARE_ID(BoldFont);
 	DECLARE_ID(FontSize);
+	DECLARE_ID(LineSpacing);
+	DECLARE_ID(LetterSpacing);
 	DECLARE_ID(bgColour);
 	DECLARE_ID(codeBgColour);
 	DECLARE_ID(linkBgColour);
@@ -61,7 +63,7 @@ struct MarkdownLayout
 	// our own getStringWidth function...
 	using StringWidthFunction = std::function<float(const Font&, const String&)>;
 
-	MarkdownLayout(const AttributedString& s, float width, const StringWidthFunction& f, bool allInOne=false);
+	MarkdownLayout(const AttributedString& s, float width, const StringWidthFunction& f, bool allInOne=false, float lineSpacing=1.5f);
 
 	struct StyleData
 	{
@@ -83,6 +85,10 @@ struct MarkdownLayout
 		Colour tableLineColour;
 
 		bool useSpecialBoldFont = false;
+
+		float lineSpacing = 1.5f;
+
+		float letterSpacing = 0.0f;
 
 		std::array<float, 4> headlineFontSize = { 2.375f, 1.9375f, 1.5f, 1.2f };
 
@@ -113,12 +119,12 @@ struct MarkdownLayout
 		Font getBoldFont() const
 		{
 			if (useSpecialBoldFont)
-				return boldFont;
+				return boldFont.withExtraKerningFactor(letterSpacing);
 
-            return FontHelpers::getFontBoldened(getFont());
+            return FontHelpers::getFontBoldened(getFont()).withExtraKerningFactor(letterSpacing);
 		}
 
-		Font getFont() const { return f.withHeight(fontSize); }
+		Font getFont() const { return f.withHeight(fontSize).withExtraKerningFactor(letterSpacing); }
 	};
 
 	void addYOffset(float delta);
