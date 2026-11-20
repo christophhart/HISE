@@ -250,6 +250,8 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 	API_VOID_METHOD_WRAPPER_3(ScriptComponent, setStyleSheetProperty);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setStyleSheetClass);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setStyleSheetPseudoState);
+	API_METHOD_WRAPPER_0(ScriptComponent, getStyleSheetClass);
+	API_METHOD_WRAPPER_1(ScriptComponent, getStyleSheetProperty);
 	API_VOID_METHOD_WRAPPER_0(ScriptComponent, updateValueFromProcessorConnection);
 };
 
@@ -491,6 +493,8 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_3(setStyleSheetProperty);
 	ADD_API_METHOD_1(setStyleSheetClass);
 	ADD_API_METHOD_1(setStyleSheetPseudoState);
+	ADD_API_METHOD_0(getStyleSheetClass);
+	ADD_API_METHOD_1(getStyleSheetProperty);
 
 	auto& cp = base->getScriptingContent()->contentProfile;
 
@@ -954,6 +958,25 @@ void ScriptComponent::setStyleSheetProperty(const String& variableId, const var&
         styleSheetProperties = ValueTree("ComponentStyleSheetProperties");
 
 	styleSheetProperties.setProperty(variableId, v, nullptr);
+}
+
+String ScriptComponent::getStyleSheetClass() const
+{
+	if(!styleSheetProperties.isValid() || !styleSheetProperties.hasProperty("class"))
+	{
+		simple_css::Selector classType(simple_css::SelectorType::Class, propertyTree["type"].toString().toLowerCase());
+		return classType.toString();
+	}
+
+	return styleSheetProperties["class"].toString();
+}
+
+var ScriptComponent::getStyleSheetProperty(const String& variableId) const
+{
+	if(!styleSheetProperties.isValid())
+		return {};
+
+	return styleSheetProperties.getProperty(variableId, var());
 }
 
 const Identifier ScriptingApi::Content::ScriptComponent::getIdFor(int p) const
