@@ -652,11 +652,161 @@ void PresetBrowserColumn::buttonClicked(Button* b)
 	}
 	else if (b == addButton)
 	{
+		if (index == -1)
+		{
+			// Expansion column: install expansion from .hr1 package file
+			FileChooser fc("Select Expansion Package", File(), "*.hr1", true);
+
+			if (fc.browseForFileToOpen())
+			{
+				auto hr1File = fc.getResult();
+				auto& expHandler = mc->getExpansionHandler();
+
+				auto targetFolder = expHandler.getExpansionTargetFolder(hr1File);
+
+				if (targetFolder == File())
+				{
+					PresetHandler::showMessageWindow("Invalid Package", "Could not read the expansion package metadata.", PresetHandler::IconType::Error);
+					return;
+				}
+
+				auto existingExpansion = expHandler.getExpansionFromRootFile(targetFolder);
+
+				File sampleDirectory;
+
+				if (existingExpansion != nullptr)
+				{
+					// Expansion already installed: reuse existing sample location
+					sampleDirectory = existingExpansion->getSubDirectory(FileHandlerBase::Samples);
+				}
+				else
+				{
+					// New expansion: prompt for sample install location
+					FileChooser sampleFc("Select Sample Install Location");
+
+					if (sampleFc.browseForDirectory())
+						sampleDirectory = sampleFc.getResult();
+					else
+						return;
+
+					// Put samples in a subfolder named after the expansion unless the
+					// chosen directory already matches the expansion name (case-insensitive,
+					// treating spaces, underscores, and dashes as equivalent).
+					auto normalize = [](String s) {
+						return s.toLowerCase().replaceCharacters("-_", "  ");
+					};
+
+					auto expansionName = targetFolder.getFileName();
+
+					if (normalize(sampleDirectory.getFileName()) != normalize(expansionName))
+						sampleDirectory = sampleDirectory.getChildFile(expansionName);
+
+					sampleDirectory.createDirectory();
+				}
+
+				expHandler.installFromResourceFile(hr1File, sampleDirectory);
+			}
+			return;
+		}
+
 		parent->openModalAction(PresetBrowser::ModalWindow::Action::Add, index == 2 ? "New Preset" : "New Directory", File(), index, -1);
 	}
 #if !OLD_PRESET_BROWSER
 	else if (b == renameButton)
 	{
+		if (index == -1)
+		{
+			// Expansion column: relocate samples for the selected expansion
+			if (auto ecm = dynamic_cast<ExpansionColumnModel*>(listModel.get()))
+			{
+				int selectedIdx = ecm->lastIndex;
+
+				if (selectedIdx >= 0)
+				{
+					auto rootFolder = ecm->getFileForIndex(selectedIdx);
+
+					if (auto expansion = mc->getExpansionHandler().getExpansionFromRootFile(rootFolder))
+					{
+						auto expName = expansion->getProperty(ExpansionIds::Name);
+						FileChooser fc("Select new sample location for '" + expName + "'");
+
+						if (fc.browseForDirectory())
+						{
+							auto selectedDir = fc.getResult();
+
+							// Validate that the selected folder contains the expected monolith
+							// files for all sample maps in this expansion.
+							//
+							// Ensure the pool is populated before checking.
+							// FullInstrumentExpansion uses lazy loading, so the pool may be
+							// empty if the expansion hasn't been activated yet.
+							expansion->loadSampleMapsIfEmpty();
+
+							StringArray missingSampleMaps;
+
+							auto checkMonolithRef = [&](const ValueTree& v)
+							{
+								MonolithFileReference mref(v);
+
+								if (!mref.isUsingMonolith())
+									return;
+
+								mref.setFileNotFoundBehaviour(MonolithFileReference::FileNotFoundBehaviour::DoNothing);
+								mref.addSampleDirectory(selectedDir);
+
+								if (!mref.getFile(false).existsAsFile())
+									missingSampleMaps.add(mref.referenceString);
+							};
+
+							auto& smPool = expansion->pool->getSampleMapPool();
+							auto sampleMapRefs = smPool.getListOfAllReferences(true);
+
+							if (sampleMapRefs.isEmpty())
+							{
+								// File-based expansion fallback: read XMLs directly from disk.
+								Array<File> sampleMapFiles;
+								expansion->getSubDirectory(FileHandlerBase::SampleMaps)
+								         .findChildFiles(sampleMapFiles, File::findFiles, true, "*.xml");
+
+								for (auto& smFile : sampleMapFiles)
+								{
+									if (auto xml = XmlDocument::parse(smFile))
+										checkMonolithRef(ValueTree::fromXml(*xml));
+								}
+							}
+							else
+							{
+								// Pool-based (HXI): all sample maps are already loaded.
+								for (auto& ref : sampleMapRefs)
+								{
+									auto entry = smPool.loadFromReference(ref, PoolHelpers::LoadingType::DontCreateNewEntry);
+
+									if (entry != nullptr)
+										checkMonolithRef(entry->data);
+								}
+							}
+
+							if (!missingSampleMaps.isEmpty())
+							{
+								PresetHandler::showMessageWindow("Missing Sample Files",
+									"The selected folder is missing sample files for:\n" + missingSampleMaps.joinIntoString("\n"),
+									PresetHandler::IconType::Warning);
+								return;
+							}
+
+							expansion->createLinkFile(FileHandlerBase::Samples, selectedDir);
+							expansion->checkSubDirectories();
+						
+							PresetHandler::showMessageWindow("Sample Folder Relocated",
+								"The sample folder for '" + expName + "' has been successfully relocated to:\n" + selectedDir.getFullPathName(),
+								PresetHandler::IconType::Info);
+						}
+					}
+				}
+			}
+			return;
+		}
+
 		int selectedIndex = listbox->getSelectedRow(0);
 
 		if (selectedIndex >= 0)
@@ -668,6 +818,102 @@ void PresetBrowserColumn::buttonClicked(Button* b)
 	}
 	else if (b == deleteButton)
 	{
+		if (index == -1)
+		{
+			// Expansion column: uninstall the selected expansion and its samples
+			if (auto ecm = dynamic_cast<ExpansionColumnModel*>(listModel.get()))
+			{
+				int selectedIdx = ecm->lastIndex;
+
+				if (selectedIdx >= 0)
+				{
+					auto rootFolder = ecm->getFileForIndex(selectedIdx);
+
+					if (auto expansion = mc->getExpansionHandler().getExpansionFromRootFile(rootFolder))
+					{
+						auto expName = expansion->getProperty(ExpansionIds::Name);
+
+						if (!PresetHandler::showYesNoWindow("Uninstall Expansion",
+							"Are you sure you want to uninstall '" + expName + "' and its samples?"))
+							return;
+
+						bool removePresets = PresetHandler::showYesNoWindow("Remove User Presets",
+							"Do you want to remove your custom presets for '" + expName + "'?\n\nSelect 'No' to keep your presets.");
+
+						// getSubDirectory() returns the already-resolved path (follows link files).
+						// The expansion is still loaded here because unloadExpansion() is called last.
+						auto samplesDir = expansion->getSubDirectory(FileHandlerBase::Samples);
+						bool samplesAreExternal = !samplesDir.isAChildOf(rootFolder);
+
+						// Don't touch the samples folder if it's shared (parent has project_info.xml).
+						bool safeToDeleteSamples = !samplesDir.getParentDirectory()
+						                                       .getChildFile("project_info.xml")
+						                                       .existsAsFile();
+
+						// Deletes all .ch* monolith files from a directory, then removes the
+						// directory itself if empty. Uses .ch* prefix (HISE's monolith format).
+						auto deleteMonolithFiles = [](const File& dir)
+						{
+							if (!dir.isDirectory())
+								return;
+
+							Array<File> files;
+							dir.findChildFiles(files, File::findFiles, false);
+
+							for (auto& f : files)
+								if (f.getFileExtension().startsWith(".ch"))
+									f.deleteFile();
+
+							if (dir.getNumberOfChildFiles(File::findFilesAndDirectories) == 0)
+								dir.deleteFile();
+						};
+
+						if (safeToDeleteSamples && samplesAreExternal)
+							deleteMonolithFiles(samplesDir);
+
+						if (removePresets)
+						{
+							rootFolder.deleteRecursively();
+						}
+						else
+						{
+							Array<File> children;
+							rootFolder.findChildFiles(children, File::findFilesAndDirectories, false);
+
+							for (auto& child : children)
+							{
+								if (child.getFileName() == "UserPresets")
+									continue;
+
+								if (!samplesAreExternal && child.getFileName() == "Samples" && child.isDirectory())
+								{
+									if (safeToDeleteSamples)
+										deleteMonolithFiles(child);
+									continue;
+								}
+
+								if (child.isDirectory())
+									child.deleteRecursively();
+								else
+									child.deleteFile();
+							}
+						}
+
+						mc->getExpansionHandler().unloadExpansion(expansion);
+
+						ecm->setLastIndex(-1);
+						listbox->deselectAllRows();
+						listbox->updateContent();
+						listbox->repaint();
+						updateButtonVisibility(false);
+
+						parent->selectionChanged(-1, -1, File(), false);
+					}
+				}
+			}
+			return;
+		}
+
 		int selectedIndex = listbox->getSelectedRow(0);
 
 		if (selectedIndex >= 0)
@@ -784,7 +1030,10 @@ void PresetBrowserColumn::updateButtonVisibility(bool isReadOnly)
 {
 	editButton->setVisible(false);
 
-	const bool buttonsVisible = showButtonsAtBottom && !isResultBar && currentRoot.isDirectory() && !isReadOnly;
+	// The expansion column (index == -1) doesn't use setNewRootDirectory so currentRoot
+	// is never set; bypass the directory check for it
+	const bool rootOk = (index == -1) || currentRoot.isDirectory();
+	const bool buttonsVisible = showButtonsAtBottom && !isResultBar && rootOk && !isReadOnly;
 	const bool fileIsSelected = listbox->getNumSelectedRows() > 0;
 
 	addButton->setVisible(buttonsVisible && shouldShowAddButton);

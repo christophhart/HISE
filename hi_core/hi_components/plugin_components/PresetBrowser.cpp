@@ -1313,6 +1313,17 @@ void PresetBrowser::setOptions(const Options& newOptions)
 	setShowEditButtons(1, newOptions.showAddButton);
 	setShowEditButtons(2, newOptions.showRenameButton);
 	setShowEditButtons(3, newOptions.showDeleteButton);
+
+	// Override expansion column buttons independently of the other columns.
+	// We hide individual buttons rather than disabling showButtonsAtBottom so that
+	// the 28px button area is still reserved, keeping the column height consistent
+	// with the bank/category/preset columns.
+	if (expansionColumn != nullptr && !newOptions.showExpansionEditButtons)
+	{
+		expansionColumn->setShowButtons(PresetBrowserColumn::AddButton, false);
+		expansionColumn->setShowButtons(PresetBrowserColumn::RenameButton, false);
+		expansionColumn->setShowButtons(PresetBrowserColumn::DeleteButton, false);
+	}
 	setShowSearchBar(newOptions.showSearchBar);
 	setButtonsInsideBorder(newOptions.buttonsInsideBorder);
 	setEditButtonOffset(newOptions.editButtonOffset);
@@ -1370,18 +1381,23 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 		}
 
 		if(expansionColumn != nullptr)
+		{
+			if (file == File())
+				expansionColumn->setSelectedFile(File());
 			expansionColumn->repaint();
+			expansionColumn->updateButtonVisibility(false);
+		}
 
 		bankColumn->setModel(new PresetBrowserColumn::ColumnListModel(this, 0, this), rootFile);
 		bankColumn->setNewRootDirectory(rootFile);
 		categoryColumn->setModel(new PresetBrowserColumn::ColumnListModel(this, 1, this), rootFile);
 		categoryColumn->setNewRootDirectory(currentCategoryFile);
 		presetColumn->setNewRootDirectory(File());
-		
+
 		auto pc = new PresetBrowserColumn::ColumnListModel(this, 2, this);
 		pc->setDisplayDirectories(false);
 		presetColumn->setModel(pc, rootFile);
-		
+
 		loadPresetDatabase(rootFile);
 		presetColumn->setDatabase(getDataBase());
 		rebuildAllPresets();
