@@ -2732,7 +2732,8 @@ Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
 		"drawFlexAhdsrFullPath",
 		"drawFlexAhdsrPosition",
 		"drawFlexAhdsrSegment",
-		"drawFlexAhdsrText"
+		"drawFlexAhdsrText",
+		"drawPerformanceLabel"
 	};
 
 	return sa;
@@ -5390,6 +5391,12 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawWhiteNote(CustomKeyboardSta
 		obj->setProperty("down", isDown);
 		obj->setProperty("keyColour", state->getColourForSingleKey(midiNoteNumber).getARGB());
 
+		if (auto kp = c->findParentComponentOfClass<MidiKeyboardPanel>())
+		{
+			obj->setProperty("font", kp->getFontName());
+			obj->setProperty("fontSize", kp->getFont().getHeight());
+		}
+
 		if (get()->callWithGraphics(g_, "drawWhiteNote", var(obj), c))
 			return;
 	}
@@ -5410,6 +5417,12 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawBlackNote(CustomKeyboardSta
 		obj->setProperty("hover", isOver);
 		obj->setProperty("down", isDown);
 		obj->setProperty("keyColour", state->getColourForSingleKey(midiNoteNumber).getARGB());
+
+		if (auto kp = c->findParentComponentOfClass<MidiKeyboardPanel>())
+		{
+			obj->setProperty("font", kp->getFontName());
+			obj->setProperty("fontSize", kp->getFont().getHeight());
+		}
 
 		if (get()->callWithGraphics(g_, "drawBlackNote", var(obj), c))
 			return;
@@ -6019,6 +6032,40 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawFlexAhdsrText(Graphics& g_,
     }
 
 	flex_ahdsr_base::FlexAhdsrGraph::LookAndFeelMethods::drawFlexAhdsrText(g_, graph, text);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawPerformanceLabel(
+	Graphics& g, PerformanceLabelPanel& panel, float cpu, int64 ram, int voices)
+{
+	if (functionDefined("drawPerformanceLabel"))
+	{
+		auto obj = new DynamicObject();
+
+		writeId(obj, &panel);
+		obj->setProperty("area", ApiHelpers::getVarRectangle(useRectangleClass, panel.getLocalBounds().toFloat()));
+
+		obj->setProperty("bgColour",     (int64)panel.findPanelColour(FloatingTileContent::PanelColourId::bgColour).getARGB());
+		obj->setProperty("textColour",   (int64)panel.findPanelColour(FloatingTileContent::PanelColourId::textColour).getARGB());
+		obj->setProperty("itemColour1",  (int64)panel.findPanelColour(FloatingTileContent::PanelColourId::itemColour1).getARGB());
+		obj->setProperty("itemColour2",  (int64)panel.findPanelColour(FloatingTileContent::PanelColourId::itemColour2).getARGB());
+		obj->setProperty("itemColour3",  (int64)panel.findPanelColour(FloatingTileContent::PanelColourId::itemColour3).getARGB());
+
+		obj->setProperty("font",     panel.getFontName());
+		obj->setProperty("fontSize", panel.getFont().getHeight());
+
+		obj->setProperty("cpu",    cpu);
+		obj->setProperty("ram",    ram);
+		obj->setProperty("voices", voices);
+
+		if (get()->callWithGraphics(g, "drawPerformanceLabel", var(obj), &panel))
+			return;
+	}
+
+	// Default fallback
+	g.setColour(panel.findPanelColour(FloatingTileContent::PanelColourId::textColour));
+	g.setFont(panel.getFont());
+	String stats = "CPU: " + String(cpu, 1) + "%, RAM: " + String((double)ram / 1024.0 / 1024.0, 1) + "MB , Voices: " + String(voices);
+	g.drawText(stats, panel.getLocalBounds(), Justification::centredLeft);
 }
 
 juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler::IconType type)
