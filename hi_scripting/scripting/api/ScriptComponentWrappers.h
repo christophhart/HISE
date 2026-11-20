@@ -276,14 +276,14 @@ public:
 			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Properties);
 		};
 
+		static constexpr int shadowMargin = 5;
+
 		ValuePopup(ScriptCreatedComponentWrapper& p):
 			parent(p),
-			shadow(new DropShadower({Colours::black.withAlpha(0.4f), 5,{ 0, 0 }}))
+			shadow({Colours::black.withAlpha(0.4f), 5,{ 0, 0 }})
 		{
 			f = GLOBAL_BOLD_FONT();
 
-			shadow->setOwner(this);
-			
 			updateText();
 			startTimer(30);
 		}
@@ -314,7 +314,8 @@ public:
 
 		ScriptCreatedComponentWrapper& parent;
 
-		ScopedPointer<DropShadower> shadow;
+		DropShadow shadow;
+		bool drawShadow = true;
 	};
 
 	struct AdditionalMouseCallback;
