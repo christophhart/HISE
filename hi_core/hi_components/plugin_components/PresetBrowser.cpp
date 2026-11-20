@@ -1293,6 +1293,15 @@ void PresetBrowser::setOptions(const Options& newOptions)
 
 	getPresetBrowserLookAndFeel().textColour = newOptions.textColour;
 	setNumColumns(newOptions.numColumns);
+
+	// Folder rows are only supported in the single column layout
+	showFolderRows = newOptions.showFolderRows;
+	presetColumn->setShowFolderRows(showFolderRows && numColumns == 1);
+
+	// Toggling folder rows shifts the row indexes, so re-sync the selection
+	if (numColumns == 1 && currentlyLoadedPreset != -1)
+		presetColumn->setSelectedFile(allPresets[currentlyLoadedPreset]);
+
 	columnWidthRatios.clear();
 	columnWidthRatios.addArray(newOptions.columnWidthRatios);
 	
@@ -1381,7 +1390,10 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 		auto pc = new PresetBrowserColumn::ColumnListModel(this, 2, this);
 		pc->setDisplayDirectories(false);
 		presetColumn->setModel(pc, rootFile);
-		
+
+		// The freshly created model needs the folder row setting reapplied
+		presetColumn->setShowFolderRows(showFolderRows && numColumns == 1);
+
 		loadPresetDatabase(rootFile);
 		presetColumn->setDatabase(getDataBase());
 		rebuildAllPresets();

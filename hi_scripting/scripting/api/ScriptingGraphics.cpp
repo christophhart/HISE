@@ -2684,6 +2684,7 @@ Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
         "drawPresetBrowserDialog",
 		"drawPresetBrowserColumnBackground",
 		"drawPresetBrowserListItem",
+		"drawPresetBrowserFolderRow",
 		"drawPresetBrowserSearchBar",
 		"drawPresetBrowserTag",
 		"drawWavetableBackground",
@@ -4886,6 +4887,29 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawListItem(Graphics& g_, Comp
 	}
 
 	PresetBrowserLookAndFeelMethods::drawListItem(g_, column, columnIndex, rowIndex, itemName, position, rowIsSelected, deleteMode, hover);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawFolderRow(Graphics& g_, Component& column, int columnIndex, int rowIndex, const String& folderName, Rectangle<int> position)
+{
+	if (functionDefined("drawPresetBrowserFolderRow"))
+	{
+		auto obj = new DynamicObject();
+		obj->setProperty("area", ApiHelpers::getVarRectangle(useRectangleClass, position.toFloat()));
+		obj->setProperty("columnIndex", columnIndex);
+		obj->setProperty("rowIndex", rowIndex);
+		obj->setProperty("text", folderName);
+		obj->setProperty("bgColour", backgroundColour.getARGB());
+		obj->setProperty("itemColour", highlightColour.getARGB());
+		obj->setProperty("itemColour2", modalBackgroundColour.getARGB());
+		obj->setProperty("textColour", textColour.getARGB());
+		obj->setProperty("font", font.getTypefaceName());
+		obj->setProperty("fontSize", font.getHeight());
+
+		if (get()->callWithGraphics(g_, "drawPresetBrowserFolderRow", var(obj), nullptr))
+			return;
+	}
+
+	PresetBrowserLookAndFeelMethods::drawFolderRow(g_, column, columnIndex, rowIndex, folderName, position);
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawSearchBar(Graphics& g_, Component& label, Rectangle<int> area)

@@ -2325,6 +2325,15 @@ void PresetBrowserLookAndFeelMethods::drawListItem(Graphics& g, Component& colum
 #endif
 }
 
+void PresetBrowserLookAndFeelMethods::drawFolderRow(Graphics& g, Component& column, int columnIndex, int rowIndex, const String& folderName, Rectangle<int> position)
+{
+#if !HISE_NO_GUI_TOOLS
+    g.setColour(textColour.withAlpha(0.6f));
+    g.setFont(font.withHeight(14.0f));
+    g.drawText(folderName, 10, 0, position.getWidth() - 20, position.getHeight(), Justification::centredLeft);
+#endif
+}
+
 void PresetBrowserLookAndFeelMethods::drawPresetBrowserButtonText(Graphics& g, TextButton& button, bool isMouseOverButton, bool isButtonDown)
 {
     g.setColour(highlightColour.withAlpha(isMouseOverButton || button.getToggleState() ? 1.0f : 0.7f));
