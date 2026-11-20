@@ -250,6 +250,7 @@ StringArray Helpers::getRangePresetNames()
 		"FilterFreq",
 		"FilterFreqLog",
 		"Stereo",
+		"LinearAbsolute",
 	};
 
 	return names;
@@ -332,6 +333,10 @@ Helpers::Properties::RangeData Helpers::getRangePreset(RangePresets p)
 		rd.outputRange = { 0.0, 1.0 };
 		rd.converter = "Pan";
 		rd.useMidPositionAsZero = true;
+		break;
+	case RangePresets::LinearAbsolute:
+		rd.converter = "";
+		break;
 	case RangePresets::numPresets:
 		break;
 	default: ;
