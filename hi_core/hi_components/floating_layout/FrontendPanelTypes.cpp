@@ -1770,7 +1770,12 @@ void TableFloatingTileBase::initTable(bool addChannelColumn)
 
 	auto fWidth = (int)font.getStringWidthFloat(first) + 20;
 
-	table.getHeader().addColumn(getIndexName(), CCNumber, fWidth, 30, -1, TableHeaderComponent::visible);
+	auto fixedIndexWidth = getFixedIndexColumnWidth();
+
+	if (fixedIndexWidth > 0)
+		table.getHeader().addColumn(first, CCNumber, fixedIndexWidth, fixedIndexWidth, fixedIndexWidth, TableHeaderComponent::visible);
+	else
+		table.getHeader().addColumn(first, CCNumber, fWidth, 30, -1, TableHeaderComponent::visible);
 
 	if(addChannelColumn)
 		table.getHeader().addColumn("Channel", Channel, fWidth, 30, -1, TableHeaderComponent::visible);
