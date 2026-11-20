@@ -559,15 +559,15 @@ void ScriptContentComponent::scriptWasCompiled(JavascriptProcessor *jp)
 	}
 }
 
-void ScriptContentComponent::makeScreenshot(const File& target, Rectangle<float> area)
+void ScriptContentComponent::makeScreenshot(const File& target, Rectangle<float> area, float scaleFactor)
 {
 	WeakReference<ScriptContentComponent> safeThis(this);
 
-	SafeAsyncCall::callAsyncIfNotOnMessageThread<ScriptContentComponent>(*this, [target, area](ScriptContentComponent& st)
+	SafeAsyncCall::callAsyncIfNotOnMessageThread<ScriptContentComponent>(*this, [target, area, scaleFactor](ScriptContentComponent& st)
 	{
 		ScriptingObjects::ScriptShader::ScopedScreenshotRenderer ssr;
 
-		auto sf = UnblurryGraphics::getScaleFactorForComponent(&st);
+		auto sf = scaleFactor > 0.0f ? scaleFactor : UnblurryGraphics::getScaleFactorForComponent(&st);
 
 		st.repaint();
 

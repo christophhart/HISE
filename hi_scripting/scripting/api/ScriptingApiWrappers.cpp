@@ -1084,7 +1084,8 @@ var ScriptingApi::Content::Wrapper::createScreenshot(const var::NativeFunctionAr
 	if (auto thisObject = GET_OBJECT(Content))
 	{
 		CHECK_ARGUMENTS("createScreenshot()", 3);
-		thisObject->createScreenshot(args.arguments[0], args.arguments[1], args.arguments[2]);
+		thisObject->createScreenshot(args.arguments[0], args.arguments[1], args.arguments[2],
+		                              args.numArguments > 3 ? args.arguments[3] : var());
 	}
 
 	return var();

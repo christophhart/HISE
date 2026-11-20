@@ -49,7 +49,8 @@ struct ScreenshotListener
 
 	virtual ~ScreenshotListener() {};
 
-	virtual void makeScreenshot(const File& targetFile, Rectangle<float> area) {};
+	/** scaleFactor <= 0.0f means "use the display's native scale factor". */
+	virtual void makeScreenshot(const File& targetFile, Rectangle<float> area, float scaleFactor = -1.0f) {};
 
 	/** This will be called on the scripting thread and can be used by listeners to prepare the screenshot. */
 	virtual void prepareScreenshot() {};
