@@ -3872,7 +3872,10 @@ void ScriptingApi::Content::ScriptSliderPack::changed()
 
 juce::var ScriptingApi::Content::ScriptSliderPack::getDataAsBuffer()
 {
-	return getCachedSliderPack()->getDataArray();
+	if (auto d = getCachedSliderPack())
+		return d->getDataArray();
+
+	return var();
 }
 
 void ScriptingApi::Content::ScriptSliderPack::setAllValueChangeCausesCallback(bool shouldBeEnabled)
@@ -3882,7 +3885,8 @@ void ScriptingApi::Content::ScriptSliderPack::setAllValueChangeCausesCallback(bo
 
 void ScriptingApi::Content::ScriptSliderPack::setUsePreallocatedLength(int numMaxSliders)
 {
-	getCachedSliderPack()->setUsePreallocatedLength(numMaxSliders);
+	if (auto d = getCachedSliderPack())
+		d->setUsePreallocatedLength(numMaxSliders);
 }
 
 struct ScriptingApi::Content::ScriptAudioWaveform::Wrapper
