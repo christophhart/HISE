@@ -537,8 +537,15 @@ private:
 	float processSample(float input, int channel);
 	float buf[NUM_MAX_CHANNELS][4];
 
-	float cut;
-	float res;
+	float cut = 0.5f;
+	float res = 0.3f;
+
+	// Block-rate coefficient jumps from the mod chains excite the feedback
+	// loop and click; glide cut/res per sample instead. Per-channel state so
+	// the channel-outer process loop keeps every channel's trajectory identical.
+	float cutS[NUM_MAX_CHANNELS];
+	float resS[NUM_MAX_CHANNELS];
+	float smoothAlpha = 0.05f;
 };
 
 FORWARD_DECLARE_MULTI_CHANNEL_FILTER(LadderSubType);
