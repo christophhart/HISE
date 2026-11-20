@@ -375,7 +375,12 @@ public:
         
         size_t getSizeOfEmbeddedReferences() const;
         
+        /** Skips references that don't match, used to export a subset of a pool. */
+        void setReferenceFilter(const std::function<bool(const PoolReference&)>& newFilter) { referenceFilter = newFilter; }
+        
     private:
+        
+        std::function<bool(const PoolReference&)> referenceFilter;
         
         ValueTree metadata;
         int64 metadataOffset;

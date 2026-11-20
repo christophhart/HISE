@@ -901,6 +901,10 @@ juce::Result PoolBase::DataProvider::writePool(OutputStream* ownedOutputStream, 
 			return Result::fail("Aborted");
 
 		auto ref = pool->getReference(i);
+
+		if (referenceFilter && !referenceFilter(ref))
+			continue;
+
 		auto additionalData = pool->getAdditionalData(ref);
 
 		ValueTree child = ValueTreeConverters::convertDynamicObjectToValueTree(additionalData, "Item");
