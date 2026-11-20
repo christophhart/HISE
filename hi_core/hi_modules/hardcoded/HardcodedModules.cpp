@@ -212,10 +212,14 @@ void HardcodedMasterFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 	SimpleReadWriteLock::ScopedReadLock sl(lock);
 
+	// PR #965: prepare the extra mod sources BEFORE the opaque node so reset()
+	// captures live eventData read pointers. Otherwise, on cold standalone/exported
+	// load the connection is established at sampleRate==0 and reset() pins a dead
+	// pointer, leaving extra_mod modulation permanently stuck.
+	extraMods.prepareToPlay(sampleRate, samplesPerBlock);
+
 	auto ok = prepareOpaqueNode(opaqueNode.get());
 	errorBroadcaster.sendMessage(sendNotificationAsync, ok.getErrorMessage());
-
-	extraMods.prepareToPlay(sampleRate, samplesPerBlock);
 }
 
 juce::Path HardcodedMasterFX::getSpecialSymbol() const
@@ -424,11 +428,12 @@ void HardcodedPolyphonicFX::prepareToPlay(double sampleRate, int samplesPerBlock
 
 	VoiceEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 	SimpleReadWriteLock::ScopedReadLock sl(lock);
-	auto ok = prepareOpaqueNode(opaqueNode.get());
 
-	errorBroadcaster.sendMessage(sendNotificationAsync, ok.getErrorMessage());
-
+	// PR #965: prepare extra mod sources before the opaque node (see HardcodedMasterFX).
 	extraModSources.prepareToPlay(sampleRate, samplesPerBlock);
+
+	auto ok = prepareOpaqueNode(opaqueNode.get());
+	errorBroadcaster.sendMessage(sendNotificationAsync, ok.getErrorMessage());
 }
 
 void HardcodedPolyphonicFX::startVoice(int voiceIndex, const HiseEvent& e)
@@ -1092,11 +1097,15 @@ void HardcodedSynthesiser::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 	
 	SimpleReadWriteLock::ScopedReadLock sl(HardcodedSwappableEffect::lock);
-	auto ok = prepareOpaqueNode(opaqueNode.get());
 
-	errorBroadcaster.sendMessage(sendNotificationAsync, ok.getErrorMessage());
-
+	// Same fix as PR #965, extended to the synth wrapper (which that PR does not
+	// cover): prepare the extra mod sources before the opaque node so reset()
+	// captures live eventData. This is what fixes osc pitch/gain extra_mod that
+	// loads dead in the compiled standalone synth.
 	extraModSources.prepareToPlay(sampleRate, samplesPerBlock);
+
+	auto ok = prepareOpaqueNode(opaqueNode.get());
+	errorBroadcaster.sendMessage(sendNotificationAsync, ok.getErrorMessage());
 }
 
 Processor* HardcodedSynthesiser::getChildProcessor(int processorIndex)
