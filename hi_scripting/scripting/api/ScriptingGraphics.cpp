@@ -2506,6 +2506,7 @@ struct ScriptingObjects::ScriptedLookAndFeel::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptedLookAndFeel, loadImage);
 	API_VOID_METHOD_WRAPPER_0(ScriptedLookAndFeel, unloadAllImages);
 	API_METHOD_WRAPPER_1(ScriptedLookAndFeel, isImageLoaded);
+	API_METHOD_WRAPPER_1(ScriptedLookAndFeel, getImageSize);
 	API_VOID_METHOD_WRAPPER_1(ScriptedLookAndFeel, setInlineStyleSheet);
 	API_VOID_METHOD_WRAPPER_1(ScriptedLookAndFeel, setStyleSheet);
 	API_VOID_METHOD_WRAPPER_3(ScriptedLookAndFeel, setStyleSheetProperty);
@@ -2524,6 +2525,7 @@ ScriptingObjects::ScriptedLookAndFeel::ScriptedLookAndFeel(ProcessorWithScriptin
 	ADD_API_METHOD_2(loadImage);
 	ADD_API_METHOD_0(unloadAllImages);
 	ADD_API_METHOD_1(isImageLoaded);
+	ADD_API_METHOD_1(getImageSize);
 	ADD_API_METHOD_1(setInlineStyleSheet);
 	ADD_API_METHOD_1(setStyleSheet);
 	ADD_API_METHOD_3(setStyleSheetProperty);
@@ -6192,8 +6194,14 @@ bool ScriptingObjects::ScriptedLookAndFeel::isImageLoaded(String prettyName)
 		if (img.prettyName == prettyName)
 			return true;
 	}
-	
+
 	return false;
+}
+
+var ScriptingObjects::ScriptedLookAndFeel::getImageSize(String imageName)
+{
+	Image img = getLoadedImage(imageName);
+	return Array<var>(img.getWidth(), img.getHeight());
 }
 
 ScriptingObjects::ScriptedLookAndFeel::LocalLaf::LocalLaf(ScriptedLookAndFeel* l) :
