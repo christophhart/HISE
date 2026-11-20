@@ -123,20 +123,21 @@ struct Subscript : public Expression
 
 	VariableStorage getResult(Scope* s) override
 	{
-		return f.first(getDataLocation(s));
+		return f.first(getLValue(s));
 	}
 
 	void assign(Scope* s, const VariableStorage& v) override
 	{
-		f.second(getDataLocation(s), v);
+		f.second(getLValue(s), v);
 	}
 
-	OpFunctions::Data::Address getDataLocation(Scope* s)
+	Scope::LValue& getLValue(Scope* s) override
 	{
 		auto dataPtr = reinterpret_cast<uint8*>(parent->getResult(s).toPtr());
 		auto elementSize = elementType.getRequiredByteSize();
 		auto idx = index->getResult(s).toInt();
-		return { dataPtr, elementSize * idx };
+		address = { dataPtr, elementSize * idx };
+		return address;
 	}
 
 	TypeInfo getTypeInfo() const override
@@ -144,6 +145,7 @@ struct Subscript : public Expression
 		return elementType;
 	}
 
+	Scope::LValue address;
 	TypeInfo parentType;
 	TypeInfo elementType;
 	ExprPtr parent;

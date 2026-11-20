@@ -11,7 +11,7 @@ struct Scope : public ReferenceCountedObject
 	using List = ReferenceCountedArray<Scope>;
 	using WeakPtr = WeakReference<Scope>;
 
-	Scope(ScopeType st, Scope* parent_, Engine* e, const NamespacedIdentifier& id_);
+	using LValue = std::pair<void*, size_t>;
 
 	struct Entry
 	{
@@ -20,7 +20,19 @@ struct Scope : public ReferenceCountedObject
 		size_t size = 0;
 	};
 
+	struct Reference
+	{
+		Identifier id;
+		LValue address;
+	};
+
+	Scope(ScopeType st, Scope* parent_, Engine* e, const NamespacedIdentifier& id_);
+
 	Result addSymbol(const jit::Symbol& symbol, size_t slotSize, size_t alignment);
+	Result addReference(const jit::Symbol& symbolId);
+	int getLValueReferenceIndex(const Identifier& symbolId) const;
+	LValue& getLValueReference(const int referenceIndex);
+
 	Result finalise();
 
 	void clear();
@@ -63,6 +75,7 @@ struct Scope : public ReferenceCountedObject
 	size_t totalSize = 0;
 	size_t maxAlignment = 1;
 
+	std::vector<Reference> references;
 	JUCE_DECLARE_WEAK_REFERENCEABLE(Scope);
 };
 

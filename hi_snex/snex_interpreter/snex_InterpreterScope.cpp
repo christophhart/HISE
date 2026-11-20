@@ -22,6 +22,9 @@ Result Scope::addSymbol(const jit::Symbol& symbol, size_t slotSize, size_t align
 	if (slotSize == 0 || alignment == 0)
 		return Result::fail("Invalid scope slot size or alignment");
 
+	if (symbol.typeInfo.isRef())
+		return Result::fail("use addReference for reference variables");
+
 	const auto remainder = totalSize % alignment;
 	const auto padding = remainder == 0 ? 0 : alignment - remainder;
 
@@ -37,6 +40,40 @@ Result Scope::addSymbol(const jit::Symbol& symbol, size_t slotSize, size_t align
 	totalSize = entry.offset + slotSize;
 	maxAlignment = std::max(maxAlignment, alignment);
 	return Result::ok();
+}
+
+Result Scope::addReference(const Symbol& symbol)
+{
+	if (symbol.id.getParent() != id || entries.find(symbol.id.id) != entries.end())
+		return Result::fail("Invalid or duplicate scope symbol: " + symbol.id.toString());
+
+	if (!symbol.typeInfo.isRef())
+		return Result::fail("not a reference");
+
+	references.push_back({ symbol.id.id, {} });
+
+	return Result::ok();
+}
+
+int Scope::getLValueReferenceIndex(const Identifier& symbolId) const
+{
+	int idx = 0;
+
+	for (auto& ref : references)
+	{
+		if (ref.id == symbolId)
+			return idx;
+
+		idx++;
+	}
+
+	return -1;
+}
+
+Scope::LValue& Scope::getLValueReference(const int referenceIndex)
+{
+	jassert(isPositiveAndBelow(referenceIndex, references.size()));
+	return references[referenceIndex].address;
 }
 
 Result Scope::finalise()
@@ -59,6 +96,7 @@ void Scope::clear()
 	if (dataStart != nullptr)
 		std::memset(dataStart, 0, totalSize);
 }
+
 
 const Scope::Entry* Scope::find(const Identifier& symbolId) const
 {

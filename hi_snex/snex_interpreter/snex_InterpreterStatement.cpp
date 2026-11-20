@@ -42,6 +42,10 @@ Statement::Ptr Statement::Factory::create(const ValueTree& v)
 			return t;
 	}
 
+	DBG("No node for " + v.getType().toString());
+
+	DBG(v.createXml()->createDocument(""));
+	jassertfalse;
 	return nullptr;
 }
 
@@ -199,9 +203,8 @@ struct Statement::OpFunctions
 
 	struct Data
 	{
-		using Address = std::pair<void*, size_t>;
-		typedef VariableStorage(*ReadFunction)(Address);
-		typedef void(*WriteFunction)(Address, const VariableStorage&);
+		typedef VariableStorage(*ReadFunction)(Scope::LValue);
+		typedef void(*WriteFunction)(Scope::LValue, const VariableStorage&);
 		using Functions = std::pair<ReadFunction, WriteFunction>;
 
 		static Functions getFunctionPtr(const TypeInfo& t)
@@ -235,7 +238,7 @@ struct Statement::OpFunctions
 
 	private:
 
-		template <typename T> static VariableStorage readStatic(Address d)
+		template <typename T> static VariableStorage readStatic(Scope::LValue d)
 		{
 			auto [data, offset] = d;
 			auto ptr = reinterpret_cast<uint8*>(data) + offset;
@@ -246,7 +249,7 @@ struct Statement::OpFunctions
 				return VariableStorage(*reinterpret_cast<T*>(ptr));
 		}
 
-		template <typename T> static void writeStatic(Address d, const VariableStorage& value)
+		template <typename T> static void writeStatic(Scope::LValue d, const VariableStorage& value)
 		{
 			auto [data, offset] = d;
 			static constexpr auto TID = Types::Helpers::getTypeFromTypeId<T>();

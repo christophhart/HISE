@@ -62,21 +62,24 @@ struct VariableReference : public Expression
 		f(OpFunctions::Data::getFunctionPtr(symbol.typeInfo))
 	{};
 
-	OpFunctions::Data::Address getAddress(Scope* s)
+	Scope::LValue& getLValue(Scope* s) override
 	{
-		return { resolvedScope->getDataPointer(), resolvedOffset };
+		if (refIndex != -1)
+			return s->getLValueReference(refIndex);
+
+		return lValue;
 	}
 
 	void assign(Scope* s, const VariableStorage& value) override
 	{
-		if (resolvedScope != nullptr && f.second != nullptr)
-			f.second(getAddress(s), value);
+		if (symbol.resolved)
+			f.second(getLValue(s), value);
 	}
 
 	VariableStorage getResult(Scope* s) override
 	{
-		if (resolvedScope != nullptr && f.first != nullptr)
-			return f.first(getAddress(s));
+		if (symbol.resolved)
+			return f.first(getLValue(s));
 
 		jassertfalse;
 		return {};
@@ -89,13 +92,20 @@ struct VariableReference : public Expression
 
 		if (auto s = rootScope->getScope(scopeId))
 		{
-			if (auto entry = s->find(idWithinScope))
+			if (getTypeInfo().isRef())
 			{
-				if (s->getAddress(idWithinScope, symbol.typeInfo.getRequiredByteSize()) != nullptr)
+				refIndex = s->getLValueReferenceIndex(symbol.id.id);
+				symbol.resolved = refIndex != -1;
+			}
+			else
+			{
+				if (auto entry = s->find(idWithinScope))
 				{
-					resolvedScope = s;
-					resolvedOffset = entry->offset;
-					symbol.resolved = true;
+					if (s->getAddress(idWithinScope, symbol.typeInfo.getRequiredByteSize()) != nullptr)
+					{
+						lValue = { s->getDataPointer(), entry->offset };
+						symbol.resolved = true;
+					}
 				}
 			}
 		}
@@ -106,8 +116,8 @@ struct VariableReference : public Expression
 		return symbol.typeInfo;
 	}
 
-	Scope::Ptr resolvedScope;
-	size_t resolvedOffset = 0;
+	int refIndex = -1;
+	Scope::LValue lValue;
 	jit::Symbol symbol;
 	OpFunctions::Data::Functions f;
 };
@@ -127,6 +137,13 @@ struct Assignment : public DefinitionBase
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue) override
 	{
+		if (isRef && isDefinition)
+		{
+			auto& targetAddress = value->getLValue(s);
+			target->getLValue(s) = targetAddress;
+			return ResultCode::ok;
+		}
+
 		if (f == nullptr)
 		{
 			auto v = value->getResult(s);
@@ -154,19 +171,27 @@ struct Assignment : public DefinitionBase
 			t.id = v->symbol.id.toString();
 	}
 
-	Result allocateInScope(Scope* rootScope) override
+	Result allocateInScope(Scope* s) override
 	{
 		if (!isDefinition)
 			return Result::ok();
 
 		if (auto v = target->getTyped<VariableReference>())
 		{
-			if (v->symbol.id.getParent() == rootScope->id &&
-				rootScope->find(v->symbol.id.id) == nullptr)
+			if (v->getTypeInfo().isRef())
 			{
-				auto& type = v->symbol.typeInfo;
-				return rootScope->addSymbol(v->symbol, type.getRequiredByteSize(),
-					type.getRequiredAlignment());
+				isRef = true;
+				return s->addReference(v->symbol);
+			}
+			else
+			{
+				if (v->symbol.id.getParent() == s->id &&
+					s->find(v->symbol.id.id) == nullptr)
+				{
+					auto& type = v->symbol.typeInfo;
+					return s->addSymbol(v->symbol, type.getRequiredByteSize(),
+						type.getRequiredAlignment());
+				}
 			}
 		}
 
@@ -178,6 +203,7 @@ struct Assignment : public DefinitionBase
 	Expression::ExprPtr value;
 	Expression::ExprPtr target;
 	const bool isDefinition;
+	bool isRef = false;
 
 	OpFunctions::BinaryOp::Function f;
 };
@@ -291,21 +317,23 @@ struct Dot : public Expression
 
 	VariableStorage getResult(Scope* s)
 	{
-		return df.first(getAddress(s));
+		return df.first(getLValue(s));
 	}
 
-	OpFunctions::Data::Address getAddress(Scope* s)
+	Scope::LValue& getLValue(Scope* s) override
 	{
 		auto base = (void*)dotParent->getResult(s);
-		auto offset = dotChild->resolvedOffset;
-		return { base, offset };
+		auto offset = dotChild->getLValue(s).second;
+		address = { base, offset };
+		return address;
 	}
 
 	void assign(Scope* s, const VariableStorage& v) override
 	{
-		df.second(getAddress(s), v);
+		df.second(getLValue(s), v);
 	}
 
+	Scope::LValue address;
 	ExprPtr dotParent;
 	VariableReference* dotChild;
 	TypeInfo type;
