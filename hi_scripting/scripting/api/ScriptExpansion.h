@@ -271,6 +271,9 @@ public:
 	/** Decompresses the samples and installs the .hxi / .hxp file. */
 	bool installExpansionFromPackage(var packageFile, var sampleDirectory);
 
+	/** Cancels the current installation and removes the files it has extracted so far. */
+	void cancelInstallation();
+
 	/** Returns a meta data object from the .hr file */
 	var getMetaDataFromPackage(var packageFile);
 
