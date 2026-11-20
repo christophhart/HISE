@@ -25,9 +25,10 @@ public:
     //==============================================================================
     void initialise (const String& commandLine) override
     {
-		
-		runner.setAssertOnFailure(true);
-        //runner.runTestsInCategory("snex");
+
+#if TEST_RUN
+		runner.runTestsInCategory("snex");
+#endif
 		//runner.runTestsInCategory("node_tests");
 
         // This method is where you should put your application's initialisation code..

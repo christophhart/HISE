@@ -219,6 +219,10 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 
 	cr = compiler->getLastResult();
 
+#if TEST_RUN
+	useInterpreter = true;
+#endif
+
 #if SNEX_INTERPRETER_BACKEND
 	if (useInterpreter)
 	{

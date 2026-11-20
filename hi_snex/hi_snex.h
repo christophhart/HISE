@@ -55,6 +55,8 @@ END_JUCE_MODULE_DECLARATION
 
 #define REMOVE_REUSABLE_REG 0
 
+// Temporary macro: enables unit test run, disable XML dump per interpreter run, force interpreter to be enabled, set to 1 when running the test suite
+#define TEST_RUN 1
 
 
 

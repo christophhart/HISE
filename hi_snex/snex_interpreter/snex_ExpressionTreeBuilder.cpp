@@ -70,7 +70,9 @@ jit::FunctionCollectionBase* ExpressionTreeBuilder::createEngine(jit::GlobalScop
 	f.locationBuilder = locationBuilder;
 	f.typeLibrary = typeLibrary;
 
+#if !TEST_RUN
 	DBG(astTree.createXml()->createDocument(""));
+#endif
 
 	auto rootTree = f.create(astTree);
 	auto locTree = createUriLocationTree(f, rootTree, nullptr);

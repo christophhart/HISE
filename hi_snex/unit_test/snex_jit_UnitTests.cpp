@@ -198,8 +198,18 @@ public:
 			{
 				dump();
 
+				DBG("FAIL: ======================================= ");
+				
+				DBG(compiler->getLastCompiledCode());
+				DBG(compiler->dumpSyntaxTree());
+
+				DBG("RESULT: ===================================== ");
+
 				DBG("Expected: " + juce::String(expected));
 				DBG("Actual: " + juce::String(v));
+
+				DBG("============================================= ");
+				jassertfalse;
 			}
 
 			return v;

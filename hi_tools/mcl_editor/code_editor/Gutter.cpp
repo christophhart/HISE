@@ -717,7 +717,7 @@ void mcl::GutterComponent::paint(Graphics& g)
 	Array<int> drawnBreakpoints;
 	drawnBreakpoints.ensureStorageAllocated(breakpoints.size());
 
-	float BREAKPOINT_OFFSET = JUCE_LIVE_CONSTANT(1.0f);
+	float BREAKPOINT_OFFSET = JUCE_LIVE_CONSTANT_OFF(1.0f);
 
 	for (auto bp : breakpoints)
 	{
