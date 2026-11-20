@@ -1577,5 +1577,19 @@ void FunctionData::setDefaultParameter(const Identifier& argId, const VariableSt
 	defaultParameters.add(newDefaultParameter);
 }
 
+String FunctionData::toLabel() const
+{
+	auto l = id.toString().replace("::", "_");
+
+	l = l.replace("~", "_dest");
+	l << "_";
+	l << Types::Helpers::getCppTypeName(returnType.getType())[0];
+
+	for (const auto& a : args)
+		l << Types::Helpers::getCppTypeName(a.typeInfo.getType())[0];
+
+	return l;
+}
+
 }
 }

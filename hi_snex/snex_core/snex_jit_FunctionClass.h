@@ -173,16 +173,7 @@ public:
 				StaticFunctionPointer item;
 				item.signature = f->getSignature({}, false);
 
-				auto l = f->id.toString().replace("::", "_");
-
-                l = l.replace("~", "_dest");
-                
-				l << "_";
-
-				l << Types::Helpers::getCppTypeName(f->returnType.getType())[0];
-
-				for (const auto& a : f->args)
-					l << Types::Helpers::getCppTypeName(a.typeInfo.getType())[0];
+				auto l = f->toLabel();
 
 				item.label = l;
 				item.function = f->function;

@@ -64,6 +64,56 @@ struct SyntaxTree : public Statement
 	std::vector<UriLocation> locations;
 };
 
+struct StatementBlock : public DefinitionBase
+{
+	SNEX_INTERPRETER_NODE(StatementBlock, WantsNode::Yes);
+
+	StatementBlock(Statement::Factory& f, const ValueTree& v) :
+		DefinitionBase(f, v),
+		blockId(Helpers::getNamespacedIdentifier(v, AstIds::ScopeId))
+	{
+		for (auto c : childStatements)
+			locations.push_back(Helpers::createUriLocation(f, c->astNode));
+	};
+
+	Result allocateInScope(Scope* scopeToUse) override
+	{
+		blockScope = new Scope(Scope::ScopeType::Block, scopeToUse, scopeToUse->engine, blockId);
+
+		for (auto c : childStatements)
+		{
+			if (auto as = c->getTyped<DefinitionBase>())
+			{
+				auto ok = as->allocateInScope(blockScope);
+				if (!ok.wasOk())
+					return ok;
+			}
+		}
+
+		blockScope->finalise();
+
+		return Result::ok();
+	}
+
+	ResultCode perform(Scope* s, VariableStorage* returnValue) override
+	{
+		for (int i = instructionPointer; i < childStatements.size(); i++)
+		{
+			auto c = childStatements[i];
+
+			if (auto r = c->perform(blockScope, returnValue))
+				return r;
+		}
+
+		return ResultCode::ok;
+	};
+
+	int instructionPointer = 0;
+	std::vector<UriLocation> locations;
+	NamespacedIdentifier blockId;
+	Scope::Ptr blockScope;
+};
+
 struct Function : public Statement
 {
 	SNEX_INTERPRETER_NODE(Function, WantsNode::Yes);

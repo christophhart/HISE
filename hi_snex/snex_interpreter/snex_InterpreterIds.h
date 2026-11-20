@@ -18,6 +18,10 @@ DECLARE_ID(Symbol);
 DECLARE_ID(First);
 DECLARE_ID(InitValuesB64);
 DECLARE_ID(Ids);
+DECLARE_ID(ScopeId);
+DECLARE_ID(CallType);
+DECLARE_ID(ObjectType);
+DECLARE_ID(MemberType);
 
 DECLARE_ID(ElementType);
 DECLARE_ID(ParentType);

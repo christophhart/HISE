@@ -45,6 +45,12 @@ Statement::Factory::Factory()
 	registerType<nodes::Assignment>();
 	registerType<nodes::ComplexTypeDefinition>();
 	registerType<nodes::Subscript>();
+	registerType<nodes::FunctionCall>();
+	registerType<nodes::TemplatedFunction>();
+	registerType<nodes::ClassStatement>();
+	registerType<nodes::Dot>();
+	registerType<nodes::ThisPointer>();
+	registerType<nodes::StatementBlock>();
 }
 
 ExpressionTreeBuilder::ExpressionTreeBuilder(UriLocationBuilder::Ptr locations, const ValueTree& ast_, const ReferenceCountedArray<jit::ComplexType>& typeLibrary_):

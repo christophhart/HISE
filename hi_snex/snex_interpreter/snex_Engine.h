@@ -168,6 +168,8 @@ struct Engine: public snex::jit::FunctionCollectionBase
 	juce::String dumpTable() override;
 	ValueTree getDataLayout(int dataIndex) const override;
 
+	jit::GlobalScope* getGlobalScope() { return &globalScope; }
+
 private:
 
 	friend class snex::interpreter::ExpressionTreeBuilder;
@@ -175,7 +177,7 @@ private:
 	struct Helpers;
 	struct EngineScope;
 
-	struct DispatchData
+	struct InterpretedFunction
 	{
 		String getSigString() const;
 
@@ -206,14 +208,14 @@ private:
 		}
 
 		template <size_t... Indices, typename... Ts>
-		static void writeArguments(DispatchData& data, std::index_sequence<Indices...>, Ts... args)
+		static void writeArguments(InterpretedFunction& data, std::index_sequence<Indices...>, Ts... args)
 		{
 			(ComplexType::writeNativeMemberType(data.parameterOffsets[Indices], 0, VariableStorage(args)), ...);
 		}
 
 		template <typename RV, typename... Ts> static RV call(void* obj, Ts... args)
 		{
-			auto data = static_cast<DispatchData*>(obj);
+			auto data = static_cast<InterpretedFunction*>(obj);
 
 			if (data == nullptr || data->active || data->parameterOffsets.size() != sizeof...(Ts))
 			{
@@ -243,10 +245,46 @@ private:
 		Scope::Ptr functionScope;
 		Statement::Ptr functionStatement;
 		std::vector<void*> parameterOffsets;
+		bool addThisPointer = false;
 		bool active = false;
 	};
 
-	OwnedArray<DispatchData> dispatchData;
+	struct InterpretedClass
+	{
+		Scope::Ptr classScope;
+		jit::ComplexType::Ptr classType;
+
+		jit::FunctionData getFunction(const NamespacedIdentifier& id)
+		{
+			for (auto m : members)
+			{
+				if (m->functionData.id == id)
+					return m->functionData;
+			}
+
+			for (auto c : subclasses)
+			{
+				auto fd = c->getFunction(id);
+
+				if (fd.id != NamespacedIdentifier())
+					return fd;
+			}
+
+			return {};
+		}
+
+		Statement::List initialisers;
+		OwnedArray<InterpretedFunction> members;
+		OwnedArray<InterpretedClass> subclasses;
+	};
+
+	InterpretedFunction* createInterpretedFunction(Statement::Ptr f, Scope* s, bool addThisPointer);
+	InterpretedClass* createInterpretedClass(Statement::Ptr c, Scope* s);
+
+	DefinitionBase* createScopeInitialiser(Statement::Ptr c, Scope* s);
+
+	OwnedArray<InterpretedFunction> rootFunctions;
+	OwnedArray<InterpretedClass> classes;
 
 	Statement::Ptr rootTree;
 	Scope::Ptr rootScope;

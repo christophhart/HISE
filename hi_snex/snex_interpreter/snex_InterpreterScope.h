@@ -5,11 +5,13 @@ namespace interpreter {
 
 struct Scope : public ReferenceCountedObject
 {
+	enum class ScopeType { Unknown, Root, Class, Function, Block };
+
 	using Ptr = ReferenceCountedObjectPtr<Scope>;
 	using List = ReferenceCountedArray<Scope>;
 	using WeakPtr = WeakReference<Scope>;
 
-	Scope(Scope* parent_, Engine* e, const NamespacedIdentifier& id_);
+	Scope(ScopeType st, Scope* parent_, Engine* e, const NamespacedIdentifier& id_);
 
 	struct Entry
 	{
@@ -30,12 +32,32 @@ struct Scope : public ReferenceCountedObject
 	Array<jit::Symbol> getSymbols() const;
 	Scope* getScope(const jit::NamespacedIdentifier& scopeId);
 
+	Scope* getParentScopeWithType(ScopeType sp)
+	{
+		if (scopeType == sp)
+			return this;
+
+		return parent->getParentScopeWithType(sp);
+	}
+
+	Scope* getRootScope() 
+	{
+		if (parent == nullptr)
+			return this;
+
+		return parent->getRootScope();
+	}
+
 	List children;
 	WeakPtr parent = nullptr;
 	Engine* engine = nullptr;
 	jit::NamespacedIdentifier id;
 
 	HeapBlock<uint8> scopeData;
+	void* thisPtr = nullptr;
+
+	const ScopeType scopeType;
+
 	std::map<Identifier, Entry> entries;
 	uint8* dataStart = nullptr;
 	size_t totalSize = 0;

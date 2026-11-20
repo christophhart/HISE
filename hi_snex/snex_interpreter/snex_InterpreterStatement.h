@@ -152,6 +152,12 @@ struct Expression : public Statement
 	virtual jit::TypeInfo getTypeInfo() const = 0;
 	virtual VariableStorage getResult(Scope* s) = 0;
 
+	ResultCode perform(Scope* s, VariableStorage* returnValue) override
+	{
+		getResult(s);
+		return ResultCode::ok;
+	}
+
 	virtual void assign(Scope* s, const VariableStorage& v) {}
 };
 

@@ -176,6 +176,8 @@ struct FunctionData
 
 	void setDefaultParameter(const Identifier& s, const VariableStorage& immediateValue);
 
+	String toLabel() const;
+
 	juce::String getCodeToInsert() const;
 
 	juce::String getSignature(const Array<Identifier>& parameterIds = {}, bool useFullParameterIds=true) const;

@@ -1,7 +1,8 @@
 namespace snex {
 namespace interpreter {
 
-Scope::Scope(Scope* parent_, Engine* e, const NamespacedIdentifier& id_) :
+Scope::Scope(ScopeType st, Scope* parent_, Engine* e, const NamespacedIdentifier& id_) :
+  scopeType(st),
   parent(parent_),
   engine(e),
   id(id_)

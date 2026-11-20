@@ -112,7 +112,8 @@ struct Assignment : public DefinitionBase
 
 	Result allocateInScope(Scope* rootScope) override
 	{
-		jassert(isDefinition);
+		if (!isDefinition)
+			return Result::ok();
 
 		if (auto v = target->getTyped<VariableReference>())
 		{
@@ -204,6 +205,84 @@ struct ComplexTypeDefinition : public DefinitionBase
 	Array<NamespacedIdentifier> symbols;
 	
 	MemoryBlock initData;
+};
+
+struct TemplatedFunction : public Statement
+{
+	SNEX_INTERPRETER_NODE(TemplatedFunction, WantsNode::No);
+
+	TemplatedFunction(Factory& f, const ValueTree& v) :
+		Statement(f, v)
+	{}
+};
+
+struct ClassStatement : public Statement
+{
+	SNEX_INTERPRETER_NODE(ClassStatement, WantsNode::Yes);
+
+	ClassStatement(Factory& f, const ValueTree& v) :
+		Statement(f, v),
+		classType(dynamic_cast<StructType*>(Helpers::getType(f, v).getComplexType().get()))
+	{}
+
+	StructType* classType;
+};
+
+struct Dot : public Expression
+{
+	SNEX_INTERPRETER_NODE(Dot, WantsNode::No);
+
+	Dot(Factory& f, const ValueTree& v) :
+	  Expression(f, v),
+	  dotParent(Helpers::getChildExpression(this, 0)),
+	  dotChild(Helpers::getChildExpression(this, 1)->getTyped<VariableReference>()),
+	  type(Helpers::getType(f, v, AstIds::MemberType)),
+	  df(OpFunctions::createDataFunctions(type))
+	{
+		jassert(dotChild != nullptr);
+	}
+
+	TypeInfo getTypeInfo() const override { return type; }
+
+	VariableStorage getResult(Scope* s)
+	{
+		auto base = (void*)dotParent->getResult(s);
+		auto offset = dotChild->resolvedOffset;
+		return df.first(base, offset);
+	}
+
+	void assign(Scope* s, const VariableStorage& v) override
+	{
+		auto base = (void*)dotParent->getResult(s);
+		auto offset = dotChild->resolvedOffset;
+		df.second(base, offset, v);
+	}
+
+	ExprPtr dotParent;
+	VariableReference* dotChild;
+	TypeInfo type;
+	OpFunctions::DataFunctions df;
+};
+
+struct ThisPointer : public Expression
+{
+	SNEX_INTERPRETER_NODE(ThisPointer, WantsNode::No);
+
+	ThisPointer(Factory& f, const ValueTree& v) :
+	  Expression(f, v),
+	  type(Helpers::getType(f, v))
+	{}
+
+	jit::TypeInfo getTypeInfo() const override { return type; }
+
+	VariableStorage getResult(Scope* s)
+	{
+		auto ptr = (void**)s->getParentScopeWithType(Scope::ScopeType::Function)->getDataPointer();
+		return VariableStorage(*ptr);
+	}
+
+	Scope::Ptr resolvedScope = nullptr;
+	TypeInfo type;
 };
 
 } // namespace nodes

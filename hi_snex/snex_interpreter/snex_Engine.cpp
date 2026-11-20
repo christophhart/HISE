@@ -38,7 +38,7 @@ namespace interpreter
 Engine::Engine(jit::GlobalScope& scope, const Statement::Ptr rootTree_):
   globalScope(scope),
   rootTree(rootTree_),
-	rootScope(new Scope(nullptr, this, {}))
+	rootScope(new Scope(Scope::ScopeType::Root, nullptr, this, {}))
 {
 	Statement::List initialisers;
 
@@ -48,47 +48,23 @@ Engine::Engine(jit::GlobalScope& scope, const Statement::Ptr rootTree_):
 	{
 		for (auto c : st->childStatements)
 		{
-			if (auto as = c->getTyped<DefinitionBase>())
+			if (auto as = createScopeInitialiser(c, rootScope.get()))
+				initialisers.add(as);
+
+			if (auto tf = c->getTyped<TemplatedFunction>())
 			{
-				auto ok = as->allocateInScope(rootScope.get());
-
-				jassert(ok.wasOk());
-
-				if (ok.wasOk())
-					initialisers.add(as);
+				for (auto f : tf->childStatements)
+				{
+					if (auto df = createInterpretedFunction(f, rootScope.get(), false))
+						rootFunctions.add(df);
+				}
 			}
 
-			if (auto f = c->getTyped<Function>())
-			{
-				auto d = new DispatchData();
+			if (auto df = createInterpretedFunction(c, rootScope.get(), false))
+				rootFunctions.add(df);
 
-				d->functionData = f->fData;
-				d->functionScope = new Scope(rootScope.get(), this, f->fData.id);
-
-				for (const auto& a : f->fData.args)
-				{
-					auto result = d->functionScope->addSymbol(a, a.typeInfo.getRequiredByteSize(),
-						a.typeInfo.getRequiredAlignment());
-					jassert(result.wasOk());
-				}
-
-				auto result = d->functionScope->finalise();
-				bool validParameters = result.wasOk();
-				jassert(validParameters);
-
-				for (const auto& a : f->fData.args)
-				{
-					auto ptr = d->functionScope->getAddress(a.id.id, a.typeInfo.getRequiredByteSize());
-					validParameters &= ptr != nullptr;
-					d->parameterOffsets.push_back(ptr);
-				}
-
-				d->functionData.object = d;
-				d->functionData.function = validParameters ? DispatchData::getFromFunctionMap(d->getSigString()) : nullptr;
-				jassert(d->functionData.function != nullptr);
-				d->functionStatement = f;
-				dispatchData.add(d);
-			}
+			if (auto cs = createInterpretedClass(c, rootScope.get()))
+				classes.add(cs);
 		}
 	}
 
@@ -100,7 +76,6 @@ Engine::Engine(jit::GlobalScope& scope, const Statement::Ptr rootTree_):
 		s->resolveDataPointers(rootScope.get());
 		return false;
 	});
-
 
 	for (auto i : initialisers)
 		i->perform(rootScope.get(), nullptr);
@@ -114,7 +89,7 @@ Array<jit::NamespacedIdentifier> Engine::getFunctionIds() const
 {
 	Array<jit::NamespacedIdentifier> ids;
 
-	for (const auto& f : dispatchData)
+	for (const auto& f : rootFunctions)
 	{
 		ids.add(f->functionData.id);
 	}
@@ -124,13 +99,28 @@ Array<jit::NamespacedIdentifier> Engine::getFunctionIds() const
 
 jit::FunctionData Engine::getFunction(const jit::NamespacedIdentifier& functionId)
 {
-	for (const auto& f : dispatchData)
+	if (functionId.isExplicit())
 	{
-		if (f->functionData.id == functionId)
-			return f->functionData;
-	}
+		for (const auto& f : rootFunctions)
+		{
+			if (f->functionData.id == functionId)
+				return f->functionData;
+		}
 
-	return {};
+		return {};
+	}
+	else
+	{
+		for (auto c : classes)
+		{
+			auto fd = c->getFunction(functionId);
+
+			if (fd.id != NamespacedIdentifier())
+				return fd;
+		}
+
+		return {};
+	}
 }
 
 Array<jit::Symbol> Engine::getAllVariables() const
@@ -182,32 +172,117 @@ ValueTree Engine::getDataLayout(int dataIndex) const
 	return ValueTree();
 }
 
-String Engine::DispatchData::getSigString() const
+Engine::InterpretedFunction* Engine::createInterpretedFunction(Statement::Ptr s, Scope* scopeToUse, bool addThisPointer)
 {
-	String sig;
+	if (auto f = s->getTyped<nodes::Function>())
+	{
+		auto d = new InterpretedFunction();
 
-	auto getChar = [](const TypeInfo& t)
+		d->addThisPointer = addThisPointer;
+		d->functionData = f->fData;
+		d->functionScope = new Scope(Scope::ScopeType::Function, scopeToUse, this, f->fData.id);
+
+
+		if (addThisPointer)
 		{
-			switch (t.getType())
+			// Keep this first in the function scope: ThisPointer reads its object pointer from offset zero.
+			jit::Symbol thisObj({ d->functionData.id.getChildId("this"), TypeInfo(Types::ID::Pointer) });
+			d->functionScope->addSymbol(thisObj, thisObj.typeInfo.getRequiredByteSize(), thisObj.typeInfo.getRequiredAlignment());
+		}
+
+		for (const auto& a : f->fData.args)
+		{
+			auto result = d->functionScope->addSymbol(a, a.typeInfo.getRequiredByteSize(),
+				a.typeInfo.getRequiredAlignment());
+			jassert(result.wasOk());
+		}
+
+		if (auto st = f->childStatements[0]->getTyped<nodes::SyntaxTree>())
+		{
+			for (auto s : st->childStatements)
 			{
-			case Types::ID::Void:    return 'v';
-			case Types::ID::Integer: return 'i';
-			case Types::ID::Float:   return 'f';
-			case Types::ID::Double:  return 'd';
-			case Types::ID::Pointer: return 'p';
-			default:                 return '?';
+				createScopeInitialiser(s, d->functionScope);
 			}
-		};
+		}
 
-	sig << getChar(functionData.returnType);
+		auto result = d->functionScope->finalise();
+		bool validParameters = result.wasOk();
+		jassert(validParameters);
 
-	for (const auto& a : functionData.args)
-		sig << getChar(a.typeInfo);
+		if (addThisPointer)
+			d->parameterOffsets.push_back(d->functionScope->getDataPointer());
+		
+		for (const auto& a : f->fData.args)
+		{
+			auto ptr = d->functionScope->getAddress(a.id.id, a.typeInfo.getRequiredByteSize());
+			validParameters &= ptr != nullptr;
+			d->parameterOffsets.push_back(ptr);
+		}
 
-	return sig;
+		d->functionData.object = d;
+		d->functionData.function = validParameters ? InterpretedFunction::getFromFunctionMap(d->getSigString()) : nullptr;
+		jassert(d->functionData.function != nullptr);
+		d->functionStatement = f;
+		return d;
+	}
+
+	return nullptr;
 }
 
-void* Engine::DispatchData::getFromFunctionMap(const String& sig)
+Engine::InterpretedClass* Engine::createInterpretedClass(Statement::Ptr c, Scope* s)
+{
+	if (auto cs = c->getTyped<nodes::ClassStatement>())
+	{
+		InterpretedClass* newClass = new InterpretedClass();
+		newClass->classScope = new Scope(Scope::ScopeType::Class, s, this, cs->classType->id);
+
+		if (auto st = cs->childStatements[0]->getTyped<nodes::SyntaxTree>())
+		{
+			for (auto c : st->childStatements)
+			{
+				if (auto as = createScopeInitialiser(c, newClass->classScope))
+					newClass->initialisers.add(as);
+
+				if (auto df = createInterpretedFunction(c, newClass->classScope, true))
+					newClass->members.add(df);
+
+				if (auto cs = createInterpretedClass(c, newClass->classScope))
+					newClass->subclasses.add(cs);
+			}
+		}
+
+		newClass->classScope->finalise();
+
+		for (auto p : newClass->initialisers)
+			p->perform(newClass->classScope, nullptr);
+
+		return newClass;
+	}
+
+	return nullptr;
+}
+
+DefinitionBase* Engine::createScopeInitialiser(Statement::Ptr c, Scope* s)
+{
+	if (auto as = c->getTyped<DefinitionBase>())
+	{
+		auto ok = as->allocateInScope(s);
+
+		jassert(ok.wasOk());
+
+		if (ok.wasOk())
+			return as;
+	}
+
+	return nullptr;
+}
+
+String Engine::InterpretedFunction::getSigString() const
+{
+	return Statement::OpFunctions::getSigString(functionData, addThisPointer);
+}
+
+void* Engine::InterpretedFunction::getFromFunctionMap(const String& sig)
 {
 	static const std::map<String, void*> functionMap = []
 	{

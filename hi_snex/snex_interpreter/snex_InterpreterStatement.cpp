@@ -100,6 +100,34 @@ struct Statement::OpFunctions
 
 		return f;
 	}
+
+	static String getSigString(const jit::FunctionData& functionData, bool addThisPointer)
+	{
+		String sig;
+
+		auto getChar = [](const TypeInfo& t)
+		{
+			switch (t.getType())
+			{
+			case Types::ID::Void:    return 'v';
+			case Types::ID::Integer: return 'i';
+			case Types::ID::Float:   return 'f';
+			case Types::ID::Double:  return 'd';
+			case Types::ID::Pointer: return 'p';
+			default:                 return '?';
+			}
+		};
+
+		sig << getChar(functionData.returnType);
+
+		if (addThisPointer)
+			sig << 'p';
+
+		for (const auto& a : functionData.args)
+			sig << getChar(a.typeInfo);
+
+		return sig;
+	}
 };
 
 struct Statement::Helpers
@@ -124,6 +152,11 @@ struct Statement::Helpers
 	static UriLocation createUriLocation(Factory& f, const ValueTree& v)
 	{
 		return f.locationBuilder->createLocation((int)v[AstIds::charIndex]);
+	}
+
+	static NamespacedIdentifier getNamespacedIdentifier(const ValueTree& astNode, const Identifier& id)
+	{
+		return NamespacedIdentifier::fromString(astNode[id].toString());
 	}
 
 	static jit::Symbol getSymbol(Factory& f, const ValueTree& astNode, const Identifier& id = Identifier())
@@ -166,11 +199,9 @@ struct Statement::Helpers
 
 		return nullptr;
 	}
-
-	
-
-
 };
+
+
 
 } // namespace interpreter
 } // namespace snex
