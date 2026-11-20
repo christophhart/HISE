@@ -1339,9 +1339,12 @@ namespace ScriptingObjects
 			Font getComboBoxFont (ComboBox&) override { return getPopupMenuFont(); }
 			void positionComboBoxText (ComboBox& cb, Label& label) override
 			{
-				css.positionComboBoxText(cb, label);
+				CALL_LAF_ID("drawComboBox", positionComboBoxText, cb, label);
 			}
-			void drawComboBoxTextWhenNothingSelected (Graphics&, ComboBox&, Label&) override { }
+			void drawComboBoxTextWhenNothingSelected (Graphics& g, ComboBox& cb, Label& label) override
+			{
+				CALL_LAF_ID("drawComboBox", drawComboBoxTextWhenNothingSelected, g, cb, label);
+			}
 
 			
 
