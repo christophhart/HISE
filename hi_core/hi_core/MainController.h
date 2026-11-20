@@ -2325,7 +2325,12 @@ private:
 			while(pos != end)
 			{
 				auto c = *pos++;
-				normalisedLength += characterWidths[jlimit<uint8>(31, 128, c)];
+
+				// 32..126 are measured, 31 is zero (control characters), 127 holds the
+				// average width used for anything outside the table (non-ASCII glyphs).
+				const int index = c < 32 ? 31 : (c > 126 ? 127 : (int)c);
+
+				normalisedLength += characterWidths[index];
 				normalisedLength += kerning;
 			}
 
