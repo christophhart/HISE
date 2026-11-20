@@ -1821,6 +1821,13 @@ struct HiSlider::HoverPopup: public Component,
 void HiSlider::ModUpdater::onExclusiveSourceSelection(ModUpdater& mu, int index)
 {
 	auto& slider = mu.parent;
+
+	// The hover popup attaches to the slider's parent component, so don't build it if the slider
+	// isn't in a component hierarchy yet (e.g. during preset load) - that would dereference a null
+	// parent in the HoverPopup constructor.
+	if(slider.getParentComponent() == nullptr)
+		return;
+
 	auto matrixData = MatrixIds::Helpers::getMatrixDataFromGlobalContainer(slider.getProcessor()->getMainController());
 	auto targetId = slider.getProcessor()->getModulationTargetId(slider.getParameter());
 	auto hasConnection = MatrixIds::Helpers::getConnection(matrixData, index, targetId).isValid();
