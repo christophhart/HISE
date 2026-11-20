@@ -839,6 +839,10 @@ public:
 		juce::SharedResourcePointer<hise::ScriptComponentPropertyTypeSelector> selectorTypes;
 #endif
 
+	protected:
+
+		void sendValueListenerMessage();
+
 	private:
 
 		enum class AllCatchBehaviour
@@ -849,8 +853,6 @@ public:
 		};
 
 		int pseudoState = 0;
-
-		void sendValueListenerMessage();
 
 		var localLookAndFeel;
 

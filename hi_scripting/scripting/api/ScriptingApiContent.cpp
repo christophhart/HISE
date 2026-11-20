@@ -3868,6 +3868,7 @@ void ScriptingApi::Content::ScriptSliderPack::onComplexDataEvent(ComplexDataUIUp
 void ScriptingApi::Content::ScriptSliderPack::changed()
 {
 	getScriptProcessor()->controlCallback(this, value);
+	sendValueListenerMessage();
 }
 
 juce::var ScriptingApi::Content::ScriptSliderPack::getDataAsBuffer()
