@@ -570,6 +570,22 @@ void complex_ui_laf::drawFlexAhdsrPosition(Graphics& g, flex_ahdsr_base::FlexAhd
 	g.strokePath(graph.fullPath, PathStrokeType(3.0f));
 }
 
+void complex_ui_laf::drawFlexAhdsrBall(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph,
+	flex_ahdsr_base::State s, Point<float> pointOnPath)
+{
+	if(s == flex_ahdsr_base::State::SUSTAIN || s == flex_ahdsr_base::State::IDLE)
+		return;
+
+	LODManager::LODGraphics lg(g, graph);
+
+	if (lg.drawFullDetails())
+	{
+		g.setColour(getNodeColour(&graph).withAlpha(1.0f));
+		Rectangle<float> a(pointOnPath, pointOnPath);
+		g.fillEllipse(a.withSizeKeepingCentre(6.0f, 6.0f));
+	}
+}
+
 void complex_ui_laf::drawFlexAhdsrSegment(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph,
 	flex_ahdsr_base::State s, const Path& segment, bool hover, bool active)
 {
@@ -595,6 +611,18 @@ void complex_ui_laf::drawFlexAhdsrCurvePoint(Graphics& g, flex_ahdsr_base::FlexA
 		margin -= 1.0f;
 
 	g.fillEllipse(curvePoint.x - margin * 0.5f, curvePoint.y - margin * 0.5f, margin, margin);
+}
+
+void complex_ui_laf::drawFlexAhdsrDragPoint(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph,
+	flex_ahdsr_base::State s, Point<float> dragPoint, bool hover, bool down)
+{
+	g.setColour(getNodeColour(&graph));
+	auto margin = hover ? 10.0f : 7.0f;
+
+	if (down)
+		margin -= 1.0f;
+
+	g.drawRect(dragPoint.x - margin * 0.5f, dragPoint.y - margin * 0.5f, margin, margin);
 }
 
 }
