@@ -1211,7 +1211,7 @@ TextEditor::Error::Error(TextDocument& doc_, const UriError& location):
 	document(doc_),
 	originalError(location)
 {
-	Point<int> s(location.line - 1, location.col);
+	Point<int> s(location.line - 1, location.col-1);
 	auto e = s;
 
 	document.navigate(s, TextDocument::Target::cppToken, TextDocument::Direction::backwardCol);

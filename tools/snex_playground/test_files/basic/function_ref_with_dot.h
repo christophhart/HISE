@@ -5,7 +5,7 @@ BEGIN_TEST_DATA
   args: int
   input: 12
   output: 12
-  error: "Line 32(11): Can't use rvalues for reference parameters"
+  error: "Line 32(10): Can't use rvalues for reference parameters"
   filename: "basic/function_ref_with_dot"
 END_TEST_DATA
 */

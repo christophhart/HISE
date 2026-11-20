@@ -40,7 +40,7 @@ USE_ASMJIT_NAMESPACE;
 
 snex::jit::BlockParser::StatementPtr CodeParser::parseStatementToBlock()
 {
-	if (matchIf(JitTokens::openBrace))
+	if (matchesWithoutSkip(JitTokens::openBrace))
 	{
 		return parseStatementBlock();
 	}
@@ -55,18 +55,20 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseStatementToBlock()
 
 snex::jit::BlockParser::StatementPtr CodeParser::parseStatementBlock()
 {
+	auto blockLocation = matchAndReturnLocation(JitTokens::openBrace);
+
 	auto parentPath = getCurrentScopeStatement()->getPath();
 	auto scopePath = compiler->namespaceHandler.getCurrentNamespaceIdentifier();
 
 	if (parentPath == scopePath)
-		scopePath = compiler->namespaceHandler.createNonExistentIdForLocation(parentPath, location.getLine());
+		scopePath = compiler->namespaceHandler.createNonExistentIdForLocation(parentPath, blockLocation.getLine());
 
-	location.calculateLineIfEnabled(compiler->namespaceHandler.shouldCalculateNumbers());
-	auto startPos = location.getXYPosition();
+	blockLocation.calculateLineIfEnabled(compiler->namespaceHandler.shouldCalculateNumbers());
+	auto startPos = blockLocation.getXYPosition();
 
 	NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, scopePath);
 
-	ScopedPointer<Operations::StatementBlock> b = new Operations::StatementBlock(location, scopePath);
+	ScopedPointer<Operations::StatementBlock> b = new Operations::StatementBlock(blockLocation, scopePath);
 
 	b->setParentScopeStatement(getCurrentScopeStatement());
 
@@ -82,10 +84,10 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseStatementBlock()
 
 	CommentAttacher ca(*this);
 
-	location.calculateLineIfEnabled(compiler->namespaceHandler.shouldCalculateNumbers());
-	compiler->namespaceHandler.setNamespacePosition(scopePath, startPos, location.getXYPosition(), ca.getInfo());
+	auto closeLocation = matchAndReturnLocation(JitTokens::closeBrace);
 
-	match(JitTokens::closeBrace);
+	closeLocation.calculateLineIfEnabled(compiler->namespaceHandler.shouldCalculateNumbers());
+	compiler->namespaceHandler.setNamespacePosition(scopePath, startPos, closeLocation.getXYPosition(), ca.getInfo());
 
 	return b.release();
 }
@@ -117,19 +119,19 @@ BlockParser::StatementPtr CodeParser::parseStatement(bool mustHaveSemicolon)
 		return parseStatement();
 	}
 
-	if (matchIf(JitTokens::if_))
+	if (matchesWithoutSkip(JitTokens::if_))
 		return(parseIfStatement());
-	else if (matchIf(JitTokens::openBrace))
+	else if (matchesWithoutSkip(JitTokens::openBrace))
 		return matchIfSemicolonAndReturn(parseStatementBlock());
-	else if (matchIf(JitTokens::return_))
+	else if (matchesWithoutSkip(JitTokens::return_))
 		return matchSemicolonAndReturn(parseReturnStatement(), mustHaveSemicolon);
-	else if (matchIf(JitTokens::break_))
-		return matchSemicolonAndReturn(new Operations::ControlFlowStatement(location, true), mustHaveSemicolon);
-	else if (matchIf(JitTokens::continue_))
-		return matchSemicolonAndReturn(new Operations::ControlFlowStatement(location, false), mustHaveSemicolon);
-	else if (matchIf(JitTokens::while_))
+	else if (matchesWithoutSkip(JitTokens::break_))
+		return matchSemicolonAndReturn(new Operations::ControlFlowStatement(matchAndReturnLocation(JitTokens::break_), true), mustHaveSemicolon);
+	else if (matchesWithoutSkip(JitTokens::continue_))
+		return matchSemicolonAndReturn(new Operations::ControlFlowStatement(matchAndReturnLocation(JitTokens::continue_), false), mustHaveSemicolon);
+	else if (matchesWithoutSkip(JitTokens::while_))
 		return parseWhileLoop();
-	else if (matchIf(JitTokens::for_))
+	else if (matchesWithoutSkip(JitTokens::for_))
 		return parseLoopStatement();
 
 	if (matchIfType({}))
@@ -145,12 +147,12 @@ BlockParser::StatementPtr CodeParser::parseStatement(bool mustHaveSemicolon)
 
 BlockParser::StatementPtr CodeParser::parseReturnStatement()
 {
-	ExprPtr rt;
+	auto l = matchAndReturnLocation(JitTokens::return_);
 
 	if (currentType == JitTokens::semicolon)
-		return new Operations::ReturnStatement(location, nullptr);
+		return new Operations::ReturnStatement(l, nullptr);
 	else
-		return new Operations::ReturnStatement(location, parseExpression());
+		return new Operations::ReturnStatement(l, parseExpression());
 
 }
 
@@ -223,6 +225,8 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseVariableDefinition()
 
 snex::jit::BlockParser::StatementPtr CodeParser::parseLoopStatement()
 {
+	auto forLocation = matchAndReturnLocation(JitTokens::for_);
+
 	match(JitTokens::openParen);
 
 	matchType({});
@@ -274,12 +278,12 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseLoopStatement()
 	match(JitTokens::closeParen);
 	auto body = parseStatementToBlock();
 
-	return new Operations::WhileLoop(location, initAssignment, condition, body, postOp);
+	return new Operations::WhileLoop(forLocation, initAssignment, condition, body, postOp);
 }
 
 snex::jit::BlockParser::StatementPtr CodeParser::parseWhileLoop()
 {
-	auto loc = location;
+	auto whileLocation = matchAndReturnLocation(JitTokens::while_);
 
 	match(JitTokens::openParen);
 
@@ -289,12 +293,12 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseWhileLoop()
 
 	auto body = parseStatement();
 
-	return new Operations::WhileLoop(loc, cond, body);
+	return new Operations::WhileLoop(whileLocation, cond, body);
 }
 
 snex::jit::BlockParser::StatementPtr CodeParser::parseIfStatement()
 {
-	auto loc = location;
+	auto loc = matchAndReturnLocation(JitTokens::if_);
 	match(JitTokens::openParen);
 
 	ExprPtr cond = parseBool();
@@ -382,15 +386,17 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseAssignment()
 {
 	ExprPtr left = parseExpression();
 
+	auto loc = location;
+
 	if (matchIfAssignmentType())
 	{
 		auto t = currentAssignmentType;
 		ExprPtr right = parseExpression();
 
 		if(isVectorOp(t, left))
-			return new Operations::VectorOp(location, left, t, right);
+			return new Operations::VectorOp(loc, left, t, right);
 		else
-			return new Operations::Assignment(location, left, t, right, false);
+			return new Operations::Assignment(loc, left, t, right, false);
 	}
 
 	return left;

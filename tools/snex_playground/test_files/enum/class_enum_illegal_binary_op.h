@@ -5,7 +5,7 @@ BEGIN_TEST_DATA
   args: int
   input: 12
   output: 12
-  error: "Line 20(22): Can't implicitely cast MyEnum::First to int"
+  error: "Line 20(8): Can't implicitely cast MyEnum::First to int"
   filename: "enum/class_enum_illegal_binary_op"
 END_TEST_DATA
 */

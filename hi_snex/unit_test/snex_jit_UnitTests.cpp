@@ -1211,7 +1211,7 @@ private:
 			FINALIZE_CODE();
 
 			CREATE_TYPED_TEST(code);
-			EXPECT_COMPILE_FAIL("Line 3(17): constant index out of bounds");
+			EXPECT_COMPILE_FAIL("Line 3(16): constant index out of bounds");
 
 		}
 

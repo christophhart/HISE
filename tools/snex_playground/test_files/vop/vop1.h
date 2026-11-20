@@ -5,7 +5,7 @@ BEGIN_TEST_DATA
   args: int
   input: 12
   output: 12
-  error: "Line 18(19): %: illegal operation for vectors"
+  error: "Line 18(13): %: illegal operation for vectors"
   filename: "vop/vop1"
 END_TEST_DATA
 */

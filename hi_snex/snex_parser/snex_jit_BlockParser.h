@@ -251,7 +251,7 @@ public:
 
 	void parseEnum();
 
-	ExprPtr createBinaryNode(ExprPtr l, ExprPtr r, TokenType op);
+	ExprPtr createBinaryNode(ExprPtr l, ExprPtr r, std::pair<ParserHelpers::CodeLocation, TokenType> op);
 	virtual ExprPtr parseExpression();
 	ExprPtr parseTernaryOperator();
 	ExprPtr parseBool();

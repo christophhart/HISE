@@ -331,6 +331,20 @@ struct ParserHelpers
 
 		bool isEOF() const { return currentType == JitTokens::eof; }
 
+		std::pair<CodeLocation, TokenType> matchAndReturnLocationAndToken(TokenType expected)
+		{
+			return { matchAndReturnLocation(expected), expected };
+		}
+
+		CodeLocation matchAndReturnLocation(TokenType expected)
+		{
+			auto prev = location;
+			match(expected);
+			return prev;
+		}
+
+		bool matchesWithoutSkip(TokenType expected) const { return currentType == expected; }
+
 		bool matchIf(TokenType expected) { if (currentType == expected) { skip(); return true; } return false; }
 		bool matchesAny(TokenType t1, TokenType t2) const { return currentType == t1 || currentType == t2; }
 		bool matchesAny(TokenType t1, TokenType t2, TokenType t3) const { return matchesAny(t1, t2) || currentType == t3; }

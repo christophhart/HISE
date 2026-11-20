@@ -260,7 +260,7 @@ TypeInfo Operations::Expression::setTypeForChild(int childIndex, TypeInfo expect
 		
 			
 
-		e->logWarning("Implicit cast, possible lost of data");
+		e->logWarning("Implicit cast, possible loss of data");
 
 		if (e->isConstExpr())
 		{

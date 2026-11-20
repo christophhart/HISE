@@ -5,7 +5,7 @@ BEGIN_TEST_DATA
   args: int
   input: 12
   output: 12
-  error: "Line 21(11): Can't access outer member from inner class"
+  error: "Line 21(10): Can't access outer member from inner class"
   filename: "struct/outer_member_access"
 END_TEST_DATA
 */

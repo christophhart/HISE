@@ -20,12 +20,12 @@ TypeInfo BlockParser::getDotParentType(ExprPtr e, bool allowFunctionCallObjectEx
 	return {};
 }
 
-BlockParser::ExprPtr BlockParser::createBinaryNode(ExprPtr l, ExprPtr r, TokenType op)
+BlockParser::ExprPtr BlockParser::createBinaryNode(ExprPtr l, ExprPtr r, std::pair<ParserHelpers::CodeLocation, TokenType> op)
 {
-	if (isVectorOp(op, l, r))
-		return new Operations::VectorOp(location, l, op, r);
+	if (isVectorOp(op.second, l, r))
+		return new Operations::VectorOp(op.first, l, op.second, r);
 	else
-		return new Operations::BinaryOp(location, l, r, op);
+		return new Operations::BinaryOp(op, l, r);
 }
 
 BlockParser::StatementPtr BlockParser::parseStatementList()
@@ -721,15 +721,19 @@ BlockParser::ExprPtr BlockParser::parseLogicOperation()
 {
 	ExprPtr left = parseComparation();
 
-	if (matchIf(JitTokens::logicalAnd))
+
+
+	if (matchesWithoutSkip(JitTokens::logicalAnd))
 	{
+		auto op = matchAndReturnLocationAndToken(currentType);
 		ExprPtr right = parseLogicOperation();
-		return new Operations::BinaryOp(location, left, right, JitTokens::logicalAnd);
+		return new Operations::BinaryOp(op, left, right);
 	}
-	else if (matchIf(JitTokens::logicalOr))
+	else if (matchesWithoutSkip(JitTokens::logicalOr))
 	{
+		auto op = matchAndReturnLocationAndToken(currentType);
 		ExprPtr right = parseLogicOperation();
-		return new Operations::BinaryOp(location, left, right, JitTokens::logicalOr);
+		return new Operations::BinaryOp(op, left, right);
 	}
 	else
 		return left;
@@ -751,10 +755,9 @@ BlockParser::ExprPtr BlockParser::parseComparation()
 		if (isParsingTemplateArgument)
 			return left;
 
-		TokenType op = currentType;
-		skip();
+		auto op = matchAndReturnLocationAndToken(currentType);
 		ExprPtr right = parseSum();
-		return new Operations::Compare(location, left, right, op);
+		return new Operations::Compare(op.first, left, right, op.second);
 	}
 	else
 		return left;
@@ -767,7 +770,7 @@ BlockParser::ExprPtr BlockParser::parseSum()
 
 	if (currentType == JitTokens::plus)
 	{
-		TokenType op = currentType;		  skip();
+		auto op = matchAndReturnLocationAndToken(currentType);
 		ExprPtr right(parseSum());
 		return createBinaryNode(left, right, op);
 	}
@@ -784,8 +787,7 @@ BlockParser::ExprPtr BlockParser::parseProduct()
 		   currentType == JitTokens::divide ||
 		   currentType == JitTokens::modulo)
 	{
-		TokenType op = currentType;
-		skip();
+		auto op = matchAndReturnLocationAndToken(currentType);
 		ExprPtr right(parseTerm());
 		left = createBinaryNode(left, right, op);
 	}
@@ -801,7 +803,7 @@ BlockParser::ExprPtr BlockParser::parseDifference()
 
 	if (currentType == JitTokens::minus)
 	{
-		TokenType op = currentType;		  skip();
+		auto op = matchAndReturnLocationAndToken(currentType);
 		ExprPtr right(parseDifference());
 		return createBinaryNode(left, right, op);
 	}
@@ -987,6 +989,8 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 
 	bool found = false;
 	auto r = Result::ok();
+
+	auto functionLocation = location;
 
 	Array<TemplateParameter> templateParameters;
 
@@ -1180,7 +1184,7 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 
 		
 
-		auto f = new FunctionCall(location, p, fSymbol, templateParameters);
+		auto f = new FunctionCall(functionLocation, p, fSymbol, templateParameters);
 
 		while (!isEOF() && currentType != JitTokens::closeParen)
 		{
@@ -1318,7 +1322,7 @@ BlockParser::ExprPtr BlockParser::parseReference(bool mustBeResolvedAtCompileTim
 		location.throwError("Can't use this pointer outside of class method");
 	}
 
-	
+	auto varLocation = location;
 
 	if (mustBeResolvedAtCompileTime)
 		parseExistingSymbol();
@@ -1333,11 +1337,11 @@ BlockParser::ExprPtr BlockParser::parseReference(bool mustBeResolvedAtCompileTim
 		if (tp.argumentId == currentSymbol.id)
 		{
 			jassert(tp.constantDefined);
-			return new Operations::Immediate(location, VariableStorage(tp.constant));
+			return new Operations::Immediate(varLocation, VariableStorage(tp.constant));
 		}
 	}
 
-	return new Operations::VariableReference(location, getCurrentSymbol());
+	return new Operations::VariableReference(varLocation, getCurrentSymbol());
 }
 
 BlockParser::ExprPtr BlockParser::parseLiteral(bool isNegative)

@@ -43,9 +43,9 @@ struct Operations::BinaryOp : public Expression
 {
 	SET_EXPRESSION_ID(BinaryOp);
 
-	BinaryOp(Location l, Expression::Ptr left, Expression::Ptr right, TokenType opType) :
-		Expression(l),
-		op(opType)
+	BinaryOp(std::pair<Location, TokenType> locationAndToken, Expression::Ptr left, Expression::Ptr right) :
+		Expression(locationAndToken.first),
+		op(locationAndToken.second)
 	{
 		addStatement(left);
 		addStatement(right);
@@ -56,7 +56,7 @@ struct Operations::BinaryOp : public Expression
 		auto c1 = getSubExpr(0)->clone(l);
 		auto c2 = getSubExpr(1)->clone(l);
 
-		return new BinaryOp(l, c1, c2, op);
+		return new BinaryOp({ l, op }, c1, c2);
 	}
 
 	ValueTree toValueTree() const override
