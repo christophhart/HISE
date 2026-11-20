@@ -505,7 +505,9 @@ public:
 		MoreButtonBounds,
 		FavoriteButtonBounds,
     FullPathFavorites,
+    FullPathSearch,
     FavoriteIconOffset,
+		ShowExpansionEditButtons,
 		numSpecialProperties
 	};
 
