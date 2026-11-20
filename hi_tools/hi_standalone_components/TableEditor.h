@@ -214,9 +214,20 @@ public:
 		int endPointSize = 20;
 		float margin = 0.0f;
 		bool closePath = true;
+
+		// The cursors default to the previous behaviour (normal arrow on drag points,
+		// dragging hand on mid points) so existing tables keep their look.
+		MouseCursor::StandardCursorType dragPointCursor = MouseCursor::NormalCursor;
+		MouseCursor::StandardCursorType midPointCursor = MouseCursor::DraggingHandCursor;
 	};
 
 	void setMouseDragProperties(const var& obj);;
+
+	/** Sets the cursor shown when hovering a draggable table point. */
+	void setDragPointCursor(MouseCursor::StandardCursorType c) { dragProperties.dragPointCursor = c; }
+
+	/** Sets the cursor shown when hovering a curve mid point handle. */
+	void setMidPointCursor(MouseCursor::StandardCursorType c) { dragProperties.midPointCursor = c; }
 
     void setDrawTableValueLabel(bool shouldBeDisplayed);
 

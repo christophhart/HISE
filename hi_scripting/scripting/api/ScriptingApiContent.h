@@ -1466,6 +1466,8 @@ public:
 		{
 			TableIndex = ScriptComponent::Properties::numProperties,
 			customColours,
+			dragPointCursor,
+			midPointCursor,
 			numProperties
 		};
 
@@ -1481,6 +1483,7 @@ public:
 		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 		void handleDefaultDeactivatedProperties() override;
+		StringArray getOptionsFor(const Identifier &id) override;
 
 		void resetValueToDefault() override;
 
