@@ -1183,7 +1183,12 @@ void ScriptingApi::Content::ScriptComponent::AsyncControlCallbackSender::handleA
 			if(cachedParameterIndex == -1)
 				cachedParameterIndex = p->getScriptingContent()->getComponentIndex(parent);
 
-			dynamic_cast<Processor*>(p)->setAttribute(cachedParameterIndex, value, dispatch::sendNotificationSync);
+			// Child panels (addChildPanel) are not in the content component list so the index
+			// will be -1. Fall back to a direct controlCallback call for those.
+			if(cachedParameterIndex != -1)
+				dynamic_cast<Processor*>(p)->setAttribute(cachedParameterIndex, value, dispatch::sendNotificationSync);
+			else
+				p->controlCallback(parent, v);
 		}
 		else
 		{
