@@ -441,6 +441,7 @@ private:
 	RowContent parseTableRow();
 	bool isJavascriptBlock() const;
 	bool isImageLink() const;
+	bool isEnumeration() const;
 	void addCharacterToCurrentBlock(juce_wchar c);
 	void resetCurrentBlock();
 	void skipTagAndTrailingSpace();
