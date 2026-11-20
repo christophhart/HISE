@@ -34,19 +34,24 @@ struct VariableReference : public Expression
 	VariableReference(Factory& f, const ValueTree& v) :
 		Expression(f, v),
 		symbol(Helpers::getSymbol(f, v)),
-		f(OpFunctions::createDataFunctions(symbol.typeInfo))
+		f(OpFunctions::Data::getFunctionPtr(symbol.typeInfo))
 	{};
+
+	OpFunctions::Data::Address getAddress(Scope* s)
+	{
+		return { resolvedScope->getDataPointer(), resolvedOffset };
+	}
 
 	void assign(Scope* s, const VariableStorage& value) override
 	{
 		if (resolvedScope != nullptr && f.second != nullptr)
-			f.second(resolvedScope->getDataPointer(), resolvedOffset, value);
+			f.second(getAddress(s), value);
 	}
 
 	VariableStorage getResult(Scope* s) override
 	{
 		if (resolvedScope != nullptr && f.first != nullptr)
-			return f.first(resolvedScope->getDataPointer(), resolvedOffset);
+			return f.first(getAddress(s));
 
 		jassertfalse;
 		return {};
@@ -79,7 +84,7 @@ struct VariableReference : public Expression
 	Scope::Ptr resolvedScope;
 	size_t resolvedOffset = 0;
 	jit::Symbol symbol;
-	OpFunctions::DataFunctions f;
+	OpFunctions::Data::Functions f;
 };
 
 struct Assignment : public DefinitionBase
@@ -90,13 +95,27 @@ struct Assignment : public DefinitionBase
 		DefinitionBase(f, v),
 		value(Helpers::getChildExpression(this, 0)),
 		target(Helpers::getChildExpression(this, 1)),
-		isDefinition((bool)v[AstIds::First] && target->getTyped<VariableReference>())
+		assignmentType(Helpers::getOpType(v, AstIds::AssignmentType)),
+		isDefinition((bool)v[AstIds::First] && target->getTyped<VariableReference>()),
+		f(OpFunctions::BinaryOp::getFunctionPtr(value->getTypeInfo(), assignmentType))
 	{};
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue) override
 	{
-		auto v = value->getResult(s);
-		target->assign(s, v);
+		if (f == nullptr)
+		{
+			auto v = value->getResult(s);
+			target->assign(s, v);
+		}
+		else
+		{
+			auto l = target->getResult(s);
+			auto r = value->getResult(s);
+
+			auto v = f(l, r);
+			target->assign(s, v);
+		}
+
 		return ResultCode::ok;
 	}
 
@@ -129,12 +148,13 @@ struct Assignment : public DefinitionBase
 		return Result::fail("not a definition");
 	}
 
-	
+	juce_wchar assignmentType;
 
 	Expression::ExprPtr value;
 	Expression::ExprPtr target;
-
 	const bool isDefinition;
+
+	OpFunctions::BinaryOp::Function f;
 };
 
 struct ComplexTypeDefinition : public DefinitionBase
@@ -237,7 +257,7 @@ struct Dot : public Expression
 	  dotParent(Helpers::getChildExpression(this, 0)),
 	  dotChild(Helpers::getChildExpression(this, 1)->getTyped<VariableReference>()),
 	  type(Helpers::getType(f, v, AstIds::MemberType)),
-	  df(OpFunctions::createDataFunctions(type))
+	  df(OpFunctions::Data::getFunctionPtr(type))
 	{
 		jassert(dotChild != nullptr);
 	}
@@ -246,22 +266,25 @@ struct Dot : public Expression
 
 	VariableStorage getResult(Scope* s)
 	{
+		return df.first(getAddress(s));
+	}
+
+	OpFunctions::Data::Address getAddress(Scope* s)
+	{
 		auto base = (void*)dotParent->getResult(s);
 		auto offset = dotChild->resolvedOffset;
-		return df.first(base, offset);
+		return { base, offset };
 	}
 
 	void assign(Scope* s, const VariableStorage& v) override
 	{
-		auto base = (void*)dotParent->getResult(s);
-		auto offset = dotChild->resolvedOffset;
-		df.second(base, offset, v);
+		df.second(getAddress(s), v);
 	}
 
 	ExprPtr dotParent;
 	VariableReference* dotChild;
 	TypeInfo type;
-	OpFunctions::DataFunctions df;
+	OpFunctions::Data::Functions df;
 };
 
 struct ThisPointer : public Expression

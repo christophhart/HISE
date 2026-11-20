@@ -139,7 +139,7 @@ struct ReturnStatement : public Statement
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue) override
 	{
-		throwRuntimeError("test error");
+		
 		
 		if (returnValue != nullptr && value != nullptr)
 			*returnValue = value->getResult(s);

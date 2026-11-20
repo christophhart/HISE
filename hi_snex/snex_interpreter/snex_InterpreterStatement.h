@@ -68,7 +68,8 @@ struct Statement : public ReferenceCountedObject
 	struct OpFunctions;
 
 	Statement(Factory& f, const ValueTree& astNode_) :
-	  astNode(astNode_)
+	  astNode(astNode_),
+	  locationBuilder(f.locationBuilder)
 	{
 		for (auto& c : astNode_)
 		{
@@ -129,6 +130,7 @@ struct Statement : public ReferenceCountedObject
 
 	WeakPtr parent;
 	List childStatements;
+	UriLocationBuilder::Ptr locationBuilder;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(Statement);
 };

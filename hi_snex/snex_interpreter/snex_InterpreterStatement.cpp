@@ -47,59 +47,151 @@ Statement::Ptr Statement::Factory::create(const ValueTree& v)
 
 struct Statement::OpFunctions
 {
-	typedef VariableStorage(*ReadFunction)(void*, size_t);
-	typedef void(*WriteFunction)(void*, size_t, const VariableStorage&);
-
-	using DataFunctions = std::pair<ReadFunction, WriteFunction>;
-
-	template <typename T> static VariableStorage readStatic(void* data, size_t offset)
+	struct BinaryOp
 	{
-		auto ptr = reinterpret_cast<uint8*>(data) + offset;
+		typedef VariableStorage(*Function)(const VariableStorage&, const VariableStorage&);
 
-		if constexpr (std::is_same<void*, T>())
-			return VariableStorage(reinterpret_cast<void*>(ptr));
-		else
-			return VariableStorage(*reinterpret_cast<T*>(ptr));
-	}
-
-	template <typename T> static void writeStatic(void* data, size_t offset, const VariableStorage& value)
-	{
-		static constexpr auto TID = Types::Helpers::getTypeFromTypeId<T>();
-
-		auto ptr = reinterpret_cast<uint8*>(data) + offset;
-
-		T v = value.template toType<TID>();
-		*reinterpret_cast<T*>(ptr) = v;
-	}
-
-	static DataFunctions createDataFunctions(const TypeInfo& t)
-	{
-		DataFunctions f;
-
-		switch (t.getType())
+		static Function getFunctionPtr(const TypeInfo& t, juce_wchar opMode)
 		{
-		case Types::ID::Integer:
-			f.first = readStatic<int>;
-			f.second = writeStatic<int>;
-			break;
-		case Types::ID::Float:
-			f.first = readStatic<float>;
-			f.second = writeStatic<float>;
-			break;
-		case Types::ID::Double:
-			f.first = readStatic<double>;
-			f.second = writeStatic<double>;
-			break;
-		case Types::ID::Pointer:
-			f.first = readStatic<void*>;
-			f.second = writeStatic<void*>;
-			break;
-		default:
+			if (opMode == '=')
+				return nullptr;
+
+			auto opType = t.getType();
+
+			if (opType == Types::ID::Integer)
+			{
+				switch (opMode)
+				{
+				case '+': return opFunction<Types::ID::Integer, '+'>;
+				case '*': return opFunction<Types::ID::Integer, '*'>;
+				case '-': return opFunction<Types::ID::Integer, '-'>;
+				case '/': return opFunction<Types::ID::Integer, '/'>;
+				}
+			}
+			if (opType == Types::ID::Double)
+			{
+				switch (opMode)
+				{
+				case '+': return opFunction<Types::ID::Double, '+'>;
+				case '*': return opFunction<Types::ID::Double, '*'>;
+				case '-': return opFunction<Types::ID::Double, '-'>;
+				case '/': return opFunction<Types::ID::Double, '/'>;
+				}
+			}
+			if (opType == Types::ID::Float)
+			{
+				switch (opMode)
+				{
+				case '+': return opFunction<Types::ID::Float, '+'>;
+				case '*': return opFunction<Types::ID::Float, '*'>;
+				case '-': return opFunction<Types::ID::Float, '-'>;
+				case '/': return opFunction<Types::ID::Float, '/'>;
+				}
+			}
+
 			jassertfalse;
+			return nullptr;
 		}
 
-		return f;
-	}
+	private:
+
+		template <Types::ID T, char OpType> static VariableStorage opFunction(const VariableStorage& v1, const VariableStorage& v2)
+		{
+			switch (OpType)
+			{
+			case '+': return VariableStorage(v1.toType<T>() + v2.toType<T>());
+			case '*': return VariableStorage(v1.toType<T>() * v2.toType<T>());
+			case '-': return VariableStorage(v1.toType<T>() - v2.toType<T>());
+			case '/': return VariableStorage(v1.toType<T>() / v2.toType<T>());
+			}
+		}
+	};
+
+	struct Cast
+	{
+		typedef VariableStorage(*Function)(const VariableStorage&);
+
+		Function static getFunctionPtr(const TypeInfo& t)
+		{
+			switch (t.getType())
+			{
+			case Types::ID::Integer: return castStatic<Types::ID::Integer>;
+			case Types::ID::Double:  return castStatic<Types::ID::Double>;
+			case Types::ID::Float:   return castStatic<Types::ID::Float>;
+			default:				 jassertfalse; return {};
+			}
+		}
+
+	private:
+
+		template <Types::ID TargetType> static VariableStorage castStatic(const VariableStorage& source)
+		{
+			return VariableStorage(source.template toType<TargetType>());
+		}
+	};
+
+	struct Data
+	{
+		using Address = std::pair<void*, size_t>;
+		typedef VariableStorage(*ReadFunction)(Address);
+		typedef void(*WriteFunction)(Address, const VariableStorage&);
+		using Functions = std::pair<ReadFunction, WriteFunction>;
+
+		static Functions getFunctionPtr(const TypeInfo& t)
+		{
+			Functions f;
+
+			switch (t.getType())
+			{
+			case Types::ID::Integer:
+				f.first = readStatic<int>;
+				f.second = writeStatic<int>;
+				break;
+			case Types::ID::Float:
+				f.first = readStatic<float>;
+				f.second = writeStatic<float>;
+				break;
+			case Types::ID::Double:
+				f.first = readStatic<double>;
+				f.second = writeStatic<double>;
+				break;
+			case Types::ID::Pointer:
+				f.first = readStatic<void*>;
+				f.second = writeStatic<void*>;
+				break;
+			default:
+				jassertfalse;
+			}
+
+			return f;
+		}
+
+	private:
+
+		template <typename T> static VariableStorage readStatic(Address d)
+		{
+			auto [data, offset] = d;
+			auto ptr = reinterpret_cast<uint8*>(data) + offset;
+
+			if constexpr (std::is_same<void*, T>())
+				return VariableStorage(reinterpret_cast<void*>(ptr));
+			else
+				return VariableStorage(*reinterpret_cast<T*>(ptr));
+		}
+
+		template <typename T> static void writeStatic(Address d, const VariableStorage& value)
+		{
+			auto [data, offset] = d;
+			static constexpr auto TID = Types::Helpers::getTypeFromTypeId<T>();
+
+			auto ptr = reinterpret_cast<uint8*>(data) + offset;
+
+			T v = value.template toType<TID>();
+			*reinterpret_cast<T*>(ptr) = v;
+		}
+	};
+
+	
 
 	static String getSigString(const jit::FunctionData& functionData, bool addThisPointer)
 	{
@@ -149,9 +241,9 @@ struct Statement::Helpers
 		d.data->setProperty("typeInfo", ti.get());
 	}
 
-	static UriLocation createUriLocation(Factory& f, const ValueTree& v)
+	static UriLocation createUriLocation(UriLocationBuilder::Ptr builder, const ValueTree& v)
 	{
-		return f.locationBuilder->createLocation((int)v[AstIds::charIndex]);
+		return builder->createLocation((int)v[AstIds::charIndex]);
 	}
 
 	static NamespacedIdentifier getNamespacedIdentifier(const ValueTree& astNode, const Identifier& id)
@@ -168,6 +260,12 @@ struct Statement::Helpers
 		s.typeInfo = p.getTypeInfo();
 		s.id = p.parseNamespacedIdentifier();
 		return s;
+	}
+
+	static juce_wchar getOpType(const ValueTree& astNode, const Identifier& id = Identifier())
+	{
+		auto idToUse = id.isValid() ? id : AstIds::OpType;
+		return astNode[idToUse].toString()[0];
 	}
 
 	static TypeInfo getType(Factory& f, const ValueTree& astNode, const Identifier& id = Identifier())
@@ -203,17 +301,11 @@ struct Statement::Helpers
 
 struct Statement::BlockExecutor
 {
-	struct StatementError
-	{
-		Statement* s;
-		String errorMessage;
-	};
-
 	BlockExecutor(Factory& f, Statement& parent_) :
 		parent(parent_)
 	{
 		for (auto c : parent.childStatements)
-			locations.push_back(Helpers::createUriLocation(f, c->astNode));
+			locations.push_back(Helpers::createUriLocation(f.locationBuilder, c->astNode));
 	}
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue)
@@ -226,14 +318,6 @@ struct Statement::BlockExecutor
 			{
 				if (auto r = c->perform(s, returnValue))
 					return r;
-			}
-			catch (StatementError& se)
-			{
-				UriError e;
-				e.fillLocation(locations[i]);
-				e.errorType = UriError::Error;
-				e.errorMessage = se.errorMessage;
-				throw e;
 			}
 			catch (Engine::CallError& ne)
 			{
@@ -254,8 +338,9 @@ struct Statement::BlockExecutor
 
 void Statement::throwRuntimeError(const String& errorMessage)
 {
-	BlockExecutor::StatementError e;
-	e.s = this;
+	UriError e;
+	e.fillLocation(Helpers::createUriLocation(locationBuilder, astNode));
+	e.errorType = UriError::ErrorType::Error;
 	e.errorMessage = errorMessage;
 	throw e;
 }

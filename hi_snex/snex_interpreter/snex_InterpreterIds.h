@@ -13,6 +13,7 @@ DECLARE_ID(Type);
 DECLARE_ID(Value);
 DECLARE_ID(Signature);
 DECLARE_ID(OpType);
+DECLARE_ID(AssignmentType);
 DECLARE_ID(Target);
 DECLARE_ID(Symbol);
 DECLARE_ID(First);

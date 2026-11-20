@@ -145,7 +145,7 @@ struct FunctionCall : public Expression
 	typedef VariableStorage(*ResolvedPtr)(void*, VariableStorage*);
 
 	VariableStorage getResult(Scope* s) override
-	{		
+	{	
 		for (int i = 0; i < args.size(); i++)
 			args.set(i, argExpressions[i]->getResult(s));
 		
