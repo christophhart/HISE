@@ -76,6 +76,17 @@ struct StatementBlock : public Statement,
 	{
 		setAllocated();
 		jassert(scopeToUse == statementScope.get());
+
+		for (const auto& s : additionalSymbolsToAllocate)
+		{
+			jassert(s.id.getParent() == blockId);
+			
+			auto ok = statementScope->addSymbol(s);
+
+			if (!ok.wasOk())
+				return ok;
+		}
+
 		return Result::ok();
 	}
 
@@ -86,9 +97,13 @@ struct StatementBlock : public Statement,
 
 	BlockExecutor blockData;
 	NamespacedIdentifier blockId;
+
+	// hack: the outer loop needs to pass its iterator in here so that it's allocated before finalising
+	Array<jit::Symbol> additionalSymbolsToAllocate;
 };
 
-struct Function : public Statement
+struct Function : public Statement,
+				  public DefinitionBase
 {
 	SNEX_INTERPRETER_NODE(Function, WantsNode::Yes);
 
@@ -105,6 +120,74 @@ struct Function : public Statement
 		return body->perform(s, returnValue);
 	};
 
+	Scope::Ptr createScope(Scope* parent)
+	{
+		return new Scope(Scope::ScopeType::Function, parent, parent->engine, fData.id);
+	}
+
+	Result allocateInScope(Scope* scopeToUse) override
+	{
+		setAllocated();
+
+		jassert(scopeToUse->scopeType == Scope::ScopeType::Function);
+		jassert(scopeToUse->id == fData.id);
+
+		auto addThisPointer = scopeToUse->parent != scopeToUse->getRootScope();
+
+		auto thisId = addThisPointer ? fData.id.getChildId("this") : NamespacedIdentifier();
+
+		if (thisId.isValid())
+		{
+			// Keep this first in the function scope: ThisPointer reads its object pointer from offset zero.
+			jit::Symbol thisObj({ thisId, TypeInfo(Types::ID::Pointer) });
+			scopeToUse->addSymbol(thisObj);
+		}
+
+		for (const auto& a : fData.args)
+		{
+			auto result = scopeToUse->addSymbol(a);
+			jassert(result.wasOk());
+		}
+
+		return Result::ok();
+	}
+
+	void resolveDataPointers(Scope* scopeToUse)
+	{
+		jassert(scopeToUse->scopeType == Scope::ScopeType::Function);
+		jassert(scopeToUse->id == fData.id);
+
+		auto validParameters = true;
+		auto addThisPointer = scopeToUse->parent != scopeToUse->getRootScope();
+		auto thisId = addThisPointer ? fData.id.getChildId("this") : NamespacedIdentifier();
+
+		if (addThisPointer)
+			parameters.push_back(scopeToUse->resolveDataPointer(thisId));
+
+		for (const auto& a : fData.args)
+		{
+			auto ptr = scopeToUse->resolveDataPointer(a.id);
+			validParameters &= (bool)ptr;
+			parameters.push_back(ptr);
+		}
+
+		if (validParameters)
+		{
+			fData.object = this;
+			fData.function = OpFunctions::Function::getFromFunctionMap(OpFunctions::getSigString(fData, addThisPointer));
+
+			if (fData.function == nullptr)
+			{
+				fData.function = (void*)callDynamicStatic;
+			}
+		}
+
+		if (fData.returnType.toString() == "block&")
+			convertToBlock = true;
+
+		jassert(fData.function != nullptr);
+	}
+
 	void annotateUriLocationTree(UriLocationTree& t) override
 	{
 		for (auto a : fData.args)
@@ -117,8 +200,47 @@ struct Function : public Statement
 		}
 	}
 
+	VariableStorage callDynamic(VariableStorage* args, int numArgs)
+	{
+		try
+		{
+			jassert(numArgs == parameters.size());
+
+			ScopedValueSetter<bool> svs(active, true);
+
+			statementScope->clear();
+
+			for (int i = 0; i < numArgs; i++)
+				parameters[i].write(args[i]);
+
+			VariableStorage rv;
+			perform(statementScope, &rv);
+
+			return rv;
+		}
+		catch (UriError& e)
+		{
+			Engine::CallError ne;
+			ne.callstackId = fData.getSignature();
+			ne.e = e;
+			throw ne;
+		}
+	}
+
+	static VariableStorage callDynamicStatic(void* obj, VariableStorage* args, int numArgs)
+	{
+		auto data = static_cast<Function*>(obj);
+		return data->callDynamic(args, numArgs);
+
+	}
+
+	std::vector<Scope::ResolvedReference> parameters;
+
 	jit::FunctionData fData;
 	Ptr body;
+
+	bool active = false;
+	bool convertToBlock = false;
 };
 
 struct TernaryOp : public Expression
@@ -197,8 +319,7 @@ struct ReturnStatement : public Statement
 	Expression::ExprPtr value;
 };
 
- struct Loop : public Statement,
-			   public DefinitionBase
+ struct Loop : public Statement
 {
 	enum class LoopType
 	{
@@ -220,19 +341,16 @@ struct ReturnStatement : public Statement
 		target(Helpers::getChildExpression(this, 0)),
 		body(childStatements[1]->getTyped<StatementBlock>())
 	{
+		body->additionalSymbolsToAllocate.add(iterator);
+
 		static const StringArray lt({ "Undefined", "Span", "Dyn", "CustomObject" });
 		loopType = (LoopType)lt.indexOf(v[AstIds::LoopType].toString());
 	}
 
-	Result allocateInScope(Scope* scopeToUse) override
-	{
-		setAllocated();
-		return body->statementScope->addReference(iterator);
-	}
-
 	void resolveDataPointers(Scope* scopeToUse) override
 	{
-		iteratorIndex = body->statementScope->getLValueReferenceIndex(iterator.id.id);
+		iteratorRef = body->statementScope->resolveDataPointer(iterator.id);
+		jassert(iteratorRef);
 	};
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue) override
@@ -256,11 +374,11 @@ struct ReturnStatement : public Statement
 
 		if (numElements > 0)
 		{
-			auto& itLValue = body->statementScope->getLValueReference(iteratorIndex);
+			auto& itLValue = iteratorRef.getLValue();
 
 			for (int i = 0; i < numElements; i++)
 			{
-				itLValue = { beginPtr, i * elementSize};
+				iteratorRef.assign({ beginPtr, i * elementSize });
 
 				auto ok = body->perform(body->statementScope.get(), returnValue);
 
@@ -278,7 +396,7 @@ struct ReturnStatement : public Statement
 		return ResultCode::ok;
 	};
 
-	int iteratorIndex = -1;
+	Scope::ResolvedReference iteratorRef;
 	Expression::ExprPtr target;
 	StatementBlock* body;
 

@@ -91,6 +91,8 @@ struct Statement : public ReferenceCountedObject
 	/** Override this and fetch the data pointers after the scope has finalised its memory layout. */
 	virtual void resolveDataPointers(Scope* scopeToUse) {};
 
+	void resolveDataPointersRecursive(Scope* s);
+
 	template <typename T> const T* getTyped() const
 	{
 		static_assert(std::is_base_of<interpreter::Statement, T>() ||

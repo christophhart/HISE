@@ -155,178 +155,41 @@ struct Engine: public snex::jit::FunctionCollectionBase
 
 	// Forward declarations ===============================================================================
 
-Engine(jit::GlobalScope& scope, Statement::Ptr rootTree);
-~Engine();
+	Engine(jit::GlobalScope& scope, Statement::Ptr rootTree);
+	~Engine();
 
-// Function methods
+	// Function methods
 
-Array<jit::NamespacedIdentifier> getFunctionIds() const override;
+	Array<jit::NamespacedIdentifier> getFunctionIds() const override;
 
-jit::FunctionData getFunction(const jit::NamespacedIdentifier& functionId) override;
+	jit::FunctionData getFunction(const jit::NamespacedIdentifier& functionId) override;
 
-// Data methods
+	// Data methods
 
-Array<jit::Symbol> getAllVariables() const override;
-VariableStorage getVariable(const Identifier& id) const override;
+	Array<jit::Symbol> getAllVariables() const override;
+	VariableStorage getVariable(const Identifier& id) const override;
 
-size_t getMainObjectSize() const override;
-void* getVariablePtr(const Identifier& id) const override;
-juce::String dumpTable() override;
-ValueTree getDataLayout(int dataIndex) const override;
+	size_t getMainObjectSize() const override;
+	void* getVariablePtr(const Identifier& id) const override;
+	juce::String dumpTable() override;
+	ValueTree getDataLayout(int dataIndex) const override;
 
-jit::GlobalScope* getGlobalScope() { return &globalScope; }
+	jit::GlobalScope* getGlobalScope() { return &globalScope; }
 
 private:
 
 	friend class snex::interpreter::ExpressionTreeBuilder;
 
 	struct Helpers;
-	struct EngineScope;
 
-	struct InterpretedFunction
-	{
-		String getSigString() const;
-
-		static void* getFromFunctionMap(const String& sig);
-
-		template <typename RV, typename T> static void addTwoArgumentSignatures(
-			std::map<String, void*>& functionMap, const String& firstArgumentSignature)
-		{
-			functionMap[firstArgumentSignature + "i"] = (void*)call<RV, T, int>;
-			functionMap[firstArgumentSignature + "f"] = (void*)call<RV, T, float>;
-			functionMap[firstArgumentSignature + "d"] = (void*)call<RV, T, double>;
-			functionMap[firstArgumentSignature + "p"] = (void*)call<RV, T, void*>;
-		}
-
-		template <typename RV> static void addReturnSignatures(
-			std::map<String, void*>& functionMap, const String& returnSignature)
-		{
-			functionMap[returnSignature] = (void*)call<RV>;
-			functionMap[returnSignature + "i"] = (void*)call<RV, int>;
-			functionMap[returnSignature + "f"] = (void*)call<RV, float>;
-			functionMap[returnSignature + "d"] = (void*)call<RV, double>;
-			functionMap[returnSignature + "p"] = (void*)call<RV, void*>;
-
-			addTwoArgumentSignatures<RV, int>(functionMap, returnSignature + "i");
-			addTwoArgumentSignatures<RV, float>(functionMap, returnSignature + "f");
-			addTwoArgumentSignatures<RV, double>(functionMap, returnSignature + "d");
-			addTwoArgumentSignatures<RV, void*>(functionMap, returnSignature + "p");
-		}
-
-		static void writeWithTypeInfo(void* ptr, const jit::TypeInfo& argType, const VariableStorage& argValue);
-
-		template <size_t... Indices, typename... Ts>
-		static void writeArguments(InterpretedFunction& data, std::index_sequence<Indices...>, Ts... args)
-		{
-			(writeWithTypeInfo(data.parameterOffsets[Indices], data.functionData.args[Indices].typeInfo, VariableStorage(args)), ...);
-
-			//(ComplexType::writeNativeMemberType(data.parameterOffsets[Indices], 0, VariableStorage(args)), ...);
-		}
-
-		static VariableStorage callDynamic(void* obj, VariableStorage* args, int numArgs);;
-
-		template <typename RV, typename... Ts> static RV call(void* obj, Ts... args)
-		{
-			auto data = static_cast<InterpretedFunction*>(obj);
-
-			try
-			{
-				if (data == nullptr || data->active || data->parameterOffsets.size() != sizeof...(Ts))
-				{
-					jassertfalse;
-					if constexpr (std::is_void_v<RV>)
-						return;
-					else
-						return RV();
-				}
-
-				ScopedValueSetter<bool> svs(data->active, true);
-
-				data->functionScope->clear();
-				writeArguments(*data, std::index_sequence_for<Ts...>{}, args...);
-
-				VariableStorage rv;
-				data->functionStatement->perform(data->functionScope.get(), &rv);
-
-				if constexpr (!std::is_void_v<RV>)
-				{
-					if constexpr (std::is_same<RV, void*>())
-					{
-						if (data->convertToBlock)
-						{
-
-							auto ptr = reinterpret_cast<block*>(rv.getDataPointer());
-							auto b1 = *ptr;
-							return reinterpret_cast<void*>(ptr);
-						}
-					}
-
-					static constexpr Types::ID RTypeId = Types::getTypeFromTypeId<RV>();
-					return rv.toType<RTypeId>();
-					
-				}
-			}
-			catch (UriError& e)
-			{
-				CallError ne;
-				ne.callstackId = data->functionData.getSignature();
-				ne.e = e;
-				throw ne;
-			}
-		}
-
-		jit::FunctionData functionData;
-		Scope::Ptr functionScope;
-		Statement::Ptr functionStatement;
-		std::vector<void*> parameterOffsets;
-		bool addThisPointer = false;
-		bool active = false;
-
-		bool convertToBlock = false;
-	};
-
-	struct InterpretedClass
-	{
-		Scope::Ptr classScope;
-		jit::ComplexType::Ptr classType;
-
-		jit::FunctionData getFunction(const NamespacedIdentifier& id)
-		{
-			for (auto m : members)
-			{
-				if (m->functionData.id == id)
-					return m->functionData;
-			}
-
-			for (auto c : subclasses)
-			{
-				auto fd = c->getFunction(id);
-
-				if (fd.id != NamespacedIdentifier())
-					return fd;
-			}
-
-			return {};
-		}
-
-		Statement::List initialisers;
-		OwnedArray<InterpretedFunction> members;
-		OwnedArray<InterpretedClass> subclasses;
-	};
-
-	InterpretedFunction* createInterpretedFunction(Statement::Ptr f, Scope* s, bool addThisPointer);
-	InterpretedClass* createInterpretedClass(Statement::Ptr c, Scope* s);
-
-	DefinitionBase* createScopeInitialiser(Statement::Ptr c, Scope* s);
-
-	OwnedArray<InterpretedFunction> rootFunctions;
-	OwnedArray<InterpretedClass> classes;
+	Statement::List rootFunctions;
+	Statement::List rootClassDefinitions;
+	Statement::List rootVariableDefinitions;
 
 	Statement::Ptr rootTree;
 	Scope::Ptr rootScope;
 
 	jit::GlobalScope& globalScope;
-	std::unique_ptr<Scope> engineScope;
 };
 
 } // namespace interpreter

@@ -13,6 +13,7 @@ struct Scope : public ReferenceCountedObject
 
 	using LValue = std::pair<void*, size_t>;
 
+	// internal structure for owned and allowcated memory
 	struct Entry
 	{
 		jit::Symbol symbol;
@@ -20,18 +21,50 @@ struct Scope : public ReferenceCountedObject
 		size_t size = 0;
 	};
 
+	// a table of all references, both external and owned
 	struct Reference
 	{
+		bool isExternal;
 		Identifier id;
+		jit::TypeInfo type;
 		LValue address;
+	};
+
+	// A resolved reference that returns the current LValue address
+	struct ResolvedReference
+	{
+		ResolvedReference() = default;
+		
+		operator bool() const 
+		{ 
+			return immediateLocation.first != nullptr ||
+				   s != nullptr && referenceIndex != -1; 
+		}
+
+		LValue& getLValue();
+		LValue getLValueCopy() const;
+		void* getDataPointer() const;
+		VariableStorage read() const;
+		void write(const VariableStorage& v);
+
+		void assign(const LValue& lValue);
+
+		static bool isBlockType(const jit::TypeInfo& t);
+
+		// Convert a pointer to a block type
+		static VariableStorage toBlock(const VariableStorage& pointer);
+
+		Scope::Ptr s;
+		int referenceIndex = -1;
+		jit::TypeInfo type;
+		LValue immediateLocation = { nullptr, 0 };
 	};
 
 	Scope(ScopeType st, Scope* parent_, Engine* e, const NamespacedIdentifier& id_);
 
-	Result addSymbol(const jit::Symbol& symbol, size_t slotSize, size_t alignment);
-	Result addReference(const jit::Symbol& symbolId);
-	int getLValueReferenceIndex(const Identifier& symbolId) const;
-	LValue& getLValueReference(const int referenceIndex);
+	Result addSymbol(const jit::Symbol& symbol);
+
+	ResolvedReference resolveDataPointer(const NamespacedIdentifier& id);
 
 	Result finalise();
 
@@ -40,9 +73,12 @@ struct Scope : public ReferenceCountedObject
 	size_t getDataSize() const { return totalSize; }
 
 	const Entry* find(const Identifier& symbolId) const;
-	void* getAddress(const Identifier& symbolId, size_t bytesNeeded) const;
+	
+	//void* getAddress(const Identifier& symbolId, size_t bytesNeeded) const;
 	Array<jit::Symbol> getSymbols() const;
-	Scope* getScope(const jit::NamespacedIdentifier& scopeId);
+	Scope* getChildScope(const jit::NamespacedIdentifier& scopeId);
+	
+	Scope* getParentScopeWithId(const jit::NamespacedIdentifier& scopeId);
 
 	Scope* getParentScopeWithType(ScopeType sp)
 	{
@@ -52,7 +88,7 @@ struct Scope : public ReferenceCountedObject
 		return parent->getParentScopeWithType(sp);
 	}
 
-	Scope* getRootScope() 
+	Scope* getRootScope()
 	{
 		if (parent == nullptr)
 			return this;

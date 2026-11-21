@@ -90,6 +90,8 @@ struct FunctionCall : public Expression
 	
 	void resolveDataPointers(Scope* s) override
 	{
+		auto originalFunctionId = fData.id;
+
 		if (auto inliner = OpFunctions::Inliners::getInliner(fData.id))
 		{
 			fData.function = inliner;
@@ -118,7 +120,7 @@ struct FunctionCall : public Expression
 			fData = objectType->getNonOverloadedFunction(fData.id.id);
 
 			if (!fData.isResolved())
-				fData = s->engine->getFunction(fData.id);	
+				fData = s->engine->getFunction(originalFunctionId);	
 		}
 
 		if (callType == Identifier("RootFunction"))
@@ -179,7 +181,21 @@ struct FunctionCall : public Expression
 		}
 
 		for (int i = 0; i < args.size(); i++)
-			args.set(i, argExpressions[i]->getResult(s));
+		{
+			auto isRef = fData.args[i].typeInfo.isRef();
+
+			if (isRef)
+			{
+				auto lv = argExpressions[i]->getLValue(s);
+				auto ptr = (void*)(reinterpret_cast<uint8*>(lv.first) + lv.second);
+				args.set(i, VariableStorage(ptr));
+			}
+			else
+			{
+				args.set(i, argExpressions[i]->getResult(s));
+			}
+		}
+			
 
 		switch (executionType)
 		{

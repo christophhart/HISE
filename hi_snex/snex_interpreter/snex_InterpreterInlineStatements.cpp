@@ -21,6 +21,41 @@ struct InlinedFunction: public Expression,
       blockData(f, *this)
     {}
 
+    static Symbol resolveSymbol(Factory& f, const ValueTree& v, const Identifier symbolId)
+    {
+        auto symbolString = v[symbolId].toString();
+
+        if (symbolString.startsWith("unresolved"))
+        {
+            if (symbolString == "unresolved this")
+            {
+                auto parentFunc = valuetree::Helpers::findParentWithType(v, Identifier("InlinedFunction"));
+                jassert(parentFunc.isValid());
+
+                Symbol thisPointer;
+
+                thisPointer.id = Helpers::getNamespacedIdentifier(parentFunc, AstIds::ScopeId);
+                thisPointer.id = thisPointer.id.getChildId("this");
+
+                for (auto c : parentFunc)
+                {
+                    if (c.getType() == Identifier("InlinedArgument") &&
+                        c[AstIds::ParameterName].toString() == symbolString)
+                    {
+                        auto childType = Helpers::getSymbol(f, c.getChild(0));
+                        thisPointer.typeInfo = childType.typeInfo.withModifiers(false, true, false);
+                        return thisPointer;
+                    }
+                }
+            }
+            
+
+            jassertfalse;
+        }
+
+        return Helpers::getSymbol(f, v, symbolId);
+    }
+
     TypeInfo getTypeInfo() const override
     {
         return returnType;
@@ -56,42 +91,36 @@ struct InlinedArgument : public Statement,
 
     InlinedArgument(Factory& f, const ValueTree& v) :
         Statement(f, v),
-        argument(Helpers::getSymbol(f, v, AstIds::ParameterName)),
+        argument(InlinedFunction::resolveSymbol(f, v, AstIds::ParameterName)),
         initialiser(Helpers::getChildExpression(this, 0)),
         df(OpFunctions::Data::getFunctionPtr(initialiser->getTypeInfo()))
-    {}
+    {
+        
+    }
 
     Result allocateInScope(Scope* scopeToUse) override
     {
         setAllocated();
-        return scopeToUse->addSymbol(argument, argument.typeInfo.getRequiredByteSize(), argument.typeInfo.getRequiredAlignment());
+        auto inlineScope = scopeToUse->getParentScopeWithType(Scope::ScopeType::InlinedFunction);
+        jassert(inlineScope->id == argument.id.getParent());
+
+        return inlineScope->addSymbol(argument);
     }
 
     void resolveDataPointers(Scope* s) override
     {
-        if (auto thisScope = s->getScope(argument.id.getParent()))
-        {
-            if (auto e = thisScope->find(argument.id.id))
-            {
-                target = { thisScope->getDataPointer(), e->offset };
-                argument.resolved = true;
-                return;
-            }
-        }
-
-        // happens at inline function with references?
-        jassertfalse; 
-        auto idx = s->getLValueReferenceIndex(argument.id.id);
+        auto inlineScope = s->getParentScopeWithType(Scope::ScopeType::InlinedFunction);
+        inlineScope->resolveDataPointer(argument.id);
     }
 
     ResultCode perform(Scope* s, VariableStorage* returnValue)
     {
         auto v = initialiser->getResult(s);
-        df.second(target, v);
+        target.write(v);
         return ResultCode::ok;
     }
 
-    Scope::LValue target;
+    Scope::ResolvedReference target;
     Symbol argument;
     Expression::ExprPtr initialiser;
     OpFunctions::Data::Functions df;
@@ -103,7 +132,17 @@ struct InlinedParameter : public VariableReference
 
     InlinedParameter(Factory& f, const ValueTree& v) :
         VariableReference(f, v)
-    {}
+    {
+        this->symbol = InlinedFunction::resolveSymbol(f, v, AstIds::Symbol);
+    }
+
+    void resolveDataPointers(Scope* s) override
+    {
+        auto inlineScope = s->getParentScopeWithType(Scope::ScopeType::InlinedFunction);
+        jassert(inlineScope->id == this->symbol.id.getParent());
+        this->ref = inlineScope->resolveDataPointer(this->symbol.id);
+        this->symbol.resolved = (bool)this->ref;
+    }
 
 };
 

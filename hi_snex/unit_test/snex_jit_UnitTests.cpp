@@ -2636,6 +2636,10 @@ private:
 
 		ScopedPointer<HiseJITTestCase<int>> test;
 
+		test = new HiseJITTestCase<int>("void other(int& value){ value += 5; } int test(int in) { other(in); return in; }", optimizations);
+		expectCompileOK(test->compiler);
+		EXPECT("function with reference", 5, 10);
+
 		test = new HiseJITTestCase<int>("int x = 12; int test(int in) { x++; return x; }", optimizations);
 		expectCompileOK(test->compiler);
 		EXPECT("post int increment", 0, 13);

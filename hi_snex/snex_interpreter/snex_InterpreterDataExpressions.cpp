@@ -59,65 +59,41 @@ struct VariableReference : public Expression
 	VariableReference(Factory& f, const ValueTree& v) :
 		Expression(f, v),
 		symbol(Helpers::getSymbol(f, v)),
-		f(OpFunctions::Data::getFunctionPtr(symbol.typeInfo)),
-		isBlock(OpFunctions::Data::isBlockType(symbol.typeInfo))
+		f(OpFunctions::Data::getFunctionPtr(symbol.typeInfo))
 	{};
 
 	Scope::LValue& getLValue(Scope* s) override
 	{
-		if (refIndex != -1)
-			return s->getLValueReference(refIndex);
-
-		return lValue;
+		return ref.getLValue();
 	}
 
 	void assign(Scope* s, const VariableStorage& value) override
 	{
-		if (symbol.resolved)
-			f.second(getLValue(s), value);
+		ref.write(value);
 	}
 
 	VariableStorage getResult(Scope* s) override
 	{
-		VariableStorage v;
-
-		if (symbol.resolved)
-			v = f.first(getLValue(s));
-
-		if(isBlock)
-			v = OpFunctions::Data::toBlock(v);
-
-		return v;
+		return ref.read();
 	}
 
-	void resolveDataPointers(Scope* rootScope) override
+	void resolveDataPointers(Scope* s) override
 	{
-		auto scopeId = symbol.id.getParent();
-		auto idWithinScope = symbol.id.id;
+		ref = s->resolveDataPointer(symbol.id);
+		symbol.resolved = (bool)ref;
 
-		if (auto s = rootScope->getScope(scopeId))
+		if (!symbol.resolved)
 		{
-			if (getTypeInfo().isRef())
-			{
-				refIndex = s->getLValueReferenceIndex(symbol.id.id);
-				symbol.resolved = refIndex != -1;
-			}
-			else
-			{
-				if (auto entry = s->find(idWithinScope))
-				{
-					if (s->getAddress(idWithinScope, symbol.typeInfo.getRequiredByteSize()) != nullptr)
-					{
-						lValue = { s->getDataPointer(), entry->offset };
-						symbol.resolved = true;
-					}
-				}
-				
-				refIndex = s->getLValueReferenceIndex(idWithinScope);
+			String msg;
+			msg << "error at resolving symbol: " + symbol.toString();
+			DBG(msg);
 
-				if (refIndex != -1)
-					symbol.resolved = true;
-			}
+			auto loc = Helpers::createUriLocation(this->locationBuilder, astNode);
+
+			DBG(loc.toLocationString(UriLocation::UriFormat::Compact));
+
+			jassertfalse;
+			throwRuntimeError(msg);
 		}
 	}
 
@@ -126,12 +102,9 @@ struct VariableReference : public Expression
 		return symbol.typeInfo;
 	}
 
-	int refIndex = -1;
-	Scope::LValue lValue;
+	Scope::ResolvedReference ref;
 	jit::Symbol symbol;
 	OpFunctions::Data::Functions f;
-
-	const bool isBlock = false;
 };
 
 struct Assignment : public Statement,
@@ -196,7 +169,7 @@ struct Assignment : public Statement,
 			if (v->getTypeInfo().isRef())
 			{
 				isRef = true;
-				return s->addReference(v->symbol);
+				return s->addSymbol(v->symbol);
 			}
 			else
 			{
@@ -204,8 +177,7 @@ struct Assignment : public Statement,
 					s->find(v->symbol.id.id) == nullptr)
 				{
 					auto& type = v->symbol.typeInfo;
-					return s->addSymbol(v->symbol, type.getRequiredByteSize(),
-						type.getRequiredAlignment());
+					return s->addSymbol(v->symbol);
 				}
 			}
 		}
@@ -244,29 +216,28 @@ struct ComplexTypeDefinition : public Statement,
 	{
 		auto numBytesRequired = type.getRequiredByteSize();
 		jassert(initData.getSize() >= numBytesRequired);
-		auto ptr = reinterpret_cast<uint8*>(resolvedScope->getDataPointer());
 
-		for (const auto& offset : resolvedOffsets)
+		for (const auto& rr : refs)
 		{
-			memcpy(ptr + offset, initData.getData(), numBytesRequired);
+			memcpy(rr.getDataPointer(), initData.getData(), numBytesRequired);
 		}
 
 		return ResultCode::ok;
 	}
 
-	Result allocateInScope(Scope* rootScope) override
+	Result allocateInScope(Scope* s) override
 	{
 		setAllocated();
 
 		auto parentId = symbols.getFirst().getParent();
-		resolvedScope = rootScope->getScope(parentId);
+		auto resolvedScope = s->getParentScopeWithId(parentId);
 
 		for (const auto& id : symbols)
 		{
 			jit::Symbol s;
 			s.id = id;
 			s.typeInfo = type;
-			auto ok = resolvedScope->addSymbol(s, type.getRequiredByteSize(), type.getRequiredAlignment());
+			auto ok = resolvedScope->addSymbol(s);
 
 			if (!ok)
 				return ok;
@@ -277,18 +248,10 @@ struct ComplexTypeDefinition : public Statement,
 
 	void resolveDataPointers(Scope* scopeToUse) override
 	{
-		jassert(resolvedScope != nullptr);
-		auto start = reinterpret_cast<uint8*>(resolvedScope->getDataPointer());
-
 		for (auto id : symbols)
-		{
-			auto data = reinterpret_cast<uint8*>(resolvedScope->getAddress(id.id, type.getRequiredByteSize()));
-			resolvedOffsets.push_back(static_cast<size_t>(data - start));
-		}
+			refs.push_back(scopeToUse->resolveDataPointer(id));
 	}
-
-	Scope::Ptr resolvedScope;
-	std::vector<size_t> resolvedOffsets;
+	std::vector<Scope::ResolvedReference> refs;
 
 	TypeInfo type;
 	Array<NamespacedIdentifier> symbols;
@@ -305,7 +268,8 @@ struct TemplatedFunction : public Statement
 	{}
 };
 
-struct ClassStatement : public Statement
+struct ClassStatement : public Statement,
+						public DefinitionBase
 {
 	SNEX_INTERPRETER_NODE(ClassStatement, WantsNode::Yes);
 
@@ -313,6 +277,50 @@ struct ClassStatement : public Statement
 		Statement(f, v),
 		classType(dynamic_cast<StructType*>(Helpers::getType(f, v).getComplexType().get()))
 	{}
+
+	Scope::Ptr createScope(Scope* parentScope)
+	{
+		return new Scope(Scope::ScopeType::Class, parentScope, parentScope->engine, classType->id);
+	}
+
+	Result allocateInScope(Scope* scopeToUse) override
+	{
+		setAllocated();
+		return Result::ok();
+	}
+
+	FunctionData* getFunction(const NamespacedIdentifier& fid)
+	{
+		auto st = childStatements[0];
+
+		if (fid.getParent() == classType->id)
+		{
+			for (auto cs : st->childStatements)
+			{
+				if (auto f = cs->getTyped<Function>())
+				{
+					if (f->fData.id == fid)
+						return &f->fData;
+				}
+			}
+		}
+		else
+		{
+			if (classType->id.isParentOf(fid))
+			{
+				for (auto cs : st->childStatements)
+				{
+					if (auto subClass = cs->getTyped<ClassStatement>())
+					{
+						if (auto f = subClass->getFunction(fid))
+							return f;
+					}
+				}
+			}
+		}
+
+		return nullptr;
+	}
 
 	StructType* classType;
 };
@@ -324,7 +332,7 @@ struct Dot : public Expression
 	Dot(Factory& f, const ValueTree& v) :
 	  Expression(f, v),
 	  dotParent(Helpers::getChildExpression(this, 0)),
-	  dotChild(Helpers::getChildExpression(this, 1)->getTyped<VariableReference>()),
+	  dotChild(Helpers::getChildExpression(this, 1)),
 	  type(Helpers::getType(f, v, AstIds::MemberType)),
 	  df(OpFunctions::Data::getFunctionPtr(type))
 	{
@@ -353,7 +361,7 @@ struct Dot : public Expression
 
 	Scope::LValue address;
 	ExprPtr dotParent;
-	VariableReference* dotChild;
+	ExprPtr dotChild;
 	TypeInfo type;
 	OpFunctions::Data::Functions df;
 };

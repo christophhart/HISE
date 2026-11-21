@@ -11,69 +11,95 @@ Scope::Scope(ScopeType st, Scope* parent_, Engine* e, const NamespacedIdentifier
 		parent->children.add(this);
 }
 
-Result Scope::addSymbol(const jit::Symbol& symbol, size_t slotSize, size_t alignment)
+Result Scope::addSymbol(const jit::Symbol& symbol)
 {
 	if (dataStart != nullptr)
 		return Result::fail("Scope storage is already finalised");
 
-	if (symbol.id.getParent() != id || entries.find(symbol.id.id) != entries.end())
-		return Result::fail("Invalid or duplicate scope symbol: " + symbol.id.toString());
-
-	if (slotSize == 0 || alignment == 0)
-		return Result::fail("Invalid scope slot size or alignment");
+	if (symbol.id.getParent() != id)
+		return Result::fail("Invalid symbol");
+		
 
 	if (symbol.typeInfo.isRef())
-		return Result::fail("use addReference for reference variables");
+	{
+		Reference nr;
+		nr.isExternal = true;
+		nr.id = symbol.id.id;
+		nr.type = symbol.typeInfo;
 
-	const auto remainder = totalSize % alignment;
-	const auto padding = remainder == 0 ? 0 : alignment - remainder;
+		references.push_back(nr);
+		return Result::ok();
+	}
+	else
+	{
+		size_t slotSize = symbol.typeInfo.getRequiredByteSizeNonZero();
+		size_t alignment = symbol.typeInfo.getRequiredAlignmentNonZero();
 
-	if (padding > std::numeric_limits<size_t>::max() - totalSize ||
-		slotSize > std::numeric_limits<size_t>::max() - totalSize - padding)
-		return Result::fail("Scope storage size overflow");
+		if (entries.find(symbol.id.id) != entries.end())
+			return Result::fail("Duplicate symbol");
 
-	Entry entry;
-	entry.symbol = symbol;
-	entry.offset = totalSize + padding;
-	entry.size = slotSize;
-	entries.emplace(symbol.id.id, entry);
-	totalSize = entry.offset + slotSize;
-	maxAlignment = std::max(maxAlignment, alignment);
-	return Result::ok();
+		const auto remainder = totalSize % alignment;
+		const auto padding = remainder == 0 ? 0 : alignment - remainder;
+
+		if (padding > std::numeric_limits<size_t>::max() - totalSize ||
+			slotSize > std::numeric_limits<size_t>::max() - totalSize - padding)
+			return Result::fail("Scope storage size overflow");
+
+		Entry entry;
+		entry.symbol = symbol;
+		entry.offset = totalSize + padding;
+		entry.size = slotSize;
+		entries.emplace(symbol.id.id, entry);
+		totalSize = entry.offset + slotSize;
+		maxAlignment = std::max(maxAlignment, alignment);
+		return Result::ok();
+	}
 }
 
-Result Scope::addReference(const Symbol& symbol)
+Scope::ResolvedReference Scope::resolveDataPointer(const NamespacedIdentifier& symbolId)
 {
-	if (symbol.id.getParent() != id || entries.find(symbol.id.id) != entries.end())
-		return Result::fail("Invalid or duplicate scope symbol: " + symbol.id.toString());
+	ResolvedReference rr;
 
-	if (!symbol.typeInfo.isRef())
-		return Result::fail("not a reference");
+	auto scopeId = symbolId.getParent();
 
-	references.push_back({ symbol.id.id, {} });
+	if (scopeId != id)
+	{
+		if(auto ps = getParentScopeWithId(scopeId))
+			return ps->resolveDataPointer(symbolId);
 
-	return Result::ok();
-}
+		if (auto otherScope = getRootScope()->getChildScope(scopeId))
+			return otherScope->resolveDataPointer(symbolId);
 
-int Scope::getLValueReferenceIndex(const Identifier& symbolId) const
-{
+		jassertfalse;
+		return rr;
+	}
+
 	int idx = 0;
 
-	for (auto& ref : references)
+	for (auto& r : references)
 	{
-		if (ref.id == symbolId)
-			return idx;
-
+		if (r.id == symbolId.id)
+		{
+			if (r.isExternal)
+			{
+				rr.s = this;
+				rr.referenceIndex = idx;
+				rr.type = r.type;
+			}
+			else
+			{
+				jassert(r.address.first != nullptr);
+				rr.immediateLocation = r.address;
+				rr.type = r.type;
+			}
+			
+			return rr;
+		}
+			
 		idx++;
 	}
 
-	return -1;
-}
-
-Scope::LValue& Scope::getLValueReference(const int referenceIndex)
-{
-	jassert(isPositiveAndBelow(referenceIndex, references.size()));
-	return references[referenceIndex].address;
+	return rr;
 }
 
 Result Scope::finalise()
@@ -88,6 +114,18 @@ Result Scope::finalise()
 	auto address = reinterpret_cast<std::uintptr_t>(scopeData.get());
 	auto remainder = address % maxAlignment;
 	dataStart = scopeData.get() + (remainder == 0 ? 0 : maxAlignment - remainder);
+
+	for (const auto& e : entries)
+	{
+		Reference nr;
+		nr.address = { dataStart, e.second.offset };
+		nr.isExternal = false;
+		nr.type = e.second.symbol.typeInfo;
+		nr.id = e.first;
+
+		references.push_back(nr);
+	}
+
 	return Result::ok();
 }
 
@@ -104,6 +142,7 @@ const Scope::Entry* Scope::find(const Identifier& symbolId) const
 	return it == entries.end() ? nullptr : &it->second;
 }
 
+#if 0
 void* Scope::getAddress(const Identifier& symbolId, size_t bytesNeeded) const
 {
 	if (auto entry = find(symbolId))
@@ -112,6 +151,7 @@ void* Scope::getAddress(const Identifier& symbolId, size_t bytesNeeded) const
 
 	return nullptr;
 }
+#endif
 
 Array<jit::Symbol> Scope::getSymbols() const
 {
@@ -123,18 +163,113 @@ Array<jit::Symbol> Scope::getSymbols() const
 	return symbols;
 }
 
-Scope* Scope::getScope(const jit::NamespacedIdentifier& scopeId)
+Scope* Scope::getParentScopeWithId(const jit::NamespacedIdentifier& scopeId)
+{
+	if (id == scopeId)
+		return this;
+
+	if (parent != nullptr)
+		return parent->getParentScopeWithId(scopeId);
+
+	return nullptr;
+}
+
+Scope* Scope::getChildScope(const jit::NamespacedIdentifier& scopeId)
 {
 	if (id == scopeId)
 		return this;
 
 	for (auto c : children)
 	{
-		if (auto match = c->getScope(scopeId))
+		if (auto match = c->getChildScope(scopeId))
 			return match;
 	}
 
 	return nullptr;
+}
+
+Scope::LValue& Scope::ResolvedReference::getLValue() 
+{ 
+	if (referenceIndex != -1)
+	{
+		jassert(isPositiveAndBelow(referenceIndex, s->references.size()));
+		return s->references[referenceIndex].address;
+	}
+
+	return immediateLocation;
+}
+
+Scope::LValue Scope::ResolvedReference::getLValueCopy() const
+{
+	if (referenceIndex != -1)
+	{
+		jassert(isPositiveAndBelow(referenceIndex, s->references.size()));
+		return s->references[referenceIndex].address;
+	}
+
+	return immediateLocation;
+}
+
+void* Scope::ResolvedReference::getDataPointer() const
+{
+	auto lv = getLValueCopy();
+	jassert(lv.first != nullptr);
+	return reinterpret_cast<uint8*>(lv.first) + lv.second;
+}
+
+VariableStorage Scope::ResolvedReference::read() const
+{
+	auto ptr = getDataPointer();
+
+	switch (type.getType())
+	{
+	case Types::ID::Integer: return VariableStorage(*static_cast<int*>(ptr));
+	case Types::ID::Float:   return VariableStorage(*static_cast<float*>(ptr));
+	case Types::ID::Double:  return VariableStorage(*static_cast<double*>(ptr));
+	case Types::ID::Pointer: {
+							 auto v = VariableStorage(ptr);
+							 return isBlockType(type) ? toBlock(v) : v; }
+	default:				 return VariableStorage();
+	}
+}
+
+void Scope::ResolvedReference::write(const VariableStorage& v)
+{
+	auto& lv = getLValue();
+	jassert(lv.first != nullptr);
+
+	if (isBlockType(type))
+		ComplexType::writeNativeMemberType(lv.first, lv.second, toBlock(v));
+	else
+		ComplexType::writeNativeMemberType(lv.first, lv.second, v);
+}
+
+void Scope::ResolvedReference::assign(const LValue& lValue)
+{
+	getLValue() = lValue;
+}
+
+bool Scope::ResolvedReference::isBlockType(const jit::TypeInfo& t)
+{
+	if (t.isComplexType() && !t.isRef())
+	{
+		if (auto d = dynamic_cast<DynType*>(t.getComplexType().get()))
+		{
+			if (d->elementType.getType() == Types::ID::Float)
+				return true;
+		}
+	}
+
+	return false;
+}
+
+// Convert a pointer to a block type
+VariableStorage Scope::ResolvedReference::toBlock(const VariableStorage& pointer)
+{
+	jassert(pointer.getType() == Types::ID::Pointer);
+	auto blockPtr = reinterpret_cast<block*>(pointer.getDataPointer());
+	jassert(blockPtr->unused == Types::ID::Block);
+	return VariableStorage(*blockPtr);
 }
 
 } // namespace interpreter
