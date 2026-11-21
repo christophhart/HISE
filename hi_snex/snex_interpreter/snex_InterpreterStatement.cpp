@@ -470,5 +470,46 @@ void Statement::throwRuntimeError(const String& errorMessage)
 	throw e;
 }
 
+Result DefinitionBase::allocateChildStatements(Statement* thisAsStatement, Scope* scopeToUse)
+{
+	if (auto def = thisAsStatement->getTyped<DefinitionBase>())
+	{
+		if (auto c = def->createScope(scopeToUse))
+		{
+			def->statementScope = c;
+			scopeToUse = c;
+		}
+
+		for (auto c : thisAsStatement->childStatements)
+		{
+			auto ok = allocateChildStatements(c, scopeToUse);
+
+			if (ok.failed())
+				return ok;
+		}
+
+		auto ok = def->allocateInScope(scopeToUse);
+
+		if (def->statementScope != nullptr)
+			def->statementScope->finalise();
+
+		return ok;
+	}
+	else
+	{
+		for (auto c : thisAsStatement->childStatements)
+		{
+			auto ok = allocateChildStatements(c, scopeToUse);
+
+			if (ok.failed())
+				return ok;
+		}
+			
+		return Result::ok();
+	}
+
+	return Result::ok();
+}
+
 } // namespace interpreter
 } // namespace snex

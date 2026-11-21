@@ -53,10 +53,16 @@ Statement::Factory::Factory()
 	registerType<nodes::ClassStatement>();
 	registerType<nodes::Dot>();
 	registerType<nodes::ThisPointer>();
+	registerType<nodes::PointerAccess>();
 	registerType<nodes::StatementBlock>();
 	registerType<nodes::TernaryOp>();
 	registerType<nodes::IfStatement>();
 	registerType<nodes::Loop>();
+
+	registerType<nodes::InlinedFunction>();
+	registerType<nodes::InlinedArgument>();
+	registerType<nodes::InlinedReturnValue>();
+	registerType<nodes::InlinedParameter>();
 }
 
 ExpressionTreeBuilder::ExpressionTreeBuilder(UriLocationBuilder::Ptr locations, const ValueTree& ast_, const ReferenceCountedArray<jit::ComplexType>& typeLibrary_):

@@ -56,43 +56,36 @@ struct SyntaxTree : public Statement
 	std::vector<UriLocation> locations;
 };
 
-struct StatementBlock : public DefinitionBase
+struct StatementBlock : public Statement,
+						public DefinitionBase
 {
 	SNEX_INTERPRETER_NODE(StatementBlock, WantsNode::Yes);
 
 	StatementBlock(Statement::Factory& f, const ValueTree& v) :
-		DefinitionBase(f, v),
+		Statement(f, v),
 		blockData(f, *this),
 		blockId(Helpers::getNamespacedIdentifier(v, AstIds::ScopeId))
 	{};
 
+	Scope::Ptr createScope(Scope* scopeToUse) override
+	{
+		return new Scope(Scope::ScopeType::Block, scopeToUse, scopeToUse->engine, blockId);
+	}
+
 	Result allocateInScope(Scope* scopeToUse) override
 	{
-		blockScope = new Scope(Scope::ScopeType::Block, scopeToUse, scopeToUse->engine, blockId);
-
-		for (auto c : childStatements)
-		{
-			if (auto as = c->getTyped<DefinitionBase>())
-			{
-				auto ok = as->allocateInScope(blockScope);
-				if (!ok.wasOk())
-					return ok;
-			}
-		}
-
-		blockScope->finalise();
-
+		setAllocated();
+		jassert(scopeToUse == statementScope.get());
 		return Result::ok();
 	}
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue) override
 	{
-		return blockData.perform(s, returnValue);
+		return blockData.perform(statementScope, returnValue);
 	};
 
 	BlockExecutor blockData;
 	NamespacedIdentifier blockId;
-	Scope::Ptr blockScope;
 };
 
 struct Function : public Statement
@@ -204,7 +197,8 @@ struct ReturnStatement : public Statement
 	Expression::ExprPtr value;
 };
 
- struct Loop : public DefinitionBase
+ struct Loop : public Statement,
+			   public DefinitionBase
 {
 	enum class LoopType
 	{
@@ -217,7 +211,7 @@ struct ReturnStatement : public Statement
 	SNEX_INTERPRETER_NODE(Loop, WantsNode::No);
 
 	Loop(Statement::Factory& f, const ValueTree& v) :
-		DefinitionBase(f, v),
+		Statement(f, v),
 		iterator(Helpers::getSymbol(f, v, AstIds::Iterator)),
 		loadIterator(v[AstIds::LoadIterator]),
 		elementType(Helpers::getType(f, v, AstIds::ElementType)),
@@ -232,13 +226,13 @@ struct ReturnStatement : public Statement
 
 	Result allocateInScope(Scope* scopeToUse) override
 	{
-		body->allocateInScope(scopeToUse);
-		return body->blockScope->addReference(iterator);
+		setAllocated();
+		return body->statementScope->addReference(iterator);
 	}
 
 	void resolveDataPointers(Scope* scopeToUse) override
 	{
-		iteratorIndex = body->blockScope->getLValueReferenceIndex(iterator.id.id);
+		iteratorIndex = body->statementScope->getLValueReferenceIndex(iterator.id.id);
 	};
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue) override
@@ -262,13 +256,13 @@ struct ReturnStatement : public Statement
 
 		if (numElements > 0)
 		{
-			auto& itLValue = body->blockScope->getLValueReference(iteratorIndex);
+			auto& itLValue = body->statementScope->getLValueReference(iteratorIndex);
 
 			for (int i = 0; i < numElements; i++)
 			{
 				itLValue = { beginPtr, i * elementSize};
 
-				auto ok = body->perform(body->blockScope.get(), returnValue);
+				auto ok = body->perform(body->statementScope.get(), returnValue);
 
 				if (ok == ResultCode::breakWasHit)
 					break;

@@ -113,6 +113,7 @@ using String = juce::String;
 #include "snex_interpreter/snex_InterpreterExpressions.cpp"
 #include "snex_interpreter/snex_InterpreterDataExpressions.cpp"
 #include "snex_interpreter/snex_InterpreterOperators.cpp"
+#include "snex_interpreter/snex_InterpreterInlineStatements.cpp"
 #include "snex_interpreter/snex_ExpressionTreeBuilder.cpp"
 #include "snex_interpreter/snex_Engine.cpp"
 #endif

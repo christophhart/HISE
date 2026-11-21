@@ -94,6 +94,7 @@ struct Statement : public ReferenceCountedObject
 	template <typename T> const T* getTyped() const
 	{
 		static_assert(std::is_base_of<interpreter::Statement, T>() ||
+			std::is_same<interpreter::DefinitionBase, T>() ||
 			std::is_same<interpreter::Statement, T>(), "not a base of interpreter::Statement");
 
 		return dynamic_cast<const T*>(this);
@@ -102,6 +103,7 @@ struct Statement : public ReferenceCountedObject
 	template <typename T> T* getTyped() 
 	{ 
 		static_assert(std::is_base_of<interpreter::Statement, T>() ||
+					  std::is_same<interpreter::DefinitionBase, T>() ||
 					  std::is_same<interpreter::Statement, T>(), "not a base of interpreter::Statement");
 
 		return dynamic_cast<T*>(this); 
@@ -135,16 +137,6 @@ struct Statement : public ReferenceCountedObject
 	JUCE_DECLARE_WEAK_REFERENCEABLE(Statement);
 };
 
-struct DefinitionBase : public Statement
-{
-	DefinitionBase(Factory& f, const ValueTree& v) :
-	  Statement(f, v)
-	{};
-
-	/** Override this and call Scope::addSymbol to allocate the data where needed. */
-	virtual Result allocateInScope(Scope* scopeToUse) = 0;
-};
-
 struct Expression : public Statement
 {
 	using ExprPtr = ReferenceCountedObjectPtr<Expression>;
@@ -170,6 +162,38 @@ struct Expression : public Statement
 	}
 
 	virtual void assign(Scope* s, const VariableStorage& v) {}
+};
+
+/** A interface class for statements / expressions that register data in a scope. */
+struct DefinitionBase
+{
+	virtual ~DefinitionBase() {};
+
+	/** Override this and call Scope::addSymbol to allocate the data where needed. 
+		
+		Note: call setAllocated() at the function top when ready so that it doesn't reallocate children
+
+		Statements that create their own scope will call allocateInScope on their child statements
+		then finalise the scope
+	*/
+	virtual Result allocateInScope(Scope* scopeToUse) = 0;
+
+	static Result allocateChildStatements(Statement* thisAsStatement, Scope* scopeToUse);
+
+	/** Override this if the definition creates a scope. */
+	virtual Scope::Ptr createScope(Scope* scopeToUse) { return nullptr; }
+
+	void setAllocated()
+	{
+		jassert(!allocated);
+		allocated = true;
+	}
+
+	Scope::Ptr statementScope;
+
+private:
+
+	bool allocated = false;
 };
 
 } // namespace interpreter

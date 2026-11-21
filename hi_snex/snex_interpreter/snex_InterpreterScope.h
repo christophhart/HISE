@@ -5,7 +5,7 @@ namespace interpreter {
 
 struct Scope : public ReferenceCountedObject
 {
-	enum class ScopeType { Unknown, Root, Class, Function, Block };
+	enum class ScopeType { Unknown, Root, Class, Function, Block, InlinedFunction };
 
 	using Ptr = ReferenceCountedObjectPtr<Scope>;
 	using List = ReferenceCountedArray<Scope>;

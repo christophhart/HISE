@@ -23,6 +23,8 @@ DECLARE_ID(ScopeId);
 DECLARE_ID(CallType);
 DECLARE_ID(ObjectType);
 DECLARE_ID(MemberType);
+DECLARE_ID(ReturnType);
+DECLARE_ID(ParameterName);
 
 DECLARE_ID(Iterator);
 DECLARE_ID(LoadIterator);

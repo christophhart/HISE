@@ -808,10 +808,7 @@ void Operations::ClassDefinitionBase::addMembersFromStatementBlock(StructType* t
 	{
 		// A constructor is wrapped in anonymous block
 		if (auto ab = dynamic_cast<AnonymousBlock*>(s))
-		{
 			s = ab->getSubExpr(0).get();
-		}
-			
 
 		if (auto td = dynamic_cast<TypeDefinitionBase*>(s))
 		{

@@ -207,7 +207,10 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 		return {};
 	}
 	
-
+	memory.clearOptimizations();
+	//memory.addOptimization(OptimizationIds::Inlining);
+	//memory.addOptimization(OptimizationIds::BinaryOpOptimisation);
+	//memory.addOptimization(OptimizationIds::ConstantFolding);
 	
 
 	locationBuilder = new UriLocationBuilder(lastCode, preprocessedCode);

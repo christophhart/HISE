@@ -49,9 +49,6 @@ Engine::Engine(jit::GlobalScope& scope, const Statement::Ptr rootTree_):
 	{
 		for (auto c : st->childStatements)
 		{
-			if (auto as = createScopeInitialiser(c, rootScope.get()))
-				initialisers.add(as);
-
 			if (auto tf = c->getTyped<TemplatedFunction>())
 			{
 				for (auto f : tf->childStatements)
@@ -60,12 +57,12 @@ Engine::Engine(jit::GlobalScope& scope, const Statement::Ptr rootTree_):
 						rootFunctions.add(df);
 				}
 			}
-
-			if (auto df = createInterpretedFunction(c, rootScope.get(), false))
+			else if (auto df = createInterpretedFunction(c, rootScope.get(), false))
 				rootFunctions.add(df);
-
-			if (auto cs = createInterpretedClass(c, rootScope.get()))
+			else if (auto cs = createInterpretedClass(c, rootScope.get()))
 				classes.add(cs);
+			else if (auto as = createScopeInitialiser(c, rootScope.get()))
+				initialisers.add(dynamic_cast<Statement*>(as));
 		}
 	}
 
@@ -197,13 +194,7 @@ Engine::InterpretedFunction* Engine::createInterpretedFunction(Statement::Ptr s,
 			jassert(result.wasOk());
 		}
 
-		if (auto st = f->childStatements[0]->getTyped<nodes::SyntaxTree>())
-		{
-			for (auto s : st->childStatements)
-			{
-				createScopeInitialiser(s, d->functionScope);
-			}
-		}
+		DefinitionBase::allocateChildStatements(f, d->functionScope);
 
 		auto result = d->functionScope->finalise();
 		bool validParameters = result.wasOk();
@@ -249,14 +240,12 @@ Engine::InterpretedClass* Engine::createInterpretedClass(Statement::Ptr c, Scope
 		{
 			for (auto c : st->childStatements)
 			{
-				if (auto as = createScopeInitialiser(c, newClass->classScope))
-					newClass->initialisers.add(as);
-
 				if (auto df = createInterpretedFunction(c, newClass->classScope, true))
 					newClass->members.add(df);
-
-				if (auto cs = createInterpretedClass(c, newClass->classScope))
+				else if (auto cs = createInterpretedClass(c, newClass->classScope))
 					newClass->subclasses.add(cs);
+				else if (auto as = createScopeInitialiser(c, newClass->classScope))
+					newClass->initialisers.add(c);
 			}
 		}
 
@@ -273,17 +262,10 @@ Engine::InterpretedClass* Engine::createInterpretedClass(Statement::Ptr c, Scope
 
 DefinitionBase* Engine::createScopeInitialiser(Statement::Ptr c, Scope* s)
 {
-	if (auto as = c->getTyped<DefinitionBase>())
-	{
-		auto ok = as->allocateInScope(s);
+	auto ok = DefinitionBase::allocateChildStatements(c, s);
+	jassert(ok.wasOk());
 
-		jassert(ok.wasOk());
-
-		if (ok.wasOk())
-			return as;
-	}
-
-	return nullptr;
+	return c->getTyped<DefinitionBase>();
 }
 
 String Engine::InterpretedFunction::getSigString() const

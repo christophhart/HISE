@@ -134,12 +134,13 @@ struct VariableReference : public Expression
 	const bool isBlock = false;
 };
 
-struct Assignment : public DefinitionBase
+struct Assignment : public Statement,
+					public DefinitionBase
 {
 	SNEX_INTERPRETER_NODE(Assignment, isDefinition ? WantsNode::Yes : WantsNode::No);
 
 	Assignment(Factory& f, const ValueTree& v) :
-		DefinitionBase(f, v),
+		Statement(f, v),
 		value(Helpers::getChildExpression(this, 0)),
 		target(Helpers::getChildExpression(this, 1)),
 		assignmentType(Helpers::getOpType(v, AstIds::AssignmentType)),
@@ -185,6 +186,8 @@ struct Assignment : public DefinitionBase
 
 	Result allocateInScope(Scope* s) override
 	{
+		setAllocated();
+
 		if (!isDefinition)
 			return Result::ok();
 
@@ -220,12 +223,13 @@ struct Assignment : public DefinitionBase
 	OpFunctions::BinaryOp::Function f;
 };
 
-struct ComplexTypeDefinition : public DefinitionBase
+struct ComplexTypeDefinition : public Statement,
+							   public DefinitionBase
 {
 	SNEX_INTERPRETER_NODE(ComplexTypeDefinition, WantsNode::Yes);
 
 	ComplexTypeDefinition(Factory& f, const ValueTree& v) :
-		DefinitionBase(f, v),
+		Statement(f, v),
 		type(Helpers::getType(f, v)),
 		initData(Helpers::getInitData(v))
 	{
@@ -252,6 +256,8 @@ struct ComplexTypeDefinition : public DefinitionBase
 
 	Result allocateInScope(Scope* rootScope) override
 	{
+		setAllocated();
+
 		auto parentId = symbols.getFirst().getParent();
 		resolvedScope = rootScope->getScope(parentId);
 
@@ -371,6 +377,27 @@ struct ThisPointer : public Expression
 
 	Scope::Ptr resolvedScope = nullptr;
 	TypeInfo type;
+};
+
+struct PointerAccess : public Expression
+{
+	SNEX_INTERPRETER_NODE(PointerAccess, WantsNode::No);
+
+	PointerAccess(Factory& f, const ValueTree& v) :
+		Expression(f, v)
+	{}
+
+	jit::TypeInfo getTypeInfo() const override
+	{
+		jassertfalse;
+		return TypeInfo();
+	}
+
+	VariableStorage getResult(Scope* s) override
+	{
+		jassertfalse;
+		return VariableStorage();
+	}
 };
 
 } // namespace nodes
