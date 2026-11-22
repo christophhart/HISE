@@ -198,35 +198,43 @@ public:
 
 				if (diff > 0.0001)
 				{
-					DBG("FAIL: ======================================= ");
+					String msg;
+					String nl = "\n";
 
-					DBG(compiler->getLastCompiledCode());
-					DBG(compiler->dumpSyntaxTree());
+					msg << "FAIL: ======================================= " << nl;
 
-					DBG("RESULT: ===================================== ");
+					msg << "CODE: " << nl;
+					msg << compiler->getLastCompiledCode() << nl;
+					msg << "SYNTAXTREE: " << nl;
+					msg << compiler->dumpSyntaxTree() << nl;
+					msg << "NAMESPACETREE: " << nl;
+					msg << compiler->dumpNamespaceTree() << nl;
 
-					DBG("Expected: " + juce::String(expected));
-					DBG("Actual: " + juce::String(v));
+					msg << "RESULT: ===================================== " << nl;
 
-					DBG("============================================= ");
-					jassertfalse;
+					msg << "Expected: " + juce::String(expected) << nl;
+					msg << "Actual: " + juce::String(v) << nl;
+
+					msg << "============================================= ";
+					
+					throw Result::fail(msg);
 				}
 
 				return v;
 			}
 			catch (interpreter::Engine::CallError& e)
 			{
-				DBG("RUNTIME ERROR: ============================== ");
+				String msg;
+				String nl = "\n";
+
+				msg << "RUNTIME ERROR: ============================== " << nl;
+				msg << e.e.toFullCallStack() << nl;
+				msg << "FAIL: ======================================= " << nl;
+				msg << compiler->getLastCompiledCode() << nl;
+				msg << compiler->dumpSyntaxTree() << nl;
+				msg << "============================================= " << nl;
 				
-				DBG(e.e.toFullCallStack());
-
-				DBG("FAIL: ======================================= ");
-
-				DBG(compiler->getLastCompiledCode());
-				DBG(compiler->dumpSyntaxTree());
-
-				DBG("============================================= ");
-				jassertfalse;
+				throw Result::fail(msg);
 			}
             
 		}
@@ -564,7 +572,17 @@ public:
 
 		optimizations = OptimizationIds::Helpers::getDefaultIds();
 
-		runTestsWithOptimisation(OptimizationIds::Helpers::getDefaultIds());
+		try
+		{
+			runTestsWithOptimisation(OptimizationIds::Helpers::getDefaultIds());
+		}
+		catch (Result& r)
+		{
+			DBG(r.getErrorMessage());
+			std::cout << r.getErrorMessage();
+			expect(false, "Aborting tests");
+			return;
+		}
 	}
 
 #if INCLUDE_SNEX_BIG_TESTSUITE
@@ -3175,6 +3193,7 @@ private:
 
 
         
+
 
 		CREATE_TEST("struct X { struct Y { int u = 8; int v = 12; int getV() { return v; }}; Y y; }; X x; float test(float input){ return x.y.getV() + input;");
 

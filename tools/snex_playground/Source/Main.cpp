@@ -26,9 +26,17 @@ public:
     void initialise (const String& commandLine) override
     {
 
-#if TEST_RUN
-		runner.runTestsInCategory("snex");
-#endif
+        if ((commandLine.startsWith("--unittest")) || TEST_RUN)
+        {
+            
+            runner.setAssertOnFailure(false);
+            runner.setPassesAreLogged(false);
+            runner.runTestsInCategory("snex");
+            quit();
+            return;
+        }
+
+		
 		//runner.runTestsInCategory("node_tests");
 
         // This method is where you should put your application's initialisation code..
