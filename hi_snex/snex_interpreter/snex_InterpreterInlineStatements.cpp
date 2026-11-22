@@ -18,7 +18,10 @@ struct InlinedFunction: public Expression,
       Expression(f, v),
       scopeId(Helpers::getNamespacedIdentifier(v, AstIds::ScopeId)),
       returnType(Helpers::getType(f, v, AstIds::ReturnType)),
-      blockData(f, *this)
+      blockData(f, *this),
+      isReference(returnType.isRef()),
+      readReturnedValue(isReference && returnType.getType() != Types::ID::Pointer),
+      returnFunctions(isReference ? OpFunctions::Data::getFunctionPtr(returnType) : OpFunctions::Data::Functions{})
     {}
 
     static Symbol resolveSymbol(Factory& f, const ValueTree& v, const Identifier symbolId)
@@ -75,7 +78,30 @@ struct InlinedFunction: public Expression,
     {
         VariableStorage rv;
         blockData.perform(statementScope, &rv);
+
+        if (readReturnedValue)
+            return returnFunctions.first({ rv.getDataPointer(), 0 });
+
         return rv;
+    }
+
+    Scope::LValue& getLValue(Scope* s) override
+    {
+        if (!isReference)
+            return Expression::getLValue(s);
+
+        VariableStorage rv;
+        blockData.perform(statementScope, &rv);
+        returnAddress = { rv.getDataPointer(), 0 };
+        return returnAddress;
+    }
+
+    void assign(Scope* s, const VariableStorage& value) override
+    {
+        if (!isReference)
+            return Expression::assign(s, value);
+
+        returnFunctions.second(getLValue(s), value);
     }
 
     Scope::Ptr createScope(Scope* scopeToUse) override
@@ -92,6 +118,10 @@ struct InlinedFunction: public Expression,
     NamespacedIdentifier scopeId;
     TypeInfo returnType;
     Statement::BlockExecutor blockData;
+    const bool isReference;
+    const bool readReturnedValue;
+    const OpFunctions::Data::Functions returnFunctions;
+    Scope::LValue returnAddress;
 };
 
 struct InlinedArgument : public Statement,
@@ -162,8 +192,24 @@ struct InlinedReturnValue : public ReturnStatement
     SNEX_INTERPRETER_NODE(InlinedReturnValue, WantsNode::No);
 
     InlinedReturnValue(Factory& f, const ValueTree& v) :
-        ReturnStatement(f, v)
+        ReturnStatement(f, v),
+        returnsReference(Helpers::getType(f,
+            valuetree::Helpers::findParentWithType(v, Identifier("InlinedFunction")), AstIds::ReturnType).isRef())
     {}
+
+    ResultCode perform(Scope* s, VariableStorage* returnValue) override
+    {
+        if (returnsReference && returnValue != nullptr && value != nullptr)
+        {
+            auto lv = value->getLValue(s);
+            *returnValue = VariableStorage(reinterpret_cast<uint8*>(lv.first) + lv.second);
+            return ResultCode::returnWasHit;
+        }
+
+        return ReturnStatement::perform(s, returnValue);
+    }
+
+    const bool returnsReference;
 };
 
 

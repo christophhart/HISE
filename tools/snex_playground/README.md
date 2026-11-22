@@ -14,6 +14,12 @@ From the repository root, run:
 python tools/snex_playground/buildandtest.py
 ```
 
+To compile without running the unit tests (for example, before running a focused snippet), use:
+
+```text
+python tools/snex_playground/buildandtest.py --build-only
+```
+
 Alternatively, on Windows, run:
 
 ```text
@@ -73,9 +79,13 @@ The CDB command breaks on access violations, prints the exception record and a 4
 
 ## Working on interpreter tests
 
+### Mandatory hot-path review gate
+
+Before considering any interpreter edit complete, inspect every changed execution-time method, including `perform()`, `getResult()`, `getLValue()`, and `assign()`. For each new calculation, lookup, type check, or function selection, determine whether its inputs are stable during construction or `resolveDataPointers()`. If they are, move the work there and cache the result. Leave only work that depends on runtime values in the execution path. Do this review even when the focused test already passes; a passing test does not waive the gate. In the final report, explicitly state what was moved out of the hot path and what must remain there, or state that no execution-time methods changed. Do not report an interpreter fix as complete without this review.
+
 Keep changes focused on the interpreter and follow the conventions already established in the surrounding code:
 
-- Move calculations and resolution work out of execution-time methods where possible. Resolve symbols, pointers, offsets, and other stable data during construction or `resolveDataPointers()`.
+- Resolve symbols, pointers, offsets, and other stable data during construction or `resolveDataPointers()`, not during execution.
 - Reuse existing helpers and data structures, including `Scope::ResolvedReference`, rather than duplicating their lookup or storage logic.
 - Keep runtime paths simple. Do not add a new abstraction or special case until the existing reference, lvalue, and scope mechanisms have been checked.
 - Preserve the distinction between an object's storage address and a pointer value stored in a slot. A `ResolvedReference` locates storage; it does not necessarily dereference a pointer stored there.

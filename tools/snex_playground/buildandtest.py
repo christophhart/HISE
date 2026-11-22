@@ -107,6 +107,12 @@ def report_test_failure(output):
 
 
 def main():
+    if len(sys.argv) > 2 or (len(sys.argv) == 2 and sys.argv[1] != "--build-only"):
+        print("Usage: buildandtest.py [--build-only]", file=sys.stderr)
+        return 2
+
+    build_only = len(sys.argv) == 2
+
     if not SOLUTION.is_file():
         print(f"Solution not found: {SOLUTION}", file=sys.stderr)
         return 2
@@ -114,10 +120,11 @@ def main():
         print(f"Playground executable not found: {EXE}", file=sys.stderr)
         return 2
 
-    cdb = shutil.which("cdb.exe") or shutil.which("cdb")
-    if not cdb:
-        print("cdb was not found on PATH", file=sys.stderr)
-        return 2
+    if not build_only:
+        cdb = shutil.which("cdb.exe") or shutil.which("cdb")
+        if not cdb:
+            print("cdb was not found on PATH", file=sys.stderr)
+            return 2
 
     try:
         msbuild = find_msbuild()
@@ -140,6 +147,9 @@ def main():
         return build.returncode
 
     print("Compiled OK", flush=True)
+    if build_only:
+        return 0
+
     print("Running test suite...", flush=True)
     try:
         test = subprocess.run(

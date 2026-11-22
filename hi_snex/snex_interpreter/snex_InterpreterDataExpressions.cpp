@@ -392,20 +392,29 @@ struct ThisPointer : public Expression
 
 	ThisPointer(Factory& f, const ValueTree& v) :
 	  Expression(f, v),
-	  type(Helpers::getType(f, v)),
-	  isInsideInlinedFunction(valuetree::Helpers::findParentWithType(v, Identifier("InlinedFunction")).isValid())
+	  type(Helpers::getType(f, v))
 	{}
 
 	jit::TypeInfo getTypeInfo() const override { return type; }
 
 	void resolveDataPointers(Scope* s) override
 	{
+		// An inline argument is evaluated in the caller's scope, before the callee's arguments are assigned.
+		if (astNode.getParent().getType() == Identifier("InlinedArgument"))
+		{
+			if (auto inlineScope = s->getParentScopeWithType(Scope::ScopeType::InlinedFunction))
+				s = inlineScope->parent;
+		}
+
 		if (auto inlineScope = s->getParentScopeWithType(Scope::ScopeType::InlinedFunction))
 		{
 			auto thisId = inlineScope->id.getChildId("this");
 			address = inlineScope->resolveDataPointer(thisId);
 			if (address)
+			{
+				isInlineThisPointer = true;
 				return;
+			}
 		}
 
 		auto functionScope = s->getParentScopeWithType(Scope::ScopeType::Function);
@@ -415,7 +424,7 @@ struct ThisPointer : public Expression
 
 	VariableStorage getResult(Scope*)
 	{
-		if (isInsideInlinedFunction)
+		if (isInlineThisPointer)
 			return address.read();
 
 		return VariableStorage(*static_cast<void**>(address.getDataPointer()));
@@ -423,7 +432,7 @@ struct ThisPointer : public Expression
 
 	Scope::LValue& getLValue(Scope*) override
 	{
-		if (isInsideInlinedFunction)
+		if (isInlineThisPointer)
 			return address.getLValue();
 
 		objectAddress = { *static_cast<void**>(address.getDataPointer()), 0 };
@@ -433,7 +442,7 @@ struct ThisPointer : public Expression
 	Scope::ResolvedReference address;
 	Scope::LValue objectAddress;
 	TypeInfo type;
-	const bool isInsideInlinedFunction;
+	bool isInlineThisPointer = false;
 };
 
 struct PointerAccess : public Expression
