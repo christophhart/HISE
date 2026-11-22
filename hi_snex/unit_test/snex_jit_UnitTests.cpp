@@ -131,6 +131,12 @@ public:
 
 		compiler = new Compiler(memory);
 
+		UriLocation bl;
+		bl.processorId = "jit_test";
+		bl.uri = "test";
+
+		compiler->setUriErrorLogger(nullptr, bl);
+
 		Types::SnexObjectDatabase::registerObjects(*compiler, 2);
 	}
 
@@ -170,6 +176,33 @@ public:
 
 		static const Identifier t("test");
 
+		auto createErrorReport = [](Compiler* c, const String& errorMessage)
+		{
+			String msg;
+			String nl = "\n";
+
+			msg << "<<< FAIL: ======================================= " << nl;
+
+			msg << "ERROR: ========================================== " << nl;
+			msg << errorMessage << nl << nl;
+			msg << "CODE: ===========================================" << nl;
+
+			auto code = c->getLastCompiledCode();
+
+			auto lines = StringArray::fromLines(code);
+
+			for (int i = 0; i < lines.size(); i++)
+			{
+				msg << String(i + 1) << "\t" << lines[i] << nl;
+			}
+
+			msg << nl;
+			msg << "SYNTAXTREE: ======================================" << nl;
+			msg << c->dumpSyntaxTree() << nl;
+			msg << "============================================== >>>";
+			return msg;
+		};
+
 		if (auto f = func[t])
 		{
 			before = func.dumpTable();
@@ -199,42 +232,19 @@ public:
 				if (diff > 0.0001)
 				{
 					String msg;
-					String nl = "\n";
+					String nl;
 
-					msg << "FAIL: ======================================= " << nl;
+					msg << "Expected: " << juce::String(expected) << nl;
+					msg << "Actual: " << juce::String(v) << nl;
 
-					msg << "CODE: " << nl;
-					msg << compiler->getLastCompiledCode() << nl;
-					msg << "SYNTAXTREE: " << nl;
-					msg << compiler->dumpSyntaxTree() << nl;
-					msg << "NAMESPACETREE: " << nl;
-					msg << compiler->dumpNamespaceTree() << nl;
-
-					msg << "RESULT: ===================================== " << nl;
-
-					msg << "Expected: " + juce::String(expected) << nl;
-					msg << "Actual: " + juce::String(v) << nl;
-
-					msg << "============================================= ";
-					
-					throw Result::fail(msg);
+					throw Result::fail(createErrorReport(compiler, msg));
 				}
 
 				return v;
 			}
 			catch (interpreter::Engine::CallError& e)
 			{
-				String msg;
-				String nl = "\n";
-
-				msg << "RUNTIME ERROR: ============================== " << nl;
-				msg << e.e.toFullCallStack() << nl;
-				msg << "FAIL: ======================================= " << nl;
-				msg << compiler->getLastCompiledCode() << nl;
-				msg << compiler->dumpSyntaxTree() << nl;
-				msg << "============================================= " << nl;
-				
-				throw Result::fail(msg);
+				throw Result::fail(createErrorReport(compiler, e.e.toFullCallStack()));
 			}
             
 		}

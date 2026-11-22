@@ -21,6 +21,15 @@ struct Scope : public ReferenceCountedObject
 		size_t size = 0;
 	};
 
+	struct ScopeError
+	{
+		jit::Symbol location;
+		LValue address;
+		String errorMessage;
+
+		String toString() const;
+	};
+
 	// a table of all references, both external and owned
 	struct Reference
 	{
@@ -50,6 +59,8 @@ struct Scope : public ReferenceCountedObject
 		void assign(const LValue& lValue);
 
 		static bool isBlockType(const jit::TypeInfo& t);
+
+		void throwNullptrAccess() const;
 
 		// Convert a pointer to a block type
 		static VariableStorage toBlock(const VariableStorage& pointer);
@@ -85,7 +96,10 @@ struct Scope : public ReferenceCountedObject
 		if (scopeType == sp)
 			return this;
 
-		return parent->getParentScopeWithType(sp);
+		if(parent != nullptr)
+			return parent->getParentScopeWithType(sp);
+
+		return nullptr;
 	}
 
 	Scope* getRootScope()

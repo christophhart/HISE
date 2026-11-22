@@ -115,7 +115,7 @@ namespace Operations
 		{
 			auto id = v.getPropertyName(i);
 
-			if (id == Identifier("Line"))
+			if (id == Identifier("Line") || id == Identifier("charIndex"))
 				continue;
 
 			s << id << "=" << v[id].toString();

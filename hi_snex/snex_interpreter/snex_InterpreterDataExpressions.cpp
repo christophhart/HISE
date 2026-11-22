@@ -392,7 +392,8 @@ struct ThisPointer : public Expression
 
 	ThisPointer(Factory& f, const ValueTree& v) :
 	  Expression(f, v),
-	  type(Helpers::getType(f, v))
+	  type(Helpers::getType(f, v)),
+	  isInsideInlinedFunction(valuetree::Helpers::findParentWithType(v, Identifier("InlinedFunction")).isValid())
 	{}
 
 	jit::TypeInfo getTypeInfo() const override { return type; }
@@ -414,16 +415,25 @@ struct ThisPointer : public Expression
 
 	VariableStorage getResult(Scope*)
 	{
-		return address.read();
+		if (isInsideInlinedFunction)
+			return address.read();
+
+		return VariableStorage(*static_cast<void**>(address.getDataPointer()));
 	}
 
 	Scope::LValue& getLValue(Scope*) override
 	{
-		return address.getLValue();
+		if (isInsideInlinedFunction)
+			return address.getLValue();
+
+		objectAddress = { *static_cast<void**>(address.getDataPointer()), 0 };
+		return objectAddress;
 	}
 
 	Scope::ResolvedReference address;
+	Scope::LValue objectAddress;
 	TypeInfo type;
+	const bool isInsideInlinedFunction;
 };
 
 struct PointerAccess : public Expression

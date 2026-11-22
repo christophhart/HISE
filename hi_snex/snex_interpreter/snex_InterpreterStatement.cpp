@@ -560,6 +560,12 @@ struct Statement::BlockExecutor
 				ne.e.callstack.push_back({ ne.callstackId, callstackLocation });
 				throw ne.e;
 			}
+			catch (Scope::ScopeError& e)
+			{
+				auto ue = UriError::fail(e.toString());
+				ue.fillLocation(locations[i]);
+				throw ue;
+			}
 		}
 
 		return ResultCode::ok;

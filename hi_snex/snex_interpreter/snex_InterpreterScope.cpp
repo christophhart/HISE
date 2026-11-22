@@ -213,6 +213,10 @@ Scope::LValue Scope::ResolvedReference::getLValueCopy() const
 void* Scope::ResolvedReference::getDataPointer() const
 {
 	auto lv = getLValueCopy();
+	
+	if (lv.first == nullptr)
+		throwNullptrAccess();
+
 	jassert(lv.first != nullptr);
 	return reinterpret_cast<uint8*>(lv.first) + lv.second;
 }
@@ -236,7 +240,9 @@ VariableStorage Scope::ResolvedReference::read() const
 void Scope::ResolvedReference::write(const VariableStorage& v)
 {
 	auto& lv = getLValue();
-	jassert(lv.first != nullptr);
+
+	if (lv.first == nullptr)
+		throwNullptrAccess();
 
 	if (isBlockType(type))
 		ComplexType::writeNativeMemberType(lv.first, lv.second, toBlock(v));
@@ -263,6 +269,28 @@ bool Scope::ResolvedReference::isBlockType(const jit::TypeInfo& t)
 	return false;
 }
 
+void Scope::ResolvedReference::throwNullptrAccess() const
+{
+	ScopeError e;
+	e.errorMessage = "reading/writing nullptr";
+
+	if (referenceIndex != -1)
+	{
+		auto& r = s->references[referenceIndex];
+		e.location.id = s->id.getChildId(r.id);
+		e.location.typeInfo = r.type;
+		e.address = r.address;
+	}
+	else
+	{
+		e.location.id = s->id.getChildId("anonymous");
+		e.location.typeInfo = this->type;
+		e.address = immediateLocation;
+	}
+
+	throw e;
+}
+
 // Convert a pointer to a block type
 VariableStorage Scope::ResolvedReference::toBlock(const VariableStorage& pointer)
 {
@@ -270,6 +298,14 @@ VariableStorage Scope::ResolvedReference::toBlock(const VariableStorage& pointer
 	auto blockPtr = reinterpret_cast<block*>(pointer.getDataPointer());
 	jassert(blockPtr->unused == Types::ID::Block);
 	return VariableStorage(*blockPtr);
+}
+
+String Scope::ScopeError::toString() const
+{
+	String msg;
+	msg << errorMessage << ": `" << location.toString();
+	msg << "`. address: " << String::toHexString(reinterpret_cast<int64>(address.first)) << "+" << String(address.second);
+	return msg;
 }
 
 } // namespace interpreter
