@@ -27,28 +27,38 @@ struct InlinedFunction: public Expression,
 
         if (symbolString.startsWith("unresolved"))
         {
-            if (symbolString == "unresolved this")
+            auto parentFunc = valuetree::Helpers::findParentWithType(v, Identifier("InlinedFunction"));
+            jassert(parentFunc.isValid());
+
+            auto scopeId = Helpers::getNamespacedIdentifier(parentFunc, AstIds::ScopeId);
+
+            for (auto c : parentFunc)
             {
-                auto parentFunc = valuetree::Helpers::findParentWithType(v, Identifier("InlinedFunction"));
-                jassert(parentFunc.isValid());
+                if (c.getType() != Identifier("InlinedArgument") ||
+                    c[AstIds::ParameterName].toString() != symbolString ||
+                    c.getNumChildren() == 0)
+                    continue;
 
-                Symbol thisPointer;
+                auto childSymbol = Helpers::getSymbol(f, c.getChild(0));
+                Symbol resolved;
+                resolved.typeInfo = childSymbol.typeInfo;
 
-                thisPointer.id = Helpers::getNamespacedIdentifier(parentFunc, AstIds::ScopeId);
-                thisPointer.id = thisPointer.id.getChildId("this");
-
-                for (auto c : parentFunc)
+                if (symbolString == "unresolved this")
                 {
-                    if (c.getType() == Identifier("InlinedArgument") &&
-                        c[AstIds::ParameterName].toString() == symbolString)
-                    {
-                        auto childType = Helpers::getSymbol(f, c.getChild(0));
-                        thisPointer.typeInfo = childType.typeInfo.withModifiers(false, true, false);
-                        return thisPointer;
-                    }
+                    resolved.id = scopeId.getChildId("this");
+                    resolved.typeInfo = resolved.typeInfo.withModifiers(false, true, false);
                 }
+                else
+                {
+                    auto parameterName = symbolString.fromLastOccurrenceOf("::", false, false);
+                    if (parameterName.isEmpty())
+                        break;
+                    resolved.id = scopeId.getChildId(parameterName);
+                    resolved.typeInfo = resolved.typeInfo.withModifiers(false, true, false);
+                }
+
+                return resolved;
             }
-            
 
             jassertfalse;
         }
@@ -110,13 +120,16 @@ struct InlinedArgument : public Statement,
     void resolveDataPointers(Scope* s) override
     {
         auto inlineScope = s->getParentScopeWithType(Scope::ScopeType::InlinedFunction);
-        inlineScope->resolveDataPointer(argument.id);
+        target = inlineScope->resolveDataPointer(argument.id);
     }
 
     ResultCode perform(Scope* s, VariableStorage* returnValue)
     {
-        auto v = initialiser->getResult(s);
-        target.write(v);
+        if (argument.typeInfo.isRef())
+            target.assign(initialiser->getLValue(s));
+        else
+            target.write(initialiser->getResult(s));
+
         return ResultCode::ok;
     }
 
@@ -138,9 +151,7 @@ struct InlinedParameter : public VariableReference
 
     void resolveDataPointers(Scope* s) override
     {
-        auto inlineScope = s->getParentScopeWithType(Scope::ScopeType::InlinedFunction);
-        jassert(inlineScope->id == this->symbol.id.getParent());
-        this->ref = inlineScope->resolveDataPointer(this->symbol.id);
+        this->ref = s->resolveDataPointer(this->symbol.id);
         this->symbol.resolved = (bool)this->ref;
     }
 

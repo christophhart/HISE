@@ -60,7 +60,21 @@ struct VariableReference : public Expression
 		Expression(f, v),
 		symbol(Helpers::getSymbol(f, v)),
 		f(OpFunctions::Data::getFunctionPtr(symbol.typeInfo))
-	{};
+	{
+		auto isMember = (v.getParent().isValid() &&
+					     v.getParent().getType() == Identifier("Dot") &&
+					     v.getParent().indexOf(v) == 1);
+
+		if (isMember)
+		{
+			auto parentType = Helpers::getType(f, v.getParent(), AstIds::ObjectType);
+
+			if(auto st = parentType.getTypedComplexType<StructType>())
+			{
+				memberOffset = { true, st->getMemberOffset(symbol.id.id) };
+			}
+		}
+	};
 
 	Scope::LValue& getLValue(Scope* s) override
 	{
@@ -69,16 +83,26 @@ struct VariableReference : public Expression
 
 	void assign(Scope* s, const VariableStorage& value) override
 	{
+		jassert(!memberOffset.first);
 		ref.write(value);
 	}
 
 	VariableStorage getResult(Scope* s) override
 	{
+		jassert(!memberOffset.first);
 		return ref.read();
 	}
 
 	void resolveDataPointers(Scope* s) override
 	{
+		if (memberOffset.first)
+		{
+			ref.immediateLocation = { nullptr, memberOffset.second };
+			symbol.resolved = true;
+			return;
+		}
+
+
 		ref = s->resolveDataPointer(symbol.id);
 		symbol.resolved = (bool)ref;
 
@@ -105,6 +129,8 @@ struct VariableReference : public Expression
 	Scope::ResolvedReference ref;
 	jit::Symbol symbol;
 	OpFunctions::Data::Functions f;
+
+	std::pair<bool, size_t> memberOffset;
 };
 
 struct Assignment : public Statement,
@@ -377,13 +403,32 @@ struct ThisPointer : public Expression
 
 	jit::TypeInfo getTypeInfo() const override { return type; }
 
-	VariableStorage getResult(Scope* s)
+	void resolveDataPointers(Scope* s) override
 	{
-		auto ptr = (void**)s->getParentScopeWithType(Scope::ScopeType::Function)->getDataPointer();
-		return VariableStorage(*ptr);
+		if (auto inlineScope = s->getParentScopeWithType(Scope::ScopeType::InlinedFunction))
+		{
+			auto thisId = inlineScope->id.getChildId("this");
+			address = inlineScope->resolveDataPointer(thisId);
+			if (address)
+				return;
+		}
+
+		auto functionScope = s->getParentScopeWithType(Scope::ScopeType::Function);
+		auto thisId = functionScope->id.getChildId("this");
+		address = functionScope->resolveDataPointer(thisId);
 	}
 
-	Scope::Ptr resolvedScope = nullptr;
+	VariableStorage getResult(Scope*)
+	{
+		return address.read();
+	}
+
+	Scope::LValue& getLValue(Scope*) override
+	{
+		return address.getLValue();
+	}
+
+	Scope::ResolvedReference address;
 	TypeInfo type;
 };
 
@@ -392,20 +437,30 @@ struct PointerAccess : public Expression
 	SNEX_INTERPRETER_NODE(PointerAccess, WantsNode::No);
 
 	PointerAccess(Factory& f, const ValueTree& v) :
-		Expression(f, v)
+		Expression(f, v),
+		target(Helpers::getChildExpression(this, 0)),
+		type(target->getTypeInfo().withModifiers(false, true, false))
 	{}
 
 	jit::TypeInfo getTypeInfo() const override
 	{
-		jassertfalse;
-		return TypeInfo();
+		return type;
 	}
 
 	VariableStorage getResult(Scope* s) override
 	{
-		jassertfalse;
-		return VariableStorage();
+		return target->getResult(s);
 	}
+
+	Scope::LValue& getLValue(Scope* s) override
+	{
+		address = { (void*)target->getResult(s), 0 };
+		return address;
+	}
+
+	Expression::ExprPtr target;
+	TypeInfo type;
+	Scope::LValue address;
 };
 
 } // namespace nodes
