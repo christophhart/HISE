@@ -29,6 +29,7 @@ DECLARE_ID(ParameterName);
 DECLARE_ID(Iterator);
 DECLARE_ID(LoadIterator);
 DECLARE_ID(LoopType);
+DECLARE_ID(command);
 
 DECLARE_ID(ElementSize);
 DECLARE_ID(NumElements);

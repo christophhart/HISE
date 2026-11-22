@@ -90,7 +90,7 @@ struct StatementBlock : public Statement,
 		return Result::ok();
 	}
 
-	ResultCode perform(Scope* s, VariableStorage* returnValue) override
+	ResultCode perform(Scope* s, VariableStorage* returnValue) final override
 	{
 		return blockData.perform(statementScope, returnValue);
 	};
@@ -102,146 +102,7 @@ struct StatementBlock : public Statement,
 	Array<jit::Symbol> additionalSymbolsToAllocate;
 };
 
-struct Function : public Statement,
-				  public DefinitionBase
-{
-	SNEX_INTERPRETER_NODE(Function, WantsNode::Yes);
 
-	Function(Statement::Factory& f, const ValueTree& v) :
-		Statement(f, v)
-	{
-		body = childStatements[0];
-		fData = Helpers::getFunctionData(f, v);
-		jassert(body != nullptr);
-	};
-
-	ResultCode perform(Scope* s, VariableStorage* returnValue) override
-	{
-		return body->perform(s, returnValue);
-	};
-
-	Scope::Ptr createScope(Scope* parent)
-	{
-		return new Scope(Scope::ScopeType::Function, parent, parent->engine, fData.id);
-	}
-
-	Result allocateInScope(Scope* scopeToUse) override
-	{
-		setAllocated();
-
-		jassert(scopeToUse->scopeType == Scope::ScopeType::Function);
-		jassert(scopeToUse->id == fData.id);
-
-		auto addThisPointer = scopeToUse->parent != scopeToUse->getRootScope();
-
-		auto thisId = addThisPointer ? fData.id.getChildId("this") : NamespacedIdentifier();
-
-		if (thisId.isValid())
-		{
-			// Keep this first in the function scope: ThisPointer reads its object pointer from offset zero.
-			jit::Symbol thisObj({ thisId, TypeInfo(Types::ID::Pointer) });
-			scopeToUse->addSymbol(thisObj);
-		}
-
-		for (const auto& a : fData.args)
-		{
-			auto result = scopeToUse->addSymbol(a);
-			jassert(result.wasOk());
-		}
-
-		return Result::ok();
-	}
-
-	void resolveDataPointers(Scope* scopeToUse)
-	{
-		jassert(scopeToUse->scopeType == Scope::ScopeType::Function);
-		jassert(scopeToUse->id == fData.id);
-
-		auto validParameters = true;
-		auto addThisPointer = scopeToUse->parent != scopeToUse->getRootScope();
-		auto thisId = addThisPointer ? fData.id.getChildId("this") : NamespacedIdentifier();
-
-		if (addThisPointer)
-			parameters.push_back(scopeToUse->resolveDataPointer(thisId));
-
-		for (const auto& a : fData.args)
-		{
-			auto ptr = scopeToUse->resolveDataPointer(a.id);
-			validParameters &= (bool)ptr;
-			parameters.push_back(ptr);
-		}
-
-		if (validParameters)
-		{
-			fData.object = this;
-			fData.function = OpFunctions::Function::getFromFunctionMap(OpFunctions::getSigString(fData, addThisPointer));
-
-			if (fData.function == nullptr)
-			{
-				fData.function = (void*)callDynamicStatic;
-			}
-		}
-
-		if (fData.returnType.toString() == "block&")
-			convertToBlock = true;
-
-		jassert(fData.function != nullptr);
-	}
-
-	void annotateUriLocationTree(UriLocationTree& t) override
-	{
-		for (auto a : fData.args)
-		{
-			auto argDef = new UriLocationTree(&t);
-			argDef->fillLocation(t);
-			argDef->category = "parameter";
-			argDef->id = a.id.toString();
-			Helpers::annotateType(*argDef, a.typeInfo);
-		}
-	}
-
-	VariableStorage callDynamic(VariableStorage* args, int numArgs)
-	{
-		try
-		{
-			jassert(numArgs == parameters.size());
-
-			ScopedValueSetter<bool> svs(active, true);
-
-			statementScope->clear();
-
-			for (int i = 0; i < numArgs; i++)
-				parameters[i].write(args[i]);
-
-			VariableStorage rv;
-			perform(statementScope, &rv);
-
-			return rv;
-		}
-		catch (UriError& e)
-		{
-			Engine::CallError ne;
-			ne.callstackId = fData.getSignature();
-			ne.e = e;
-			throw ne;
-		}
-	}
-
-	static VariableStorage callDynamicStatic(void* obj, VariableStorage* args, int numArgs)
-	{
-		auto data = static_cast<Function*>(obj);
-		return data->callDynamic(args, numArgs);
-
-	}
-
-	std::vector<Scope::ResolvedReference> parameters;
-
-	jit::FunctionData fData;
-	Ptr body;
-
-	bool active = false;
-	bool convertToBlock = false;
-};
 
 struct TernaryOp : public Expression
 {
@@ -298,6 +159,25 @@ struct IfStatement : public Statement
 	Statement::Ptr trueBranch;
 	Statement::Ptr falseBranch;
 };
+
+struct ControlFlowStatement : public Statement
+{
+	SNEX_INTERPRETER_NODE(ControlFlowStatement, WantsNode::No);
+
+	ControlFlowStatement(Statement::Factory& f, const ValueTree& v) :
+		Statement(f, v),
+		returnCode(v[AstIds::command].toString() == "continue" ? ResultCode::continueWasHit : ResultCode::breakWasHit)
+	{};
+
+	ResultCode perform(Scope* s, VariableStorage* returnValue) override
+	{
+		return returnCode;
+	};
+
+	const ResultCode returnCode;
+};
+
+
 
 struct ReturnStatement : public Statement
 {
@@ -406,6 +286,81 @@ struct ReturnStatement : public Statement
 	TypeInfo elementType;
 	int elementSize;
 	int numElements;
+};
+
+struct WhileLoop : public Statement
+{
+	SNEX_INTERPRETER_NODE(WhileLoop, WantsNode::No);
+
+	WhileLoop(Statement::Factory& f, const ValueTree& v) :
+		Statement(f, v)
+	{
+		auto isWhileLoop = v[AstIds::LoopType].toString() == "While";
+
+		if (isWhileLoop)
+		{
+			condition = Helpers::getChildExpression(this, 0);
+			body = childStatements[1]->getTyped<StatementBlock>();
+		}
+		else
+		{
+			initialiser = childStatements[0];
+			condition = Helpers::getChildExpression(this, 1);
+			body = childStatements[2]->getTyped<StatementBlock>();
+			postOp = childStatements[3];
+
+			// This is required for the scope allocation to work
+			// the while loop has the statement body as 3rd child but the initialiser
+			// needs the scope to be processed and allocated
+			childStatements.swap(1, 2);
+			childStatements.swap(0, 1);
+
+			if (auto as = initialiser->getTyped<Assignment>())
+			{
+				if (auto v = initialiser->childStatements[1]->getTyped<VariableReference>())
+				{
+					body->additionalSymbolsToAllocate.add(v->symbol);
+				}
+			}
+		}
+	};
+
+	ResultCode perform(Scope* s, VariableStorage* returnValue) override
+	{ 
+		static const int RecursionProtection = 10000000;
+		int loopCounter = 0;
+
+		if (initialiser != nullptr)
+			initialiser->perform(s, returnValue);
+
+		auto v = condition->getResult(s).toInt();
+
+		while (v != 0)
+		{
+			if (loopCounter++ > RecursionProtection)
+				throwRuntimeError("infinite loop detected!");
+
+			auto rc = body->perform(s, returnValue);
+
+			if (rc == ResultCode::breakWasHit)
+				break;
+
+			if (rc == ResultCode::returnWasHit)
+				return rc;
+
+			if (postOp != nullptr)
+				postOp->perform(s, returnValue);
+
+			v = condition->getResult(s).toInt();
+		}
+
+		return ResultCode::ok;
+	};
+
+	Statement::Ptr initialiser;
+	Expression::ExprPtr condition;
+	StatementBlock* body;
+	Statement::Ptr postOp;
 };
 
 } // namespace nodes

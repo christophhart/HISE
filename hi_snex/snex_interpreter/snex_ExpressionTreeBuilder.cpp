@@ -57,7 +57,9 @@ Statement::Factory::Factory()
 	registerType<nodes::StatementBlock>();
 	registerType<nodes::TernaryOp>();
 	registerType<nodes::IfStatement>();
+	registerType<nodes::ControlFlowStatement>();
 	registerType<nodes::Loop>();
+	registerType<nodes::WhileLoop>();
 
 	registerType<nodes::InlinedFunction>();
 	registerType<nodes::InlinedArgument>();

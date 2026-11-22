@@ -193,11 +193,17 @@ struct Assignment : public Statement,
 			}
 			else
 			{
-				if (v->symbol.id.getParent() == s->id &&
-					s->find(v->symbol.id.id) == nullptr)
-				{
-					auto& type = v->symbol.typeInfo;
+				if (v->symbol.id.getParent() == s->id)
 					return s->addSymbol(v->symbol);
+
+				if (auto otherScope = s->getRootScope()->getChildScope(v->symbol.id.getParent()))
+				{
+					auto ref = otherScope->resolveDataPointer(v->symbol.id);
+					
+					if (!(bool)ref)
+						return Result::fail("must be allocated already");
+
+					return Result::ok();
 				}
 			}
 		}

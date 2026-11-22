@@ -84,131 +84,7 @@ struct Statement::OpFunctions
 		}
 	};
 
-	struct Function
-	{
-		
-
-		static void* getFromFunctionMap(const String& sig)
-		{
-			static const std::map<String, void*> functionMap = []
-				{
-					std::map<String, void*> functions;
-					addReturnSignatures<void>(functions, "v");
-					addReturnSignatures<int>(functions, "i");
-					addReturnSignatures<float>(functions, "f");
-					addReturnSignatures<double>(functions, "d");
-					addReturnSignatures<void*>(functions, "p");
-					return functions;
-				}();
-
-			auto match = functionMap.find(sig);
-			return match != functionMap.end() ? match->second : nullptr;
-		}
-
-	private:
-
-		template <typename RV, typename... Ts> static RV call(void* obj, Ts... args)
-		{
-			auto data = static_cast<nodes::Function*>(obj);
-
-			try
-			{
-				if (data == nullptr || data->active || data->parameters.size() != sizeof...(Ts))
-				{
-					if (data != nullptr)
-					{
-						if (data->active)
-							data->throwRuntimeError("reentrant");
-
-						if (data->parameters.size() != sizeof...(Ts))
-							data->throwRuntimeError("parameter amount mismatch");
-					}
-						
-					jassertfalse;
-					if constexpr (std::is_void_v<RV>)
-						return;
-					else
-						return RV();
-				}
-
-				ScopedValueSetter<bool> svs(data->active, true);
-
-				data->statementScope->clear();
-				writeArguments(*data, std::index_sequence_for<Ts...>{}, args...);
-
-				VariableStorage rv;
-				data->perform(data->statementScope.get(), &rv);
-
-				if constexpr (!std::is_void_v<RV>)
-				{
-					if constexpr (std::is_same<RV, void*>())
-					{
-						if (data->convertToBlock)
-						{
-							auto ptr = reinterpret_cast<block*>(rv.getDataPointer());
-							auto b1 = *ptr;
-							return reinterpret_cast<void*>(ptr);
-						}
-					}
-
-					static constexpr Types::ID RTypeId = Types::getTypeFromTypeId<RV>();
-					return rv.toType<RTypeId>();
-
-				}
-			}
-			catch (UriError& e)
-			{
-				Engine::CallError ne;
-				ne.callstackId = data->fData.getSignature();
-				ne.e = e;
-				throw ne;
-			}
-		}
-
-		template <typename RV, typename T> static void addTwoArgumentSignatures(
-			std::map<String, void*>& functionMap, const String& firstArgumentSignature)
-		{
-			functionMap[firstArgumentSignature + "i"] = (void*)call<RV, T, int>;
-			functionMap[firstArgumentSignature + "f"] = (void*)call<RV, T, float>;
-			functionMap[firstArgumentSignature + "d"] = (void*)call<RV, T, double>;
-			functionMap[firstArgumentSignature + "p"] = (void*)call<RV, T, void*>;
-		}
-
-		template <typename RV> static void addReturnSignatures(
-			std::map<String, void*>& functionMap, const String& returnSignature)
-		{
-			functionMap[returnSignature] = (void*)call<RV>;
-			functionMap[returnSignature + "i"] = (void*)call<RV, int>;
-			functionMap[returnSignature + "f"] = (void*)call<RV, float>;
-			functionMap[returnSignature + "d"] = (void*)call<RV, double>;
-			functionMap[returnSignature + "p"] = (void*)call<RV, void*>;
-
-			addTwoArgumentSignatures<RV, int>(functionMap, returnSignature + "i");
-			addTwoArgumentSignatures<RV, float>(functionMap, returnSignature + "f");
-			addTwoArgumentSignatures<RV, double>(functionMap, returnSignature + "d");
-			addTwoArgumentSignatures<RV, void*>(functionMap, returnSignature + "p");
-		}
-
-		static void writeWithTypeInfo(Scope::ResolvedReference& rr, const jit::TypeInfo& argType, const VariableStorage& argValue)
-		{
-			if (argType.isRef())
-			{
-				jassert(argValue.getType() == Types::ID::Pointer);
-				Scope::LValue lValue(argValue.getDataPointer(), 0);
-				rr.assign(lValue);
-			}
-			else
-			{
-				rr.write(argValue);
-			}
-		}
-
-		template <size_t... Indices, typename... Ts>
-		static void writeArguments(nodes::Function& data, std::index_sequence<Indices...>, Ts... args)
-		{
-			(writeWithTypeInfo(data.parameters[Indices], data.fData.args[Indices].typeInfo, VariableStorage(args)), ...);
-		}
-	};
+	
 
 	struct BinaryOp
 	{
@@ -622,10 +498,13 @@ Result DefinitionBase::allocateChildStatements(Statement* thisAsStatement, Scope
 			auto ok = allocateChildStatements(c, scopeToUse);
 
 			if (ok.failed())
-				return ok;
+				c->throwRuntimeError(ok.getErrorMessage());
 		}
 
 		auto ok = def->allocateInScope(scopeToUse);
+
+		if(!ok.wasOk())
+			thisAsStatement->throwRuntimeError(ok.getErrorMessage());
 
 		if (def->statementScope != nullptr)
 			def->statementScope->finalise();
@@ -639,14 +518,14 @@ Result DefinitionBase::allocateChildStatements(Statement* thisAsStatement, Scope
 			auto ok = allocateChildStatements(c, scopeToUse);
 
 			if (ok.failed())
-				return ok;
+				c->throwRuntimeError(ok.getErrorMessage());
 		}
 			
 		return Result::ok();
 	}
 
 	return Result::ok();
-}
+}	
 
 } // namespace interpreter
 } // namespace snex

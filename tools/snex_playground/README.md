@@ -94,6 +94,8 @@ Keep changes focused on the interpreter and follow the conventions already estab
 
 ## Failure workflow
 
+If a failure exposes an unimplemented interpreter statement type (for example, `No node for WhileLoop`), stop. Do not implement or register that statement type yourself. Report the missing type and a small reproducer to the maintainer, then wait for them to implement it. Review the maintainer's implementation, including control-flow behavior and the mandatory hot-path review gate, before resuming the test workflow. Do not treat a missing statement type as permission to skip the test or work around the node.
+
 1. Run the script and note the test name shown in its output.
 2. For an access violation, inspect the CDB stack from the first interpreter frame downward. The last `Starting test:` line identifies the active JUCE test.
 3. For an `Expected`/`Actual` mismatch, use the test name and nearby expectation to locate the failing case. The script may report only the first failure because the runner can abort the current test.

@@ -131,26 +131,26 @@ public:
 
             c.setUseInterpreter(useInterpreter);
 
-            auto obj = c.compileJitObject(codeToCompile);
-
-            if (verbose)
-            {
-                log(c.dumpSyntaxTree());
-                log(c.dumpNamespaceTree());
-            }
-
-            if (c.getCompileResult().wasOk())
-            {
-                log("Compiled OK");
-            }
-            else
-            {
-                throwErrorAndQuit(c.getCompileResult().getErrorMessage());
-                return;
-            }
-                
             try
             {
+                auto obj = c.compileJitObject(codeToCompile);
+
+                if (verbose)
+                {
+                    log(c.dumpSyntaxTree());
+                    log(c.dumpNamespaceTree());
+                }
+
+                if (c.getCompileResult().wasOk())
+                {
+                    log("Compiled OK");
+                }
+                else
+                {
+                    throwErrorAndQuit(c.getCompileResult().getErrorMessage());
+                    return;
+                }
+
                 auto f = obj["test"];
 
                 if (!f.isResolved())
@@ -162,6 +162,11 @@ public:
                 auto result = f.callDynamic(args.getRawDataPointer(), args.size());
                 log("test() executed OK");
                 log("Result: " + Types::Helpers::getCppValueString(result));
+            }
+            catch (UriError& e)
+            {
+                throwErrorAndQuit(e.toFullCallStack());
+                return;
             }
             catch (interpreter::Engine::CallError& e)
             {
