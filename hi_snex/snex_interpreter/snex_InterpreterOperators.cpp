@@ -68,7 +68,7 @@ struct Increment : public Expression
 
 	void assign(Scope* s, const VariableStorage& v) override
 	{
-		jassertfalse;
+		throwRuntimeError("Can't assign to increment operator");
 	}
 
 	VariableStorage getResult(Scope* s) override

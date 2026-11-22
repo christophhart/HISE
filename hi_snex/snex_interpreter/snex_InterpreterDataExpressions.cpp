@@ -111,12 +111,6 @@ struct VariableReference : public Expression
 			String msg;
 			msg << "error at resolving symbol: " + symbol.toString();
 			DBG(msg);
-
-			auto loc = Helpers::createUriLocation(this->locationBuilder, astNode);
-
-			DBG(loc.toLocationString(UriLocation::UriFormat::Compact));
-
-			jassertfalse;
 			throwRuntimeError(msg);
 		}
 	}

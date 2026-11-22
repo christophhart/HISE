@@ -369,7 +369,7 @@ struct ReturnStatement : public Statement
 			numElements = obj.toBlock().size();
 			break;
 		default:
-			jassertfalse;
+			throwRuntimeError("not implemented yet");
 		}
 
 		if (numElements > 0)

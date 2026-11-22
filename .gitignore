@@ -141,3 +141,5 @@ tools/auto_build/installer
 hi_scripting/scripting/api/bx
 # OpenCode project config (contains absolute, platform-specific paths)
 opencode.json
+tools/snex_playground/snex_playground_unittest.log
+tools/snex_playground/cdb_unittest.log

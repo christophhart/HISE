@@ -115,6 +115,15 @@ struct Statement::OpFunctions
 			{
 				if (data == nullptr || data->active || data->parameters.size() != sizeof...(Ts))
 				{
+					if (data != nullptr)
+					{
+						if (data->active)
+							data->throwRuntimeError("reentrant");
+
+						if (data->parameters.size() != sizeof...(Ts))
+							data->throwRuntimeError("parameter amount mismatch");
+					}
+						
 					jassertfalse;
 					if constexpr (std::is_void_v<RV>)
 						return;
@@ -576,12 +585,19 @@ void Statement::resolveDataPointersRecursive(Scope* s)
 		cs->resolveDataPointersRecursive(s);
 }
 
+#define JASSERT_ON_FAIL 1
+
 void Statement::throwRuntimeError(const String& errorMessage)
 {
 	UriError e;
 	e.fillLocation(Helpers::createUriLocation(locationBuilder, astNode));
 	e.errorType = UriError::ErrorType::Error;
 	e.errorMessage = errorMessage;
+
+#if JASSERT_ON_FAIL
+	jassertfalse;
+#endif
+
 	throw e;
 }
 

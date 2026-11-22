@@ -152,9 +152,7 @@ struct Expression : public Statement
 	virtual VariableStorage getResult(Scope* s) = 0;
 	virtual Scope::LValue& getLValue(Scope* s) 
 	{ 
-		jassertfalse; 
-		static Scope::LValue rv;
-		return rv;
+		throwRuntimeError("Expression is not a lvalue");
 	}
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue) override
