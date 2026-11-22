@@ -22,9 +22,156 @@ public:
     const String getApplicationVersion() override    { return ProjectInfo::versionString; }
     bool moreThanOneInstanceAllowed() override       { return true; }
 
+    void throwErrorAndQuit(const String& message)
+    {
+        log(message);
+        quit();
+    }
+
+    void log(const String& message)
+    {
+        DBG(message);
+        std::cout << message << "\n";
+    }
+
     //==============================================================================
     void initialise (const String& commandLine) override
     {
+        if (commandLine.startsWith("--run"))
+        {
+            // Use --stdin to read multiline source from stdin, for example:
+            // type snippet.snex | snex_playground.exe --run --stdin --args:4 --O:Inlining --verbose --backend:interpreter
+
+            auto tokens = StringArray::fromTokens(commandLine, "--", "");
+
+            String codeToCompile;
+            Array<VariableStorage> args;
+            StringArray optimizations;
+            auto useInterpreter = true;
+
+            bool verbose = false;
+
+            for (auto t : tokens)
+            {
+                if (t.startsWith("file:"))
+                {
+                    auto exec = File::getSpecialLocation(File::SpecialLocationType::currentExecutableFile);
+
+                    auto sn = exec.getFullPathName().upToFirstOccurrenceOf("snex_playground", true, true);
+                    auto regFolder = File(sn).getChildFile("test_files").getChildFile("regression");
+                    auto f = regFolder.getChildFile(t.fromFirstOccurrenceOf("file:", false, false).trim());
+
+                    if (!f.existsAsFile())
+                    {
+                        throwErrorAndQuit("File " + f.getFullPathName() + " does not exist.");
+                        return;
+                    }
+
+                    codeToCompile = f.loadFileAsString();
+                }
+                if (t.startsWith("code:"))
+                {
+                    codeToCompile = t.fromFirstOccurrenceOf("code:", false, false).trim().unquoted();
+                }
+                if (t.startsWith("args:"))
+                {
+                    auto args_ = t.fromFirstOccurrenceOf("args:", false, false).trim();
+                    
+                    for (const auto& a : StringArray::fromTokens(args_, ",", ""))
+                    {
+                        auto value = a.trim();
+                        auto type = snex::Types::Helpers::getTypeFromStringValue(value);
+                        args.add(VariableStorage(type, var(value)));
+                    }
+                }
+                if (t.startsWith("O:"))
+                {
+                    auto args_ = t.fromFirstOccurrenceOf("O:", false, false).trim();
+                    optimizations = StringArray::fromTokens(args_, ",", "");
+                    optimizations.removeEmptyStrings();
+                    optimizations.trim();
+                }
+                if (t.startsWith("verbose"))
+                    verbose = true;
+                if (t.startsWith("backend:"))
+                    useInterpreter = t.contains("interpreter");
+            }
+
+            if (codeToCompile.isEmpty())
+            {
+                throwErrorAndQuit("No code to compile");
+                return;
+            }
+            
+            snex::jit::GlobalScope gs;
+            
+            gs.clearOptimizations();
+
+            auto allIds = OptimizationIds::Helpers::getAllIds();
+
+            for (auto o : optimizations)
+            {
+                if(allIds.contains(o))
+                    gs.addOptimization(o);
+                else
+                {
+                    String msg;
+                    msg << "Invalid optimization: " << o << ". Use: " << allIds.joinIntoString(",");
+                    throwErrorAndQuit(msg);
+                    return;
+                }
+            }
+                
+
+            snex::jit::Compiler c(gs);
+
+            UriLocation baseLocation;
+            baseLocation.processorId = "cli-test";
+            c.setUriErrorLogger(nullptr, baseLocation);
+
+            c.setUseInterpreter(useInterpreter);
+
+            auto obj = c.compileJitObject(codeToCompile);
+
+            if (verbose)
+            {
+                log(c.dumpSyntaxTree());
+                log(c.dumpNamespaceTree());
+            }
+
+            if (c.getCompileResult().wasOk())
+            {
+                log("Compiled OK");
+            }
+            else
+            {
+                throwErrorAndQuit(c.getCompileResult().getErrorMessage());
+                return;
+            }
+                
+            try
+            {
+                auto f = obj["test"];
+
+                if (!f.isResolved())
+                {
+                    throwErrorAndQuit("Can't find `test()` method");
+                    return;
+                }
+
+                auto result = f.callDynamic(args.getRawDataPointer(), args.size());
+                log("test() executed OK");
+                log("Result: " + Types::Helpers::getCppValueString(result));
+            }
+            catch (interpreter::Engine::CallError& e)
+            {
+                throwErrorAndQuit("Runtime error: " + e.e.toFullCallStack());
+                return;
+            }
+            
+            quit();
+            return;
+        }
 
         if ((commandLine.startsWith("--unittest")) || TEST_RUN)
         {
@@ -32,7 +179,11 @@ public:
             runner.setAssertOnFailure(false);
             runner.setPassesAreLogged(false);
             runner.runTestsInCategory("snex");
-            quit();
+            
+            String resultMessage;
+            resultMessage << "Number of tests that passed: " << String(runner.getNumResults());
+
+            throwErrorAndQuit(resultMessage);
             return;
         }
 

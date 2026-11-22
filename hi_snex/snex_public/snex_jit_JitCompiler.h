@@ -155,7 +155,7 @@ private:
 	juce::String preprocessedCode;
 	UriLocationBuilder::Ptr locationBuilder;
 	hise::UriLocation uriBaseLocation;
-	bool useInterpreter = false;
+	bool useInterpreter = true;
 	ClassCompiler* compiler = nullptr;
 	GlobalScope& memory;
 

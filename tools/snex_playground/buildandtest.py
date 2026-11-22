@@ -48,6 +48,22 @@ def report_build_failure(output):
 
 def report_test_failure(output):
     lines = output.splitlines()
+    report_start = next((i for i, line in enumerate(lines) if "<<<" in line), None)
+    if report_start is not None:
+        report_end = next(
+            (i for i in range(report_start, len(lines)) if ">>>" in lines[i]),
+            len(lines) - 1,
+        )
+        starting_tests = [line for line in lines[:report_start] if "Starting test:" in line]
+        if starting_tests:
+            print(starting_tests[-1].strip())
+        print("\n".join(lines[report_start:report_end + 1]))
+        summary = re.compile(r"!!! Test|FAILED!!|Number of tests that passed|All tests completed", re.IGNORECASE)
+        for line in lines[report_end + 1:]:
+            if summary.search(line):
+                print(line)
+        return
+
     crash_lines = [i for i, line in enumerate(lines) if "Access violation" in line]
     if crash_lines:
         last_crash = crash_lines[-1]

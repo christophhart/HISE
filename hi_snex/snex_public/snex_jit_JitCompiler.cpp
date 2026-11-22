@@ -207,12 +207,7 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 		return {};
 	}
 	
-	memory.clearOptimizations();
-	//memory.addOptimization(OptimizationIds::Inlining);
-	//memory.addOptimization(OptimizationIds::BinaryOpOptimisation);
-	//memory.addOptimization(OptimizationIds::ConstantFolding);
 	
-
 	locationBuilder = new UriLocationBuilder(lastCode, preprocessedCode);
 	locationBuilder->baseLocation = uriBaseLocation;
 	compiler->setUriLocationBuilder(locationBuilder);
@@ -221,10 +216,6 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 	JitObject snexObject(compiler->compileAndGetScope(preprocessedCode));
 
 	cr = compiler->getLastResult();
-
-#if TEST_RUN
-	useInterpreter = true;
-#endif
 
 #if SNEX_INTERPRETER_BACKEND
 	if (useInterpreter)
