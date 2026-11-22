@@ -124,6 +124,18 @@ jit::FunctionData Engine::getFunction(const jit::NamespacedIdentifier& functionI
 	}
 }
 
+jit::FunctionData Engine::getRootFunction(const jit::FunctionData& signature) const
+{
+	for (const auto& f : rootFunctions)
+	{
+		const auto& candidate = f->getTyped<nodes::Function>()->fData;
+		if (candidate.matchIdArgsAndTemplate(signature))
+			return candidate;
+	}
+
+	return {};
+}
+
 Array<jit::Symbol> Engine::getAllVariables() const
 {
 	return rootScope->getSymbols();

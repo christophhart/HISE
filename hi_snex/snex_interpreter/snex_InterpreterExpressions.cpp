@@ -125,7 +125,7 @@ struct FunctionCall : public Expression
 
 		if (callType == Identifier("RootFunction"))
 		{
-			fData = s->engine->getFunction(fData.id);
+			fData = s->engine->getRootFunction(fData);
 		}
 
 		jassert(fData.isResolved());

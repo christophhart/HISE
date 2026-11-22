@@ -163,6 +163,7 @@ struct Engine: public snex::jit::FunctionCollectionBase
 	Array<jit::NamespacedIdentifier> getFunctionIds() const override;
 
 	jit::FunctionData getFunction(const jit::NamespacedIdentifier& functionId) override;
+	jit::FunctionData getRootFunction(const jit::FunctionData& signature) const;
 
 	// Data methods
 
