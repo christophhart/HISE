@@ -37,6 +37,13 @@ public:
     //==============================================================================
     void initialise (const String& commandLine) override
     {
+        auto getTestFileDirectory = []()
+        {
+            auto exec = File::getSpecialLocation(File::SpecialLocationType::currentExecutableFile);
+            auto sn = exec.getFullPathName().upToFirstOccurrenceOf("snex_playground", true, true);
+            return File(sn).getChildFile("test_files");
+        };
+
         if (commandLine.startsWith("--run"))
         {
             // Example: --run --file:process_data_member_call.h --process:one.wav --args:4 --O:Inlining --backend:interpreter
@@ -61,19 +68,29 @@ public:
 
             bool verbose = false;
 
-            auto getTestFileDirectory = []()
-            {
-                auto exec = File::getSpecialLocation(File::SpecialLocationType::currentExecutableFile);
-                auto sn = exec.getFullPathName().upToFirstOccurrenceOf("snex_playground", true, true);
-                return File(sn).getChildFile("test_files");
-            };
+            
 
             for (auto t : tokens)
             {
                 if (t.startsWith("file:"))
                 {
                     auto regFolder = getTestFileDirectory().getChildFile("regression");
-                    auto f = regFolder.getChildFile(t.fromFirstOccurrenceOf("file:", false, false).trim());
+                    auto fn = t.fromFirstOccurrenceOf("file:", false, false).trim();
+                    auto f = regFolder.getChildFile(fn);
+
+                    if (!f.existsAsFile())
+                    {
+                        auto list = regFolder.getParentDirectory().findChildFiles(File::findFiles, true, "*.h");
+
+                        for (auto existingFile : list)
+                        {
+                            if (existingFile.getFileName() == fn)
+                            {
+                                f = existingFile;
+                                break;
+                            }
+                        }
+                    }
 
                     if (!f.existsAsFile())
                     {
@@ -181,11 +198,16 @@ public:
 
             try
             {
+                if (verbose)
+                {
+                    log(codeToCompile);
+                }
+
                 auto obj = c.compileJitObject(codeToCompile);
 
                 if (verbose)
                 {
-                    log(codeToCompile);
+                    
                     log(c.dumpSyntaxTree());
                     log(c.dumpNamespaceTree());
                 }
@@ -242,7 +264,7 @@ public:
             return;
         }
 
-        if ((commandLine.startsWith("--unittest")) || TEST_RUN)
+        if ((commandLine.startsWith("--unittest")))
         {
             
             runner.setAssertOnFailure(false);

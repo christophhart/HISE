@@ -105,24 +105,10 @@ private:
 		addTwoArgumentSignatures<RV, void*>(functionMap, returnSignature + "p");
 	}
 
-	static void writeWithTypeInfo(Scope::ResolvedReference& rr, const jit::TypeInfo& argType, const VariableStorage& argValue)
-	{
-		if (argType.isRef())
-		{
-			jassert(argValue.getType() == Types::ID::Pointer);
-			Scope::LValue lValue(argValue.getDataPointer(), 0);
-			rr.assign(lValue);
-		}
-		else
-		{
-			rr.write(argValue);
-		}
-	}
-
 	template <size_t... Indices, typename... Ts>
 	static void writeArguments(nodes::Function& data, std::index_sequence<Indices...>, Ts... args)
 	{
-		(writeWithTypeInfo(data.parameters[Indices], data.fData.args[Indices].typeInfo, VariableStorage(args)), ...);
+		(data.parameterBinders[Indices](data.parameters[Indices], VariableStorage(args)), ...);
 	}
 };
 
@@ -136,6 +122,14 @@ struct Function : public Statement,
 	{
 		body = childStatements[0];
 		fData = Helpers::getFunctionData(f, v);
+
+		TypeParserBase parser(v[AstIds::Signature].toString(), true, f.typeLibrary);
+		parser.getTypeInfo();
+		lexicalScopeId = parser.parseNamespacedIdentifier();
+
+		for (auto& a : fData.args)
+			a.id = lexicalScopeId.getChildId(a.id.id);
+
 		jassert(body != nullptr);
 	};
 
@@ -146,7 +140,7 @@ struct Function : public Statement,
 
 	Scope::Ptr createScope(Scope* parent)
 	{
-		return new Scope(Scope::ScopeType::Function, parent, parent->engine, fData.id);
+		return new Scope(Scope::ScopeType::Function, parent, parent->engine, lexicalScopeId);
 	}
 
 	Result allocateInScope(Scope* scopeToUse) override
@@ -154,11 +148,11 @@ struct Function : public Statement,
 		setAllocated();
 
 		jassert(scopeToUse->scopeType == Scope::ScopeType::Function);
-		jassert(scopeToUse->id == fData.id);
+		jassert(scopeToUse->id == lexicalScopeId);
 
 		auto addThisPointer = scopeToUse->parent != scopeToUse->getRootScope();
 
-		auto thisId = addThisPointer ? fData.id.getChildId("this") : NamespacedIdentifier();
+		auto thisId = addThisPointer ? lexicalScopeId.getChildId("this") : NamespacedIdentifier();
 
 		if (thisId.isValid())
 		{
@@ -179,20 +173,24 @@ struct Function : public Statement,
 	void resolveDataPointers(Scope* scopeToUse)
 	{
 		jassert(scopeToUse->scopeType == Scope::ScopeType::Function);
-		jassert(scopeToUse->id == fData.id);
+		jassert(scopeToUse->id == lexicalScopeId);
 
 		auto validParameters = true;
 		auto addThisPointer = scopeToUse->parent != scopeToUse->getRootScope();
-		auto thisId = addThisPointer ? fData.id.getChildId("this") : NamespacedIdentifier();
+		auto thisId = addThisPointer ? lexicalScopeId.getChildId("this") : NamespacedIdentifier();
 
 		if (addThisPointer)
+		{
 			parameters.push_back(scopeToUse->resolveDataPointer(thisId));
+			parameterBinders.push_back(writeParameter);
+		}
 
 		for (const auto& a : fData.args)
 		{
 			auto ptr = scopeToUse->resolveDataPointer(a.id);
 			validParameters &= (bool)ptr;
 			parameters.push_back(ptr);
+			parameterBinders.push_back(a.typeInfo.isRef() ? bindReference : writeParameter);
 		}
 
 		if (validParameters)
@@ -235,7 +233,7 @@ struct Function : public Statement,
 			statementScope->clear();
 
 			for (int i = 0; i < numArgs; i++)
-				parameters[i].write(args[i]);
+				parameterBinders[i](parameters[i], args[i]);
 
 			VariableStorage rv;
 			perform(statementScope, &rv);
@@ -258,9 +256,23 @@ struct Function : public Statement,
 
 	}
 
+	static void bindReference(Scope::ResolvedReference& target, const VariableStorage& value)
+	{
+		jassert(value.getType() == Types::ID::Pointer);
+		target.assign({ value.getDataPointer(), 0 });
+	}
+
+	static void writeParameter(Scope::ResolvedReference& target, const VariableStorage& value)
+	{
+		target.write(value);
+	}
+
+	using ParameterBinder = void(*)(Scope::ResolvedReference&, const VariableStorage&);
 	std::vector<Scope::ResolvedReference> parameters;
+	std::vector<ParameterBinder> parameterBinders;
 
 	jit::FunctionData fData;
+	NamespacedIdentifier lexicalScopeId;
 	Ptr body;
 
 	bool active = false;

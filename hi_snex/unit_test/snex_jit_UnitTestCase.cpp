@@ -375,40 +375,52 @@ juce::Result JitFileTestCase::compileWithoutTesting(bool dumpBeforeTest /*= fals
 	}
 	else
 	{
-		obj = c.compileJitObject(code);
-
-		r = c.getCompileResult();
-        
-		assembly = c.getAssemblyCode();
-
-		if (dumpBeforeTest)
+		try
 		{
-			DBG("code");
-			DBG(code);
-			DBG(c.dumpSyntaxTree());
-			DBG("symbol tree");
-			DBG(c.dumpNamespaceTree());
-			DBG("assembly");
-			DBG(assembly);
-			DBG("data dump");
-			DBG(obj.dumpTable());
+			obj = c.compileJitObject(code);
+
+			r = c.getCompileResult();
+
+			assembly = c.getAssemblyCode();
+
+			if (dumpBeforeTest)
+			{
+				DBG("code");
+				DBG(code);
+				DBG(c.dumpSyntaxTree());
+				DBG("symbol tree");
+				DBG(c.dumpNamespaceTree());
+				DBG("assembly");
+				DBG(assembly);
+				DBG("data dump");
+				DBG(obj.dumpTable());
+			}
+
+
+
+			if (r.failed())
+				return r;
+
+			auto r = Helpers::testAssemblyLoopCount(assembly, expectedLoopCount);
+			if (r.failed() && !memory.getOptimizationPassList().contains(OptimizationIds::AutoVectorisation))
+			{
+				if (t != nullptr)
+					t->expect(false, r.getErrorMessage());
+
+				return r;
+			}
+
+			return Result::ok();
 		}
-
-    
-
-		if (r.failed())
-			return r;
-
-		auto r = Helpers::testAssemblyLoopCount(assembly, expectedLoopCount);
-		if (r.failed() && !memory.getOptimizationPassList().contains(OptimizationIds::AutoVectorisation))
+		catch (UriError& e)
 		{
-			if (t != nullptr)
-				t->expect(false, r.getErrorMessage());
-
-			return r;
+			t->expect(false, e.toFullCallStack());
 		}
-
-		return Result::ok();
+		catch (interpreter::Engine::CallError& e)
+		{
+			t->expect(false, e.e.toFullCallStack());
+		}
+		
 	}
 }
 

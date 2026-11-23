@@ -27,7 +27,10 @@ struct FunctionCallBase : public Expression
 		for (auto& a : fd.args)
 		{
 			argRef.setBit(idx++ + thisOffset, a.isReference());
+			argTypePtrs.push_back(a.typeInfo.getTypedIfComplexType<ComplexType>());
 		}
+
+		numFormalArgTypes = (int)argTypePtrs.size();
 	};
 
 	TypeInfo getTypeInfo() const override { return fd.returnType; }
@@ -123,6 +126,8 @@ protected:
 	FunctionData fd;
 	OpFunctions::Inliners::Prototype inliner;
 	ComplexType* objectType;
+	std::vector<ComplexType*> argTypePtrs;
+	int numFormalArgTypes = 0;
 };
 
 template <typename RT> struct FunctionCallT0 : public FunctionCallBase
@@ -149,6 +154,8 @@ template <typename RT> struct FunctionCallT0 : public FunctionCallBase
 		{
 			OpFunctions::Inliners::Args a(*this);
 			a.args = nullptr;
+			a.argTypePtrs = this->argTypePtrs.data();
+			a.numArgTypes = numFormalArgTypes;
 			a.numArgs = 0;
 			a.preallocatedReturnData = { returnData.begin(), (size_t)returnData.size() };
 			a.typePtr = objectType;
@@ -198,6 +205,8 @@ template <typename RT, typename A1> struct FunctionCallT1 : public FunctionCallB
 		{
 			OpFunctions::Inliners::Args a(*this);
 			a.args = &v1;
+			a.argTypePtrs = this->argTypePtrs.data();
+			a.numArgTypes = numFormalArgTypes;
 			a.numArgs = 1;
 			a.preallocatedReturnData = { returnData.begin(), (size_t)returnData.size() };
 			a.typePtr = objectType;
@@ -322,6 +331,9 @@ struct FunctionCall : public FunctionCallBase
 		{
 			args.add(VariableStorage());
 			argExpressions.push_back(Helpers::getChildExpression(this, 0));
+			// Member inliners need the receiver's storage, not a by-value dyn view.
+			if (thisOffset != 0 && inliner != nullptr)
+				argRef.setBit(0, true);
 		}
 
 		for (int i = 0; i < fd.args.size(); i++)
@@ -349,10 +361,12 @@ struct FunctionCall : public FunctionCallBase
 			if(!returnData.isEmpty())
 				a.preallocatedReturnData.referTo(returnData);
 
+			a.argTypePtrs = this->argTypePtrs.data();
+			a.numArgTypes = numFormalArgTypes;
 			a.typePtr = objectType;
 			a.args = args.getRawDataPointer();
 			a.numArgs = args.size();
-			
+
 			return inliner(a);
 		}
 		case ExecutionType::CallVariadic:

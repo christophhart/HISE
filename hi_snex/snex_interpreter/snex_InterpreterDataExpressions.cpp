@@ -335,31 +335,31 @@ struct ClassStatement : public Statement,
 
 	FunctionData* getFunction(const NamespacedIdentifier& fid)
 	{
-		auto st = childStatements[0];
+		if (!classType->id.isParentOf(fid))
+			return nullptr;
 
-		if (fid.getParent() == classType->id)
+		for (auto cs : childStatements[0]->childStatements)
 		{
-			for (auto cs : st->childStatements)
+			if (auto f = cs->getTyped<Function>())
 			{
-				if (auto f = cs->getTyped<Function>())
-				{
-					if (f->fData.id == fid)
-						return &f->fData;
-				}
+				if (f->fData.id == fid)
+					return &f->fData;
 			}
-		}
-		else
-		{
-			if (classType->id.isParentOf(fid))
+			else if (auto tf = cs->getTyped<TemplatedFunction>())
 			{
-				for (auto cs : st->childStatements)
+				for (auto instance : tf->childStatements)
 				{
-					if (auto subClass = cs->getTyped<ClassStatement>())
+					if (auto f = instance->getTyped<Function>())
 					{
-						if (auto f = subClass->getFunction(fid))
-							return f;
+						if (f->fData.id == fid)
+							return &f->fData;
 					}
 				}
+			}
+			else if (auto subClass = cs->getTyped<ClassStatement>())
+			{
+				if (auto f = subClass->getFunction(fid))
+					return f;
 			}
 		}
 

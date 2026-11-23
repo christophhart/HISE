@@ -175,10 +175,13 @@ struct Statement::OpFunctions
 			{};
 
 			Statement& s;
-			jit::ComplexType* typePtr;
+
+			jit::ComplexType* typePtr = nullptr;
 			dyn<uint8> preallocatedReturnData;
-			VariableStorage* args;
-			int numArgs;
+			VariableStorage* args = nullptr;
+			jit::ComplexType** argTypePtrs = nullptr;
+			int numArgTypes = 0;
+			int numArgs = 0;
 
 			void throwRuntimeError(const String& error) const
 			{
@@ -193,6 +196,19 @@ struct Statement::OpFunctions
 					s.throwRuntimeError("out of bounds: " + String(index) + " - maxIndex: " + String(upperLimit - 1));
 
 				return index;
+			}
+
+			jit::ComplexType* getArgType(int index) const
+			{
+				if (!isPositiveAndBelow(index, numArgTypes))
+					throwRuntimeError("invalid argument type index " + String(index));
+
+				auto p = argTypePtrs[index];
+
+				if (p == nullptr)
+					throwRuntimeError("No type ptr for args #" + String(index));
+
+				return p;
 			}
 
 			template <typename T> T& getTypedObject() const
@@ -229,12 +245,62 @@ struct Statement::OpFunctions
 
 		struct dyn
 		{
+			static VariableStorage referTo(const Args& a)
+			{
+				// referTo changes a view during setup, so the source type is inspected here
+				// instead of adding referTo-specific metadata to every function call.
+				auto sourceType = a.getArgType(0);
+				auto destinationType = dynamic_cast<DynType*>(a.typePtr);
+				if (destinationType == nullptr)
+					a.throwRuntimeError("invalid dyn referTo destination");
+
+				int totalSize = 0;
+				void* sourceData = nullptr;
+
+				if (auto spanType = dynamic_cast<SpanType*>(sourceType))
+				{
+					totalSize = spanType->getNumElements();
+					sourceData = a.getTypedArgument<void*>(1);
+				}
+				else if (dynamic_cast<DynType*>(sourceType) != nullptr)
+				{
+					auto sourceView = a.args[1].getType() == Types::ID::Block ?
+						a.args[1].toBlock() : *static_cast<block*>(a.getTypedArgument<void*>(1));
+					totalSize = sourceView.size();
+					sourceData = sourceView.begin();
+				}
+				else
+					a.throwRuntimeError("unsupported dyn referTo source");
+
+				auto size = a.getTypedArgument<int>(2);
+				auto offset = a.getTypedArgument<int>(3);
+
+				if (size == -1)
+					size = totalSize;
+
+				if (size < 0 || offset < 0 || offset > totalSize || size > totalSize - offset)
+					a.throwRuntimeError("illegal dyn referTo size or offset");
+
+				auto destination = static_cast<block*>(a.getTypedArgument<void*>(0));
+				if (size == 0)
+					destination->referToNothing();
+				else
+				{
+					auto elementSize = destinationType->getElementType().getRequiredByteSizeNonZero();
+					auto data = reinterpret_cast<uint8*>(sourceData) + (size_t)offset * elementSize;
+					destination->referToRawData(reinterpret_cast<float*>(data), size);
+				}
+
+				return a.copyToReturnData(*destination);
+			}
+
 			static VariableStorage size(const Args& a)
 			{
 				jassert(a.numArgs == 1);
 				auto bl = a.args[0].toBlock();
 				return VariableStorage(bl.size());
 			}
+
 		};
 
 		template <int C> struct FrameProcessor
@@ -302,6 +368,7 @@ struct Statement::OpFunctions
 		{
 			static const std::map<String, Prototype> inlinerMap{
 				INLINER(dyn, size),
+				INLINER(dyn, referTo),
 				INLINER_16CH(ProcessData, subscript),
 				INLINER_16CH(ProcessData, getNumSamples),
 				INLINER_16CH(ProcessData, toFrameData),

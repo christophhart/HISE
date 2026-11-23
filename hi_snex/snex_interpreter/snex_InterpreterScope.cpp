@@ -70,6 +70,11 @@ Scope::ResolvedReference Scope::resolveDataPointer(const NamespacedIdentifier& s
 		if (auto otherScope = getRootScope()->getChildScope(scopeId))
 			return otherScope->resolveDataPointer(symbolId);
 
+		if (scopeId.isParentOf(id))
+		{
+			return resolveDataPointer(id.getChildId(symbolId.id));
+		}
+
 		jassertfalse;
 		return rr;
 	}

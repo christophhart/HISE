@@ -110,7 +110,7 @@ using namespace juce;
 
 using SnexFloatType = float;
 
-#define SNEX_ENABLE_DEBUG_TYPENAMES 0
+#define SNEX_ENABLE_DEBUG_TYPENAMES 1
 
 /** This will skip the string creation of type identifiers which takes up the most time in compiling in Debug mode. */
 #ifndef SNEX_ENABLE_DEBUG_TYPENAMES
