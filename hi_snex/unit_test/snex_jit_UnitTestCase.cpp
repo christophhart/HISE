@@ -303,6 +303,13 @@ void JitFileTestCase::initCompiler()
 		memory.setPolyphonic(true);
 
 	c.reset();
+
+	UriLocation l;
+	l.processorId = "unit_test";
+	l.uri = file.getFullPathName();
+
+	c.setUriErrorLogger(nullptr, l);
+
 	memory.setDebugMode(true);
 
 	if (!nodeId.isValid())
@@ -375,6 +382,33 @@ juce::Result JitFileTestCase::compileWithoutTesting(bool dumpBeforeTest /*= fals
 	}
 	else
 	{
+		auto createErrorReport = [](Compiler* c, const String& errorMessage)
+		{
+			String msg;
+			String nl = "\n";
+
+			msg << "<<< FAIL: ======================================= " << nl;
+
+			msg << "ERROR: ========================================== " << nl;
+			msg << errorMessage << nl << nl;
+			msg << "CODE: ===========================================" << nl;
+
+			auto code = c->getLastCompiledCode();
+
+			auto lines = StringArray::fromLines(code);
+
+			for (int i = 0; i < lines.size(); i++)
+			{
+				msg << String(i + 1) << "\t" << lines[i] << nl;
+			}
+
+			msg << nl;
+			msg << "SYNTAXTREE: ======================================" << nl;
+			msg << c->dumpSyntaxTree() << nl;
+			msg << "============================================== >>>";
+			return msg;
+		};
+
 		try
 		{
 			obj = c.compileJitObject(code);
@@ -414,11 +448,11 @@ juce::Result JitFileTestCase::compileWithoutTesting(bool dumpBeforeTest /*= fals
 		}
 		catch (UriError& e)
 		{
-			t->expect(false, e.toFullCallStack());
+			return Result::fail(createErrorReport(&c, e.toFullCallStack()));
 		}
 		catch (interpreter::Engine::CallError& e)
 		{
-			t->expect(false, e.e.toFullCallStack());
+			return Result::fail(createErrorReport(&c, e.e.toFullCallStack()));
 		}
 		
 	}
@@ -623,7 +657,11 @@ juce::Result JitFileTestCase::test(bool dumpBeforeTest /*= false*/)
 	r = compileWithoutTesting(dumpBeforeTest);
 
 	if (!r.wasOk())
+	{
+		throw r;
 		return expectCompileFail(expectedFail);
+	}
+		
 
 	return testAfterCompilation(dumpBeforeTest);
 }

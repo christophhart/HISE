@@ -873,9 +873,10 @@ public:
 				JitFileTestCase t(this, memory, f);
 				auto r = t.test(printDebugInfoForSingleTest && soloTest.isNotEmpty());
 
-
-
 				expect(r.wasOk(), r.getErrorMessage());
+
+				if (!r.wasOk())
+					break;
 			}
 
 			int numInstancesAfter = ComplexType::numInstances;
