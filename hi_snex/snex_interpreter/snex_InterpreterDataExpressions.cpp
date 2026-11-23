@@ -229,8 +229,12 @@ struct ComplexTypeDefinition : public Statement,
 	ComplexTypeDefinition(Factory& f, const ValueTree& v) :
 		Statement(f, v),
 		type(Helpers::getType(f, v)),
+		numBytesRequired(type.getRequiredByteSize()),
 		initData(Helpers::getInitData(v)),
-		initExpression(Helpers::getChildExpression(this, 0))
+		initExpression(Helpers::getChildExpression(this, 0)),
+		copyFromExpression(initExpression != nullptr &&
+			initExpression->getTypeInfo().isComplexType() &&
+			initExpression->getTypeInfo().getComplexType() == type.getComplexType())
 	{
 		auto list = StringArray::fromTokens(v[AstIds::Ids].toString(), ",", "");
 		list.removeEmptyStrings();
@@ -241,11 +245,9 @@ struct ComplexTypeDefinition : public Statement,
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue) override
 	{
-		auto numBytesRequired = type.getRequiredByteSize();
+		const void* src = nullptr;
 
-		void* src = nullptr;
-
-		if (initExpression != nullptr)
+		if (copyFromExpression)
 		{
 			auto data = initExpression->getResult(s);
 			src = data.getDataPointer();
@@ -293,10 +295,12 @@ struct ComplexTypeDefinition : public Statement,
 	std::vector<Scope::ResolvedReference> refs;
 
 	TypeInfo type;
+	const size_t numBytesRequired;
 	Array<NamespacedIdentifier> symbols;
 	
 	MemoryBlock initData;
 	Expression::ExprPtr initExpression;
+	const bool copyFromExpression;
 };
 
 struct TemplatedFunction : public Statement

@@ -102,7 +102,23 @@ struct StatementBlock : public Statement,
 	Array<jit::Symbol> additionalSymbolsToAllocate;
 };
 
+struct AnonymousBlock : public Statement
+{
+	SNEX_INTERPRETER_NODE(AnonymousBlock, WantsNode::No);
 
+	AnonymousBlock(Statement::Factory& f, const ValueTree& v) :
+		Statement(f, v),
+		blockData(f, *this)
+	{};
+
+	ResultCode perform(Scope* s, VariableStorage* returnValue) final override
+	{
+		return blockData.perform(s, returnValue);
+	};
+
+	BlockExecutor blockData;
+
+};
 
 struct TernaryOp : public Expression
 {
@@ -219,8 +235,15 @@ struct ReturnStatement : public Statement
 		elementSize((int)v.getProperty(AstIds::ElementSize, -1)),
 		numElements((int)v.getProperty(AstIds::NumElements, -1)),
 		target(Helpers::getChildExpression(this, 0)),
-		body(childStatements[1]->getTyped<StatementBlock>())
+		body(childStatements[1]->getTyped<StatementBlock>()),
+		dynSourceIsReference(target->getTypeInfo().isRef()),
+		copyIteratorValue(loadIterator && !elementType.isRef()),
+		iteratorLoad(copyIteratorValue ? (elementType.getType() == Types::ID::Pointer ?
+			OpFunctions::Data::readPointerValue : OpFunctions::Data::getFunctionPtr(elementType).first) : nullptr)
 	{
+		if (v[AstIds::Iterator].toString().startsWith("unresolved"))
+			iterator.typeInfo = elementType;
+
 		body->additionalSymbolsToAllocate.add(iterator);
 
 		static const StringArray lt({ "Undefined", "Span", "Dyn", "CustomObject" });
@@ -268,9 +291,12 @@ struct ReturnStatement : public Statement
 			beginPtr = obj.getDataPointer();
 			break;
 		case LoopType::Dyn:
-			beginPtr = obj.toBlock().begin();
-			numElements = obj.toBlock().size();
+		{
+			auto view = dynSourceIsReference ? Scope::ResolvedReference::toBlock(obj).toBlock() : obj.toBlock();
+			beginPtr = view.begin();
+			numElements = view.size();
 			break;
+		}
 		case LoopType::Custom:
 		{
 			OpFunctions::Inliners::Args a(*this);
@@ -292,7 +318,12 @@ struct ReturnStatement : public Statement
 
 			for (int i = 0; i < numElements; i++)
 			{
-				iteratorRef.assign({ beginPtr, i * elementSize });
+				auto elementAddress = Scope::LValue { beginPtr, (size_t)i * elementSize };
+
+				if (copyIteratorValue)
+					iteratorRef.write(iteratorLoad(elementAddress));
+				else
+					iteratorRef.assign(elementAddress);
 
 				auto ok = body->perform(body->statementScope.get(), returnValue);
 
@@ -310,19 +341,22 @@ struct ReturnStatement : public Statement
 		return ResultCode::ok;
 	};
 
-	Scope::ResolvedReference iteratorRef;
-	Expression::ExprPtr target;
-	StatementBlock* body;
-
 	jit::Symbol iterator;
 	const bool loadIterator;
 	LoopType loopType;
 	TypeInfo elementType;
-	StructType* customObject;
+	StructType* customObject = nullptr;
 	int elementSize;
 	int numElements;
 
-	OpFunctions::Inliners::Prototype beginFunction, sizeFunction;
+	Scope::ResolvedReference iteratorRef;
+	Expression::ExprPtr target;
+	StatementBlock* body;
+	const bool dynSourceIsReference;
+	const bool copyIteratorValue;
+	const OpFunctions::Data::ReadFunction iteratorLoad;
+
+	OpFunctions::Inliners::Prototype beginFunction = nullptr, sizeFunction = nullptr;
 };
 
 struct WhileLoop : public Statement

@@ -63,11 +63,8 @@ struct ChannelPtr
 	static ChannelPtr fromRawPointer(const VariableStorage& ptrValue)
 	{
 		jassert(ptrValue.getType() == Types::ID::Pointer);
-		auto ptr = ptrValue.getDataPointer();
-		auto fp1 = reinterpret_cast<float**>(ptr);
-		auto fp2 = reinterpret_cast<float*>(ptr);
-
-		return ChannelPtr(fp2);
+		auto channelSlot = static_cast<float**>(ptrValue.getDataPointer());
+		return ChannelPtr(*channelSlot);
 	}
 
 private:

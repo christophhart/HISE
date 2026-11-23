@@ -494,6 +494,12 @@ struct Statement::OpFunctions
 			return f;
 		}
 
+		static VariableStorage readPointerValue(Scope::LValue d)
+		{
+			auto ptr = reinterpret_cast<uint8*>(d.first) + d.second;
+			return VariableStorage(*reinterpret_cast<void**>(ptr));
+		}
+
 		template <typename T> static VariableStorage readStatic(Scope::LValue d)
 		{
 			auto [data, offset] = d;

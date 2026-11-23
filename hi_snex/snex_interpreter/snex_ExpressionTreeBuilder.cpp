@@ -65,6 +65,8 @@ Statement::Factory::Factory()
 	registerType<nodes::InlinedArgument>();
 	registerType<nodes::InlinedReturnValue>();
 	registerType<nodes::InlinedParameter>();
+
+	registerType<nodes::AnonymousBlock>();
 }
 
 ExpressionTreeBuilder::ExpressionTreeBuilder(UriLocationBuilder::Ptr locations, const ValueTree& ast_, const ReferenceCountedArray<jit::ComplexType>& typeLibrary_):

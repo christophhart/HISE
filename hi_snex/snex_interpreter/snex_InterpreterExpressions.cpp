@@ -330,7 +330,8 @@ struct FunctionCall : public FunctionCallBase
 			argExpressions.push_back(Helpers::getChildExpression(this, i + thisOffset));
 		}
 
-		executionType = args.size() < 4 ? ExecutionType::CallVariadic : ExecutionType::CallDynamic;
+		executionType = inliner != nullptr ? ExecutionType::Inliner :
+			args.size() < 4 ? ExecutionType::CallVariadic : ExecutionType::CallDynamic;
 		jassert(args.size() == childStatements.size());
 	};
 
@@ -343,8 +344,6 @@ struct FunctionCall : public FunctionCallBase
 		{
 		case ExecutionType::Inliner:
 		{
-			auto f = (OpFunctions::Inliners::Prototype)fd.function;
-
 			OpFunctions::Inliners::Args a(*this);
 
 			if(!returnData.isEmpty())
@@ -354,7 +353,7 @@ struct FunctionCall : public FunctionCallBase
 			a.args = args.getRawDataPointer();
 			a.numArgs = args.size();
 			
-			return f(a);
+			return inliner(a);
 		}
 		case ExecutionType::CallVariadic:
 		{
