@@ -76,12 +76,25 @@ Engine::Engine(jit::GlobalScope& scope, const Statement::Ptr rootTree_):
 	auto rootResult = rootScope->finalise();
 	jassert(rootResult.wasOk());
 
-	// PASS 2: resolve data pointers
-	rootTree->resolveDataPointersRecursive(rootScope.get());
+	try
+	{
+		// PASS 2: resolve data pointers
+		rootTree->resolveDataPointersRecursive(rootScope.get());
 
-	// PASS 3: initialise root members
-	for (auto i : rootVariableDefinitions)
-		i->perform(rootScope.get(), nullptr);
+		// PASS 3: initialise root members
+		for (auto i : rootVariableDefinitions)
+			i->perform(rootScope.get(), nullptr);
+	}
+	catch (UriError& e)
+	{
+		jassertfalse;
+	}
+	catch (CallError& e)
+	{
+		jassertfalse;
+	}
+
+	
 }
 
 Engine::~Engine()

@@ -39,8 +39,16 @@ public:
     {
         if (commandLine.startsWith("--run"))
         {
-            // Use --stdin to read multiline source from stdin, for example:
-            // type snippet.snex | snex_playground.exe --run --stdin --args:4 --O:Inlining --verbose --backend:interpreter
+            // Example: --run --file:process_data_member_call.h --process:one.wav --args:4 --O:Inlining --backend:interpreter
+
+            // --run                 // starts this mode, must be first args
+            // --args:4              // comma separated list of arguments
+            // --O:Inlining          // add optimizations
+            // --verbose             // dumps syntax tree & namespace
+            // --backend:interpreter // selects backend interpreter|JIT
+            // --code:               // quoted inline string, needs a test() function
+            // --file:               // loads file code relative from test_files/regression
+            // --process:            // uses an audio file and calls test with a matching ProcessData type
 
             auto tokens = StringArray::fromTokens(commandLine, "--", "");
 
@@ -49,16 +57,22 @@ public:
             StringArray optimizations;
             auto useInterpreter = true;
 
+            AudioSampleBuffer processBuffer;
+
             bool verbose = false;
+
+            auto getTestFileDirectory = []()
+            {
+                auto exec = File::getSpecialLocation(File::SpecialLocationType::currentExecutableFile);
+                auto sn = exec.getFullPathName().upToFirstOccurrenceOf("snex_playground", true, true);
+                return File(sn).getChildFile("test_files");
+            };
 
             for (auto t : tokens)
             {
                 if (t.startsWith("file:"))
                 {
-                    auto exec = File::getSpecialLocation(File::SpecialLocationType::currentExecutableFile);
-
-                    auto sn = exec.getFullPathName().upToFirstOccurrenceOf("snex_playground", true, true);
-                    auto regFolder = File(sn).getChildFile("test_files").getChildFile("regression");
+                    auto regFolder = getTestFileDirectory().getChildFile("regression");
                     auto f = regFolder.getChildFile(t.fromFirstOccurrenceOf("file:", false, false).trim());
 
                     if (!f.existsAsFile())
@@ -90,6 +104,20 @@ public:
                     optimizations = StringArray::fromTokens(args_, ",", "");
                     optimizations.removeEmptyStrings();
                     optimizations.trim();
+                }
+                if (t.startsWith("process:"))
+                {
+                    auto audioFolder = getTestFileDirectory().getChildFile("wave_files");
+                    auto audioFile = audioFolder.getChildFile(t.fromFirstOccurrenceOf("process:", false, false).trim());
+
+                    if (!audioFile.existsAsFile())
+                    {
+                        throwErrorAndQuit(audioFile.getFullPathName() + " does not exist");
+                        return;
+                    }
+
+                    double unused, sr;
+                    processBuffer = hlac::CompressionHelpers::loadFile(audioFile, unused, &sr);
                 }
                 if (t.startsWith("verbose"))
                     verbose = true;
@@ -131,12 +159,33 @@ public:
 
             c.setUseInterpreter(useInterpreter);
 
+            auto numChannelsToUse = 2;
+
+            if (processBuffer.getNumSamples() > 0)
+            {
+                numChannelsToUse = processBuffer.getNumChannels();
+
+                String expectedSignature;
+                expectedSignature << "test(ProcessData<" << String(numChannelsToUse);
+                expectedSignature << ">&";
+
+                if (!codeToCompile.contains(expectedSignature))
+                {
+                    expectedSignature << "...)";
+                    throwErrorAndQuit("Process test mode needs signature " + expectedSignature.quoted());
+                    return;
+                }
+            }
+
+            SnexObjectDatabase::registerObjects(c, numChannelsToUse);
+
             try
             {
                 auto obj = c.compileJitObject(codeToCompile);
 
                 if (verbose)
                 {
+                    log(codeToCompile);
                     log(c.dumpSyntaxTree());
                     log(c.dumpNamespaceTree());
                 }
@@ -159,9 +208,24 @@ public:
                     return;
                 }
 
-                auto result = f.callDynamic(args.getRawDataPointer(), args.size());
-                log("test() executed OK");
-                log("Result: " + Types::Helpers::getCppValueString(result));
+                if (processBuffer.getNumSamples() > 0)
+                {
+                    ProcessDataDyn pd(processBuffer.getArrayOfWritePointers(), processBuffer.getNumSamples(), processBuffer.getNumChannels());
+                    auto ptr = reinterpret_cast<void*>(&pd);
+                    VariableStorage d(ptr);
+                    
+                    auto result = f.callDynamic(&d, 1);
+                    log("test() executed OK");
+                    log("Result: " + Types::Helpers::getCppValueString(result));
+                }
+                else
+                {
+                    auto result = f.callDynamic(args.getRawDataPointer(), args.size());
+                    log("test() executed OK");
+                    log("Result: " + Types::Helpers::getCppValueString(result));
+                }
+
+                
             }
             catch (UriError& e)
             {
