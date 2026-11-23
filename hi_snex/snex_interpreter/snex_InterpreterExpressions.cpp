@@ -1,16 +1,313 @@
 namespace snex {
 namespace interpreter {
+
+struct FunctionCallBase : public Expression
+{
+	static Identifier getStatementType() { RETURN_STATIC_IDENTIFIER("FunctionCall"); }
+	WantsNode shouldCreateNode() const override { return WantsNode::No; };
+
+	FunctionCallBase(Factory& f, const ValueTree& v, const FunctionData& fd_) :
+		Expression(f, v),
+		fd(fd_),
+		inliner(OpFunctions::Inliners::getInliner(f, v)),
+		objectType(Helpers::getObjectType(f, v))
+	{
+		Helpers::allocateReturnType(*this, returnData);
+
+		if (v[AstIds::CallType].toString() == "MemberFunction")
+		{
+			objectType = Helpers::getType(f, v, AstIds::ObjectType).getComplexType();
+			thisObj = Helpers::getChildExpression(this, 0);
+			thisOffset = 1;
+		}
+
+		argRef.clear();
+		int idx = 0;
+
+		for (auto& a : fd.args)
+		{
+			argRef.setBit(idx++ + thisOffset, a.isReference());
+		}
+	};
+
+	TypeInfo getTypeInfo() const override { return fd.returnType; }
+
+	void resolveDataPointers(Scope* s) override
+	{
+		if (inliner != nullptr)
+			return;
+
+		if (fd.function == nullptr)
+		{
+			auto callType = Identifier(astNode[AstIds::CallType].toString());
+
+			if (callType == Identifier("ApiFunction"))
+			{
+				jit::GlobalScope* gs = s->engine->getGlobalScope();
+
+				auto thisLabel = fd.toLabel();
+
+				for (const auto& p : gs->getMap())
+				{
+					if (p.label == thisLabel)
+					{
+						fd.function = p.function;
+						return;
+					}
+				}
+			}
+
+			if (callType == Identifier("MemberFunction"))
+			{
+				auto mf = objectType->getNonOverloadedFunction(fd.id.id);
+
+				if (!mf.isResolved())
+					mf = s->engine->getFunction(fd.id);
+
+				if (mf.isResolved())
+				{
+					fd = mf;
+					if (fd.function != nullptr)
+						return;
+				}
+			}
+
+			if (callType == Identifier("RootFunction"))
+			{
+				auto rf = s->engine->getRootFunction(fd);
+
+				if (rf.isResolved())
+				{
+					fd = rf;
+					if (fd.function != nullptr)
+						return;
+				}
+			}
+
+			if (fd.inliner != nullptr)
+			{
+				auto needsInlinerFor = fd.getSignature();
+				throwRuntimeError("unimplemented inliner " + needsInlinerFor);
+			}
+
+			throwRuntimeError("Unresolved function: " + fd.getSignature());
+		}
+	}
+
+protected:
+
+	VariableStorage getArgs(Scope* s, int argIndex, Expression* a)
+	{
+		if (argRef[argIndex])
+		{
+			auto lv = a->getLValue(s);
+			auto ptr = (void*)(reinterpret_cast<uint8*>(lv.first) + lv.second);
+			return VariableStorage(ptr);
+		}
+		else
+		{
+			return a->getResult(s);
+		}
+	}
+
+	template <typename T> static juce_wchar getArgChar()
+	{
+		static constexpr Types::ID ty = Types::Helpers::getTypeFromTypeId<T>();
+		return Types::Helpers::getTypeChar(ty);
+	}
+
+	int thisOffset = 0;
+	hise::VoiceBitMap<32> argRef;
+	ExprPtr thisObj;
+	heap<uint8> returnData;
+	FunctionData fd;
+	OpFunctions::Inliners::Prototype inliner;
+	ComplexType* objectType;
+};
+
+template <typename RT> struct FunctionCallT0 : public FunctionCallBase
+{
+	FunctionCallT0(Factory& f, const ValueTree& v, const FunctionData& fd) :
+		FunctionCallBase(f, v, fd)
+	{}
+
+	static Statement::Ptr create(Factory& f, const ValueTree& v, const FunctionData& fd)
+	{
+		return new FunctionCallT0(f, v, fd);
+	}
+
+	static String getSigString()
+	{
+		String s;
+		s << getArgChar<RT>();
+		return s;
+	}
+
+	VariableStorage getResult(Scope* s) final override
+	{
+		if (inliner != nullptr)
+		{
+			OpFunctions::Inliners::Args a(*this);
+			a.args = nullptr;
+			a.numArgs = 0;
+			a.preallocatedReturnData = { returnData.begin(), (size_t)returnData.size() };
+			a.typePtr = objectType;
+
+			return inliner(a);
+		}
+
+		if constexpr (std::is_same<void, RT>())
+		{
+			fd.callVoidUnchecked<>();
+			return VariableStorage();
+		}
+		else
+		{
+			return VariableStorage(fd.callUnchecked<RT>());
+		}
+	}
+};
+
+template <typename RT, typename A1> struct FunctionCallT1 : public FunctionCallBase
+{
+	FunctionCallT1(Factory& f, const ValueTree& v, const FunctionData& fd):
+	  FunctionCallBase(f, v, fd),
+	  arg1(Helpers::getChildExpression(this, 0))
+	{}
+
+	static Statement::Ptr create(Factory& f, const ValueTree& v, const FunctionData& fd)
+	{
+		return new FunctionCallT1(f, v, fd);
+	}
+
+	static String getSigString()
+	{
+		String s;
+		s << getArgChar<RT>();
+		s << getArgChar<A1>();
+		return s;
+	}
+
+	VariableStorage getResult(Scope* s) final override
+	{
+		static constexpr Types::ID T1 = Types::Helpers::getTypeFromTypeId<A1>();
+
+		auto v1 = getArgs(s, thisOffset, arg1);
+
+		if (inliner != nullptr)
+		{
+			OpFunctions::Inliners::Args a(*this);
+			a.args = &v1;
+			a.numArgs = 1;
+			a.preallocatedReturnData = { returnData.begin(), (size_t)returnData.size() };
+			a.typePtr = objectType;
+
+			return inliner(a);
+		}
+
+		if constexpr (std::is_same<void, RT>())
+		{
+			fd.callVoid<A1>(v1.toType<T1>());
+			return VariableStorage();
+		}
+		else
+		{
+			return VariableStorage(fd.call<RT, A1>(v1.toType<T1>()));
+		}
+	}
+
+	ExprPtr arg1;
+};
+
+struct Statement::Factory::TypedFunctionFactory
+{
+	using CreateFunction = std::function<Statement::Ptr(Factory&, const ValueTree&, const FunctionData&)>;
+
+	static Identifier getFunctionCallId() { RETURN_STATIC_IDENTIFIER("FunctionCall"); }
+
+	std::map<String, CreateFunction> map;
+
+	TypedFunctionFactory()
+	{
+		registerT0();
+		registerT1<int>();
+		registerT1<double>();
+		registerT1<float>();
+		registerT1<void*>();
+	}
+
+	template <typename F> void registerFunctionSignature()
+	{
+		map[F::getSigString()] = F::create;
+	}
+
+	void registerT0()
+	{
+		registerFunctionSignature<FunctionCallT0<void>>();
+		registerFunctionSignature<FunctionCallT0<int>>();
+		registerFunctionSignature<FunctionCallT0<double>>();
+		registerFunctionSignature<FunctionCallT0<float>>();
+		registerFunctionSignature<FunctionCallT0<void*>>();
+	}
+
+	template <typename A1> void registerT1()
+	{
+		registerFunctionSignature<FunctionCallT1<void, A1>>();
+		registerFunctionSignature<FunctionCallT1<int, A1>>();
+		registerFunctionSignature<FunctionCallT1<double, A1>>();
+		registerFunctionSignature<FunctionCallT1<float, A1>>();
+		registerFunctionSignature<FunctionCallT1<void*, A1>>();
+	}
+
+	Statement::Ptr createIfMapped(Statement::Factory& f, const ValueTree& v) const
+	{
+		if (v.getType() == getFunctionCallId())
+		{
+			auto fd = Helpers::getFunctionData(f, v);
+
+			auto ti = Helpers::getType(f, v, AstIds::ObjectType);
+
+			if (ti.isComplexType())
+			{
+				auto objectType = ti.getComplexType();
+				auto addThisPointer = objectType != nullptr;
+				auto sigString = OpFunctions::getSigString(fd, addThisPointer);
+
+				if (map.find(sigString) != map.end())
+					return map.at(sigString)(f, v, fd);
+			}
+		}
+
+		return nullptr;
+	}
+};
+
+Statement::Ptr Statement::Factory::create(const ValueTree& v)
+{
+	if (auto e = functionFactory->createIfMapped(*this, v))
+		return e;
+
+	if (createFunctions.find(v.getType()) != createFunctions.end())
+	{
+		if (auto t = createFunctions.at(v.getType())(*this, v))
+			return t;
+	}
+
+	DBG("No node for " + v.getType().toString());
+
+	DBG(v.createXml()->createDocument(""));
+	jassertfalse;
+	return nullptr;
+}
+
 namespace nodes {
 
-
-
-struct FunctionCall : public Expression
+struct FunctionCall : public FunctionCallBase
 {
 	SNEX_INTERPRETER_NODE(FunctionCall, WantsNode::No);
 
 	enum class ExecutionType
 	{
-		FunctionMap,  // <= 1 args
 		CallVariadic, // <= 4 args
 		CallDynamic,  // >  4 args,
 		Inliner		  // forward raw args array
@@ -19,224 +316,68 @@ struct FunctionCall : public Expression
 	typedef VariableStorage(*CallDynamicSignature)(void* obj, VariableStorage*, int);
 
 	FunctionCall(Factory& f, const ValueTree& v) :
-		Expression(f, v),
-		fData(Helpers::getFunctionData(f, v)),
-		callType(v[AstIds::CallType].toString())
+		FunctionCallBase(f, v, Helpers::getFunctionData(f, v))
 	{
-		int offset = 0;
-
-		if (callType == Identifier("MemberFunction"))
+		if (this->objectType != nullptr)
 		{
-			objectType = Helpers::getType(f, v, AstIds::ObjectType).getComplexType();
-			
-			jassert(objectType != nullptr);
 			args.add(VariableStorage());
 			argExpressions.push_back(Helpers::getChildExpression(this, 0));
-			offset = 1;
 		}
 
-		for (int i = 0; i < fData.args.size(); i++)
+		for (int i = 0; i < fd.args.size(); i++)
 		{
 			args.add(VariableStorage());
-			argExpressions.push_back(Helpers::getChildExpression(this, i + offset));
+			argExpressions.push_back(Helpers::getChildExpression(this, i + thisOffset));
 		}
 
-		std::map<String, ResolvedPtr> map;
-
-		map["v"] = callStatic<void, 0>;
-		map["i"] = callStatic<int, 0>;
-		map["f"] = callStatic<float, 0>;
-		map["d"] = callStatic<double, 0>;
-		map["p"] = callStatic<void*, 0>;
-
-		map["vi"] = callStatic<void,   1, int>;
-		map["ii"] = callStatic<int,    1, int>;
-		map["fi"] = callStatic<float,  1, int>;
-		map["di"] = callStatic<double, 1, int>;
-		map["pi"] = callStatic<void*,  1, int>;
-		map["vf"] = callStatic<void,   1, float>;
-		map["if"] = callStatic<int,    1, float>;
-		map["ff"] = callStatic<float,  1, float>;
-		map["df"] = callStatic<double, 1, float>;
-		map["pf"] = callStatic<void*,  1, float>;
-		map["vd"] = callStatic<void,   1, double>;
-		map["id"] = callStatic<int,    1, double>;
-		map["fd"] = callStatic<float,  1, double>;
-		map["dd"] = callStatic<double, 1, double>;
-		map["pd"] = callStatic<void*,  1, double>;
-		map["vp"] = callStatic<void,   1, void*>;
-		map["ip"] = callStatic<int,    1, void*>;
-		map["fp"] = callStatic<float,  1, void*>;
-		map["dp"] = callStatic<double, 1, void*>;
-		map["pp"] = callStatic<void*,  1, void*>;
-
-		auto sig = OpFunctions::getSigString(fData, objectType != nullptr);
-
-		if (map.find(sig) != map.end())
-		{
-			functionPointer = map.at(sig);
-			executionType = ExecutionType::FunctionMap;
-		}
-		else
-		{
-			executionType = args.size() < 4 ? ExecutionType::CallVariadic : ExecutionType::CallDynamic;
-		}
-			
+		executionType = args.size() < 4 ? ExecutionType::CallVariadic : ExecutionType::CallDynamic;
 		jassert(args.size() == childStatements.size());
 	};
 
-	jit::TypeInfo getTypeInfo() const override { return fData.returnType; }
-
-	
-	void resolveDataPointers(Scope* s) override
-	{
-		auto originalFunctionId = fData.id;
-
-		if (auto inliner = OpFunctions::Inliners::getInliner(fData.id))
-		{
-			fData.function = inliner;
-			executionType = ExecutionType::Inliner;
-			return;
-		}
-
-		if (callType == Identifier("ApiFunction"))
-		{
-			jit::GlobalScope* gs = s->engine->getGlobalScope();
-
-			auto thisLabel = fData.toLabel();
-
-			for (const auto& p : gs->getMap())
-			{
-				if (p.label == thisLabel)
-				{
-					fData.function = p.function;
-					break;
-				}
-			}
-		}
-
-		if (callType == Identifier("MemberFunction"))
-		{
-			fData = objectType->getNonOverloadedFunction(fData.id.id);
-
-			if (!fData.isResolved())
-				fData = s->engine->getFunction(originalFunctionId);	
-		}
-
-		if (callType == Identifier("RootFunction"))
-		{
-			fData = s->engine->getRootFunction(fData);
-		}
-
-		jassert(fData.isResolved());
-	};
-
-	template <typename RT, typename...Ts> static RT callStaticInternal(void* obj, Ts... args)
-	{
-		auto typed = static_cast<FunctionCall*>(obj);
-
-		if (typed->fData.object)
-			return typed->fData.callUncheckedWithObject<RT, Ts...>(args...);
-		else
-			return typed->fData.callUnchecked<RT, Ts...>(args...);
-	}
-
-	template <typename RT, int NumArgs, typename T1=void, typename T2=void> static VariableStorage callStatic(void* obj, VariableStorage* args)
-	{
-		static constexpr Types::ID T1Type = Types::Helpers::getTypeFromTypeId<T1>();
-		static constexpr Types::ID T2Type = Types::Helpers::getTypeFromTypeId<T2>();
-
-		if constexpr (std::is_same<RT, void>())
-		{
-			if constexpr (NumArgs == 0)
-				callStaticInternal<void>(obj);
-			if constexpr (NumArgs == 1)
-				callStaticInternal<void>(obj, args[0].template toType<T1Type>());
-			if constexpr (NumArgs == 2)
-				callStaticInternal<void>(obj, args[0].template toType<T1Type>(), args[1].template toType<T2Type>());
-		}
-		else
-		{
-			if constexpr (NumArgs == 0)
-				return VariableStorage(callStaticInternal<RT>(obj));
-			if constexpr (NumArgs == 1)
-				return VariableStorage(callStaticInternal<RT>(obj, args[0].template toType<T1Type>()));
-			if constexpr (NumArgs == 2)
-				return VariableStorage(callStaticInternal<RT>(obj, args[0].template toType<T1Type>(), args[1].template toType<T2Type>()));
-		}
-
-		return VariableStorage();
-	}
-
-	typedef VariableStorage(*ResolvedPtr)(void*, VariableStorage*);
-
 	VariableStorage getResult(Scope* s) override
 	{	
-		if (!fData.isResolved())
-		{
-			String msg;
-			msg << "unresolved function pointer for `";
-			msg << fData.getSignature() << "`";
-			throwRuntimeError(msg);
-		}
-
 		for (int i = 0; i < args.size(); i++)
-		{
-			auto isRef = fData.args[i].typeInfo.isRef();
-
-			if (isRef)
-			{
-				auto lv = argExpressions[i]->getLValue(s);
-				auto ptr = (void*)(reinterpret_cast<uint8*>(lv.first) + lv.second);
-				args.set(i, VariableStorage(ptr));
-			}
-			else
-			{
-				args.set(i, argExpressions[i]->getResult(s));
-			}
-		}
-			
+			args.set(i, getArgs(s, i, argExpressions[i].get()));
 
 		switch (executionType)
 		{
 		case ExecutionType::Inliner:
 		{
-			auto f = (OpFunctions::Inliners::Prototype)fData.function;
-			return f(args.getRawDataPointer(), args.size());
+			auto f = (OpFunctions::Inliners::Prototype)fd.function;
+
+			OpFunctions::Inliners::Args a(*this);
+
+			if(!returnData.isEmpty())
+				a.preallocatedReturnData.referTo(returnData);
+
+			a.typePtr = objectType;
+			a.args = args.getRawDataPointer();
+			a.numArgs = args.size();
+			
+			return f(a);
 		}
-		case ExecutionType::FunctionMap:
-			return functionPointer(this, args.getRawDataPointer());
 		case ExecutionType::CallVariadic:
 		{
-			if (fData.returnType.getType() == Types::ID::Void)
+			if (fd.returnType.getType() == Types::ID::Void)
 			{
-				fData.callVoidDynamic(args.getRawDataPointer(), args.size());
+				fd.callVoidDynamic(args.getRawDataPointer(), args.size());
 				return VariableStorage();
 			}
 			else
 			{
-				return fData.callDynamic(args.getRawDataPointer(), args.size());
+				return fd.callDynamic(args.getRawDataPointer(), args.size());
 			}
 		}
 		case ExecutionType::CallDynamic:
 		{
-			auto f = (CallDynamicSignature)fData.function;
-			return f(fData.object, args.getRawDataPointer(), args.size());
+			auto f = (CallDynamicSignature)fd.function;
+			return f(fd.object, args.getRawDataPointer(), args.size());
 		}
 		}
 	}
 
 	ExecutionType executionType;
-	ResolvedPtr functionPointer = nullptr;
-	Identifier callType;
-
-	ComplexType::Ptr objectType;
-
-	FunctionData fData;
-
 	Array<VariableStorage> args;
-
-	ExprPtr thisObject;
 	std::vector<ExprPtr> argExpressions;
 };
 

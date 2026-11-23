@@ -60,6 +60,16 @@ struct ChannelPtr
 	float* getRawWritePointer() { return d; }
 	const float* getRawReadPointer() const { return d; };
 
+	static ChannelPtr fromRawPointer(const VariableStorage& ptrValue)
+	{
+		jassert(ptrValue.getType() == Types::ID::Pointer);
+		auto ptr = ptrValue.getDataPointer();
+		auto fp1 = reinterpret_cast<float**>(ptr);
+		auto fp2 = reinterpret_cast<float*>(ptr);
+
+		return ChannelPtr(fp2);
+	}
+
 private:
 
 	/** @internal. The entire class can only be used internally by the ProcessDataFix class to create iteratable channels. */

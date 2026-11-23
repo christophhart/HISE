@@ -57,6 +57,10 @@ struct Statement : public ReferenceCountedObject
 			createFunctions[id] = T::create;
 		}
 
+		struct TypedFunctionFactory;
+
+		SharedResourcePointer<TypedFunctionFactory> functionFactory;
+
 		UriLocationBuilder::Ptr locationBuilder;
 		Statement::Ptr create(const ValueTree& v);
 		std::map<Identifier, CreateFunction> createFunctions;

@@ -10,7 +10,7 @@ struct BinaryOp : public Expression
 		Expression(f, v),
 		l(Helpers::getChildExpression(this, 0)),
 		r(Helpers::getChildExpression(this, 1)),
-		opMode(Helpers::getOpType(v)),
+		opMode(OpFunctions::BinaryOp::getOpType(v)),
 		op(OpFunctions::BinaryOp::getFunctionPtr(getTypeInfo(), opMode))
 	{
 		jassert(op != nullptr);
@@ -126,13 +126,29 @@ struct Subscript : public Expression
 	  Expression(f, v),
 	  parentType (Helpers::getType(f, v, AstIds::ParentType)),
 	  elementType(Helpers::getType(f, v, AstIds::ElementType)),
+	  elementSize(elementType.getRequiredByteSize()),
+	  isReference(elementType.isRef()),
 	  parent     (Helpers::getChildExpression(this, 0)),
 	  index      (Helpers::getChildExpression(this, 1)),
 	  f          (OpFunctions::Data::getFunctionPtr(elementType))
-	{};
+	{
+		if (auto st = parentType.getTypedComplexType<StructType>())
+		{
+			customObject = st;
+			customSubscript = OpFunctions::Inliners::getInliner(st, FunctionClass::SpecialSymbols::Subscript);
+
+			if (customSubscript == nullptr)
+			{
+				throwRuntimeError("unimplemented subscript inliner for " + parentType.toString());
+			}
+		}
+	};
 
 	VariableStorage getResult(Scope* s) override
 	{
+		if (customSubscript != nullptr && !isReference)
+			return callCustomSubscript(s);
+
 		return f.first(getLValue(s));
 	}
 
@@ -143,11 +159,36 @@ struct Subscript : public Expression
 
 	Scope::LValue& getLValue(Scope* s) override
 	{
+		if (customSubscript != nullptr)
+		{
+			if (!isReference)
+				return Expression::getLValue(s);
+
+			auto result = callCustomSubscript(s);
+			if (result.getType() != Types::ID::Pointer)
+				throwRuntimeError("subscript inliner did not return a reference");
+
+			address = { result.getDataPointer(), 0 };
+			return address;
+		}
+
 		auto dataPtr = reinterpret_cast<uint8*>(parent->getResult(s).toPtr());
-		auto elementSize = elementType.getRequiredByteSize();
 		auto idx = index->getResult(s).toInt();
 		address = { dataPtr, elementSize * idx };
 		return address;
+	}
+
+	VariableStorage callCustomSubscript(Scope* s)
+	{
+		VariableStorage args[2];
+		args[0] = parent->getResult(s);
+		args[1] = index->getResult(s);
+
+		OpFunctions::Inliners::Args a(*this);
+		a.args = args;
+		a.numArgs = 2;
+		a.typePtr = customObject;
+		return customSubscript(a);
 	}
 
 	TypeInfo getTypeInfo() const override
@@ -158,9 +199,13 @@ struct Subscript : public Expression
 	Scope::LValue address;
 	TypeInfo parentType;
 	TypeInfo elementType;
+	const size_t elementSize;
+	const bool isReference;
 	ExprPtr parent;
 	ExprPtr index;
 	OpFunctions::Data::Functions f;
+	OpFunctions::Inliners::Prototype customSubscript = nullptr;
+	ComplexType* customObject = nullptr;
 };
 
 } // namespace nodes

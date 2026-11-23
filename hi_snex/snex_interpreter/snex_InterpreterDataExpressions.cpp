@@ -136,7 +136,7 @@ struct Assignment : public Statement,
 		Statement(f, v),
 		value(Helpers::getChildExpression(this, 0)),
 		target(Helpers::getChildExpression(this, 1)),
-		assignmentType(Helpers::getOpType(v, AstIds::AssignmentType)),
+		assignmentType(OpFunctions::BinaryOp::getOpType(v, AstIds::AssignmentType)),
 		isDefinition((bool)v[AstIds::First] && target->getTyped<VariableReference>()),
 		f(OpFunctions::BinaryOp::getFunctionPtr(value->getTypeInfo(), assignmentType))
 	{};
@@ -229,7 +229,8 @@ struct ComplexTypeDefinition : public Statement,
 	ComplexTypeDefinition(Factory& f, const ValueTree& v) :
 		Statement(f, v),
 		type(Helpers::getType(f, v)),
-		initData(Helpers::getInitData(v))
+		initData(Helpers::getInitData(v)),
+		initExpression(Helpers::getChildExpression(this, 0))
 	{
 		auto list = StringArray::fromTokens(v[AstIds::Ids].toString(), ",", "");
 		list.removeEmptyStrings();
@@ -241,11 +242,23 @@ struct ComplexTypeDefinition : public Statement,
 	ResultCode perform(Scope* s, VariableStorage* returnValue) override
 	{
 		auto numBytesRequired = type.getRequiredByteSize();
-		jassert(initData.getSize() >= numBytesRequired);
+
+		void* src = nullptr;
+
+		if (initExpression != nullptr)
+		{
+			auto data = initExpression->getResult(s);
+			src = data.getDataPointer();
+		}
+		else
+		{
+			jassert(initData.getSize() >= numBytesRequired);
+			src = initData.getData();
+		}
 
 		for (const auto& rr : refs)
 		{
-			memcpy(rr.getDataPointer(), initData.getData(), numBytesRequired);
+			memcpy(rr.getDataPointer(), src, numBytesRequired);
 		}
 
 		return ResultCode::ok;
@@ -283,6 +296,7 @@ struct ComplexTypeDefinition : public Statement,
 	Array<NamespacedIdentifier> symbols;
 	
 	MemoryBlock initData;
+	Expression::ExprPtr initExpression;
 };
 
 struct TemplatedFunction : public Statement

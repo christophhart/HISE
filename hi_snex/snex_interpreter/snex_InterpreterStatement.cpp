@@ -38,44 +38,283 @@ namespace nodes {
 struct Function;
 }
 
-Statement::Ptr Statement::Factory::create(const ValueTree& v)
+struct Statement::Helpers
 {
-	if (createFunctions.find(v.getType()) != createFunctions.end())
+	static void annotateType(UriLocationTree& d, const jit::TypeInfo& type)
 	{
-		if (auto t = createFunctions.at(v.getType())(*this, v))
-			return t;
+		DynamicObject::Ptr ti = new DynamicObject();
+
+		if (type.isComplexType())
+			ti->setProperty("type", type.getComplexType().get());
+		else
+			ti->setProperty("type", Types::Helpers::getTypeName(type.getType()));
+
+		ti->setProperty("isConst", type.isConst());
+		ti->setProperty("isRef", type.isRef());
+		ti->setProperty("isStatic", type.isStatic());
+		ti->setProperty("label", type.toString());
+
+		d.data->setProperty("typeInfo", ti.get());
 	}
 
-	DBG("No node for " + v.getType().toString());
+	static UriLocation createUriLocation(UriLocationBuilder::Ptr builder, const ValueTree& v)
+	{
+		return builder->createLocation((int)v[AstIds::charIndex]);
+	}
 
-	DBG(v.createXml()->createDocument(""));
-	jassertfalse;
-	return nullptr;
-}
+	static NamespacedIdentifier getNamespacedIdentifier(const ValueTree& astNode, const Identifier& id)
+	{
+		return NamespacedIdentifier::fromString(astNode[id].toString());
+	}
+
+	static jit::Symbol getSymbol(Factory& f, const ValueTree& astNode, const Identifier& id = Identifier())
+	{
+		auto idToUse = id.isValid() ? id : AstIds::Symbol;
+		auto symbolString = astNode[idToUse].toString();
+		TypeParserBase p(symbolString, true, f.typeLibrary);
+		jit::Symbol s;
+		s.typeInfo = p.getTypeInfo();
+		s.id = p.parseNamespacedIdentifier();
+		return s;
+	}
+
+	static ComplexType* getObjectType(Factory& f, const ValueTree& astNode)
+	{
+		auto ti = getType(f, astNode, AstIds::ObjectType);
+
+		if (ti.isComplexType())
+			return ti.getComplexType();
+
+		return nullptr;
+	}
+
+	static TypeInfo getType(Factory& f, const ValueTree& astNode, const Identifier& id = Identifier())
+	{
+		auto idToUse = id.isValid() ? id : AstIds::Type;
+		auto typeString = astNode[idToUse].toString();
+
+		if (typeString.isEmpty())
+			return TypeInfo();
+
+		TypeParserBase p(typeString, true, f.typeLibrary);
+		return p.getTypeInfo();
+	}
+
+	static FunctionData getFunctionData(Factory& f, const ValueTree& astNode)
+	{
+		auto signature = astNode[AstIds::Signature].toString();
+		TypeParserBase p(signature, true, f.typeLibrary);
+		return p.parseFunctionData();
+	}
+
+	static MemoryBlock getInitData(const ValueTree& v)
+	{
+		MemoryBlock mb;
+		mb.fromBase64Encoding(v[AstIds::InitValuesB64].toString());
+		return mb;
+	}
+
+	static Expression::ExprPtr getChildExpression(Statement* parent, int childIndex)
+	{
+		if (auto cn = parent->childStatements[childIndex])
+			return cn->getTyped<Expression>();
+
+		return nullptr;
+	}
+
+	static void allocateReturnType(const Expression& e, snex::Types::heap<uint8>& data)
+	{
+		auto ti = e.getTypeInfo();
+
+		if (ti.isComplexType() && !ti.isRef())
+		{
+			auto numBytes = ti.getRequiredByteSize();
+			// pad to 16 byte boundary
+			numBytes += (16 - (numBytes % 16));
+			data.setSize(numBytes);
+		}
+		else
+			data.setSize(0);
+	}
+};
+
+#define INLINER(Class, method) { #Class ## "::" ## #method, Class::method }
+#define INLINER_NC(Class, C, method) { #Class##"<"## #C ##">::" ## #method, Class<C>::method }
+#define INLINER_16CH(Class, method) INLINER_NC(Class, 1, method), INLINER_NC(Class, 2, method), \
+									INLINER_NC(Class, 3, method), INLINER_NC(Class, 4, method)
+
+#define SNEX_GETTER(ClassName, C) static snex::Types::ClassName<C>& get(const Args& a) { return a.template getTypedObject<snex::Types::ClassName<C>>(); }
+
+#define CASE(O, TYPE, func) case Ops::O: return func<Types::ID::TYPE, Ops::O>;
+#define ALL_CASES(TYPE) CASE(ADD, TYPE, opFunction); \
+						CASE(SUB, TYPE, opFunction); \
+						CASE(MUL, TYPE, opFunction); \
+						CASE(DIV, TYPE, opFunction); \
+						CASE(EQ_, TYPE, opFunction); \
+						CASE(NEQ, TYPE, opFunction); \
+						CASE(GT_, TYPE, opFunction); \
+						CASE(GET, TYPE, opFunction); \
+						CASE(LT_, TYPE, opFunction); \
+						CASE(LET, TYPE, opFunction); \
+						CASE(AND, TYPE, opFunction); \
+						CASE(OR_, TYPE, opFunction); \
+						CASE(NEG, TYPE, opFunction); 
+
+#define INTEGER_CASES(TYPE)	CASE(MOD, TYPE, opFunctionInt); \
+							CASE(BO_, TYPE, opFunctionInt); \
+							CASE(BA_, TYPE, opFunctionInt); 
 
 struct Statement::OpFunctions
 {
 	struct Inliners
 	{
-		typedef VariableStorage(*Prototype)(VariableStorage*, int);
+		struct Args
+		{
+			Args(Statement& s_) :
+				s(s_)
+			{};
+
+			Statement& s;
+			jit::ComplexType* typePtr;
+			dyn<uint8> preallocatedReturnData;
+			VariableStorage* args;
+			int numArgs;
+
+			void throwRuntimeError(const String& error) const
+			{
+				s.throwRuntimeError(error);
+			}
+
+			int getIndexArg(int argsId, int upperLimit) const
+			{
+				auto index = getTypedArgument<int>(argsId);
+
+				if (!isPositiveAndBelow(index, upperLimit))
+					s.throwRuntimeError("out of bounds: " + String(index) + " - maxIndex: " + String(upperLimit - 1));
+
+				return index;
+			}
+
+			template <typename T> T& getTypedObject() const
+			{
+				jassert(args[0].getType() == Types::ID::Pointer);
+				return *reinterpret_cast<T*>(args[0].getDataPointer());
+			}
+
+			template <typename T> T getTypedArgument(int index) const
+			{
+				static constexpr Types::ID TID = Types::Helpers::getTypeFromTypeId<T>();
+
+				if (!isPositiveAndBelow(index, numArgs))
+					s.throwRuntimeError("invalid arg index " + String(index));
+
+				if (TID != args[index].getType())
+					s.throwRuntimeError("invalid type");
+				
+				return args[index].toType<TID>();
+			}
+
+			template <typename T> VariableStorage copyToReturnData(const T& obj) const
+			{
+				int NumBytesRequired = sizeof(obj);
+
+				jassert(preallocatedReturnData.begin() != nullptr);
+				jassert(preallocatedReturnData.size() >= NumBytesRequired);
+				memcpy(preallocatedReturnData.begin(), &obj, NumBytesRequired);
+				return VariableStorage(preallocatedReturnData.begin());
+			}
+		};
+
+		typedef VariableStorage(*Prototype)(const Args&);
 
 		struct dyn
 		{
-			static VariableStorage size(VariableStorage* args, int numArgs)
+			static VariableStorage size(const Args& a)
 			{
-				jassert(numArgs == 1);
-				auto bl = args[0].toBlock();
+				jassert(a.numArgs == 1);
+				auto bl = a.args[0].toBlock();
 				return VariableStorage(bl.size());
 			}
 		};
 
-		static Prototype getInliner(const NamespacedIdentifier& id)
+		template <int C> struct FrameProcessor
 		{
-			static const std::map<String, Prototype> inlinerMap {
-				{ "dyn::size", dyn::size }
-			};
+			static VariableStorage next(const Args& a) { return get(a).next(); }
+			static VariableStorage subscript(const Args& a) { return &get(a)[a.getIndexArg(1, C)]; }
+			static VariableStorage begin(const Args& a) { return get(a).begin(); }
+			static VariableStorage size(const Args& a) { return C; }
+			
 
-			auto s = id.toString();
+		private:
+
+			SNEX_GETTER(FrameProcessor, C);
+		};
+
+		template <int C> struct ProcessData
+		{
+			static VariableStorage getNumSamples(const Args& a) { return get(a).getNumSamples(); }
+			static VariableStorage getNumChannels(const Args& a) { return get(a).getNumChannels(); }
+			static VariableStorage toFrameData(const Args& a) { return a.copyToReturnData(get(a).toFrameData()); }
+			static VariableStorage subscript(const Args& a) { return get(a)[a.getIndexArg(1, C)]; }
+
+			static VariableStorage toChannelData(const Args& a) 
+			{ 
+				auto ptr = a.getTypedArgument<void*>(1);
+				return get(a).toChannelData(ChannelPtr::fromRawPointer(ptr));
+			}
+
+			static VariableStorage toEventData(const Args& a)
+			{
+				auto d = get(a).toEventData();
+				return block(reinterpret_cast<float*>(d.begin()), d.size());
+			}
+
+			static VariableStorage begin(const Args& a) { return get(a).begin(); }
+			static VariableStorage size(const Args& a) { return C; }
+
+		private:
+
+			SNEX_GETTER(ProcessData, C);
+		};
+
+
+		static Prototype getInliner(Factory& f, const ValueTree& v)
+		{
+			if (auto objectType = Helpers::getObjectType(f, v))
+			{
+				auto fData = Helpers::getFunctionData(f, v);
+				auto pid = OpFunctions::getInlinerPrototypeId(objectType, fData.id);
+				return getInliner(pid);
+			}
+
+			return nullptr;
+		}
+
+		static Prototype getInliner(StructType* st, jit::FunctionClass::SpecialSymbols ss)
+		{
+			jit::FunctionClass::Ptr fc = st->getFunctionClass();
+			auto id = jit::FunctionClass::getSpecialSymbol(st->id, ss);
+			auto pId = OpFunctions::getInlinerPrototypeId(st, st->id.getChildId(id));
+			return OpFunctions::Inliners::getInliner(pId);
+		}
+
+		static Prototype getInliner(const String& s)
+		{
+			static const std::map<String, Prototype> inlinerMap{
+				INLINER(dyn, size),
+				INLINER_16CH(ProcessData, subscript),
+				INLINER_16CH(ProcessData, getNumSamples),
+				INLINER_16CH(ProcessData, toFrameData),
+				INLINER_16CH(ProcessData, getNumChannels),
+				INLINER_16CH(ProcessData, begin),
+				INLINER_16CH(ProcessData, size),
+				INLINER_16CH(ProcessData, toChannelData),
+				INLINER_16CH(ProcessData, toEventData),
+				INLINER_16CH(FrameProcessor, next),
+				INLINER_16CH(FrameProcessor, subscript),
+				INLINER_16CH(FrameProcessor, begin),
+				INLINER_16CH(FrameProcessor, size)
+			};
 
 			if (inlinerMap.find(s) != inlinerMap.end())
 				return inlinerMap.at(s);
@@ -83,8 +322,6 @@ struct Statement::OpFunctions
 			return nullptr;
 		}
 	};
-
-	
 
 	struct BinaryOp
 	{
@@ -143,39 +380,23 @@ struct Statement::OpFunctions
 
 		typedef VariableStorage(*Function)(const VariableStorage&, const VariableStorage&);
 
+		static Ops getOpType(const ValueTree& astNode, const Identifier& id = Identifier())
+		{
+			auto idToUse = id.isValid() ? id : AstIds::OpType;
+			auto opString = astNode[idToUse].toString();
+			return getFromString(opString.getCharPointer().getAddress());
+		}
+
 		static Function getFunctionPtr(const TypeInfo& t, Ops opMode)
 		{
 			if (opMode == Ops::SET)
 				return nullptr;
 
 			auto opType = t.getType();
-
-#define CASE(O, TYPE, func) case Ops::O: return func<Types::ID::TYPE, Ops::O>;
-#define ALL_CASES(TYPE) CASE(ADD, TYPE, opFunction); \
-						CASE(SUB, TYPE, opFunction); \
-						CASE(MUL, TYPE, opFunction); \
-						CASE(DIV, TYPE, opFunction); \
-						CASE(EQ_, TYPE, opFunction); \
-						CASE(NEQ, TYPE, opFunction); \
-						CASE(GT_, TYPE, opFunction); \
-						CASE(GET, TYPE, opFunction); \
-						CASE(LT_, TYPE, opFunction); \
-						CASE(LET, TYPE, opFunction); \
-						CASE(AND, TYPE, opFunction); \
-						CASE(OR_, TYPE, opFunction); \
-						CASE(NEG, TYPE, opFunction); 
-
-#define INTEGER_CASES(TYPE)	CASE(MOD, TYPE, opFunctionInt); \
-							CASE(BO_, TYPE, opFunctionInt); \
-							CASE(BA_, TYPE, opFunctionInt); 
 							
 			if (opType == Types::ID::Integer) { switch (opMode) { ALL_CASES(Integer); INTEGER_CASES(Integer); }}
 			if (opType == Types::ID::Double) { switch (opMode) { ALL_CASES(Double); }}
 			if (opType == Types::ID::Float)  { switch (opMode) { ALL_CASES(Float);  }}
-
-#undef CASE
-#undef ALL_CASES
-#undef INTEGER_CASES
 
 			jassertfalse;
 			return nullptr;
@@ -273,8 +494,6 @@ struct Statement::OpFunctions
 			return f;
 		}
 
-	private:
-
 		template <typename T> static VariableStorage readStatic(Scope::LValue d)
 		{
 			auto [data, offset] = d;
@@ -298,7 +517,38 @@ struct Statement::OpFunctions
 		}
 	};
 
-	
+	static String getInlinerPrototypeId(jit::ComplexType* typePtr, const NamespacedIdentifier& functionId)
+	{
+		int first = -1;
+
+		if (auto st = dynamic_cast<ComplexTypeWithTemplateParameters*>(typePtr))
+		{
+			for (auto t : st->getTemplateInstanceParameters())
+			{
+				if (t.constantDefined)
+				{
+					first = t.constant;
+					break;
+				}
+			}
+		}
+
+		String sig;
+
+		if (first != -1)
+		{
+			sig << functionId.getParent().toString();
+			sig << "<" << String(first) << ">::";
+			sig << functionId.id;
+		}
+		else
+			sig << functionId.toString();
+
+		if (sig.contains("operator[]"))
+			sig = sig.replace("operator[]", "subscript");
+
+		return sig;
+	}
 
 	static String getSigString(const jit::FunctionData& functionData, bool addThisPointer)
 	{
@@ -332,83 +582,16 @@ struct Statement::OpFunctions
 	}
 };
 
-struct Statement::Helpers
-{
-	static void annotateType(UriLocationTree& d, const jit::TypeInfo& type)
-	{
-		DynamicObject::Ptr ti = new DynamicObject();
-		
-		if (type.isComplexType())
-			ti->setProperty("type", type.getComplexType().get());
-		else
-			ti->setProperty("type", Types::Helpers::getTypeName(type.getType()));
+#undef SNEX_GETTER
+#undef INLINER
+#undef INLINER_NC
+#undef INLINER_16CH
 
-		ti->setProperty("isConst", type.isConst());
-		ti->setProperty("isRef", type.isRef());
-		ti->setProperty("isStatic", type.isStatic());
-		ti->setProperty("label", type.toString());
+#undef CASE
+#undef ALL_CASES
+#undef INTEGER_CASES
 
-		d.data->setProperty("typeInfo", ti.get());
-	}
 
-	static UriLocation createUriLocation(UriLocationBuilder::Ptr builder, const ValueTree& v)
-	{
-		return builder->createLocation((int)v[AstIds::charIndex]);
-	}
-
-	static NamespacedIdentifier getNamespacedIdentifier(const ValueTree& astNode, const Identifier& id)
-	{
-		return NamespacedIdentifier::fromString(astNode[id].toString());
-	}
-
-	static jit::Symbol getSymbol(Factory& f, const ValueTree& astNode, const Identifier& id = Identifier())
-	{
-		auto idToUse = id.isValid() ? id : AstIds::Symbol;
-		auto symbolString = astNode[idToUse].toString();
-		TypeParserBase p(symbolString, true, f.typeLibrary);
-		jit::Symbol s;
-		s.typeInfo = p.getTypeInfo();
-		s.id = p.parseNamespacedIdentifier();
-		return s;
-	}
-
-	static OpFunctions::BinaryOp::Ops getOpType(const ValueTree& astNode, const Identifier& id = Identifier())
-	{
-		auto idToUse = id.isValid() ? id : AstIds::OpType;
-		auto opString = astNode[idToUse].toString();
-		return OpFunctions::BinaryOp::getFromString(opString.getCharPointer().getAddress());
-	}
-
-	static TypeInfo getType(Factory& f, const ValueTree& astNode, const Identifier& id = Identifier())
-	{
-		auto idToUse = id.isValid() ? id : AstIds::Type;
-		auto typeString = astNode[idToUse].toString();
-		TypeParserBase p(typeString, true, f.typeLibrary);
-		return p.getTypeInfo();
-	}
-
-	static FunctionData getFunctionData(Factory& f, const ValueTree& astNode)
-	{
-		auto signature = astNode[AstIds::Signature].toString();
-		TypeParserBase p(signature, true, f.typeLibrary);
-		return p.parseFunctionData();
-	}
-
-	static MemoryBlock getInitData(const ValueTree& v)
-	{
-		MemoryBlock mb;
-		mb.fromBase64Encoding(v[AstIds::InitValuesB64].toString());
-		return mb;
-	}
-
-	static Expression::ExprPtr getChildExpression(Statement* parent, int childIndex)
-	{
-		if (auto cn = parent->childStatements[childIndex])
-			return cn->getTyped<Expression>();
-
-		return nullptr;
-	}
-};
 
 struct Statement::BlockExecutor
 {

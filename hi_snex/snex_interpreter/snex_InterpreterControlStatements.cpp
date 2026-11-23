@@ -225,10 +225,33 @@ struct ReturnStatement : public Statement
 
 		static const StringArray lt({ "Undefined", "Span", "Dyn", "CustomObject" });
 		loopType = (LoopType)lt.indexOf(v[AstIds::LoopType].toString());
+
+		if (loopType == LoopType::Custom)
+		{
+			customObject = dynamic_cast<StructType*>(Helpers::getObjectType(f, v));
+
+			if(customObject != nullptr)
+			{
+				beginFunction = OpFunctions::Inliners::getInliner(customObject, FunctionClass::SpecialSymbols::BeginIterator);
+				sizeFunction = OpFunctions::Inliners::getInliner(customObject, FunctionClass::SpecialSymbols::SizeFunction);
+			}
+		}
 	}
 
 	void resolveDataPointers(Scope* scopeToUse) override
 	{
+		if (loopType == LoopType::Custom)
+		{
+			if (customObject == nullptr)
+				throwRuntimeError("no object type");
+
+			if (beginFunction == nullptr)
+				throwRuntimeError("no begin() function");
+
+			if (sizeFunction == nullptr)
+				throwRuntimeError("no size() function");
+		}
+
 		iteratorRef = body->statementScope->resolveDataPointer(iterator.id);
 		jassert(iteratorRef);
 	};
@@ -248,6 +271,17 @@ struct ReturnStatement : public Statement
 			beginPtr = obj.toBlock().begin();
 			numElements = obj.toBlock().size();
 			break;
+		case LoopType::Custom:
+		{
+			OpFunctions::Inliners::Args a(*this);
+			a.args = &obj;
+			a.numArgs = 1;
+			a.typePtr = customObject;
+
+			beginPtr = beginFunction(a).getDataPointer();
+			numElements = sizeFunction(a).toInt();
+			break;
+		}
 		default:
 			throwRuntimeError("not implemented yet");
 		}
@@ -284,8 +318,11 @@ struct ReturnStatement : public Statement
 	const bool loadIterator;
 	LoopType loopType;
 	TypeInfo elementType;
+	StructType* customObject;
 	int elementSize;
 	int numElements;
+
+	OpFunctions::Inliners::Prototype beginFunction, sizeFunction;
 };
 
 struct WhileLoop : public Statement
@@ -300,13 +337,13 @@ struct WhileLoop : public Statement
 		if (isWhileLoop)
 		{
 			condition = Helpers::getChildExpression(this, 0);
-			body = childStatements[1]->getTyped<StatementBlock>();
+			body = childStatements[1];
 		}
 		else
 		{
 			initialiser = childStatements[0];
 			condition = Helpers::getChildExpression(this, 1);
-			body = childStatements[2]->getTyped<StatementBlock>();
+			body = childStatements[2];
 			postOp = childStatements[3];
 
 			// This is required for the scope allocation to work
@@ -319,7 +356,10 @@ struct WhileLoop : public Statement
 			{
 				if (auto v = initialiser->childStatements[1]->getTyped<VariableReference>())
 				{
-					body->additionalSymbolsToAllocate.add(v->symbol);
+					if (auto bodyBlock = body->getTyped<StatementBlock>())
+						bodyBlock->additionalSymbolsToAllocate.add(v->symbol);
+					else
+						throwRuntimeError("for loop body has no scope");
 				}
 			}
 		}
@@ -359,7 +399,7 @@ struct WhileLoop : public Statement
 
 	Statement::Ptr initialiser;
 	Expression::ExprPtr condition;
-	StatementBlock* body;
+	Statement::Ptr body;
 	Statement::Ptr postOp;
 };
 
