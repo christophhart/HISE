@@ -182,9 +182,7 @@ struct Subscript : public Expression
 
 		if (isDyn)
 		{
-			// Both Block and Pointer values expose the dyn view header through getDataPointer().
-			auto* view = static_cast<const uint8*>(parentValue.getDataPointer());
-			memcpy(&dataPtr, view + offsetof(block, data), sizeof(dataPtr));
+			dataPtr = OpFunctions::Data::readDynView(parentValue).data;
 		}
 		else
 		{

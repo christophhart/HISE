@@ -310,10 +310,9 @@ struct Statement::OpFunctions
 				}
 				else if (dynamic_cast<DynType*>(sourceType) != nullptr)
 				{
-					// Both Block and Pointer values expose the dyn view header through getDataPointer().
-					auto* sourceView = static_cast<const uint8*>(a.args[1].getDataPointer());
-					memcpy(&totalSize, sourceView + offsetof(block, size_), sizeof(totalSize));
-					memcpy(&sourceData, sourceView + offsetof(block, data), sizeof(sourceData));
+					auto sourceView = Data::readDynView(a.args[1]);
+					totalSize = sourceView.size;
+					sourceData = sourceView.data;
 				}
 				else
 					a.throwRuntimeError("unsupported dyn referTo source");
@@ -625,6 +624,22 @@ struct Statement::OpFunctions
 
 	struct Data
 	{
+		struct DynView
+		{
+			void* data = nullptr;
+			int size = 0;
+		};
+
+		static DynView readDynView(const VariableStorage& value)
+		{
+			// Block and Pointer values both expose the dyn view header through getDataPointer().
+			auto* header = static_cast<const uint8*>(value.getDataPointer());
+			DynView view;
+			memcpy(&view.data, header + offsetof(block, data), sizeof(view.data));
+			memcpy(&view.size, header + offsetof(block, size_), sizeof(view.size));
+			return view;
+		}
+
 		using Functions = std::pair<Scope::ReadFunction, Scope::WriteFunction>;
 
 		static Functions getFunctionPtr(const TypeInfo& t)

@@ -260,7 +260,6 @@ struct ReturnStatement : public Statement
 		numElements((int)v.getProperty(AstIds::NumElements, -1)),
 		target(Helpers::getChildExpression(this, 0)),
 		body(childStatements[1]->getTyped<StatementBlock>()),
-		dynSourceIsReference(target->getTypeInfo().isRef()),
 		copyIteratorValue(loadIterator && !elementType.isRef()),
 		iteratorLoad(copyIteratorValue ? (elementType.getType() == Types::ID::Pointer ?
 			OpFunctions::Data::readPointerValue : OpFunctions::Data::getFunctionPtr(elementType).first) : nullptr),
@@ -318,9 +317,9 @@ struct ReturnStatement : public Statement
 			break;
 		case LoopType::Dyn:
 		{
-			auto view = dynSourceIsReference ? Scope::ResolvedReference::toBlock(obj).toBlock() : obj.toBlock();
-			beginPtr = view.begin();
-			numElements = view.size();
+			auto view = OpFunctions::Data::readDynView(obj);
+			beginPtr = view.data;
+			numElements = view.size;
 			break;
 		}
 		case LoopType::Custom:
@@ -374,7 +373,6 @@ struct ReturnStatement : public Statement
 	Scope::ResolvedReference iteratorRef;
 	Expression::ExprPtr target;
 	StatementBlock* body;
-	const bool dynSourceIsReference;
 	const bool copyIteratorValue;
 	const Scope::ReadFunction iteratorLoad;
 
