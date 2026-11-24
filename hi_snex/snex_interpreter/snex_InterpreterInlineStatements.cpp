@@ -202,6 +202,7 @@ struct InlinedReturnValue : public ReturnStatement
         if (returnsReference && returnValue != nullptr && value != nullptr)
         {
             *returnValue = value->getLValue(s).readAsPointer();
+            performCleanup(s);
             return ResultCode::returnWasHit;
         }
 

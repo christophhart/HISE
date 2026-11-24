@@ -187,6 +187,9 @@ struct ControlFlowStatement : public Statement
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue) override
 	{
+		for (auto c : childStatements)
+			c->perform(s, nullptr);
+
 		return returnCode;
 	};
 
@@ -201,8 +204,9 @@ struct ReturnStatement : public Statement
 
 	ReturnStatement(Statement::Factory& f, const ValueTree& v) :
 		Statement(f, v),
-		value(Helpers::getChildExpression(this, 0)),
-		isRef(Helpers::isNativeTypeReference(f, v))
+		value(Helpers::getType(f, v).getType() == Types::ID::Void ? nullptr : Helpers::getChildExpression(this, 0)),
+		isRef(Helpers::isNativeTypeReference(f, v)),
+		cleanupStart(value != nullptr ? 1 : 0)
 	{};
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue) override
@@ -212,21 +216,27 @@ struct ReturnStatement : public Statement
 			if (isRef)
 			{
 				auto lValue = value->getLValue(s);
-
 				*returnValue = lValue.readAsPointer();
 			}
 			else
 			{
 				*returnValue = value->getResult(s);
 			}
-			
 		}
 
+		performCleanup(s);
 		return ResultCode::returnWasHit;
 	};
 
+	void performCleanup(Scope* s)
+	{
+		for (int i = cleanupStart; i < childStatements.size(); i++)
+			childStatements.getUnchecked(i)->perform(s, nullptr);
+	}
+
 	Expression::ExprPtr value;
 	const bool isRef;
+	const int cleanupStart;
 };
 
  struct Loop : public Statement
