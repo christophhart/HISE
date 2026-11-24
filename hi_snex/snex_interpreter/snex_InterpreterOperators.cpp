@@ -128,6 +128,7 @@ struct Subscript : public Expression
 	  elementType(Helpers::getType(f, v, AstIds::ElementType)),
 	  elementSize(elementType.getRequiredByteSize()),
 	  isReference(elementType.isRef()),
+	  isDyn      (parentType.getTypedComplexType<DynType>() != nullptr),
 	  parent     (Helpers::getChildExpression(this, 0)),
 	  index      (Helpers::getChildExpression(this, 1)),
 	  f          (OpFunctions::Data::getFunctionPtr(elementType)),
@@ -176,7 +177,20 @@ struct Subscript : public Expression
 			return address;
 		}
 
-		auto dataPtr = parent->getResult(s).toPtr();
+		auto parentValue = parent->getResult(s);
+		void* dataPtr = nullptr;
+
+		if (isDyn)
+		{
+			// Both Block and Pointer values expose the dyn view header through getDataPointer().
+			auto* view = static_cast<const uint8*>(parentValue.getDataPointer());
+			memcpy(&dataPtr, view + offsetof(block, data), sizeof(dataPtr));
+		}
+		else
+		{
+			dataPtr = parentValue.toPtr();
+		}
+
 		auto idx = index->getResult(s).toInt();
 		address = { dataPtr, elementSize * idx };
 		return address;
@@ -202,6 +216,7 @@ struct Subscript : public Expression
 	TypeInfo elementType;
 	const size_t elementSize;
 	const bool isReference;
+	const bool isDyn;
 	ExprPtr parent;
 	ExprPtr index;
 	OpFunctions::Data::Functions f;

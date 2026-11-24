@@ -299,10 +299,6 @@ struct Statement::OpFunctions
 				// referTo changes a view during setup, so the source type is inspected here
 				// instead of adding referTo-specific metadata to every function call.
 				auto sourceType = a.getArgType(1);
-				auto destinationType = dynamic_cast<DynType*>(a.getArgType(0));
-
-				if (destinationType == nullptr)
-					a.throwRuntimeError("invalid dyn referTo destination");
 
 				int totalSize = 0;
 				void* sourceData = nullptr;
@@ -314,10 +310,10 @@ struct Statement::OpFunctions
 				}
 				else if (dynamic_cast<DynType*>(sourceType) != nullptr)
 				{
-					auto sourceView = a.args[1].getType() == Types::ID::Block ?
-						a.args[1].toBlock() : *static_cast<block*>(a.getTypedArgument<void*>(1));
-					totalSize = sourceView.size();
-					sourceData = sourceView.begin();
+					// Both Block and Pointer values expose the dyn view header through getDataPointer().
+					auto* sourceView = static_cast<const uint8*>(a.args[1].getDataPointer());
+					memcpy(&totalSize, sourceView + offsetof(block, size_), sizeof(totalSize));
+					memcpy(&sourceData, sourceView + offsetof(block, data), sizeof(sourceData));
 				}
 				else
 					a.throwRuntimeError("unsupported dyn referTo source");
@@ -331,25 +327,30 @@ struct Statement::OpFunctions
 				if (size < 0 || offset < 0 || offset > totalSize || size > totalSize - offset)
 					a.throwRuntimeError("illegal dyn referTo size or offset");
 
-				auto destination = static_cast<block*>(a.getTypedArgument<void*>(0));
+				auto& destination = asBlock(a);
+
 				if (size == 0)
-					destination->referToNothing();
+					destination.referToNothing();
 				else
 				{
-					auto elementSize = destinationType->getElementType().getRequiredByteSizeNonZero();
-					auto data = reinterpret_cast<uint8*>(sourceData) + (size_t)offset * elementSize;
-					destination->referToRawData(reinterpret_cast<float*>(data), size);
+					auto data = reinterpret_cast<uint8*>(sourceData) + (size_t)offset * a.elementSize;
+					destination.referToRawData(reinterpret_cast<float*>(data), size);
 				}
 
-
-				return a.copyToReturnData(*destination);
+				return a.copyToReturnData(destination);
 			}
 
 			static VariableStorage size(const Args& a)
 			{
 				jassert(a.getNumArgs() == 1);
-				auto bl = a.args[0].toBlock();
-				return VariableStorage(bl.size());
+				return asBlock(a).size();
+			}
+
+		private:
+
+			static block& asBlock(const Args& a)
+			{
+				return *static_cast<block*>(a.args[0].getDataPointer());
 			}
 		};
 
