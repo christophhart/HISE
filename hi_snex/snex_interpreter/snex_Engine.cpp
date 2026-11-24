@@ -110,26 +110,23 @@ Array<jit::NamespacedIdentifier> Engine::getFunctionIds() const
 
 jit::FunctionData Engine::resolveInterpretedFunctionCall(const jit::FunctionData& fd)
 {
-	if (fd.id.isExplicit())
+	// A specialized root template ID has a parent (eg. getArgs::9), but is still a root function.
+	for (const auto& f : rootFunctions)
 	{
-		for (const auto& f : rootFunctions)
-		{
-			if (f->getTyped<nodes::Function>()->fData.matchIdArgsAndTemplate(fd))
-				return f->getTyped<nodes::Function>()->fData;
-		}
-
-		return {};
+		if (f->getTyped<nodes::Function>()->fData.matchIdArgsAndTemplate(fd))
+			return f->getTyped<nodes::Function>()->fData;
 	}
-	else
+
+	if (!fd.id.isExplicit())
 	{
 		for (auto c : rootClassDefinitions)
 		{
 			if (auto f = c->getTyped<nodes::ClassStatement>()->resolveFunctionCall(fd))
 				return *f;
 		}
-
-		return {};
 	}
+
+	return {};
 }
 
 jit::FunctionData Engine::getFunction(const jit::NamespacedIdentifier& functionId)
