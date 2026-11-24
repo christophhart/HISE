@@ -579,7 +579,9 @@ juce::Result JitFileTestCase::testAfterCompilation(bool dumpBeforeTest /*= false
 			}
 			catch (interpreter::Engine::CallError& ce)
 			{
-				memory.getUriLogger()->logUriError(UriError::SourceType::Runtime, ce.e, sendNotificationAsync);
+				if(auto l = memory.getUriLogger())
+					l->logUriError(UriError::SourceType::Runtime, ce.e, sendNotificationAsync);
+
 				return Result::fail(ce.e.errorMessage);
 			}
 

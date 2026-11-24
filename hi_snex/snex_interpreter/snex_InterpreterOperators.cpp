@@ -118,6 +118,29 @@ struct Cast : public Expression
 	OpFunctions::Cast::Function castFunction = nullptr;
 };
 
+struct LogicalNot : public Expression
+{
+	SNEX_INTERPRETER_NODE(LogicalNot, WantsNode::No);
+
+	LogicalNot(Factory& f, const ValueTree& v) :
+		Expression(f, v),
+		value(Helpers::getChildExpression(this, 0))
+	{};
+
+	VariableStorage getResult(Scope* s) override
+	{
+		auto v = value->getResult(s).toInt();
+		return VariableStorage(1 - v);
+	}
+
+	TypeInfo getTypeInfo() const override
+	{
+		return TypeInfo(Types::ID::Integer);
+	}
+
+	ExprPtr value;
+};
+
 struct Subscript : public Expression
 {
 	SNEX_INTERPRETER_NODE(Subscript, WantsNode::No);

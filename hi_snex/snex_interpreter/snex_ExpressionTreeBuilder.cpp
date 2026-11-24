@@ -41,6 +41,7 @@ Statement::Factory::Factory()
 	registerType<nodes::ReturnStatement>();
 	registerType<nodes::Immediate>();
 	registerType<nodes::BinaryOp>();
+	registerType<nodes::LogicalNot>();
 	registerType<nodes::Increment>();
 	registerType<nodes::Comparison>();
 	registerType<nodes::Cast>();
