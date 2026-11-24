@@ -1015,7 +1015,56 @@ juce::Result JitFileTestCase::expectValueMatch()
 		}
 		else
 		{
-			t->expectEquals(Types::Helpers::getCppValueString(actualResult), Types::Helpers::getCppValueString(expectedResult), file.getFileName());
+			auto av = Types::Helpers::getCppValueString(actualResult);
+			auto ev = Types::Helpers::getCppValueString(expectedResult);
+
+			if (av != ev)
+			{
+				auto createErrorReport = [&](Compiler* c, const String& errorMessage)
+				{
+					String msg;
+					String nl = "\n";
+
+					msg << "<<< FAIL: ======================================= " << nl;
+
+					msg << "ERROR: ========================================== " << nl;
+					msg << errorMessage << nl << nl;
+					msg << "CODE: ===========================================" << nl;
+
+					auto code = c->getLastCompiledCode();
+
+					auto lines = StringArray::fromLines(code);
+
+					for (int i = 0; i < lines.size(); i++)
+					{
+						msg << String(i + 1) << "\t" << lines[i] << nl;
+					}
+
+					msg << nl;
+					msg << "SYNTAXTREE: ======================================" << nl;
+					msg << c->dumpSyntaxTree() << nl;
+					
+					msg << "STR: =============================================" << nl;
+
+					msg << 
+					msg << "call `--run --file:" << this->file.getFileName() << " --args:";
+
+					for (auto i : this->inputs)
+						msg << Types::Helpers::getCppValueString(i) << ",";
+
+					msg = msg.upToLastOccurrenceOf(",", false, false);
+					msg << " --verbose` to reproduce the single test" << nl;
+
+					msg << "============================================== >>>";
+
+					return msg;
+				};
+
+				throw Result::fail(createErrorReport(&c, "result value mismatch: " + av + ". expected: " + ev));
+			}
+				
+
+			t->expectEquals(av, ev, file.getFileName());
 		}
 
 		return r;

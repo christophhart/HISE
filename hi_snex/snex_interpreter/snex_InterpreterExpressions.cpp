@@ -157,10 +157,7 @@ protected:
 			auto lv = a->getLValue(s);
 			return lv.readAsPointer();
 		}
-		else
-		{
-			return a->getResult(s);
-		}
+		return a->getResult(s);
 	}
 
 	template <typename T> static juce_wchar getArgChar()

@@ -108,7 +108,8 @@ private:
 	template <size_t... Indices, typename... Ts>
 	static void writeArguments(nodes::Function& data, std::index_sequence<Indices...>, Ts... args)
 	{
-		(data.parameterBinders[Indices](data.parameters[Indices], VariableStorage(args)), ...);
+		(data.parameterBinders[Indices](data.parameters[Indices], VariableStorage(args),
+			data.parameterByteCounts[Indices]), ...);
 	}
 };
 
@@ -183,6 +184,7 @@ struct Function : public Statement,
 		{
 			parameters.push_back(scopeToUse->resolveDataPointer(thisId));
 			parameterBinders.push_back(writeParameter);
+			parameterByteCounts.push_back(0);
 		}
 
 		for (const auto& a : fData.args)
@@ -190,7 +192,11 @@ struct Function : public Statement,
 			auto ptr = scopeToUse->resolveDataPointer(a.id);
 			validParameters &= (bool)ptr;
 			parameters.push_back(ptr);
-			parameterBinders.push_back(a.typeInfo.isRef() ? bindReference : writeParameter);
+
+			const bool copyComplex = a.typeInfo.isComplexType() && !a.typeInfo.isRef();
+			parameterBinders.push_back(a.typeInfo.isRef() ? bindReference :
+				copyComplex ? copyComplexParameter : writeParameter);
+			parameterByteCounts.push_back(copyComplex ? a.typeInfo.getRequiredByteSize() : 0);
 		}
 
 		if (validParameters)
@@ -233,7 +239,7 @@ struct Function : public Statement,
 			statementScope->clear();
 
 			for (int i = 0; i < numArgs; i++)
-				parameterBinders[i](parameters[i], args[i]);
+				parameterBinders[i](parameters[i], args[i], parameterByteCounts[i]);
 
 			VariableStorage rv;
 			perform(statementScope, &rv);
@@ -256,20 +262,26 @@ struct Function : public Statement,
 
 	}
 
-	static void bindReference(Scope::ResolvedReference& target, const VariableStorage& value)
+	static void bindReference(Scope::ResolvedReference& target, const VariableStorage& value, size_t)
 	{
 		jassert(value.getType() == Types::ID::Pointer);
 		target.assign({ value.getDataPointer(), 0 });
 	}
 
-	static void writeParameter(Scope::ResolvedReference& target, const VariableStorage& value)
+	static void copyComplexParameter(Scope::ResolvedReference& target, const VariableStorage& value, size_t numBytes)
+	{
+		memcpy(target.getDataPointer(), value.getDataPointer(), numBytes);
+	}
+
+	static void writeParameter(Scope::ResolvedReference& target, const VariableStorage& value, size_t)
 	{
 		target.write(value);
 	}
 
-	using ParameterBinder = void(*)(Scope::ResolvedReference&, const VariableStorage&);
+	using ParameterBinder = void(*)(Scope::ResolvedReference&, const VariableStorage&, size_t);
 	std::vector<Scope::ResolvedReference> parameters;
 	std::vector<ParameterBinder> parameterBinders;
+	std::vector<size_t> parameterByteCounts;
 
 	jit::FunctionData fData;
 	NamespacedIdentifier lexicalScopeId;
