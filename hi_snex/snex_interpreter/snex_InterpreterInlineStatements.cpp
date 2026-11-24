@@ -201,8 +201,7 @@ struct InlinedReturnValue : public ReturnStatement
     {
         if (returnsReference && returnValue != nullptr && value != nullptr)
         {
-            auto lv = value->getLValue(s);
-            *returnValue = VariableStorage(reinterpret_cast<uint8*>(lv.first) + lv.second);
+            *returnValue = value->getLValue(s).readAsPointer();
             return ResultCode::returnWasHit;
         }
 

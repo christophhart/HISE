@@ -176,7 +176,7 @@ struct Subscript : public Expression
 			return address;
 		}
 
-		auto dataPtr = reinterpret_cast<uint8*>(parent->getResult(s).toPtr());
+		auto dataPtr = parent->getResult(s).toPtr();
 		auto idx = index->getResult(s).toInt();
 		address = { dataPtr, elementSize * idx };
 		return address;

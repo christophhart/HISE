@@ -15,6 +15,13 @@ struct Scope : public ReferenceCountedObject
 	{
 		void* first = nullptr;
 		size_t second = 0;
+
+		VariableStorage readAsPointer() const
+		{
+			jassert(first != nullptr);
+			auto ptr = reinterpret_cast<uint8*>(first) + second;
+			return VariableStorage(reinterpret_cast<void*>(ptr));
+		}
 	};
 
 	typedef VariableStorage(*ReadFunction)(LValue);

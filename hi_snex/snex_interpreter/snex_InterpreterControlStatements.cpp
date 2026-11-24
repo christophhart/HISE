@@ -213,7 +213,7 @@ struct ReturnStatement : public Statement
 			{
 				auto lValue = value->getLValue(s);
 
-				*returnValue = VariableStorage(reinterpret_cast<uint8*>(lValue.first) + lValue.second);
+				*returnValue = lValue.readAsPointer();
 			}
 			else
 			{

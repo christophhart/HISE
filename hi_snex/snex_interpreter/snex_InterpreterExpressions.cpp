@@ -60,6 +60,10 @@ struct FunctionCallBase : public Expression
 					if (p.label == thisLabel)
 					{
 						setResolvedFunction(p.function);
+
+						if (auto fc = gs->getGlobalFunctionClass(fd.id.getParent()))
+							resolvedFunction.object = fc;
+
 						return;
 					}
 				}
@@ -143,8 +147,7 @@ protected:
 		if (argRef[argIndex])
 		{
 			auto lv = a->getLValue(s);
-			auto ptr = (void*)(reinterpret_cast<uint8*>(lv.first) + lv.second);
-			return VariableStorage(ptr);
+			return lv.readAsPointer();
 		}
 		else
 		{

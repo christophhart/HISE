@@ -658,8 +658,10 @@ juce::Result JitFileTestCase::test(bool dumpBeforeTest /*= false*/)
 
 	if (!r.wasOk())
 	{
+		if (expectCompileFail(expectedFail).wasOk())
+			return Result::ok();
+
 		throw r;
-		return expectCompileFail(expectedFail);
 	}
 		
 
