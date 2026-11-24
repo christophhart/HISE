@@ -53,6 +53,7 @@ Statement::Factory::Factory()
 	registerType<nodes::TemplateDefinition>();
 	registerType<nodes::ClassStatement>();
 	registerType<nodes::Dot>();
+	registerType<nodes::MemoryReference>();
 	registerType<nodes::ThisPointer>();
 	registerType<nodes::PointerAccess>();
 	registerType<nodes::StatementBlock>();

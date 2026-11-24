@@ -150,7 +150,7 @@ struct Function : public Statement,
 		jassert(scopeToUse->scopeType == Scope::ScopeType::Function);
 		jassert(scopeToUse->id == lexicalScopeId);
 
-		auto addThisPointer = scopeToUse->parent != scopeToUse->getRootScope();
+		auto addThisPointer = scopeToUse->parent != scopeToUse->getRootScope() && !fData.returnType.isStatic();
 
 		auto thisId = addThisPointer ? lexicalScopeId.getChildId("this") : NamespacedIdentifier();
 
@@ -176,7 +176,7 @@ struct Function : public Statement,
 		jassert(scopeToUse->id == lexicalScopeId);
 
 		auto validParameters = true;
-		auto addThisPointer = scopeToUse->parent != scopeToUse->getRootScope();
+		auto addThisPointer = scopeToUse->parent != scopeToUse->getRootScope() && !fData.returnType.isStatic();
 		auto thisId = addThisPointer ? lexicalScopeId.getChildId("this") : NamespacedIdentifier();
 
 		if (addThisPointer)

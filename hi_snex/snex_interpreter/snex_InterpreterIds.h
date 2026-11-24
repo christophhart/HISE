@@ -23,6 +23,7 @@ DECLARE_ID(ScopeId);
 DECLARE_ID(CallType);
 DECLARE_ID(ObjectType);
 DECLARE_ID(MemberType);
+DECLARE_ID(Offset);
 DECLARE_ID(ReturnType);
 DECLARE_ID(ParameterName);
 

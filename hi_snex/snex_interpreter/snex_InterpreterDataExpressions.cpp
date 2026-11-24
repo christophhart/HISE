@@ -434,6 +434,46 @@ struct Dot : public Expression
 	OpFunctions::Data::Functions df;
 };
 
+
+struct MemoryReference : public Expression
+{
+	SNEX_INTERPRETER_NODE(MemoryReference, WantsNode::No);
+
+	MemoryReference(Factory& f, const ValueTree& v) :
+		Expression(f, v),
+		dotParent(Helpers::getChildExpression(this, 0)),
+		offset((size_t)(int)v[AstIds::Offset]),
+		type(Helpers::getType(f, v, AstIds::MemberType)),
+		df(OpFunctions::Data::getFunctionPtr(type))
+	{
+	}
+
+	TypeInfo getTypeInfo() const override { return type; }
+
+	VariableStorage getResult(Scope* s)
+	{
+		return df.first(getLValue(s));
+	}
+
+	Scope::LValue& getLValue(Scope* s) override
+	{
+		auto base = (void*)dotParent->getResult(s);
+		address = { base, offset };
+		return address;
+	}
+
+	void assign(Scope* s, const VariableStorage& v) override
+	{
+		df.second(getLValue(s), v);
+	}
+
+	Scope::LValue address;
+	ExprPtr dotParent;
+	const size_t offset;
+	TypeInfo type;
+	OpFunctions::Data::Functions df;
+};
+
 struct ThisPointer : public Expression
 {
 	SNEX_INTERPRETER_NODE(ThisPointer, WantsNode::No);

@@ -86,6 +86,14 @@ struct FunctionCallBase : public Expression
 				}
 			}
 
+			if (callType == Identifier("StaticFunction"))
+			{
+				auto sf = s->engine->getFunction(fd.id);
+
+				if (sf.isResolved() && setResolvedFunction(sf))
+					return;
+			}
+
 			if (callType == Identifier("RootFunction"))
 			{
 				auto rf = s->engine->getRootFunction(fd);
@@ -333,7 +341,7 @@ struct Statement::Factory::TypedFunctionFactory
 
 			auto ti = Helpers::getType(f, v, AstIds::ObjectType);
 
-			if (ti.isComplexType())
+			if (ti.isComplexType() && v[AstIds::CallType].toString() != "StaticFunction")
 			{
 				auto objectType = ti.getComplexType();
 				auto addThisPointer = objectType != nullptr;
