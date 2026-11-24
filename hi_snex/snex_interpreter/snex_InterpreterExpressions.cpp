@@ -408,6 +408,14 @@ struct FunctionCall : public FunctionCallBase
 		inlinerData.fillArgs(inlinerArgs);
 	};
 
+	void resolveDataPointers(Scope* s) override
+	{
+		FunctionCallBase::resolveDataPointers(s);
+
+		if (inliner == nullptr && resolvedFunction.function == (void*)Function::callDynamicStatic)
+			executionType = ExecutionType::CallDynamic;
+	}
+
 	VariableStorage callInternal(Scope* s) final override
 	{	
 		for (int i = 0; i < inlinerData.args.size(); i++)

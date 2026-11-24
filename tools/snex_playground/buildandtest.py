@@ -107,11 +107,13 @@ def report_test_failure(output):
 
 
 def main():
-    if len(sys.argv) > 2 or (len(sys.argv) == 2 and sys.argv[1] != "--build-only"):
-        print("Usage: buildandtest.py [--build-only]", file=sys.stderr)
+    options = sys.argv[1:]
+    if len(options) > 1 or (options and options[0] not in ("--build-only", "--no-cdb")):
+        print("Usage: buildandtest.py [--build-only | --no-cdb]", file=sys.stderr)
         return 2
 
-    build_only = len(sys.argv) == 2
+    build_only = options == ["--build-only"]
+    use_cdb = options != ["--no-cdb"]
 
     if not SOLUTION.is_file():
         print(f"Solution not found: {SOLUTION}", file=sys.stderr)
@@ -120,7 +122,7 @@ def main():
         print(f"Playground executable not found: {EXE}", file=sys.stderr)
         return 2
 
-    if not build_only:
+    if use_cdb and not build_only:
         cdb = shutil.which("cdb.exe") or shutil.which("cdb")
         if not cdb:
             print("cdb was not found on PATH", file=sys.stderr)
@@ -151,15 +153,13 @@ def main():
         return 0
 
     print("Running test suite...", flush=True)
+    command = [str(EXE), "--unittest"]
+    if use_cdb:
+        command = [cdb, "-c", 'sxe -c ".exr -1; .ecxr; kb 40; q" av; g', *command]
+
     try:
         test = subprocess.run(
-            [
-                cdb,
-                "-c",
-                'sxe -c ".exr -1; .ecxr; kb 40; q" av; g',
-                str(EXE),
-                "--unittest",
-            ],
+            command,
             cwd=str(EXE.parent),
             capture_output=True,
             text=True,
@@ -183,7 +183,9 @@ def main():
     )
 
     if test.returncode != 0 or failure:
-        print(f"SNEX unit tests failed under cdb (debugger exit code {test.returncode}):")
+        runner = "debugger exit code" if use_cdb else "exit code"
+        location = " under cdb" if use_cdb else ""
+        print(f"SNEX unit tests failed{location} ({runner} {test.returncode}):")
         report_test_failure(output)
         return test.returncode or 1
 
