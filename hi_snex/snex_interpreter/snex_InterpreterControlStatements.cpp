@@ -201,18 +201,32 @@ struct ReturnStatement : public Statement
 
 	ReturnStatement(Statement::Factory& f, const ValueTree& v) :
 		Statement(f, v),
-		value(Helpers::getChildExpression(this, 0))
+		value(Helpers::getChildExpression(this, 0)),
+		isRef(Helpers::isNativeTypeReference(f, v))
 	{};
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue) override
 	{
 		if (returnValue != nullptr && value != nullptr)
-			*returnValue = value->getResult(s);
-		
+		{
+			if (isRef)
+			{
+				auto lValue = value->getLValue(s);
+
+				*returnValue = VariableStorage(reinterpret_cast<uint8*>(lValue.first) + lValue.second);
+			}
+			else
+			{
+				*returnValue = value->getResult(s);
+			}
+			
+		}
+
 		return ResultCode::returnWasHit;
 	};
 
 	Expression::ExprPtr value;
+	const bool isRef;
 };
 
  struct Loop : public Statement
@@ -352,7 +366,7 @@ struct ReturnStatement : public Statement
 	StatementBlock* body;
 	const bool dynSourceIsReference;
 	const bool copyIteratorValue;
-	const OpFunctions::Data::ReadFunction iteratorLoad;
+	const Scope::ReadFunction iteratorLoad;
 
 	OpFunctions::Inliners::Args customInlinerArgs;
 	OpFunctions::Inliners::Prototype beginFunction = nullptr, sizeFunction = nullptr;

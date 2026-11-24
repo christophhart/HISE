@@ -11,7 +11,14 @@ struct Scope : public ReferenceCountedObject
 	using List = ReferenceCountedArray<Scope>;
 	using WeakPtr = WeakReference<Scope>;
 
-	using LValue = std::pair<void*, size_t>;
+	struct LValue
+	{
+		void* first = nullptr;
+		size_t second = 0;
+	};
+
+	typedef VariableStorage(*ReadFunction)(LValue);
+	typedef void(*WriteFunction)(LValue, const VariableStorage&);
 
 	// internal structure for owned and allowcated memory
 	struct Entry

@@ -167,6 +167,19 @@ struct Expression : public Statement
 		return ResultCode::ok;
 	}
 
+	
+
+	VariableStorage getValueResult(Scope* s, Scope::ReadFunction readFunction)
+	{
+		if (readFunction != nullptr)
+		{
+			auto location = getLValue(s);
+			return readFunction(location);
+		}
+		else
+			return getResult(s);
+	}
+
 	virtual void assign(Scope* s, const VariableStorage& v) {}
 };
 

@@ -88,6 +88,12 @@ struct Statement::Helpers
 		return nullptr;
 	}
 
+	static bool isNativeTypeReference(Factory& f, const ValueTree& v)
+	{
+		auto t = getType(f, v);
+		return !t.isComplexType() && t.isRef();
+	}
+
 	static TypeInfo getType(Factory& f, const ValueTree& astNode, const Identifier& id = Identifier())
 	{
 		auto idToUse = id.isValid() ? id : AstIds::Type;
@@ -618,9 +624,7 @@ struct Statement::OpFunctions
 
 	struct Data
 	{
-		typedef VariableStorage(*ReadFunction)(Scope::LValue);
-		typedef void(*WriteFunction)(Scope::LValue, const VariableStorage&);
-		using Functions = std::pair<ReadFunction, WriteFunction>;
+		using Functions = std::pair<Scope::ReadFunction, Scope::WriteFunction>;
 
 		static Functions getFunctionPtr(const TypeInfo& t)
 		{
@@ -649,6 +653,12 @@ struct Statement::OpFunctions
 			}
 
 			return f;
+		}
+
+		static Scope::ReadFunction getReadFunction(Factory& f, const ValueTree& v)
+		{
+			auto rt = Helpers::getType(f, v);
+			return rt.isRef() ? readPointerValue : nullptr;
 		}
 
 		static VariableStorage readPointerValue(Scope::LValue d)

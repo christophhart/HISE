@@ -12,6 +12,8 @@ struct FunctionCallBase : public Expression
 		inliner(OpFunctions::Inliners::getInliner(f, v)),
 		inlinerArgs(*this)
 	{
+		if (fd.returnType.isRef())
+			referenceConverters = OpFunctions::Data::getFunctionPtr(fd.returnType);
 		inlinerData.allocateReturnType(*this);
 
 		int idx = 0;
@@ -57,7 +59,7 @@ struct FunctionCallBase : public Expression
 				{
 					if (p.label == thisLabel)
 					{
-						fd.function = p.function;
+						setResolvedFunction(p.function);
 						return;
 					}
 				}
@@ -75,8 +77,7 @@ struct FunctionCallBase : public Expression
 
 				if (mf.isResolved())
 				{
-					fd = mf;
-					if (fd.function != nullptr)
+					if (setResolvedFunction(mf))
 						return;
 				}
 			}
@@ -87,8 +88,7 @@ struct FunctionCallBase : public Expression
 
 				if (rf.isResolved())
 				{
-					fd = rf;
-					if (fd.function != nullptr)
+					if (setResolvedFunction(rf))
 						return;
 				}
 			}
@@ -103,7 +103,40 @@ struct FunctionCallBase : public Expression
 		}
 	}
 
+	Scope::LValue& getLValue(Scope* s) override
+	{
+		returnValue = callInternal(s);
+		jassert(returnValue.getType() == Types::ID::Pointer);
+		returnRefValue = { returnValue.getDataPointer(), 0 };
+		return returnRefValue;
+	}
+
+	void assign(Scope* s, const VariableStorage& value) override
+	{
+		if (referenceConverters.second == nullptr)
+			throwRuntimeError("function result is not assignable");
+
+		referenceConverters.second(getLValue(s), value);
+	}
+
+	virtual VariableStorage callInternal(Scope* s) = 0;
+
+	VariableStorage getResult(Scope* s) final override
+	{
+		if (referenceConverters.first != nullptr)
+		{
+			auto lvalue = getLValue(s);
+			return referenceConverters.first(lvalue);
+		}
+		else
+		{
+			return callInternal(s);
+		}
+	}
+
 protected:
+
+	int getNumArguments() const { return fd.args.size(); }
 
 	VariableStorage getArgs(Scope* s, int argIndex, Expression* a)
 	{
@@ -125,14 +158,45 @@ protected:
 		return Types::Helpers::getTypeChar(ty);
 	}
 
+	
 	hise::VoiceBitMap<32> argRef;
-	FunctionData fd;
+	FunctionData resolvedFunction;
 
 	OpFunctions::Inliners::ArgContainer inlinerData;
 	OpFunctions::Inliners::Args inlinerArgs;
 	OpFunctions::Inliners::Prototype inliner;
 
 	bool hasThisPointer = false;
+
+private:
+
+	Scope::LValue returnRefValue;
+	VariableStorage returnValue;
+	OpFunctions::Data::Functions referenceConverters;
+
+	bool setResolvedFunction(void* functionPointer)
+	{
+		resolvedFunction = fd;
+		resolvedFunction.function = functionPointer;
+
+		if (resolvedFunction.returnType.isRef())
+			resolvedFunction.returnType = TypeInfo(Types::ID::Pointer);
+
+		return resolvedFunction.function != nullptr;
+	}
+
+	bool setResolvedFunction(const FunctionData& f)
+	{
+		resolvedFunction = f;
+
+		if (resolvedFunction.returnType.isRef())
+			resolvedFunction.returnType = TypeInfo(Types::ID::Pointer);
+
+		return resolvedFunction.function != nullptr;
+	}
+
+
+	FunctionData fd;
 };
 
 template <typename RT> struct FunctionCallT0 : public FunctionCallBase
@@ -155,19 +219,19 @@ template <typename RT> struct FunctionCallT0 : public FunctionCallBase
 		return s;
 	}
 
-	VariableStorage getResult(Scope* s) final override
+	VariableStorage callInternal(Scope* s) final override
 	{
 		if (inliner != nullptr)
 			return inliner(inlinerArgs);
 
 		if constexpr (std::is_same<void, RT>())
 		{
-			fd.callVoidUnchecked<>();
+			resolvedFunction.callVoidUnchecked<>();
 			return VariableStorage();
 		}
 		else
 		{
-			return VariableStorage(fd.callUnchecked<RT>());
+			return VariableStorage(resolvedFunction.callUnchecked<RT>());
 		}
 	}
 };
@@ -192,7 +256,7 @@ template <typename RT, typename A1> struct FunctionCallT1 : public FunctionCallB
 		return s;
 	}
 
-	VariableStorage getResult(Scope* s) final override
+	VariableStorage callInternal(Scope* s) final override
 	{
 		static constexpr Types::ID T1 = Types::Helpers::getTypeFromTypeId<A1>();
 
@@ -206,12 +270,12 @@ template <typename RT, typename A1> struct FunctionCallT1 : public FunctionCallB
 
 		if constexpr (std::is_same<void, RT>())
 		{
-			fd.callVoid<A1>(v1.toType<T1>());
+			resolvedFunction.callVoid<A1>(v1.toType<T1>());
 			return VariableStorage();
 		}
 		else
 		{
-			return VariableStorage(fd.call<RT, A1>(v1.toType<T1>()));
+			return VariableStorage(resolvedFunction.call<RT, A1>(v1.toType<T1>()));
 		}
 	}
 
@@ -327,7 +391,7 @@ struct FunctionCall : public FunctionCallBase
 				argRef.setBit(0, true);
 		}
 
-		for (int i = 0; i < fd.args.size(); i++)
+		for (int i = 0; i < getNumArguments(); i++)
 		{
 			inlinerData.args.push_back(VariableStorage());
 			argExpressions.push_back(Helpers::getChildExpression(this, i + (int)hasThisPointer));
@@ -341,7 +405,7 @@ struct FunctionCall : public FunctionCallBase
 		inlinerData.fillArgs(inlinerArgs);
 	};
 
-	VariableStorage getResult(Scope* s) override
+	VariableStorage callInternal(Scope* s) final override
 	{	
 		for (int i = 0; i < inlinerData.args.size(); i++)
 			inlinerData.args[i] = getArgs(s, i, argExpressions[i].get());
@@ -354,20 +418,20 @@ struct FunctionCall : public FunctionCallBase
 		}
 		case ExecutionType::CallVariadic:
 		{
-			if (fd.returnType.getType() == Types::ID::Void)
+			if (resolvedFunction.returnType.getType() == Types::ID::Void)
 			{
-				fd.callVoidDynamic(inlinerData.args.data(), inlinerData.args.size());
+				resolvedFunction.callVoidDynamic(inlinerData.args.data(), inlinerData.args.size());
 				return VariableStorage();
 			}
 			else
 			{
-				return fd.callDynamic(inlinerData.args.data(), inlinerData.args.size());
+				return resolvedFunction.callDynamic(inlinerData.args.data(), inlinerData.args.size());
 			}
 		}
 		case ExecutionType::CallDynamic:
 		{
-			auto f = (CallDynamicSignature)fd.function;
-			return f(fd.object, inlinerData.args.data(), inlinerData.args.size());
+			auto f = (CallDynamicSignature)resolvedFunction.function;
+			return f(resolvedFunction.object, inlinerData.args.data(), inlinerData.args.size());
 		}
 		}
 	}
