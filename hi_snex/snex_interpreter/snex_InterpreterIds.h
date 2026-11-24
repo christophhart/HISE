@@ -18,6 +18,7 @@ DECLARE_ID(Target);
 DECLARE_ID(Symbol);
 DECLARE_ID(First);
 DECLARE_ID(InitValuesB64);
+DECLARE_ID(InitValues);
 DECLARE_ID(Ids);
 DECLARE_ID(ScopeId);
 DECLARE_ID(CallType);

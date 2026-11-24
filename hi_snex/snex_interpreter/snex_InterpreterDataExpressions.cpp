@@ -236,7 +236,42 @@ struct ComplexTypeDefinition : public Statement,
 		copyFromExpression(!isReference && initExpression != nullptr &&
 			initExpression->getTypeInfo().isComplexType() &&
 			initExpression->getTypeInfo().getComplexType() == type.getComplexType())
-	{
+	{ 
+		if (childStatements.size() > 1)
+		{
+			auto x = v[AstIds::InitValues].toString();
+
+			InitValueParser ip(x);
+
+			initData.setSize(numBytesRequired);
+			auto dst = initData.getData();
+			memset(dst, 0, numBytesRequired);
+
+			ip.forEach([&](size_t offset, Types::ID type, const VariableStorage& v)
+			{
+				Scope::LValue address;
+				address.first = dst;
+				address.second = offset;
+				auto write = OpFunctions::Data::getFunctionPtr(TypeInfo(type)).second;
+
+				if (v.getType() == Types::ID::Pointer)
+				{
+					DynamicInitialiser di;
+					di.address = address;
+					di.writeFunction = write;
+					auto exprIndex = reinterpret_cast<int>(v.getDataPointer());
+					di.value = Helpers::getChildExpression(this, exprIndex);
+					dynamicInitialisers.push_back(di);
+				}
+				else
+				{
+					write(address, v);
+				}
+			});
+
+			initExpression = nullptr;
+		}
+
 		auto list = StringArray::fromTokens(v[AstIds::Ids].toString(), ",", "");
 		list.removeEmptyStrings();
 
@@ -246,6 +281,17 @@ struct ComplexTypeDefinition : public Statement,
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue) override
 	{
+		if (!dynamicInitialisers.empty())
+		{
+			jassert(initExpression == nullptr);
+
+			for (const auto& di : dynamicInitialisers)
+			{
+				auto v = di.value->getResult(s);
+				di.writeFunction(di.address, v);
+			}
+		}
+
 		if (isReference)
 		{
 			if (initExpression == nullptr)
@@ -314,6 +360,16 @@ struct ComplexTypeDefinition : public Statement,
 	
 	MemoryBlock initData;
 	Expression::ExprPtr initExpression;
+	
+	struct DynamicInitialiser
+	{
+		Scope::LValue address;
+		Expression::ExprPtr value;
+		Scope::WriteFunction writeFunction;
+	};
+
+	std::vector<DynamicInitialiser> dynamicInitialisers;
+
 	const bool isReference;
 	const bool copyFromExpression;
 };
