@@ -222,11 +222,18 @@ public:
                     return;
                 }
 
-                auto f = obj["test"];
+                auto ids = obj.getFunctionIds();
+
+                FunctionData f;
+
+                if (ids.contains(NamespacedIdentifier("test")))
+                    f = obj["test"];
+                if (ids.contains(NamespacedIdentifier("main")))
+                    f = obj["main"];
 
                 if (!f.isResolved())
                 {
-                    throwErrorAndQuit("Can't find `test()` method");
+                    throwErrorAndQuit("Can't find `test()` or `main()` method");
                     return;
                 }
 

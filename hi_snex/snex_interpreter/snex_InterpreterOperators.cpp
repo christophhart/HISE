@@ -130,14 +130,18 @@ struct Subscript : public Expression
 	  isReference(elementType.isRef()),
 	  parent     (Helpers::getChildExpression(this, 0)),
 	  index      (Helpers::getChildExpression(this, 1)),
-	  f          (OpFunctions::Data::getFunctionPtr(elementType))
+	  f          (OpFunctions::Data::getFunctionPtr(elementType)),
+	  customArgs(*this)
 	{
 		if (auto st = parentType.getTypedComplexType<StructType>())
 		{
-			customObject = st;
-			customSubscript = OpFunctions::Inliners::getInliner(st, FunctionClass::SpecialSymbols::Subscript);
+			customData.argTypes.push_back(st);
+			customData.argTypes.push_back(nullptr);
+			customFunction = OpFunctions::Inliners::getInliner(st, FunctionClass::SpecialSymbols::Subscript);
 
-			if (customSubscript == nullptr)
+			customData.fillArgs(customArgs);
+
+			if (customFunction == nullptr)
 			{
 				throwRuntimeError("unimplemented subscript inliner for " + parentType.toString());
 			}
@@ -146,7 +150,7 @@ struct Subscript : public Expression
 
 	VariableStorage getResult(Scope* s) override
 	{
-		if (customSubscript != nullptr && !isReference)
+		if (customFunction != nullptr && !isReference)
 			return callCustomSubscript(s);
 
 		return f.first(getLValue(s));
@@ -159,7 +163,7 @@ struct Subscript : public Expression
 
 	Scope::LValue& getLValue(Scope* s) override
 	{
-		if (customSubscript != nullptr)
+		if (customFunction != nullptr)
 		{
 			if (!isReference)
 				return Expression::getLValue(s);
@@ -184,11 +188,8 @@ struct Subscript : public Expression
 		args[0] = parent->getResult(s);
 		args[1] = index->getResult(s);
 
-		OpFunctions::Inliners::Args a(*this);
-		a.args = args;
-		a.numArgs = 2;
-		a.typePtr = customObject;
-		return customSubscript(a);
+		customArgs.args = { args, 2 };
+		return customFunction(customArgs);
 	}
 
 	TypeInfo getTypeInfo() const override
@@ -204,8 +205,11 @@ struct Subscript : public Expression
 	ExprPtr parent;
 	ExprPtr index;
 	OpFunctions::Data::Functions f;
-	OpFunctions::Inliners::Prototype customSubscript = nullptr;
-	ComplexType* customObject = nullptr;
+
+	OpFunctions::Inliners::ArgContainer customData;
+	OpFunctions::Inliners::Args customArgs;
+	OpFunctions::Inliners::Prototype customFunction = nullptr;
+	
 };
 
 } // namespace nodes

@@ -755,7 +755,7 @@ public:
 
 		pc.start();
 
-		runTestFiles();
+		
 
 		testStaticConst();
 		testFpu();

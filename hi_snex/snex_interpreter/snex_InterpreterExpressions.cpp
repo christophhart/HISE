@@ -10,27 +10,30 @@ struct FunctionCallBase : public Expression
 		Expression(f, v),
 		fd(fd_),
 		inliner(OpFunctions::Inliners::getInliner(f, v)),
-		objectType(Helpers::getObjectType(f, v))
+		inlinerArgs(*this)
 	{
-		Helpers::allocateReturnType(*this, returnData);
+		inlinerData.allocateReturnType(*this);
+
+		int idx = 0;
 
 		if (v[AstIds::CallType].toString() == "MemberFunction")
 		{
-			objectType = Helpers::getType(f, v, AstIds::ObjectType).getComplexType();
-			thisObj = Helpers::getChildExpression(this, 0);
-			thisOffset = 1;
-		}
+			auto ot = Helpers::getType(f, v, AstIds::ObjectType);
+			
+			argRef.setBit(idx++, ot.isRef());
+			hasThisPointer = true;
 
-		argRef.clear();
-		int idx = 0;
+			inlinerData.argTypes.push_back(ot.getComplexType());
+			inlinerArgs.fillElementData(ot);
+		}
 
 		for (auto& a : fd.args)
 		{
-			argRef.setBit(idx++ + thisOffset, a.isReference());
-			argTypePtrs.push_back(a.typeInfo.getTypedIfComplexType<ComplexType>());
+			argRef.setBit(idx++, a.isReference());
+			inlinerData.argTypes.push_back(a.typeInfo.getTypedIfComplexType<ComplexType>());
 		}
 
-		numFormalArgTypes = (int)argTypePtrs.size();
+		inlinerData.fillArgs(inlinerArgs);
 	};
 
 	TypeInfo getTypeInfo() const override { return fd.returnType; }
@@ -62,6 +65,9 @@ struct FunctionCallBase : public Expression
 
 			if (callType == Identifier("MemberFunction"))
 			{
+				auto objectType = inlinerData.argTypes[0];
+
+				jassert(objectType != nullptr);
 				auto mf = objectType->getNonOverloadedFunction(fd.id.id);
 
 				if (!mf.isResolved())
@@ -119,22 +125,23 @@ protected:
 		return Types::Helpers::getTypeChar(ty);
 	}
 
-	int thisOffset = 0;
 	hise::VoiceBitMap<32> argRef;
-	ExprPtr thisObj;
-	heap<uint8> returnData;
 	FunctionData fd;
+
+	OpFunctions::Inliners::ArgContainer inlinerData;
+	OpFunctions::Inliners::Args inlinerArgs;
 	OpFunctions::Inliners::Prototype inliner;
-	ComplexType* objectType;
-	std::vector<ComplexType*> argTypePtrs;
-	int numFormalArgTypes = 0;
+
+	bool hasThisPointer = false;
 };
 
 template <typename RT> struct FunctionCallT0 : public FunctionCallBase
 {
 	FunctionCallT0(Factory& f, const ValueTree& v, const FunctionData& fd) :
 		FunctionCallBase(f, v, fd)
-	{}
+	{
+		
+	}
 
 	static Statement::Ptr create(Factory& f, const ValueTree& v, const FunctionData& fd)
 	{
@@ -151,17 +158,7 @@ template <typename RT> struct FunctionCallT0 : public FunctionCallBase
 	VariableStorage getResult(Scope* s) final override
 	{
 		if (inliner != nullptr)
-		{
-			OpFunctions::Inliners::Args a(*this);
-			a.args = nullptr;
-			a.argTypePtrs = this->argTypePtrs.data();
-			a.numArgTypes = numFormalArgTypes;
-			a.numArgs = 0;
-			a.preallocatedReturnData = { returnData.begin(), (size_t)returnData.size() };
-			a.typePtr = objectType;
-
-			return inliner(a);
-		}
+			return inliner(inlinerArgs);
 
 		if constexpr (std::is_same<void, RT>())
 		{
@@ -199,19 +196,12 @@ template <typename RT, typename A1> struct FunctionCallT1 : public FunctionCallB
 	{
 		static constexpr Types::ID T1 = Types::Helpers::getTypeFromTypeId<A1>();
 
-		auto v1 = getArgs(s, thisOffset, arg1);
+		auto v1 = getArgs(s, hasThisPointer, arg1);
 
 		if (inliner != nullptr)
 		{
-			OpFunctions::Inliners::Args a(*this);
-			a.args = &v1;
-			a.argTypePtrs = this->argTypePtrs.data();
-			a.numArgTypes = numFormalArgTypes;
-			a.numArgs = 1;
-			a.preallocatedReturnData = { returnData.begin(), (size_t)returnData.size() };
-			a.typePtr = objectType;
-
-			return inliner(a);
+			inlinerArgs.args = { &v1, 1 };
+			return inliner(inlinerArgs);
 		}
 
 		if constexpr (std::is_same<void, RT>())
@@ -327,70 +317,62 @@ struct FunctionCall : public FunctionCallBase
 	FunctionCall(Factory& f, const ValueTree& v) :
 		FunctionCallBase(f, v, Helpers::getFunctionData(f, v))
 	{
-		if (this->objectType != nullptr)
+		if (hasThisPointer)
 		{
-			args.add(VariableStorage());
+			inlinerData.args.push_back(VariableStorage());
 			argExpressions.push_back(Helpers::getChildExpression(this, 0));
+
 			// Member inliners need the receiver's storage, not a by-value dyn view.
-			if (thisOffset != 0 && inliner != nullptr)
+			if (inliner != nullptr)
 				argRef.setBit(0, true);
 		}
 
 		for (int i = 0; i < fd.args.size(); i++)
 		{
-			args.add(VariableStorage());
-			argExpressions.push_back(Helpers::getChildExpression(this, i + thisOffset));
+			inlinerData.args.push_back(VariableStorage());
+			argExpressions.push_back(Helpers::getChildExpression(this, i + (int)hasThisPointer));
 		}
 
 		executionType = inliner != nullptr ? ExecutionType::Inliner :
-			args.size() < 4 ? ExecutionType::CallVariadic : ExecutionType::CallDynamic;
-		jassert(args.size() == childStatements.size());
+			inlinerData.args.size() < 4 ? ExecutionType::CallVariadic : ExecutionType::CallDynamic;
+
+		jassert(inlinerData.args.size() == childStatements.size());
+
+		inlinerData.fillArgs(inlinerArgs);
 	};
 
 	VariableStorage getResult(Scope* s) override
 	{	
-		for (int i = 0; i < args.size(); i++)
-			args.set(i, getArgs(s, i, argExpressions[i].get()));
+		for (int i = 0; i < inlinerData.args.size(); i++)
+			inlinerData.args[i] = getArgs(s, i, argExpressions[i].get());
 
 		switch (executionType)
 		{
 		case ExecutionType::Inliner:
 		{
-			OpFunctions::Inliners::Args a(*this);
-
-			if(!returnData.isEmpty())
-				a.preallocatedReturnData.referTo(returnData);
-
-			a.argTypePtrs = this->argTypePtrs.data();
-			a.numArgTypes = numFormalArgTypes;
-			a.typePtr = objectType;
-			a.args = args.getRawDataPointer();
-			a.numArgs = args.size();
-
-			return inliner(a);
+			return inliner(inlinerArgs);
 		}
 		case ExecutionType::CallVariadic:
 		{
 			if (fd.returnType.getType() == Types::ID::Void)
 			{
-				fd.callVoidDynamic(args.getRawDataPointer(), args.size());
+				fd.callVoidDynamic(inlinerData.args.data(), inlinerData.args.size());
 				return VariableStorage();
 			}
 			else
 			{
-				return fd.callDynamic(args.getRawDataPointer(), args.size());
+				return fd.callDynamic(inlinerData.args.data(), inlinerData.args.size());
 			}
 		}
 		case ExecutionType::CallDynamic:
 		{
 			auto f = (CallDynamicSignature)fd.function;
-			return f(fd.object, args.getRawDataPointer(), args.size());
+			return f(fd.object, inlinerData.args.data(), inlinerData.args.size());
 		}
 		}
 	}
 
 	ExecutionType executionType;
-	Array<VariableStorage> args;
 	std::vector<ExprPtr> argExpressions;
 };
 

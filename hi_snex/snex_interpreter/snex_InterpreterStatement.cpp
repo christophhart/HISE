@@ -122,20 +122,7 @@ struct Statement::Helpers
 		return nullptr;
 	}
 
-	static void allocateReturnType(const Expression& e, snex::Types::heap<uint8>& data)
-	{
-		auto ti = e.getTypeInfo();
-
-		if (ti.isComplexType() && !ti.isRef())
-		{
-			auto numBytes = ti.getRequiredByteSize();
-			// pad to 16 byte boundary
-			numBytes += (16 - (numBytes % 16));
-			data.setSize(numBytes);
-		}
-		else
-			data.setSize(0);
-	}
+	
 };
 
 #define INLINER(Class, method) { #Class ## "::" ## #method, Class::method }
@@ -173,15 +160,27 @@ struct Statement::OpFunctions
 			Args(Statement& s_) :
 				s(s_)
 			{};
+			
+			void fillElementData(const TypeInfo& ot)
+			{
+				if (auto ar = ot.getTypedIfComplexType<ArrayTypeBase>())
+				{
+					auto et = ar->getElementType();
+					elementSize = et.getRequiredByteSizeNonZero();
 
-			Statement& s;
-
-			jit::ComplexType* typePtr = nullptr;
-			dyn<uint8> preallocatedReturnData;
-			VariableStorage* args = nullptr;
-			jit::ComplexType** argTypePtrs = nullptr;
-			int numArgTypes = 0;
-			int numArgs = 0;
+					if (auto sp = ot.getTypedIfComplexType<SpanType>())
+						elementSize = sp->getNumElements();
+				}
+				if (auto st = ot.getTypedIfComplexType<StructType>())
+				{
+					if (st->id.id == Identifier("PolyData"))
+					{
+						auto tl = st->getTemplateInstanceParameters();
+						elementSize = tl[0].type.getRequiredByteSizeNonZero();
+						numElements = tl[1].constant;
+					}
+				}
+			}
 
 			void throwRuntimeError(const String& error) const
 			{
@@ -200,7 +199,7 @@ struct Statement::OpFunctions
 
 			jit::ComplexType* getArgType(int index) const
 			{
-				if (!isPositiveAndBelow(index, numArgTypes))
+				if (!isPositiveAndBelow(index, argTypePtrs.size()))
 					throwRuntimeError("invalid argument type index " + String(index));
 
 				auto p = argTypePtrs[index];
@@ -214,6 +213,7 @@ struct Statement::OpFunctions
 			template <typename T> T& getTypedObject() const
 			{
 				jassert(args[0].getType() == Types::ID::Pointer);
+				jassert(argTypePtrs[0] != nullptr);
 				return *reinterpret_cast<T*>(args[0].getDataPointer());
 			}
 
@@ -221,13 +221,19 @@ struct Statement::OpFunctions
 			{
 				static constexpr Types::ID TID = Types::Helpers::getTypeFromTypeId<T>();
 
-				if (!isPositiveAndBelow(index, numArgs))
+				if (!isPositiveAndBelow(index, getNumArgs()))
 					s.throwRuntimeError("invalid arg index " + String(index));
 
 				if (TID != args[index].getType())
 					s.throwRuntimeError("invalid type");
 				
 				return args[index].toType<TID>();
+			}
+
+			int getNumArgs() const 
+			{ 
+				jassert(args.size() == argTypePtrs.size());
+				return args.size(); 
 			}
 
 			template <typename T> VariableStorage copyToReturnData(const T& obj) const
@@ -239,6 +245,43 @@ struct Statement::OpFunctions
 				memcpy(preallocatedReturnData.begin(), &obj, NumBytesRequired);
 				return VariableStorage(preallocatedReturnData.begin());
 			}
+
+			Statement& s;
+
+			dyn<uint8> preallocatedReturnData;
+			dyn<VariableStorage> args;
+			dyn<ComplexType*> argTypePtrs;
+
+			// additional data used by some subscript / loop inliners
+			size_t elementSize = 0;
+			size_t numElements = 0;
+		};
+
+		struct ArgContainer
+		{
+			heap<uint8> returnData;
+			std::vector<VariableStorage> args;
+			std::vector<ComplexType*> argTypes;
+
+			void fillArgs(Args& a)
+			{
+				a.preallocatedReturnData = { returnData.begin(), (size_t)returnData.size() };
+				a.args = { args.data(), args.size() };
+				a.argTypePtrs = { argTypes.data(), argTypes.size() };
+			}
+
+			void allocateReturnType(const Expression& e)
+			{
+				auto ti = e.getTypeInfo();
+
+				if (ti.isComplexType() && !ti.isRef())
+				{
+					auto numBytes = ti.getRequiredByteSize();
+					// pad to 16 byte boundary
+					numBytes += (16 - (numBytes % 16));
+					returnData.setSize(numBytes);
+				}
+			}
 		};
 
 		typedef VariableStorage(*Prototype)(const Args&);
@@ -249,8 +292,9 @@ struct Statement::OpFunctions
 			{
 				// referTo changes a view during setup, so the source type is inspected here
 				// instead of adding referTo-specific metadata to every function call.
-				auto sourceType = a.getArgType(0);
-				auto destinationType = dynamic_cast<DynType*>(a.typePtr);
+				auto sourceType = a.getArgType(1);
+				auto destinationType = dynamic_cast<DynType*>(a.getArgType(0));
+
 				if (destinationType == nullptr)
 					a.throwRuntimeError("invalid dyn referTo destination");
 
@@ -291,16 +335,57 @@ struct Statement::OpFunctions
 					destination->referToRawData(reinterpret_cast<float*>(data), size);
 				}
 
+
 				return a.copyToReturnData(*destination);
 			}
 
 			static VariableStorage size(const Args& a)
 			{
-				jassert(a.numArgs == 1);
+				jassert(a.getNumArgs() == 1);
 				auto bl = a.args[0].toBlock();
 				return VariableStorage(bl.size());
 			}
+		};
 
+		struct PolyData
+		{
+			static VariableStorage get(const Args& a) 
+			{
+				snex::Types::PolyData<float, 1>;
+
+				auto ph = getMember<MemberOffsets::voicePtr>(a);
+				auto idx = getMember<MemberOffsets::lastVoiceIndex>(a);
+
+				if (ph == nullptr || idx == -1)
+					return getMember<MemberOffsets::data>(a);
+
+				jassertfalse;
+				return VariableStorage();
+			}
+
+		private:
+
+			enum class MemberOffsets: size_t
+			{
+				voicePtr = 0x0,
+				lastVoiceIndex = voicePtr + sizeof(void*),
+				unused = lastVoiceIndex + sizeof(int),
+				data = unused + sizeof(int)
+			};
+
+			template <MemberOffsets m> static auto getMember(const Args& a)
+			{
+				auto ptr = reinterpret_cast<uint8*>(a.getTypedArgument<void*>(0)) + (size_t)m;
+
+				if constexpr (m == MemberOffsets::voicePtr)
+					return reinterpret_cast<PolyHandler*>(*ptr);
+				else if constexpr (m == MemberOffsets::lastVoiceIndex)
+					return *reinterpret_cast<int*>(ptr);
+				else if constexpr (m == MemberOffsets::unused)
+					return *reinterpret_cast<int*>(ptr);
+				else if constexpr (m == MemberOffsets::data)
+					return reinterpret_cast<void*>(ptr);
+			}
 		};
 
 		template <int C> struct FrameProcessor
@@ -309,7 +394,6 @@ struct Statement::OpFunctions
 			static VariableStorage subscript(const Args& a) { return &get(a)[a.getIndexArg(1, C)]; }
 			static VariableStorage begin(const Args& a) { return get(a).begin(); }
 			static VariableStorage size(const Args& a) { return C; }
-			
 
 		private:
 
@@ -356,12 +440,17 @@ struct Statement::OpFunctions
 			return nullptr;
 		}
 
-		static Prototype getInliner(StructType* st, jit::FunctionClass::SpecialSymbols ss)
+		static Prototype getInliner(ComplexType* typePtr, jit::FunctionClass::SpecialSymbols ss)
 		{
-			jit::FunctionClass::Ptr fc = st->getFunctionClass();
-			auto id = jit::FunctionClass::getSpecialSymbol(st->id, ss);
-			auto pId = OpFunctions::getInlinerPrototypeId(st, st->id.getChildId(id));
-			return OpFunctions::Inliners::getInliner(pId);
+			if (auto st = dynamic_cast<StructType*>(typePtr))
+			{
+				jit::FunctionClass::Ptr fc = st->getFunctionClass();
+				auto id = jit::FunctionClass::getSpecialSymbol(st->id, ss);
+				auto pId = OpFunctions::getInlinerPrototypeId(st, st->id.getChildId(id));
+				return OpFunctions::Inliners::getInliner(pId);
+			}
+
+			return nullptr;
 		}
 
 		static Prototype getInliner(const String& s)
@@ -369,6 +458,7 @@ struct Statement::OpFunctions
 			static const std::map<String, Prototype> inlinerMap{
 				INLINER(dyn, size),
 				INLINER(dyn, referTo),
+				INLINER(PolyData, get),
 				INLINER_16CH(ProcessData, subscript),
 				INLINER_16CH(ProcessData, getNumSamples),
 				INLINER_16CH(ProcessData, toFrameData),
@@ -380,7 +470,7 @@ struct Statement::OpFunctions
 				INLINER_16CH(FrameProcessor, next),
 				INLINER_16CH(FrameProcessor, subscript),
 				INLINER_16CH(FrameProcessor, begin),
-				INLINER_16CH(FrameProcessor, size)
+				INLINER_16CH(FrameProcessor, size),
 			};
 
 			if (inlinerMap.find(s) != inlinerMap.end())
@@ -596,14 +686,10 @@ struct Statement::OpFunctions
 
 		if (auto st = dynamic_cast<ComplexTypeWithTemplateParameters*>(typePtr))
 		{
-			for (auto t : st->getTemplateInstanceParameters())
-			{
-				if (t.constantDefined)
-				{
-					first = t.constant;
-					break;
-				}
-			}
+			auto tp = st->getTemplateInstanceParameters()[0];
+
+			if (tp.constantDefined)
+				first = tp.constant;
 		}
 
 		String sig;

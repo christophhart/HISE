@@ -239,7 +239,8 @@ struct ReturnStatement : public Statement
 		dynSourceIsReference(target->getTypeInfo().isRef()),
 		copyIteratorValue(loadIterator && !elementType.isRef()),
 		iteratorLoad(copyIteratorValue ? (elementType.getType() == Types::ID::Pointer ?
-			OpFunctions::Data::readPointerValue : OpFunctions::Data::getFunctionPtr(elementType).first) : nullptr)
+			OpFunctions::Data::readPointerValue : OpFunctions::Data::getFunctionPtr(elementType).first) : nullptr),
+		customInlinerArgs(*this)
 	{
 		if (v[AstIds::Iterator].toString().startsWith("unresolved"))
 			iterator.typeInfo = elementType;
@@ -252,7 +253,8 @@ struct ReturnStatement : public Statement
 		if (loopType == LoopType::Custom)
 		{
 			customObject = dynamic_cast<StructType*>(Helpers::getObjectType(f, v));
-
+			customInlinerArgs.argTypePtrs = { &customObject, 1 };
+			
 			if(customObject != nullptr)
 			{
 				beginFunction = OpFunctions::Inliners::getInliner(customObject, FunctionClass::SpecialSymbols::BeginIterator);
@@ -299,13 +301,9 @@ struct ReturnStatement : public Statement
 		}
 		case LoopType::Custom:
 		{
-			OpFunctions::Inliners::Args a(*this);
-			a.args = &obj;
-			a.numArgs = 1;
-			a.typePtr = customObject;
-
-			beginPtr = beginFunction(a).getDataPointer();
-			numElements = sizeFunction(a).toInt();
+			customInlinerArgs.args = { &obj, 1 };
+			beginPtr = beginFunction(customInlinerArgs).getDataPointer();
+			numElements = sizeFunction(customInlinerArgs).toInt();
 			break;
 		}
 		default:
@@ -345,7 +343,7 @@ struct ReturnStatement : public Statement
 	const bool loadIterator;
 	LoopType loopType;
 	TypeInfo elementType;
-	StructType* customObject = nullptr;
+	ComplexType* customObject = nullptr;
 	int elementSize;
 	int numElements;
 
@@ -356,6 +354,7 @@ struct ReturnStatement : public Statement
 	const bool copyIteratorValue;
 	const OpFunctions::Data::ReadFunction iteratorLoad;
 
+	OpFunctions::Inliners::Args customInlinerArgs;
 	OpFunctions::Inliners::Prototype beginFunction = nullptr, sizeFunction = nullptr;
 };
 
