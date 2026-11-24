@@ -232,7 +232,8 @@ struct ComplexTypeDefinition : public Statement,
 		numBytesRequired(type.getRequiredByteSize()),
 		initData(Helpers::getInitData(v)),
 		initExpression(Helpers::getChildExpression(this, 0)),
-		copyFromExpression(initExpression != nullptr &&
+		isReference(type.isRef()),
+		copyFromExpression(!isReference && initExpression != nullptr &&
 			initExpression->getTypeInfo().isComplexType() &&
 			initExpression->getTypeInfo().getComplexType() == type.getComplexType())
 	{
@@ -245,6 +246,19 @@ struct ComplexTypeDefinition : public Statement,
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue) override
 	{
+		if (isReference)
+		{
+			if (initExpression == nullptr)
+				throwRuntimeError("reference requires an initializer");
+
+			auto address = initExpression->getLValue(s);
+
+			for (auto& rr : refs)
+				rr.assign(address);
+
+			return ResultCode::ok;
+		}
+
 		const void* src = nullptr;
 
 		if (copyFromExpression)
@@ -300,6 +314,7 @@ struct ComplexTypeDefinition : public Statement,
 	
 	MemoryBlock initData;
 	Expression::ExprPtr initExpression;
+	const bool isReference;
 	const bool copyFromExpression;
 };
 
@@ -367,6 +382,15 @@ struct ClassStatement : public Statement,
 	}
 
 	StructType* classType;
+};
+
+struct TemplateDefinition : public Statement
+{
+	SNEX_INTERPRETER_NODE(TemplateDefinition, WantsNode::No);
+
+	TemplateDefinition(Factory& f, const ValueTree& v) :
+		Statement(f, v)
+	{}
 };
 
 struct Dot : public Expression

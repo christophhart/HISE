@@ -196,6 +196,8 @@ public:
 
             SnexObjectDatabase::registerObjects(c, numChannelsToUse);
 
+            bool syntaxTreeLogged = false;
+
             try
             {
                 if (verbose)
@@ -210,6 +212,7 @@ public:
                     
                     log(c.dumpSyntaxTree());
                     log(c.dumpNamespaceTree());
+                    syntaxTreeLogged = true;
                 }
 
                 if (c.getCompileResult().wasOk())
@@ -258,11 +261,23 @@ public:
             }
             catch (UriError& e)
             {
+                if (verbose && !syntaxTreeLogged)
+                {
+                    log(c.dumpSyntaxTree());
+                    log(c.dumpNamespaceTree());
+                }
+
                 throwErrorAndQuit(e.toFullCallStack());
                 return;
             }
             catch (interpreter::Engine::CallError& e)
             {
+                if (verbose && !syntaxTreeLogged)
+                {
+                    log(c.dumpSyntaxTree());
+                    log(c.dumpNamespaceTree());
+                }
+
                 throwErrorAndQuit("Runtime error: " + e.e.toFullCallStack());
                 return;
             }

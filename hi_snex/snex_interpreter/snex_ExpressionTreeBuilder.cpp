@@ -50,6 +50,7 @@ Statement::Factory::Factory()
 	registerType<nodes::Subscript>();
 	registerType<nodes::FunctionCall>();
 	registerType<nodes::TemplatedFunction>();
+	registerType<nodes::TemplateDefinition>();
 	registerType<nodes::ClassStatement>();
 	registerType<nodes::Dot>();
 	registerType<nodes::ThisPointer>();

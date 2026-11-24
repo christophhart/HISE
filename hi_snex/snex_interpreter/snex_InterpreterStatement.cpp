@@ -819,7 +819,7 @@ void Statement::resolveDataPointersRecursive(Scope* s)
 		cs->resolveDataPointersRecursive(s);
 }
 
-#define JASSERT_ON_FAIL 0
+#define JASSERT_ON_FAIL 1
 
 void Statement::throwRuntimeError(const String& errorMessage)
 {

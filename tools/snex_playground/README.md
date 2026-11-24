@@ -20,6 +20,14 @@ To compile without running the unit tests (for example, before running a focused
 python tools/snex_playground/buildandtest.py --build-only
 ```
 
+To run the tests without CDB so debug assertions can be reported by the test runner instead of breaking in the debugger, use:
+
+```text
+python tools/snex_playground/buildandtest.py --no-cdb
+```
+
+Use the default CDB mode when investigating hard crashes; without a debugger, a crash will not include a stack trace. An assertion followed by invalid execution can still crash without CDB.
+
 Alternatively, on Windows, run:
 
 ```text
@@ -67,9 +75,9 @@ For nested inlining failures, inspect the syntax tree with `--verbose`, then tra
 ## What the script does
 
 1. Checks that the Visual Studio solution and playground executable paths exist.
-2. Locates `cdb.exe` on `PATH` and locates MSBuild using Visual Studio's `vswhere.exe`.
+2. Locates `cdb.exe` on `PATH` unless `--no-cdb` or `--build-only` is selected, and locates MSBuild using Visual Studio's `vswhere.exe`.
 3. Builds `tools/snex_playground/Builds/VisualStudio2026/snex_playground.sln` in `Debug|x64` mode.
-4. Runs `snex_playground.exe --unittest` under CDB, with the working directory set to the executable directory.
+4. Runs `snex_playground.exe --unittest` under CDB by default, or directly with `--no-cdb`, with the working directory set to the executable directory.
 5. Captures build and debugger output so successful compiler output and successful test details do not flood the agent session.
 6. Prints concise progress states: `Compiling Debug/x64...`, `Compiled OK`, and `Running test suite...`.
 7. On build failure, prints compiler error diagnostics. On a test assertion or failure, prints the nearby test report. On an access violation, prints the most recently started test, exception details, and stack frames.

@@ -59,6 +59,14 @@ Engine::Engine(jit::GlobalScope& scope, const Statement::Ptr rootTree_):
 						rootFunctions.add(df);
 				}
 			}
+			else if (auto td = c->getTyped<TemplateDefinition>())
+			{
+				for (auto tdc : td->childStatements)
+				{
+					if (auto cs = tdc->getTyped<ClassStatement>())
+						rootClassDefinitions.add(cs);
+				}
+			}
 			else if (auto cs = c->getTyped<ClassStatement>())
 				rootClassDefinitions.add(cs);
 			else if (auto as = c->getTyped<Assignment>())
