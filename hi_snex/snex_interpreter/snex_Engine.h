@@ -163,8 +163,7 @@ struct Engine: public snex::jit::FunctionCollectionBase
 	Array<jit::NamespacedIdentifier> getFunctionIds() const override;
 
 	jit::FunctionData getFunction(const jit::NamespacedIdentifier& functionId) override;
-	jit::FunctionData getRootFunction(const jit::FunctionData& signature) const;
-
+	
 	// Data methods
 
 	Array<jit::Symbol> getAllVariables() const override;
@@ -176,6 +175,8 @@ struct Engine: public snex::jit::FunctionCollectionBase
 	ValueTree getDataLayout(int dataIndex) const override;
 
 	jit::GlobalScope* getGlobalScope() { return &globalScope; }
+
+	jit::FunctionData resolveInterpretedFunctionCall(const jit::FunctionData& fd);
 
 private:
 

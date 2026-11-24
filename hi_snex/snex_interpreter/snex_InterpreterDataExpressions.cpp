@@ -404,16 +404,16 @@ struct ClassStatement : public Statement,
 		return Result::ok();
 	}
 
-	FunctionData* getFunction(const NamespacedIdentifier& fid)
+	FunctionData* resolveFunctionCall(const FunctionData& fd)
 	{
-		if (!classType->id.isParentOf(fid))
+		if (!classType->id.isParentOf(fd.id))
 			return nullptr;
 
 		for (auto cs : childStatements[0]->childStatements)
 		{
 			if (auto f = cs->getTyped<Function>())
 			{
-				if (f->fData.id == fid)
+				if (f->fData.matchIdArgsAndTemplate(fd))
 					return &f->fData;
 			}
 			else if (auto tf = cs->getTyped<TemplatedFunction>())
@@ -422,14 +422,14 @@ struct ClassStatement : public Statement,
 				{
 					if (auto f = instance->getTyped<Function>())
 					{
-						if (f->fData.id == fid)
+						if (f->fData.matchIdArgsAndTemplate(fd))
 							return &f->fData;
 					}
 				}
 			}
 			else if (auto subClass = cs->getTyped<ClassStatement>())
 			{
-				if (auto f = subClass->getFunction(fid))
+				if (auto f = subClass->resolveFunctionCall(fd))
 					return f;
 			}
 		}

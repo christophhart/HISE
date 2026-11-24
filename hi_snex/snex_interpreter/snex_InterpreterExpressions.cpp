@@ -52,7 +52,6 @@ struct FunctionCallBase : public Expression
 			if (callType == Identifier("ApiFunction"))
 			{
 				jit::GlobalScope* gs = s->engine->getGlobalScope();
-
 				auto thisLabel = fd.toLabel();
 
 				for (const auto& p : gs->getMap())
@@ -72,23 +71,38 @@ struct FunctionCallBase : public Expression
 			if (callType == Identifier("MemberFunction"))
 			{
 				auto objectType = inlinerData.argTypes[0];
+				jit::FunctionClass::Ptr fc = objectType->getFunctionClass();
+				Array<FunctionData> matches;
 
-				jassert(objectType != nullptr);
-				auto mf = objectType->getNonOverloadedFunction(fd.id.id);
+				auto functionSymbol = fc->getClassName().getChildId(fd.id.id);
+				fc->addMatchingFunctions(matches, functionSymbol);
 
-				if (!mf.isResolved())
-					mf = s->engine->getFunction(fd.id);
-
-				if (mf.isResolved())
+				if (matches.size() == 1)
 				{
-					if (setResolvedFunction(mf))
+					if (matches.getFirst().isResolved() && setResolvedFunction(matches.getFirst()))
 						return;
 				}
+				else if (matches.size() > 1)
+				{
+					for (const auto& f : matches)
+					{
+						if (f.matchIdArgsAndTemplate(fd))
+						{
+							if (setResolvedFunction(f))
+								return;
+						}
+					}
+				}
+				
+				auto rf = s->engine->resolveInterpretedFunctionCall(fd);
+
+				if (rf.isResolved() && setResolvedFunction(rf))
+					return;
 			}
 
 			if (callType == Identifier("StaticFunction"))
 			{
-				auto sf = s->engine->getFunction(fd.id);
+				auto sf = s->engine->resolveInterpretedFunctionCall(fd);
 
 				if (sf.isResolved() && setResolvedFunction(sf))
 					return;
@@ -96,13 +110,10 @@ struct FunctionCallBase : public Expression
 
 			if (callType == Identifier("RootFunction"))
 			{
-				auto rf = s->engine->getRootFunction(fd);
+				auto rf = s->engine->resolveInterpretedFunctionCall(fd);
 
-				if (rf.isResolved())
-				{
-					if (setResolvedFunction(rf))
-						return;
-				}
+				if (rf.isResolved() && setResolvedFunction(rf))
+					return;
 			}
 
 			if (fd.inliner != nullptr)

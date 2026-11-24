@@ -108,13 +108,13 @@ Array<jit::NamespacedIdentifier> Engine::getFunctionIds() const
 	return ids;
 }
 
-jit::FunctionData Engine::getFunction(const jit::NamespacedIdentifier& functionId)
+jit::FunctionData Engine::resolveInterpretedFunctionCall(const jit::FunctionData& fd)
 {
-	if (functionId.isExplicit())
+	if (fd.id.isExplicit())
 	{
 		for (const auto& f : rootFunctions)
 		{
-			if (f->getTyped<nodes::Function>()->fData.id == functionId)
+			if (f->getTyped<nodes::Function>()->fData.matchIdArgsAndTemplate(fd))
 				return f->getTyped<nodes::Function>()->fData;
 		}
 
@@ -124,25 +124,26 @@ jit::FunctionData Engine::getFunction(const jit::NamespacedIdentifier& functionI
 	{
 		for (auto c : rootClassDefinitions)
 		{
-			if (auto fd = c->getTyped<nodes::ClassStatement>()->getFunction(functionId))
-				return *fd;
+			if (auto f = c->getTyped<nodes::ClassStatement>()->resolveFunctionCall(fd))
+				return *f;
 		}
 
 		return {};
 	}
 }
 
-jit::FunctionData Engine::getRootFunction(const jit::FunctionData& signature) const
+jit::FunctionData Engine::getFunction(const jit::NamespacedIdentifier& functionId)
 {
 	for (const auto& f : rootFunctions)
 	{
-		const auto& candidate = f->getTyped<nodes::Function>()->fData;
-		if (candidate.matchIdArgsAndTemplate(signature))
-			return candidate;
+		if (f->getTyped<nodes::Function>()->fData.id == functionId)
+			return f->getTyped<nodes::Function>()->fData;
 	}
 
 	return {};
 }
+
+
 
 Array<jit::Symbol> Engine::getAllVariables() const
 {
@@ -185,6 +186,8 @@ ValueTree Engine::getDataLayout(int dataIndex) const
 	jassertfalse;
 	return ValueTree();
 }
+
+
 
 
 } // namespace interpreter
