@@ -660,10 +660,11 @@ juce::Result JitFileTestCase::test(bool dumpBeforeTest /*= false*/)
 
 	if (!r.wasOk())
 	{
+		if (expectedFail.isEmpty())
+			throw r;
+
 		if (expectCompileFail(expectedFail).wasOk())
 			return Result::ok();
-
-		throw r;
 	}
 		
 

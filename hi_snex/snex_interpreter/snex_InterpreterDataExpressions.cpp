@@ -544,7 +544,10 @@ struct ThisPointer : public Expression
 	void resolveDataPointers(Scope* s) override
 	{
 		// An inline argument is evaluated in the caller's scope, before the callee's arguments are assigned.
-		if (astNode.getParent().getType() == Identifier("InlinedArgument"))
+		auto callerArgument = valuetree::Helpers::findParentWithType(astNode, Identifier("InlinedArgument"));
+		auto inlineFunction = valuetree::Helpers::findParentWithType(astNode, Identifier("InlinedFunction"));
+
+		if (callerArgument.isValid() && callerArgument.getParent() == inlineFunction)
 		{
 			if (auto inlineScope = s->getParentScopeWithType(Scope::ScopeType::InlinedFunction))
 				s = inlineScope->parent;

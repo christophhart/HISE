@@ -31,6 +31,12 @@ struct InlinedFunction: public Expression,
         if (symbolString.startsWith("unresolved"))
         {
             auto parentFunc = valuetree::Helpers::findParentWithType(v, Identifier("InlinedFunction"));
+            auto callerArgument = valuetree::Helpers::findParentWithType(v, Identifier("InlinedArgument"));
+
+            // An argument initializer runs in its caller's scope, before this inline call binds its parameters.
+            if (callerArgument.isValid() && callerArgument.getParent() == parentFunc)
+                parentFunc = valuetree::Helpers::findParentWithType(parentFunc, Identifier("InlinedFunction"));
+
             jassert(parentFunc.isValid());
 
             auto scopeId = Helpers::getNamespacedIdentifier(parentFunc, AstIds::ScopeId);

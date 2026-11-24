@@ -130,7 +130,7 @@ struct LogicalNot : public Expression
 	VariableStorage getResult(Scope* s) override
 	{
 		auto v = value->getResult(s).toInt();
-		return VariableStorage(1 - v);
+		return VariableStorage(v == 0);
 	}
 
 	TypeInfo getTypeInfo() const override
