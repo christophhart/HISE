@@ -108,7 +108,8 @@
                        targetName="HISE" headerPath="../../../../tools/SDK/ASIOSDK2.3/common&#10;../../../../tools/fftw"
                        useRuntimeLibDLL="0" enableIncrementalLinking="1" alwaysGenerateDebugSymbols="1"
                        debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
-                       linkTimeOptimisation="1" libraryPath="../../../../tools/fftw/windows"/>
+                       linkTimeOptimisation="1" libraryPath="../../../../tools/fftw/windows"
+                       defines="HISE_DISABLE_EXPORT=0"/>
         <CONFIGURATION name="CI" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
                        isDebug="0" optimisation="2" targetName="HISE" headerPath="../../../../tools/SDK/ASIOSDK2.3/common&#10;../../../../tools/fftw"
                        useRuntimeLibDLL="0" debugInformationFormat="ProgramDatabase"

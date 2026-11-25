@@ -1,48 +1,34 @@
-cd "$(dirname "$0")"
+#!/bin/bash
+set -euo pipefail
 
-tag_version=$(git describe --abbrev=0)
-tag_underscore=$(echo "$tag_version" | tr . _)
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+repo_root="$(cd "$script_dir/../.." && pwd)"
+cd "$repo_root"
 
-echo $tag_version
-echo $tag_underscore
+tag_version="$(git describe --abbrev=0)"
+package_version="${tag_version#v}"
+tag_underscore="${tag_version//./_}"
+standalone_app="$repo_root/projects/standalone/Builds/MacOSX/build/Release/HISE.app"
+output_dir="$script_dir/Output"
+package_id="com.hise.HISE"
+package_root="$script_dir/package-root"
 
-installer_project="hise_nightly_build.pkgproj"
-
-sed -i '' "s/TAG_VERSION/$tag_version/" $installer_project
-
-function abort_if_not_exist {
-	echo 
-if [ -e "$1" ]
-then
-    echo "$1 was found./"
-else
-    echo "$1 was not found"
-    exit 1
+if [ ! -d "$standalone_app" ]; then
+	echo "HISE Standalone app not found: $standalone_app"
+	echo "Build it with 01_BuildHISE.sh first."
+	exit 1
 fi
-}
 
-plugin_path=./../../projects/plugin/Builds/MacOSX/build/Release
+rm -rf "$package_root"
+mkdir -p "$package_root/Applications" "$output_dir"
+cp -R "$standalone_app" "$package_root/Applications/HISE.app"
 
-plugin_au="$plugin_path/HISE.component/"
-plugin_vst="$plugin_path/HISE.vst3/"
-standalone_app=./../../projects/standalone/Builds/MacOSX/build/Release/HISE.app
+pkgbuild \
+	--root "$package_root" \
+	--install-location "/" \
+	--identifier "$package_id" \
+	--version "$package_version" \
+	"$output_dir/HISE_${tag_underscore}_macOS.pkg"
 
-abort_if_not_exist $plugin_au
-abort_if_not_exist $plugin_vst
-abort_if_not_exist $standalone_app
-
-# Building Installer
-
-echo "Building Installer..."
-
-/usr/local/bin/packagesbuild --verbose "$installer_project" PROJECT_VERSION=$tag_version
-
-installer_name="./Output/HISE $tag_version_underscore.pkg"
-
-echo "Write to $installer_name"
-
-cd "$(dirname "$0")"
-mkdir Output
-cp ./build/HISE.pkg "$installer_name"
-
-echo "OK."
+rm -rf "$package_root"
+echo "Installer created: $output_dir/HISE_${tag_underscore}_macOS.pkg"

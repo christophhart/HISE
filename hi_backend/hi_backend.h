@@ -63,6 +63,15 @@ If true, the backend processor will create a workbench editor instead of the HIS
 #define USE_WORKBENCH_EDITOR 0
 #endif
 
+/** Config: HISE_DISABLE_EXPORT
+* 
+*   If enabled, then the plugin export is disabled. This build setting is used by the downloadable HISE binaries that
+*   act as "demo version" before going through the hassle of setting up the system to export plugins.
+*/
+#ifndef HISE_DISABLE_EXPORT
+#define HISE_DISABLE_EXPORT 0
+#endif
+
 /** Config: HISE_PAINT_GLOBAL_MOD_CONNECTIONS
 
 If true, then the patch browser will display global modulator connections.

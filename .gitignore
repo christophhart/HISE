@@ -4,6 +4,8 @@
 !/.gitignore
 !/.travis.yml
 !/.vscode/*
+!/.github/
+!/.github/workflows/
 
 # clangd/LSP tooling config (local development only)
 AppConfig.h
