@@ -18,15 +18,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: just
-
       - name: Build Windows installer
-        shell: powershell
-        run: |
-          just precompiled-binaries
-          if ($LASTEXITCODE -ne 0) { throw "Windows precompiled binary build failed" }
+        shell: cmd
+        run: cd tools\auto_build && call 01_BuildHISE.bat && call tools\auto_build\02_BuildInstaller.bat
 
       - name: Upload Windows installer
         uses: softprops/action-gh-release@v2
@@ -39,16 +33,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: just
-
       - name: Build macOS installer
         env:
           APPLE_APPLICATION_SIGNING_IDENTITY: ${{ secrets.APPLE_APPLICATION_SIGNING_IDENTITY }}
           APPLE_INSTALLER_SIGNING_IDENTITY: ${{ secrets.APPLE_INSTALLER_SIGNING_IDENTITY }}
           APPLE_NOTARY_PROFILE: ${{ secrets.APPLE_NOTARY_PROFILE }}
-        run: just precompiled-binaries
+        run: bash tools/auto_build/01_BuildHISE.sh && bash tools/auto_build/02_BuildInstaller.sh
 
       - name: Sign installer and notarize
         env:
