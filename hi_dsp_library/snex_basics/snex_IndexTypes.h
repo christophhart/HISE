@@ -109,6 +109,7 @@ template <typename LT, bool CheckOnAssign> struct integer_index
 	static constexpr bool checkBoundsOnAssign() { return !LogicType::hasDynamicBounds() && CheckOnAssign; }
 	static constexpr bool canReturnReference() { return true; }
 	static constexpr bool isExceptionSafe() { return LogicType::hasBoundCheck() || LogicType::redirectOnFailure(); }
+	static constexpr bool isInterpolator() { return false; }
 
 	static String toString()
 	{
@@ -270,6 +271,8 @@ template <typename LT, bool CheckOnAssign> struct integer_index
 		getLogicType().setLoopRange({ start, end });
 	}
 
+	Type getRawValue() const { return value; }
+
 private:
 
 	Type value = Type(0);
@@ -301,6 +304,8 @@ template <typename FloatType, typename IntegerIndexType, bool IsNormalised> stru
 {
 	using Type = FloatType;
 	using LogicType = typename IntegerIndexType::LogicType;
+
+	static constexpr bool isInterpolator() { return false; }
 
 	static constexpr bool canReturnReference() { return true; }
 
@@ -408,6 +413,8 @@ template <typename FloatType, typename IntegerIndexType, bool IsNormalised> stru
 		getLogicType().setLoopRange({ start, end });
 	}
 
+	FloatType getRawValue() const { return v; }
+
 private:
 
 	LogicType t;
@@ -447,6 +454,8 @@ private:
 
 template <typename IndexType> struct interpolator_base
 {
+	static constexpr bool isInterpolator() { return true; }
+
 	static constexpr bool canReturnReference() { return false; }
 
 	static constexpr bool redirectOnFailure() { return IndexType::LogicType::redirectOnFailure(); }
@@ -497,6 +506,8 @@ template <typename IndexType> struct interpolator_base
 	{
 		return (Type)idx;
 	}
+
+	Type getRawValue() const { return idx.getRawValue(); }
 
 	IndexType idx;
 };

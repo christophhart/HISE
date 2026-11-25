@@ -12,6 +12,7 @@ namespace AstIds
 DECLARE_ID(Type);
 DECLARE_ID(Value);
 DECLARE_ID(Signature);
+DECLARE_ID(Arg);
 DECLARE_ID(OpType);
 DECLARE_ID(AssignmentType);
 DECLARE_ID(Target);
