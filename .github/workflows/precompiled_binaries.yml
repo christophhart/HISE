@@ -51,10 +51,11 @@ jobs:
 
       - name: Build Windows installer
         shell: cmd
-        working-directory: ${{ github.workspace }}/tools/auto_build/
+        working-directory: ${{ github.workspace }}
         run: |
-          if exist "Output\%WINDOWS_INSTALLER%" del /q "Output\%WINDOWS_INSTALLER%"
-          call 02_BuildInstaller.bat
+          if exist "tools\auto_build\Output\%WINDOWS_INSTALLER%" del /q "tools\auto_build\Output\%WINDOWS_INSTALLER%"
+          if errorlevel 1 exit /b 1
+          call "%GITHUB_WORKSPACE%\tools\auto_build\02_BuildInstaller.bat"
 
       - name: Upload Windows installer
         uses: softprops/action-gh-release@v2

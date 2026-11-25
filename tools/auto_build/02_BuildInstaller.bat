@@ -1,9 +1,11 @@
 @echo off
 setlocal
 
-pushd "%~dp0..\.." || exit /b 1
-call "%~dp0ConfigWindows.bat"
-if errorlevel 1 exit /b 1
+REM Run from the repository root, just like the installer workflow step.
+if not exist "projects\standalone\HISE Standalone.jucer" (
+	echo Run 02_BuildInstaller.bat from the repository root: %CD%
+	exit /b 1
+)
 
 for /f "delims=" %%V in ('JUCE\projucer\Projucer.exe --get-version "projects\standalone\HISE Standalone.jucer"') do set "VERSION=%%V"
 if not defined VERSION (
@@ -24,10 +26,16 @@ if not exist "%HISE_EXE%" (
 
 if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%"
 
-%installer_command% /DMyAppVersion="%VERSION%" /DMyOutputVersion="%VERSION_UNDERSCORE%" /DMyHiseExe="%CD%\%HISE_EXE%" /O"%CD%\%OUTPUT_DIR%" "%CD%\%INSTALLER_SCRIPT%"
+set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
+if not exist "%ISCC%" set "ISCC=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+if not exist "%ISCC%" (
+	echo Inno Setup compiler not found in the user or system installation directories.
+	exit /b 1
+)
+
+"%ISCC%" /DMyAppVersion="%VERSION%" /DMyOutputVersion="%VERSION_UNDERSCORE%" /DMyHiseExe="%CD%\%HISE_EXE%" /O"%CD%\%OUTPUT_DIR%" "%CD%\%INSTALLER_SCRIPT%"
 if errorlevel 1 exit /b 1
 
 echo Installer created in %OUTPUT_DIR%
-popd
 endlocal
 
