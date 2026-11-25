@@ -18,9 +18,19 @@ echo Resaving projects...
 cd..
 cd..
 
+if not exist "tools\SDK\sdk.zip" (
+	echo tools\SDK\sdk.zip not found. Aborting...
+	exit /b 1
+)
+
 cd tools/SDK
 
 tar -xf sdk.zip
+if errorlevel 1 (
+	echo Failed to extract tools\SDK\sdk.zip. Aborting...
+	cd ..\..
+	exit /b 1
+)
 
 cd ..
 cd ..
@@ -47,8 +57,7 @@ if %errorlevel% NEQ 0 (
 	echo ========================================================================
 	echo Error at compiling. Aborting...
 	cd tools\auto_build
-	pause
-	exit 1
+	exit /b 1
 )
 
 echo "OK"

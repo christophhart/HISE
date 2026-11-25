@@ -14,7 +14,7 @@ fi
 
 (cd tools/SDK && tar -xf sdk.zip)
 
-projucer="tools/Projucer/Projucer.app/Contents/MacOS/Projucer"
+projucer="JUCE/projucer/Projucer.app/Contents/MacOS/Projucer"
 standalone_project="projects/standalone/HISE Standalone.jucer"
 standalone_xcodeproj="projects/standalone/Builds/MacOSX/HISE Standalone.xcodeproj"
 standalone_app="projects/standalone/Builds/MacOSX/build/Release/HISE.app"
@@ -23,7 +23,7 @@ chmod +x "$projucer"
 "$projucer" --resave "$standalone_project"
 
 set -o pipefail
-xcodebuild -project "$standalone_xcodeproj" -configuration "Release" | xcpretty
+xcodebuild -project "$standalone_xcodeproj" -configuration "Release" | ./tools/projucer/xcbeautify --renderer github-actions
 
 if [[ ! -d "$standalone_app" ]]; then
 	echo "HISE Standalone app not found after build: $standalone_app"

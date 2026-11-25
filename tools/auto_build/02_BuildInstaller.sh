@@ -5,9 +5,14 @@ script_dir="$(cd "$(dirname "$0")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"
 cd "$repo_root"
 
-tag_version="$(git describe --abbrev=0)"
-package_version="${tag_version#v}"
-tag_underscore="${tag_version//./_}"
+projucer="$repo_root/JUCE/projucer/Projucer.app/Contents/MacOS/Projucer"
+project_file="$repo_root/projects/standalone/HISE Standalone.jucer"
+package_version="$("$projucer" --get-version "$project_file")"
+if [[ ! "$package_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+	echo "Failed to read a valid project version from $project_file: $package_version" >&2
+	exit 1
+fi
+tag_underscore="v${package_version//./_}"
 standalone_app="$repo_root/projects/standalone/Builds/MacOSX/build/Release/HISE.app"
 output_dir="$script_dir/Output"
 package_id="com.hise.HISE"
