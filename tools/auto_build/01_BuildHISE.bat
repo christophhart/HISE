@@ -52,4 +52,3 @@ if %errorlevel% NEQ 0 (
 )
 
 echo "OK"
-pause

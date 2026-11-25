@@ -1,11 +1,12 @@
 @echo off
 setlocal
 
-call ConfigWindows.bat
+call tools\auto_build\ConfigWindows.bat
+if errorlevel 1 exit /b 1
 
-for /f "delims=" %%V in ('git describe --abbrev=0') do set "VERSION=%%V"
+for /f "delims=" %%V in ('JUCE\projucer\Projucer.exe --get-version "projects\standalone\HISE Standalone.jucer"') do set "VERSION=%%V"
 if not defined VERSION (
-	echo Failed to determine the latest Git tag.
+	echo Failed to read the version from projects\standalone\HISE Standalone.jucer using Projucer.
 	exit /b 1
 )
 

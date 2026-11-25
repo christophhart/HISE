@@ -26,7 +26,7 @@ bump VERSION:
 
 [windows]
 precompiled-binaries:
-    cd tools\auto_build && call 01_BuildHISE.bat && call 02_BuildInstaller.bat
+    cd tools\auto_build && call 01_BuildHISE.bat && call tools\auto_build\02_BuildInstaller.bat
 
 [unix]
 precompiled-binaries:
