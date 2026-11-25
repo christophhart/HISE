@@ -44,7 +44,7 @@ public:
             return File(sn).getChildFile("test_files");
         };
 
-        if (commandLine.startsWith("--run"))
+        if (commandLine.startsWith("--run") || commandLine.startsWith("--benchmark"))
         {
             // Example: --run --file:process_data_member_call.h --process:one.wav --args:4 --O:Inlining --backend:interpreter
 
@@ -68,7 +68,7 @@ public:
 
             bool verbose = false;
 
-            
+            bool isBenchmark = false;
 
             for (auto t : tokens)
             {
@@ -100,6 +100,30 @@ public:
 
                     codeToCompile = f.loadFileAsString();
                 }
+                if (t.startsWith("benchmark"))
+                {
+                    String code;
+                    String nl = "\n";
+
+                    code << "span<float, 4096> data = { 1.0f };" << nl;
+                    code << "using IntType = index::wrapped<4096, false>;" << nl;
+                    code << "using FloatType = index::normalised<float, IntType>;" << nl;
+                    code << "using InterType = index::hermite<FloatType>;" << nl;
+
+                    code << "float main(int input) {" << nl;
+                    code << "    InterType idx;" << nl;
+                    code << "    float sum = 0.0f;" << nl;
+                    code << "    for(int i = 0; i < 4096 * 4; i++)" << nl;
+                    code << "    {" << nl;
+                    code << "        idx = (float)i * 0.25f;" << nl;
+                    code << "        sum += data[idx];" << nl;
+                    code << "    }" << nl;
+                    code << "    return sum;" << nl;
+                    code << "}";
+
+                    codeToCompile = code;
+                    isBenchmark = true;
+                }
                 if (t.startsWith("code:"))
                 {
                     codeToCompile = t.fromFirstOccurrenceOf("code:", false, false).trim().unquoted();
@@ -121,6 +145,13 @@ public:
                     optimizations = StringArray::fromTokens(args_, ",", "");
                     optimizations.removeEmptyStrings();
                     optimizations.trim();
+
+                    if (optimizations.contains("IndexShortcut"))
+                    {
+                        snex::interpreter::Engine::setEnableIndexShortcut();
+                        optimizations.removeString("IndexShortcut");
+                    }
+
                 }
                 if (t.startsWith("process:"))
                 {
@@ -249,6 +280,37 @@ public:
                     auto result = f.callDynamic(&d, 1);
                     log("test() executed OK");
                     log("Result: " + Types::Helpers::getCppValueString(result));
+                }
+                else if (isBenchmark)
+                {
+                    std::vector<double> times;
+
+                    for (int i = 0; i < 100; i++)
+                    {
+                        if (i % 10 == 0)
+                            log(String(i) + "%");
+
+                        auto now = Time::getMillisecondCounterHiRes();
+                        
+                        f.callDynamic(args.getRawDataPointer(), args.size());
+                        
+                        times.push_back(Time::getMillisecondCounterHiRes() - now);
+                    }
+                    
+                    double sum = 0.0;
+                    double max = 0.0;
+
+                    for (auto s : times)
+                    {
+                        sum += s;
+                        max = jmax(s, max);
+                    }
+
+                    log("MAX: " + String(max) + ", AVG: " + String(sum / (double)times.size()));
+
+                    log("Done");
+                    quit();
+                    return;
                 }
                 else
                 {

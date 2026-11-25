@@ -242,7 +242,7 @@ struct Function : public Statement,
 				parameterBinders[i](parameters[i], args[i], parameterByteCounts[i]);
 
 			VariableStorage rv;
-			perform(statementScope, &rv);
+			perform(statementScope.get(), &rv);
 
 			return rv;
 		}

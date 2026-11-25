@@ -92,7 +92,7 @@ struct StatementBlock : public Statement,
 
 	ResultCode perform(Scope* s, VariableStorage* returnValue) final override
 	{
-		return blockData.perform(statementScope, returnValue);
+		return blockData.perform(statementScope.get(), returnValue);
 	};
 
 	BlockExecutor blockData;

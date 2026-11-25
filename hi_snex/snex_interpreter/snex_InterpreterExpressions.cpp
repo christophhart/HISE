@@ -25,7 +25,7 @@ struct FunctionCallBase : public Expression
 			argRef.setBit(idx++, ot.isRef());
 			hasThisPointer = true;
 
-			inlinerData.argTypes.push_back(ot.getComplexType());
+			inlinerData.argTypes.push_back(ot.getComplexType().get());
 			inlinerArgs.fillElementData(ot);
 		}
 
@@ -279,7 +279,7 @@ template <typename RT, typename A1> struct FunctionCallT1 : public FunctionCallB
 	{
 		static constexpr Types::ID T1 = Types::Helpers::getTypeFromTypeId<A1>();
 
-		auto v1 = getArgs(s, hasThisPointer, arg1);
+		auto v1 = getArgs(s, hasThisPointer, arg1.get());
 
 		if (inliner != nullptr)
 		{

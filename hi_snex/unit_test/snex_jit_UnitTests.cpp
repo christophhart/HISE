@@ -755,6 +755,8 @@ public:
 
 		pc.start();
 
+		testIndexTypes();
+
 		
 
 		testStaticConst();

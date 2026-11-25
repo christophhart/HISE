@@ -36,6 +36,8 @@ namespace snex
 namespace interpreter
 {
 
+bool Engine::useIndex = false;
+
 Engine::Engine(jit::GlobalScope& scope, const Statement::Ptr rootTree_):
   globalScope(scope),
   rootTree(rootTree_),
@@ -79,7 +81,7 @@ Engine::Engine(jit::GlobalScope& scope, const Statement::Ptr rootTree_):
 	
 
 	// PASS 1: allocate scopes
-	DefinitionBase::allocateChildStatements(rootTree, rootScope);
+	DefinitionBase::allocateChildStatements(rootTree.get(), rootScope.get());
 
 	auto rootResult = rootScope->finalise();
 	jassert(rootResult.wasOk());

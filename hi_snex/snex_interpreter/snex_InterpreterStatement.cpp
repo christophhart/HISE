@@ -83,7 +83,7 @@ struct Statement::Helpers
 		auto ti = getType(f, astNode, AstIds::ObjectType);
 
 		if (ti.isComplexType())
-			return ti.getComplexType();
+			return ti.getComplexType().get();
 
 		return nullptr;
 	}
@@ -858,7 +858,7 @@ Result DefinitionBase::allocateChildStatements(Statement* thisAsStatement, Scope
 		if (auto c = def->createScope(scopeToUse))
 		{
 			def->statementScope = c;
-			scopeToUse = c;
+			scopeToUse = c.get();
 		}
 
 		for (auto c : thisAsStatement->childStatements)

@@ -47,7 +47,8 @@ struct base : public ReferenceCountedObject
     Statement& parent;
     NamespacedIdentifier id;
 
-    std::map<int, Expression::ExprPtr> arguments;
+    Expression::ExprPtr thisExpression;
+    std::vector<Expression::ExprPtr> arguments;
 };
 
 namespace index {
@@ -63,6 +64,8 @@ struct executor: public base
         Assign,
         Inc,
         Dec,
+        PostInc,
+        PostDec,
         GetIndex,
         GetAlpha,
         GetInterpolated,
@@ -154,8 +157,12 @@ struct executor: public base
             functionType = FunctionType::GetFrom;
         else if (id == Identifier("++operator"))
             functionType = FunctionType::Inc;
+        else if (id == Identifier("operator++"))
+            functionType = FunctionType::PostInc;
         else if (id == Identifier("--operator"))
             functionType = FunctionType::Dec;
+        else if (id == Identifier("operator--"))
+            functionType = FunctionType::PostDec;
         else if (id == this->id.getParent().id)
             functionType = FunctionType::Constructor;
         else if (id == Identifier("getIndex"))
@@ -169,7 +176,7 @@ struct executor: public base
             jassertfalse;
         }
 
-        auto ti = arguments[-1]->getTypeInfo();
+        auto ti = thisExpression->getTypeInfo();
 
         if (isFloatType(type))
         {
@@ -219,7 +226,7 @@ struct executor: public base
 
     VariableStorage performIndexOp(Scope* s)
     {
-        auto thisPtr = arguments[-1]->getResult(s);
+        auto thisPtr = thisExpression->getResult(s);
 
         targetPointer = { thisPtr.getDataPointer(), 0 };
 
@@ -359,6 +366,20 @@ struct executor: public base
             value += IType(1.0);
             dataFunctions.second(targetPointer, value);
             return VariableStorage(targetPointer.first);
+        }
+        case FunctionType::PostDec:
+        {
+            auto rv = value;
+            value -= IType(1.0);
+            dataFunctions.second(targetPointer, value);
+            return VariableStorage(rv);
+        }
+        case FunctionType::PostInc:
+        {
+            auto rv = value;
+            value += IType(1.0);
+            dataFunctions.second(targetPointer, value);
+            return VariableStorage(rv);
         }
         case FunctionType::Assign:
         {
@@ -678,7 +699,7 @@ struct InlinedFunction: public Expression,
         if (shortcutFunction != nullptr)
             shortcutFunction->perform(s, rv);
         else
-            blockData.perform(statementScope, rv);
+            blockData.perform(statementScope.get(), rv);
     }
 
     NamespacedIdentifier scopeId;
@@ -790,13 +811,16 @@ namespace shortcut {
 
 base::ShortcutFactory::ShortcutFactory()
 {
-    registerType<index::unsafe>();
-    registerType<index::wrapped>();
-    registerType<index::clamped>();
-    registerType<index::unscaled>();
-    registerType<index::normalised>();
-    registerType<index::lerp>();
-    registerType<index::hermite>();
+    if (Engine::useIndexShortcut())
+    {
+        registerType<index::unsafe>();
+        registerType<index::wrapped>();
+        registerType<index::clamped>();
+        registerType<index::unscaled>();
+        registerType<index::normalised>();
+        registerType<index::lerp>();
+        registerType<index::hermite>();
+    }
 }
 
 base::base(Statement::Factory& f, Statement& parent_) :
@@ -809,7 +833,21 @@ base::base(Statement::Factory& f, Statement& parent_) :
         {
             auto arg = (int)st->astNode[AstIds::Arg];
             auto e = Statement::Helpers::getChildExpression(st, 0);
-            arguments[arg] = e;
+            if (arg == -1)
+            {
+                thisExpression = e;
+            }
+            else if (arg >= 0)
+            {
+                if (arg >= (int)arguments.size())
+                    arguments.resize(arg + 1);
+
+                arguments[arg] = e;
+            }
+            else
+            {
+                jassertfalse;
+            }
         }
     }
 }

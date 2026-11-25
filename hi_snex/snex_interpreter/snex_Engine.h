@@ -178,7 +178,13 @@ struct Engine: public snex::jit::FunctionCollectionBase
 
 	jit::FunctionData resolveInterpretedFunctionCall(const jit::FunctionData& fd);
 
+	static void setEnableIndexShortcut() { useIndex = true; }
+
+	static bool useIndexShortcut() { return useIndex; }
+
 private:
+
+	static bool useIndex;
 
 	friend class snex::interpreter::ExpressionTreeBuilder;
 
