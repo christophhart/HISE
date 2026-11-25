@@ -20,8 +20,6 @@ if ! grep -Fq -- "$APPLE_INSTALLER_SIGNING_IDENTITY" <<< "$identities"; then
 	fail "The installer signing identity is not available in the runner keychain."
 fi
 
-if ! xcrun notarytool history --keychain-profile "$APPLE_NOTARY_PROFILE" >/dev/null 2>&1; then
-	fail "The notarytool keychain profile is missing or unusable."
-fi
-
-echo "Signing identities and notarytool profile are available."
+# The installer submission checks the notary profile directly. A history request
+# can fail even when submission works, so do not use it as a signing preflight.
+echo "Signing identities are available; the notary profile will be checked during submission."
