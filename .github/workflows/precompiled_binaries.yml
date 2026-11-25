@@ -41,17 +41,17 @@ jobs:
         env:
           APPLE_APPLICATION_SIGNING_IDENTITY: ${{ secrets.APPLE_APPLICATION_SIGNING_IDENTITY }}
           APPLE_INSTALLER_SIGNING_IDENTITY: ${{ secrets.APPLE_INSTALLER_SIGNING_IDENTITY }}
-          APPLE_NOTARY_PROFILE: ${{ secrets.APPLE_NOTARY_PROFILE }}
+          APPLE_NOTARY_PROFILE: notarize
         run: bash tools/auto_build/01_BuildHISE.sh && bash tools/auto_build/02_BuildInstaller.sh
 
       - name: Sign installer and notarize
         env:
           APPLE_INSTALLER_SIGNING_IDENTITY: ${{ secrets.APPLE_INSTALLER_SIGNING_IDENTITY }}
-          APPLE_NOTARY_PROFILE: ${{ secrets.APPLE_NOTARY_PROFILE }}
+          APPLE_NOTARY_PROFILE: notarize
         run: |
           set -euo pipefail
           if [[ -z "$APPLE_INSTALLER_SIGNING_IDENTITY" || -z "$APPLE_NOTARY_PROFILE" ]]; then
-            echo "::error::Configure APPLE_INSTALLER_SIGNING_IDENTITY and APPLE_NOTARY_PROFILE secrets."
+            echo "::error::Configure APPLE_INSTALLER_SIGNING_IDENTITY; the notary profile is set to notarize."
             exit 1
           fi
 
