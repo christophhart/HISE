@@ -10,7 +10,7 @@ fail() {
 : "${APPLE_INSTALLER_SIGNING_IDENTITY:?APPLE_INSTALLER_SIGNING_IDENTITY secret is missing}"
 : "${APPLE_NOTARY_PROFILE:?APPLE_NOTARY_PROFILE secret is missing}"
 
-identities="$(security find-identity -v -p codesigning)" || fail "Could not read code-signing identities from the runner keychain."
+identities="$(security find-identity -v)" || fail "Could not read signing identities from the runner keychain."
 
 if ! grep -Fq -- "$APPLE_APPLICATION_SIGNING_IDENTITY" <<< "$identities"; then
 	fail "The application signing identity is not available in the runner keychain."

@@ -1,7 +1,8 @@
 @echo off
 setlocal
 
-call tools\auto_build\ConfigWindows.bat
+pushd "%~dp0..\.." || exit /b 1
+call "%~dp0ConfigWindows.bat"
 if errorlevel 1 exit /b 1
 
 for /f "delims=" %%V in ('JUCE\projucer\Projucer.exe --get-version "projects\standalone\HISE Standalone.jucer"') do set "VERSION=%%V"
@@ -27,5 +28,6 @@ if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%"
 if errorlevel 1 exit /b 1
 
 echo Installer created in %OUTPUT_DIR%
+popd
 endlocal
 
