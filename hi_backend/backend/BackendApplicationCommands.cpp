@@ -2245,6 +2245,9 @@ DialogWindowWithBackgroundThread* BackendCommandTarget::Actions::importProject(B
 
 void BackendCommandTarget::Actions::compileProject(BackendRootWindow* bpe)
 {
+	if (showDisablePopup(bpe))
+		return;
+
 	auto cw = new multipage::library::CompileProjectDialog(bpe);
 	cw->setModalBaseWindowComponent(bpe);
 }
@@ -2792,6 +2795,9 @@ juce::Result BackendCommandTarget::Actions::createSampleArchive(BackendProcessor
 
 void BackendCommandTarget::Actions::compileNetworksToDll(BackendRootWindow* bpe)
 {
+	if (showDisablePopup(bpe))
+		return;
+
 #if JUCE_WINDOWS || JUCE_MAC
 	auto s = new multipage::library::NetworkCompiler(bpe);
 	s->setModalBaseWindowComponent(bpe);
@@ -3515,6 +3521,9 @@ void BackendCommandTarget::Actions::showExampleBrowser(BackendRootWindow* bpe)
 
 void BackendCommandTarget::Actions::exportProject(BackendRootWindow* bpe, int buildOption)
 {
+	if (showDisablePopup(bpe))
+		return;
+
 	CompileExporter exporter(bpe->getMainSynthChain());
 
 	switch((CompileExporter::BuildOption)buildOption)
@@ -3532,6 +3541,16 @@ void BackendCommandTarget::Actions::exportProject(BackendRootWindow* bpe, int bu
 		exporter.exportMainSynthChainAsStandaloneApp();
 		break;
 	}
+}
+
+bool BackendCommandTarget::Actions::showDisablePopup(BackendRootWindow* bpe)
+{
+#if HISE_DISABLE_EXPORT
+	PresetHandler::showMessageWindow("Export disabled", "This precompiled HISE binary cannot export plugins. Install the required compiler toolchain to enable plugin export.");
+	return true;
+#else
+	return false;
+#endif
 }
 
 void BackendCommandTarget::Actions::cleanDspNetworkFiles(BackendRootWindow* bpe)

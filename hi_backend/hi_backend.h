@@ -63,6 +63,14 @@ If true, the backend processor will create a workbench editor instead of the HIS
 #define USE_WORKBENCH_EDITOR 0
 #endif
 
+/** Config: HISE_DISABLE_EXPORT
+*
+* If enabled, plugin export commands are disabled in the backend.
+*/
+#ifndef HISE_DISABLE_EXPORT
+#define HISE_DISABLE_EXPORT 0
+#endif
+
 /** Config: HISE_PAINT_GLOBAL_MOD_CONNECTIONS
 
 If true, then the patch browser will display global modulator connections.

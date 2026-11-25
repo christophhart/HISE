@@ -900,6 +900,10 @@ void MainTopBar::paint(Graphics& g)
 
 	String infoText;
 
+#if HISE_DISABLE_EXPORT
+	infoText << "Precompiled HISE. No export.";
+#else
+
 #if HISE_BACKEND_AS_FX
     infoText << "FX Build";
 #endif
@@ -917,12 +921,9 @@ void MainTopBar::paint(Graphics& g)
 	infoText << "Faust enabled";
 #endif
 
-#if PERFETTO
-    infoText << " + Perfetto";
-#endif
-
 #if HISE_INCLUDE_NKS_SDK
     infoText << " + NKS";
+#endif
 #endif
     
 	if(getRootWindow()->getBackendProcessor()->isSnippetBrowser())

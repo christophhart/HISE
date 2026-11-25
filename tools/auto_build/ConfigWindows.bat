@@ -9,18 +9,7 @@ SET projucerPath="JUCE\projucer\Projucer.exe"
 
 SET standalone_projucer_project="projects\standalone\HISE Standalone.jucer"
 
-SET plugin_projucer_project="projects\plugin\HISE.jucer"
-
-SET multipagecreator_projucer_project="tools\multipagecreator\multipagecreator.jucer"
-
 SET hise_ci="projects\standalone\Builds\VisualStudio2026\x64\CI\App\HISE.exe"
-
-SET multipagecreator_project="tools\multipagecreator\Builds\VisualStudio2026\multipagecreator.sln"
-
-set multipage_binary="tools\multipagecreator\Builds\VisualStudio2026\x64\Release\App\multipagecreator.exe"
-
-REM This is the project folder of the plugin project
-SET plugin_project="projects\plugin\Builds\VisualStudio2026\HISE.sln"
 
 REM This is the path to the ISS Installer compiler
 SET installer_command="C:\Program Files (x86)\Inno Setup 6\ISCC.exe"

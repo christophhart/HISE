@@ -1,0 +1,82 @@
+name: Precompiled Binaries
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+concurrency:
+  group: precompiled-binaries-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: [self-hosted, Windows]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
+      - name: Build Windows installer
+        shell: powershell
+        run: |
+          just precompiled-binaries
+          if ($LASTEXITCODE -ne 0) { throw "Windows precompiled binary build failed" }
+
+      - name: Upload Windows installer
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: tools/auto_build/Output/HISE_*_Windows.exe
+
+  build-macos:
+    runs-on: [self-hosted, macOS]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
+      - name: Build macOS installer
+        env:
+          APPLE_APPLICATION_SIGNING_IDENTITY: ${{ secrets.APPLE_APPLICATION_SIGNING_IDENTITY }}
+          APPLE_INSTALLER_SIGNING_IDENTITY: ${{ secrets.APPLE_INSTALLER_SIGNING_IDENTITY }}
+          APPLE_NOTARY_PROFILE: ${{ secrets.APPLE_NOTARY_PROFILE }}
+        run: just precompiled-binaries
+
+      - name: Sign installer and notarize
+        env:
+          APPLE_INSTALLER_SIGNING_IDENTITY: ${{ secrets.APPLE_INSTALLER_SIGNING_IDENTITY }}
+          APPLE_NOTARY_PROFILE: ${{ secrets.APPLE_NOTARY_PROFILE }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$APPLE_INSTALLER_SIGNING_IDENTITY" || -z "$APPLE_NOTARY_PROFILE" ]]; then
+            echo "::error::Configure APPLE_INSTALLER_SIGNING_IDENTITY and APPLE_NOTARY_PROFILE secrets."
+            exit 1
+          fi
+
+          TAG="${GITHUB_REF_NAME}"
+          OUT="tools/auto_build/Output"
+          PKG="${OUT}/HISE_${TAG//./_}_macOS.pkg"
+          SIGNED_PKG="${RUNNER_TEMP}/HISE_signed.pkg"
+
+          productsign --sign "$APPLE_INSTALLER_SIGNING_IDENTITY" \
+            "$PKG" "$SIGNED_PKG"
+          mv "$SIGNED_PKG" "$PKG"
+
+          xcrun notarytool submit "$PKG" \
+            --keychain-profile "$APPLE_NOTARY_PROFILE" --wait
+          xcrun stapler staple "$PKG"
+          spctl -a -vv -t install "$PKG"
+
+      - name: Upload macOS installer
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: tools/auto_build/Output/HISE_*_macOS.pkg

@@ -402,6 +402,8 @@ public:
 
 		static void exportProject(BackendRootWindow* bpe, int buildOption);
 
+		static bool showDisablePopup(BackendRootWindow* bpe);
+
 		static void cleanDspNetworkFiles(BackendRootWindow* bpe);
 
 		static void createGlobalCableCppCode(BackendRootWindow* bpe);
