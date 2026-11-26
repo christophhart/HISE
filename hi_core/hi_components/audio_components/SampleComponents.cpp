@@ -489,7 +489,7 @@ struct SamplerLaf : public HiseAudioThumbnail::LookAndFeelMethods,
 		g.fillRectList(rectList);
 	}
 
-	void drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled) override
+	void drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled, float gamma, bool reversed) override
 	{
 		if (areaIndex == AudioDisplayComponent::AreaTypes::PlayArea)
 		{
@@ -498,6 +498,11 @@ struct SamplerLaf : public HiseAudioThumbnail::LookAndFeelMethods,
 			g.setColour(c.withAlpha(areaEnabled ? 0.4f : 0.2f));
 
 			ug.draw1PxRect(area);
+		}
+		else if (areaIndex == AudioDisplayComponent::AreaTypes::LoopCrossfadeArea || areaIndex == 4)
+		{
+			// Crossfade and release start use the default fade path drawing
+			HiseAudioThumbnail::LookAndFeelMethods::drawThumbnailRange(g, te, area, areaIndex, c, areaEnabled, gamma, reversed);
 		}
 		else
 		{
@@ -525,7 +530,7 @@ struct SamplerLaf : public HiseAudioThumbnail::LookAndFeelMethods,
 
 				break;
 			}
-			
+
 			case AudioDisplayComponent::AreaTypes::LoopArea:
 			{
 				g.setColour(c.withAlpha(areaEnabled ? 0.1f : 0.04f));
@@ -547,16 +552,28 @@ struct SamplerLaf : public HiseAudioThumbnail::LookAndFeelMethods,
 				break;
 			}
 			}
-			
+
 			const static StringArray names = { "play",  "samplestart", "loop", "xfade"};
 
-			if (area.getWidth() > 30)
+			if (areaIndex < names.size() && area.getWidth() > 30)
 			{
 				auto p = createPath(names[areaIndex]);
 				scalePath(p, area.removeFromRight(24.0f).removeFromTop(24.0f).reduced(4.0f));
 				g.setColour(c);
 				g.fillPath(p);
 			}
+		}
+	}
+
+	void drawThumbnailMarker(Graphics& g, HiseAudioThumbnail& th, float x, float h, int markerIndex, Colour c, bool enabled) override
+	{
+		// Only draw the release start marker here; other markers are already
+		// handled by drawThumbnailRange in the workspace view.
+		if (markerIndex == 4) // ReleaseStart
+		{
+			g.setColour(c.withAlpha(0.7f));
+			g.drawVerticalLine(roundToInt(x), 0.0f, h);
+			g.fillRect(x, 0.0f, 30.0f, 7.0f);
 		}
 	}
 };
@@ -640,13 +657,13 @@ void SamplerSoundWaveform::updateRange(AreaTypes a, bool refreshBounds)
 		break;
 	case hise::AudioDisplayComponent::SampleStartArea:
 	{
-		
+
 
 		auto isReversed = currentSound->getReferenceToSound(0)->isReversed();
 
 		Range<int> displayArea;
 		Range<int> leftDragRange, rightDragRange;
-		
+
 		auto startMod = (int)currentSound->getSampleProperty(SampleIds::SampleStartMod);
 
 		if (isReversed)
@@ -666,9 +683,10 @@ void SamplerSoundWaveform::updateRange(AreaTypes a, bool refreshBounds)
 			leftDragRange = currentSound->getPropertyRange(SampleIds::SampleStart);
 			rightDragRange = currentSound->getPropertyRange(SampleIds::SampleStartMod) + offset;
 		}
-		
+
 		area->setSampleRange(displayArea);
 		area->setAllowedPixelRanges(leftDragRange, rightDragRange);
+		area->setVisible(startMod > 0);
 		break;
 	}
 	case hise::AudioDisplayComponent::LoopArea:
@@ -701,6 +719,7 @@ void SamplerSoundWaveform::updateRange(AreaTypes a, bool refreshBounds)
 		}
 
 		area->setSampleRange(Range<int>(start, end));
+		area->setVisible(currentSound->getSampleProperty(SampleIds::LoopEnabled) && (end - start) > 0);
 		break;
 	}
 	case hise::AudioDisplayComponent::numAreas:
@@ -794,39 +813,64 @@ void SamplerSoundWaveform::paintOverChildren(Graphics &g)
 {
 	AudioDisplayComponent::paintOverChildren(g);
 
-	#if HISE_SAMPLER_ALLOW_RELEASE_START
 	if(currentSound != nullptr)
 	{
-		auto rs = (int)currentSound->getSampleProperty(SampleIds::ReleaseStart);
-
-		if(rs != 0)
+		if(auto laf = dynamic_cast<HiseAudioThumbnail::LookAndFeelMethods*>(&getThumbnail()->getLookAndFeel()))
 		{
-			auto xOffset = roundToInt((double)getWidth() * (rs) / (double)getTotalSampleAmount());
-			auto rc = SampleArea::getReleaseStartColour();
+			auto h = (float)getHeight();
+			auto playAreaX = (float)areas[PlayArea]->getX();
 
-			g.setColour(rc.withAlpha(0.7f));
-			g.drawVerticalLine(xOffset, 0.0f, (float)getHeight());
-			g.fillRect((float)xOffset, 0.0f, 30.0f, JUCE_LIVE_CONSTANT_OFF(7.0f));
+			// 0: SampleStart marker
+			if(areas[SampleStartArea]->getSampleRange().getLength() != 0)
+			{
+				auto x = playAreaX + (float)areas[SampleStartArea]->getRight();
+				auto c = SampleArea::getAreaColour(SampleStartArea);
+				laf->drawThumbnailMarker(g, *getThumbnail(), x, h, 0, c, areas[SampleStartArea]->isAreaEnabled());
+			}
 
-			auto options = sampler->getSampleMap()->getReleaseStartOptions();
+			// 1: LoopStart marker, 2: LoopEnd marker
+			if(areas[LoopArea]->isVisible())
+			{
+				auto c = SampleArea::getAreaColour(LoopArea);
+				auto enabled = areas[LoopArea]->isAreaEnabled();
+				laf->drawThumbnailMarker(g, *getThumbnail(), playAreaX + (float)areas[LoopArea]->getX(), h, 1, c, enabled);
+				laf->drawThumbnailMarker(g, *getThumbnail(), playAreaX + (float)areas[LoopArea]->getRight(), h, 2, c, enabled);
+			}
 
-			g.setColour(rc.withAlpha(0.2f));
+			// 3: LoopCrossfade marker
+			if(areas[LoopArea]->isVisible() && areas[LoopCrossfadeArea]->getSampleRange().getLength() > 0)
+			{
+				auto c = SampleArea::getAreaColour(LoopCrossfadeArea);
+				auto enabled = areas[LoopCrossfadeArea]->isAreaEnabled();
+				auto isReversed = currentSound->getReferenceToSound(0)->isReversed();
+				auto x = isReversed ? playAreaX + (float)areas[LoopCrossfadeArea]->getRight()
+				                    : playAreaX + (float)areas[LoopCrossfadeArea]->getX();
 
-			auto fadeWidth = roundToInt((double)getWidth() * (double)options->releaseFadeTime / (double)getTotalSampleAmount());
-			Rectangle<float> fadeArea((float)xOffset, 0.0f, (float)fadeWidth, (float)getHeight());
-			g.fillRect(fadeArea.toFloat());
+				laf->drawThumbnailMarker(g, *getThumbnail(), x, h, 3, c, enabled);
+			}
 
-			Path p;
+			// 4: ReleaseStart marker and range
+			#if HISE_SAMPLER_ALLOW_RELEASE_START
+			{
+				auto rs = (int)currentSound->getSampleProperty(SampleIds::ReleaseStart);
 
-			p.startNewSubPath(0.0f, 0.0f);
-			p.quadraticTo(0.5f, std::pow(0.5f, options->fadeGamma), 1.0f, 1.0f);
-			p.scaleToFit(fadeArea.getX(), fadeArea.getY(), fadeArea.getWidth(), fadeArea.getHeight(), false);
-			g.setColour(rc.withAlpha(0.7f));
-			g.strokePath(p, PathStrokeType(1.0f));
+				if(rs != 0)
+				{
+					auto xOffset = (float)roundToInt((double)getWidth() * (rs) / (double)getTotalSampleAmount());
+					auto rc = SampleArea::getReleaseStartColour();
+
+					laf->drawThumbnailMarker(g, *getThumbnail(), xOffset, h, 4, rc, true);
+
+					auto options = sampler->getSampleMap()->getReleaseStartOptions();
+					auto fadeWidth = roundToInt((double)getWidth() * (double)options->releaseFadeTime / (double)getTotalSampleAmount());
+					Rectangle<float> fadeArea(xOffset, 0.0f, (float)fadeWidth, h);
+
+					laf->drawThumbnailRange(g, *getThumbnail(), fadeArea, 4, rc, true, options->fadeGamma);
+				}
+			}
+			#endif
 		}
-
 	}
-	#endif
 
 	if (xPos != -1)
 	{
@@ -877,6 +921,9 @@ void SamplerSoundWaveform::resized()
 	{
 		for (auto a : areas)
 		{
+			if (a == areas[PlayArea])
+				continue;
+
 			a->setVisible(a->isAreaEnabled());
 		}
 	}

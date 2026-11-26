@@ -87,10 +87,12 @@ public:
 		virtual void drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path);
 		virtual void drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const RectangleListType& rectList);
 		virtual void drawTextOverlay(Graphics& g, HiseAudioThumbnail& th, const String& text, Rectangle<float> area);
-        virtual void drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled);
+        virtual void drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled, float gamma = 1.0f, bool reversed = false);
 
 		virtual void drawThumbnailRuler(Graphics& g, HiseAudioThumbnail& te, int xPosition);
-        
+
+		virtual void drawThumbnailMarker(Graphics& g, HiseAudioThumbnail& th, float x, float h, int markerIndex, Colour c, bool enabled);
+
         virtual RenderOptions getThumbnailRenderOptions(HiseAudioThumbnail& te, const RenderOptions& defaultRenderOptions);
 	};
 
@@ -265,6 +267,7 @@ public:
 		outlineColour,
 		fillColour,
 		textColour,
+		itemColour3Id,
 		numColourIds,
 	};
 
