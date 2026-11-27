@@ -49,12 +49,14 @@ public:
 	enum InternalChains
 	{
 		SaturationChain = 0,
+		WetChain,
 		numInternalChains
 	};
 
 	enum EditorStates
 	{
 		SaturationChainShown = Processor::numEditorStates,
+		WetChainShown,
 		numEditorStates
 	};
 
@@ -75,13 +77,22 @@ public:
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 	float getAttribute(int parameterIndex) const override;
 
+	ModulationDisplayValue::QueryFunction::Ptr getModulationQueryFunction(int parameterIndex) const override;
+
 	void restoreFromValueTree(const ValueTree &v) override;;
 	ValueTree exportAsValueTree() const override;
 
 	bool hasTail() const override { return false; };
 
-	Processor *getChildProcessor(int /*processorIndex*/) override { return saturationChain; };
-	const Processor *getChildProcessor(int /*processorIndex*/) const override { return saturationChain; };
+	Processor *getChildProcessor(int processorIndex) override
+	{
+		return processorIndex == WetChain ? wetChain : saturationChain;
+	};
+
+	const Processor *getChildProcessor(int processorIndex) const override
+	{
+		return processorIndex == WetChain ? wetChain : saturationChain;
+	};
 	int getNumInternalChains() const override { return numInternalChains; };
 	int getNumChildProcessors() const override { return numInternalChains; };
 
@@ -100,6 +111,7 @@ private:
 	Saturator saturator;
 
 	ModulatorChain* saturationChain;
+	ModulatorChain* wetChain;
 };
 
 

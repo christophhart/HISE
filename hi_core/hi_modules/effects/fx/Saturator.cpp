@@ -64,7 +64,12 @@ hise::ProcessorMetadata SaturatorEffect::createMetadata()
 		.withModulation(Mod(SaturationChain)
 			.withId("Saturation Modulation")
 			.withDescription("Modulates the saturation amount")
-			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly));
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly))
+		.withModulation(Mod(WetChain)
+			.withId("Wet Modulation")
+			.withDescription("Modulates the dry/wet mix")
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly)
+			.withModulatedParameter(WetAmount));
 }
 
 SaturatorEffect::SaturatorEffect(MainController *mc, const String &uid) :
@@ -75,22 +80,42 @@ SaturatorEffect::SaturatorEffect(MainController *mc, const String &uid) :
 	preGain(1.0f),
     postGain(1.0f)
 {
+	modChains.reserve(InternalChains::numInternalChains);
+
 	modChains += {this, "Saturation Modulation"};
+	modChains += {this, "Wet Modulation"};
 
 	finaliseModChains();
 
 	saturationChain = modChains[InternalChains::SaturationChain].getChain();
+	wetChain = modChains[InternalChains::WetChain].getChain();
 
 	modChains[InternalChains::SaturationChain].setExpandToAudioRate(true);
 	modChains[InternalChains::SaturationChain].setAllowModificationOfVoiceValues(true);
+	modChains[InternalChains::WetChain].setExpandToAudioRate(true);
 
 	updateParameterSlots();
 
 	editorStateIdentifiers.add("SaturationChainShown");
+	editorStateIdentifiers.add("WetChainShown");
 
 	saturator.setSaturationAmount(0.0f);
 
 	saturationChain->setFactoryType(new TimeVariantModulatorFactoryType(Modulation::GainMode, this));
+	wetChain->setFactoryType(new TimeVariantModulatorFactoryType(Modulation::GainMode, this));
+
+	auto tmp = WeakReference<Processor>(this);
+
+	wetChain->setTableValueConverter([tmp](float input)
+	{
+		if (tmp)
+		{
+			auto v = tmp->getAttribute(SaturatorEffect::Parameters::WetAmount) * input;
+			return String(roundToInt(v * 100.0f)) + "%";
+		}
+
+		return Table::getDefaultTextValue(input);
+	});
 }
 
 void SaturatorEffect::setInternalAttribute(int parameterIndex, float newValue)
@@ -139,6 +164,13 @@ float SaturatorEffect::getAttribute(int parameterIndex) const
 	return 0.0f;
 }
 
+ModulationDisplayValue::QueryFunction::Ptr SaturatorEffect::getModulationQueryFunction(int parameterIndex) const
+{
+	if (parameterIndex == WetAmount)
+		return new ModulatorChain::GetModulationOutput<(int)InternalChains::WetChain>();
+
+	return nullptr;
+}
 
 void SaturatorEffect::restoreFromValueTree(const ValueTree &v)
 {
@@ -180,33 +212,27 @@ ProcessorEditorBody * SaturatorEffect::createEditor(ProcessorEditor *parentEdito
 
 void SaturatorEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples)
 {
-    float *l = buffer.getWritePointer(0, startSample);
+	float *l = buffer.getWritePointer(0, startSample);
 	float *r = buffer.getWritePointer(1, startSample);
 
-	if (auto modValues = modChains[SaturationChain].getReadPointerForVoiceValues(startSample))
+	auto satValues = modChains[SaturationChain].getReadPointerForVoiceValues(startSample);
+	auto wetValues = modChains[WetChain].getReadPointerForVoiceValues(startSample);
+
+	if (satValues == nullptr)
+		saturator.setSaturationAmount(modChains[SaturationChain].getConstantModulationValue() * saturation);
+
+	const float constantWet = wet * modChains[WetChain].getConstantModulationValue();
+
+	for (int i = 0; i < numSamples; i++)
 	{
-		for (int i = 0; i < numSamples; i++)
-		{
-			if (i & 7)
-			{
-				saturator.setSaturationAmount(modValues[i] * saturation);
-			}
+		if (satValues != nullptr && (i & 7) == 0)
+			saturator.setSaturationAmount(satValues[i] * saturation);
 
-			l[i] = dry * l[i] + wet * (postGain * saturator.getSaturatedSample(preGain*l[i]));
-			r[i] = dry * r[i] + wet * (postGain * saturator.getSaturatedSample(preGain*r[i]));
-		}
-	}
-	else
-	{
-		const float modValue = modChains[SaturationChain].getConstantModulationValue();
+		const float thisWet = wetValues != nullptr ? wet * wetValues[i] : constantWet;
+		const float thisDry = 1.0f - thisWet;
 
-		saturator.setSaturationAmount(modValue * saturation);
-
-		for (int i = 0; i < numSamples; i++)
-		{
-			l[i] = dry * l[i] + wet * (postGain * saturator.getSaturatedSample(preGain*l[i]));
-			r[i] = dry * r[i] + wet * (postGain * saturator.getSaturatedSample(preGain*r[i]));
-		}
+		l[i] = thisDry * l[i] + thisWet * (postGain * saturator.getSaturatedSample(preGain*l[i]));
+		r[i] = thisDry * r[i] + thisWet * (postGain * saturator.getSaturatedSample(preGain*r[i]));
 	}
 }
 } // namespace hise
