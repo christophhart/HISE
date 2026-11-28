@@ -148,7 +148,9 @@ PolyFilterEffect::PolyFilterEffect(MainController *mc, const String &uid, int nu
 		if (t != nullptr)
 		{
 			auto g = t->getAttribute(PolyFilterEffect::Parameters::Gain);
-			auto v = (input - 0.5f) * 2.0f * g;
+			// Must match the DSP in applyEffect() / renderNextBlock(): the resulting
+			// filter gain in dB is Gain * modValue (0 = flat, 1 = full Gain).
+			auto v = input * g;
 			return String(v, 1) + " dB";
 		}
 
